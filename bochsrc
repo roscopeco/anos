@@ -1,0 +1,4 @@
+display_library: sdl2
+floppya: 1_44=floppy.img, status=inserted
+cpu: model=core2_penryn_t9600, count=1, ips=50000000, reset_on_triple_fault=1, ignore_bad_msrs=1, msrs="msrs.def"
+
