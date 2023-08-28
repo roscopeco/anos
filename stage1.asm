@@ -15,6 +15,7 @@ BPB:
   jmp start
   
   ; bpb
+  db  0                                 ; Padding byte
   db  "A N O S "                        ; OEM Name
   dw  512                               ; Bytes per sector
   db  1                                 ; Sectors per cluster
@@ -70,10 +71,9 @@ bits 32
 main:
   mov ax,0x10             ; Set ax to 0x10 - offset of segment 2, the data segment...
   mov ds,ax               ; and set DS to that..
+  mov es,ax               ; and ES too...
   mov ss,ax               ; as well as SS.
   mov esp,0x9FFFF         ; Stack at top of free memory for now...
-
-  ; TODO Check & enable A20!
 
   mov byte [0xb8000],'Y'  ; Print "Y"
   mov byte [0xb8001],0x1b ; In color
@@ -84,13 +84,83 @@ main:
   mov byte [0xb8006],'O'  ; Print "O"
   mov byte [0xb8007],0x1b ; In color
   
+  call enable_a20
+
+  ; TODO enable paging and set up long-mode
+
 .die:
-  jmp .die                ; Just busywait for now...
-      
-check_a20:
+  cli
+  hlt
+  jmp .die                ; Just halt for now...
+
+
+; Enable the A20 line, unless it's already enabled (in which case,
+; this is a no-op success).
+;
+; Call in protected mode.
+;
+; Modifies: nothing
+;
+enable_a20:
+  push eax                ; Save registers
+
+  call check_a20          ; Check the A20 line
+
+  cmp ax,0                ; Is AX zero?
+  pop eax                 ; Restore registers
+  je  .disabled             
+
+  mov byte [0xb8000],'E'  ; Print "E"
+  mov byte [0xb8001],0xaa ; In color
   ret
 
+.disabled:
+  mov byte [0xb8000],'D'  ; Print "D"
+  mov byte [0xb8001],0xcc ; In color, flash
+
+  ; TODO actually enable, if not already!
+.die
+  cli
+  hlt
+  jmp .die                ; Don't enable, just die for now...
+  
+
+; Is the A20 line enabled?
+;
+; Call in protected mode.
+;
+; Returns: ax = 0 if the A20 line is disabled
+;          ax = 1 if the A20 line is enabled
+;
+; Modifies: ax
+;
+check_a20:
+  push esi                ; Save registers
+  push edi
+
+  mov esi,0x007c07        ; Use the second half of our OEM signature for the check
+  mov edi,0x107c07        ; Address 1MB above
+
+  mov [edi],dword 0x20532055    ; Set different value at higher address
+
+  cmpsd                   ; Compare them
+
+  pop edi                 ; Restore registers
+  pop esi
+
+  jne .is_set
+  xor ax,ax               ; A20 disabled, so clear ax
+  ret
+
+.is_set:
+  mov ax,1                ; A20 enabled, so set ax
+  ret
+
+
 MSG db "Stage 1 starting up...", 10, 13, 0
+DIS db "A20 is disabled", 10, 13, 0
+EN  db "A20 is enabled", 10, 13, 0
+
 GDT:
   ; segment 0 - null
   dq 0
