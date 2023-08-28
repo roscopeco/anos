@@ -1,6 +1,16 @@
+; stage1 - Boot sector stage 1 loader
+; anos - An Operating System
+;
+; Copyright (c) 2023 Ross Bamford
+;
+; Totally for fun and learning, it should work but it's likely wrong
+; in many and subtle ways...
+;
 bits 16
-org 0x7c00
 
+global _start
+
+_start:
 BPB:
   jmp start
   
@@ -31,7 +41,6 @@ BPB:
 start:
   xor ax,ax               ; Zero ax
   mov ds,ax               ; Set up data segments...
-  mov es,ax               ; ... because we'll need them for the message
 
   mov si,MSG              ; Load message
   mov ah,0x0e             ; Set up for int 10 function 0x0e (TELETYPE OUTPUT) 
@@ -78,6 +87,8 @@ main:
 .die:
   jmp .die                ; Just busywait for now...
       
+check_a20:
+  ret
 
 MSG db "Stage 1 starting up...", 10, 13, 0
 GDT:
