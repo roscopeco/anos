@@ -29,7 +29,11 @@ floppy.img: stage1
 	truncate -s 1440k $@
 
 qemu: floppy.img
-	$(QEMU) -drive file=$<,format=raw,index=0,media=disk
+	$(QEMU) -drive file=$<,if=floppy,format=raw,index=0,media=disk
+
+debug-qemu: floppy.img
+	echo "Start gdb: gdb -ex \"target remote localhost:9666\""
+	$(QEMU) -drive file=$<,if=floppy,format=raw,index=0,media=disk -gdb tcp::9666 -S
 
 bochs: floppy.img bochsrc
 	$(BOCHS)
