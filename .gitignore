@@ -1,4 +1,6 @@
 stage1
 floppy.img
 *.o
+*.elf
+*.dis
 

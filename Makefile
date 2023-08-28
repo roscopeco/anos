@@ -1,5 +1,7 @@
 ASM?=nasm
 XLD?=x86_64-elf-ld
+XOBJCOPY?=x86_64-elf-objcopy
+XOBJDUMP?=x86_64-elf-objdump
 QEMU?=qemu-system-x86_64
 BOCHS?=bochs
 
@@ -8,13 +10,19 @@ BOCHS?=bochs
 all: floppy.img
 
 clean:
-	rm -rf *.o stage1 floppy.img
+	rm -rf *.dis *.elf *.o stage1 floppy.img
 
-%.o : %.asm
+%.o: %.asm
 	$(ASM) -f elf64 -o $@ $<
 
-stage1: stage1.o
-	$(XLD) --oformat binary -Ttext=0x7c00 -o $@ $^ 
+%.dis: %.elf
+	$(XOBJDUMP) -D $< > $@
+
+stage1.elf: stage1.o
+	$(XLD) -Ttext=0x7c00 -o $@ $^ 
+
+stage1: stage1.elf stage1.dis
+	$(XOBJCOPY) -O binary $< $@
 
 floppy.img: stage1
 	cp $< $@
