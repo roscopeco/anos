@@ -7,8 +7,11 @@ BOCHS?=bochs
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
-# Base addresses
+# Base addresses; Stage 1
 STAGE_1_ADDR=0x7c00
+
+# Stage 2 at this address leaves 8K for FAT (16 sectors) after stage1
+# Works for floppy, probably won't for anything bigger...
 STAGE_2_ADDR=0x9c00
 
 .PHONY: all clean qemu bochs

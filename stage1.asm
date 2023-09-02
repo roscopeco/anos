@@ -161,8 +161,7 @@ start:
 
   mov   si,bx                             ; Move BUFFER ptr into SI
 
-  ; TODO Fixed load position at 0x9c00, leaves 8K for FAT (16 sectors)
-  ; Works for floppy, probably won't for anything bigger...
+  ; TODO Fixed load position (currently at 0x9c00)
   ;
   mov   bx,STAGE_2_ADDR                   ; Set BX up to load stage 2 at 0x9c00
   pop   dx                                ; Get starting cluster back into DX
@@ -418,7 +417,6 @@ print_sz:
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Data section
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Start of the page tables / top of stack
 %defstr version_str VERSTR
 SEARCH_MSG  db "ANBOOT #",version_str, 0
 NO_FILE     db "E:NF", 10, 13, 0
