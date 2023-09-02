@@ -51,6 +51,48 @@ As part of the build, all the objects are built to ELF format with
 debugging info, and a disassembly file is created. These are then
 stripped to binary
 
+### Running
+
+#### In an emulator
+
+You can use either qemu or Bochs. Obviously you'll need them
+installed. 
+
+> **Note** If you're on Mac and want to use Bochs, it's best to 
+> build your own from source. The one in brew is kinda broken, 
+> in that the display doesn't always work right and the debugger
+> has bad keyboard support (no history etc).
+
+To run in qemu:
+
+```shell
+make qemu
+```
+
+Or Bochs:
+
+```shell
+make bochs
+```
+
+This latter one is really just running `bochs` directly, but will
+also handle building the code and floppy image automatically for 
+you. Of course, you can just run `bochs` directly yourself if 
+you like - I'm not one to judge.
+
+#### On real hardware
+
+If you want to run this on real hardware, you'll need something
+that will either write the `img` file to a floppy as raw sectors,
+or something that can burn bootable USB sticks.
+
+Full disclosure, I haven't tested this on actual hardware yet, 
+and to be honest I'd be pretty surprised if it worked. I _think_
+I've got all the basics covered (retrying disk accesses when they
+fail and enabling A20 are both unnecessary in the emulators, but 
+the code is written and tested as much as I possibly can) but 
+there's every chance things won't work right anyway...
+
 ### Debugging
 
 The recommended way to debug is with qemu. Bochs _is_ still supported,
