@@ -10,26 +10,31 @@
 ;
 ;   * Entry in real mode (from the bios)
 ;     * Prints a message as proof of life (with BIOS routines)
-;     * Sets up the GDT with both 32- and 64-bit code / data segments
-;   * Enables 32-bit protected mode
-;     * Sets up data and stack segments for protected mode
-;     * Prints another message (direct to VGA mem, because, why not?)
-;     * Checks if A20 is enabled, and dies if not (enabling is still TODO!)
-;     * Builds a basic page table to identity-map the first 2MB, so we can...
-;   * Enable 64-bit long mode
-;     * Does a bit more printing (I like printing, okay?)
-;     * halts
+;     * Searches the FAT for STAGE2.BIN
+;       * If found, loads it at 0x9c00 (TODO make this more flexible!)
+;       * Otherwise, prints error message and halts
 ;
 ; What it doesn't:
 ;
-;   * Enable A20 - both emulators I'm using enable it anyway
-;   * Disable IRQ or NMI - works for now on the emulators, but will need it later
-;   * Set up IDT - Didn't want to bother in 32-bit mode, I'll take the triple-faults...
-;
-; It's pretty full (there are like 5 bytes left) so I'll probably split most of
-; this out as stage2 next, and just have this stage1 load that stage2 and go from
-; there...
+;   * Support any drive other than zero
+;   * Check any file attributes or anything
+;   * Much error checking at all really...
+;   * Support anything other than FAT12 (currently, _maybe_ FAT16 in future)
 ; 
+
+%define FAT_FILENAME    0x00
+%define FAT_FILEEXT     0x08
+%define FAT_ATTRS       0x0b
+%define FAT_UNUSED      0x0c
+%define FAT_CTIME_MS    0x0d
+%define FAT_CTIME_FMT   0x0e
+%define FAT_CDATE_FMT   0x10
+%define FAT_ADATE_FMT   0x12
+%define FAT_EADATE      0x14
+%define FAT_MTIME       0x16
+%define FAT_MDATE       0x18
+%define FAT_CLUSTER     0x1a
+%define FAT_FILESIZE    0x1c
 
 global _start
 
@@ -43,295 +48,343 @@ BPB:
   jmp start
   
   ; bpb
-  db  0                                 ; Padding byte
-  db  "A N O S "                        ; OEM Name
-  dw  512                               ; Bytes per sector
-  db  1                                 ; Sectors per cluster
-  dw  1                                 ; Reserved sectors
-  db  1                                 ; Number of FAT tables
-  dw  224                               ; Root dir entries
-  dw  2880                              ; Sector count
-  db  0xf0                              ; Media descriptor
-  dw  9                                 ; Sectors per FAT
-  dw  9                                 ; Sectors per track
-  dw  2                                 ; Heads
-  dw  0                                 ; Hidden sectors
+  ;
+  ; N.B. mtools can change these values, so don't hardcode them
+  ; elsewhere - get them from this mem location instead!
+  ; 
+BPB_PADDING       db  0                 ; Padding byte
+BPB_OEMNAME       db  "A N O S "        ; OEM Name
+BPB_BYTESPERSECT  dw  512               ; Bytes per sector
+BPB_SECTPERCLUST  db  1                 ; Sectors per cluster
+BPB_RESERVEDSECT  dw  1                 ; Reserved sectors
+BPB_FATCOUNT      db  1                 ; Number of FAT tables
+BPB_ROOTENTCOUNT  dw  224               ; Root dir entries
+BPB_SECTCOUNT     dw  2880              ; Sector count
+BPB_MEDIA_DESC    db  0xf0              ; Media descriptor
+BPB_SECTPERFAT    dw  9                 ; Sectors per FAT
+BPB_SECTPERTRACK  dw  9                 ; Sectors per track
+BPB_HEADS         dw  2                 ; Heads
+BPB_HIDDEN        dw  0                 ; Hidden sectors
   
   ; ebpb
-  dw  0                                 ; Hidden sectors (hi)
-  dd  0                                 ; Sectors in filesystem
-  db  0                                 ; Logical drive number
-  db  0                                 ; RESERVED
-  db  0x29                              ; Extended signature
-  dd  0x12345678                        ; Serial number
-  db  "ANOS-DISK01"                     ; Volume Name
-  db  "FAT12"                           ; Filesystem type
+BPB_HIDDEN_HI     dw  0                 ; Hidden sectors (hi)
+BPB_SECTPERFS     dd  0                 ; Sectors in filesystem
+BPB_DRIVENUM      db  0                 ; Logical drive number
+BPB_RESERVED      db  0                 ; RESERVED
+BPB_EXTSIG        db  0x29              ; Extended signature
+BPB_SERIAL        dd  0x12345678        ; Serial number
+BPB_VOLNAME       db  "ANOS-DISK01"     ; Volume Name
+BPB_FSTYPE        db  "FAT12   "        ; Filesystem type
   
 start:
-  jmp 0x0000:.init        ; Far jump in case BIOS jumped here via 0x07c0:0000
+  jmp   0x0000:.init                      ; Far jump in case BIOS jumped here via 0x07c0:0000
+  mov   [bootDrv],dl                      ; Stash boot drive away for later...
 
 .init:
-  xor ax,ax               ; Zero ax
-  mov ds,ax               ; Set up data segment...
+  xor   ax,ax                             ; Zero ax
+  mov   ds,ax                             ; Set up data segment...
+  mov   es,ax                             ; ... and extra segment (floppy read uses this)
 
-  mov si,MSG              ; Load message
-  mov ah,0x0e             ; Set up for int 10 function 0x0e (TELETYPE OUTPUT) 
+  mov   ax,0x7fff                         ; Put stack near top of conventional mem for now...
+  mov   ss,ax                             ; ...
+  mov   sp,0x400                          ; ...
+
+  mov   si,SEARCH_MSG                     ; Load message
+  call  print_sz                          ; And print it
+
+.load:
+  mov   ax,[BPB_BYTESPERSECT]             ; Bytes per sector in AX
+  mov   cx,0x20                           ; Bytes per entry in DX
+  div   word cx                           ; Divide to get entries per sector
+  mov   bx,ax                             ; BX is now entries per sector
+
+  mov   al,[BPB_FATCOUNT]                 ; Number of FATs in AL
+  mul   byte [BPB_SECTPERFAT]             ; Multiply by sectors per FAT
+  add   ax,[BPB_RESERVEDSECT]             ; Add reserved sectors; AX is now root dir first sector
+  push  ax                                ; Stash it for a sec...
+
+  ; TODO does this scale? Is it safe to load the whole root directory?
+  mov   ax,[BPB_ROOTENTCOUNT]             ; Number of root entries in AX
+  div   bx                                ; Divide by entries per sector
+  xor   cx,cx                             ; Zero cx out...
+  mov   cl,al                             ; CX is now number of sectors to load
+
+  pop   ax                                ; Get first sector back into AX
+
+  mov   bx,BUFFER                         ; Buffer location into bx (needs to be at ES:BX)
+  call  read_floppy_sectors               ; Read the sectors
+  jc    .read_error                       ; Read error if carry flag set
+
+  ; Search the root directory for stage2
+  mov   cx,[BPB_ROOTENTCOUNT]             ; Number of root entries in CX
+  mov   di,BUFFER                         ; Start at buffer pointer
+
+  mov   bh,0                              ; Set up a dot for printing
+  mov   ah,0x0e
+  mov   al,'.'                            
+
+.search:
+  int   0x10                              ; Print a dot
+  push  cx                                ; Stash counter
+  mov   cx,11                             ; Names are 11 bytes
+  mov   si,STAGE_2                        ; Comparing with our expected name...
+  push  di                                ; rep will change DI
+  rep cmpsb                               ; Compare strings...
+  pop   di                                ; Restore DI
+  je    .load_stage2                      ; Match - jump to finding the starting cluster
+  pop   cx                                ; Else, restore counter...
+  add   di,0x20                           ; ... advance DI 32-bytes to next filename...
+  loop  .search                           ; ... and loop
+
+  mov   si,NO_FILE                        ; If we're out of entries, load error message
+  jmp   .show_error                       ; Show it, then die...
+
+.load_stage2:
+  mov   si,CRLF                           ; Print loading message...
+  call  print_sz
+
+  mov   dx,[di + FAT_CLUSTER]             ; Get stage2 starting cluster
+
+.load_fat:
+  push  dx                                ; Stash starting cluster
+
+  mov   bx,BUFFER                         ; Loading FAT into the buffer
+  mov   ax,[BPB_RESERVEDSECT]             ; FAT starts after reserved sectors...
+  mov   cx,[BPB_SECTPERFAT]               ; Load the entire FAT
+  mov   dl,[bootDrv]                      ; Load the boot drive...
+
+  call  read_floppy_sectors               ; Read in the FAT
+  jc    .read_error                       ; Error and die if read failed
+
+  cmp   al,cl                             ; Did we read the right number?
+  jne   .read_error                       ; Error and die if not
+
+  mov   si,bx                             ; Move BUFFER ptr into SI
+
+  ; TODO Fixed load position at 0x9c00, leaves 8K for FAT (16 sectors)
+  ; Works for floppy, probably won't for anything bigger...
+  ;
+  mov   bx,0x9c00                         ; Set BX up to load stage 2 at 0x9c00
+  pop   dx                                ; Get starting cluster back into DX
+
+.load_loop:
+  mov   ax,dx                             ; Current cluster number into AX
+  push  dx                                ; Stash DX again (TODO find a more efficient way than this)
+
+  sub   ax,0x02                           ; Subtract 2
+  xor   cx,cx                             ; Clear CX
+  mov   cl,byte [BPB_SECTPERCLUST]        ; Get sectors per cluster...  
+  mul   cx                                ; And multiply; AX now has LBA sector number                                         
+                                          ; and CX has the number of sectors per cluster.
+
+  push  ax                                ; Save AX for a sec
+  mov   ax,[BPB_SECTPERFAT]               ; and load sectors per FAT into it
+  mov   dl,byte [BPB_FATCOUNT]            ; Get FAT count into DL
+  mul   dl                                ; Multiply to get total FAT sectors
+  mov   dx,[BPB_RESERVEDSECT]             ; Get number of reserved sectors
+  add   dx,ax                             ; Add to get start of data section; now in DX
+  pop   ax                                ; Retrieve relative sector number into AX
+  add   ax,dx                             ; And add to make absolute sector number in AX
+
+  push  cx                                ; Stash CX 
+  push  ax                                ; And stash AX again (and once more, TODO clean this up!)
+  mov   ax,[BPB_BYTESPERSECT]             ; Get bytes per sector into AX
+  mov   cx,0x20                           ; Root entry size into CX
+  xor   dx,dx                             ; Zero out dx
+  div   cx                                ; Divide to get root entries per sector
+
+  mov   cx,ax                             ; Root entries per sector into CX
+  mov   ax,[BPB_ROOTENTCOUNT]             ; Total root entries into AX
+  xor   dx,dx                             ; Zero out dx again
+  div   cx                                ; Divide total root entries by entries per sector for root directory sector count
+
+  sub   cx,0x2                            ; TODO FIGURE OUT WHY THIS IS OFF BY TWO!!!!!1!
+
+  pop   ax                                ; Get sector number back into AX
+  add   ax,cx                             ; Add root dir sector count
+
+  pop   cx                                ; And restore sectors per cluster into CX
+
+  mov   dl,[bootDrv]                      ; Load the boot drive...
+
+  call  read_floppy_sectors               ; Read in this cluster
+
+  pop   dx                                ; Get current cluster back into DX (again 🙄)
+
+  ; TODO Loop for further clusters, just testing at the mo...
+
+  jmp   bx                                ; Go for stage 2...
+
+.read_error:
+  mov   si,READ_ERROR                     ; Load message...
+
+.show_error:
+  push  si
+  mov   si,CRLF
+  call  print_sz
+  pop   si
+  call  print_sz                          ; And print it
+
+.die:
+  cli
+  hlt
+  jmp .die
+
+
+; Print sz string
+;
+; Arguments:
+;   SI - Should point to string
+;
+; Modifies:
+;
+;   SI
+;
+print_sz:
+  push  ax
+  push  bx
+
+  mov   bh,0
+  mov   ah,0x0e                           ; Set up for int 10 function 0x0e (TELETYPE OUTPUT) 
 
 .charloop:
-  lodsb                   ; get next char (increments si too)
-  cmp al,0                ; Is is zero?
-  je  .protect            ; We're done if so...
-  int 0x10                ; Otherwise, print it
-  jmp .charloop           ; And continue testing...
+  lodsb                                   ; get next char (increments si too)
+  cmp   al,0                              ; Is is zero?
+  je    .done                             ; We're done if so...
+  int   0x10                              ; Otherwise, print it
+  jmp   .charloop                         ; And continue testing...
 
-.protect:
-  ; Jump to protected mode
-  cli                     ; No interrupts
-  xor ax,ax               ; zero ax...
-  mov ds,ax               ; and set DS to that zero  
-
-  lgdt [GDT_DESC]         ; Load GDT reg with the descriptor
-
-  mov eax,cr0             ; Get control register 0 into eax
-  or  al,1                ; Set PR bit (enable protected mode)
-  mov cr0,eax             ; And put back into cr0
-
-  jmp 0x08:main32         ; Far jump to main32, use GDT selector at offset 0x08.
+.done:
+  pop   bx
+  pop   ax
+  ret
 
 
-; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; 32-bit section
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-bits 32
-main32:
-  mov ax,0x10             ; Set ax to 0x10 - offset of segment 2, the 32-bit data segment...
-  mov ds,ax               ; and set DS to that..
-  mov es,ax               ; and ES too...
-  mov ss,ax               ; as well as SS.
-  mov esp,PM4_START       ; Stack below page tables (16k below top of free low RAM)
+; Reset floppy drive.
+;
+; On return, if carry is set, the operation failed...
+;
+reset_floppy:
+  push  dx                               ; Save registers
+  push  cx
+  push  ax
 
-  mov byte [0xb8000],'Y'  ; Print "Y"
-  mov byte [0xb8001],0x1b ; In color
-  mov byte [0xb8002],'O'  ; Print "O"
-  mov byte [0xb8003],0x1b ; In color
-  mov byte [0xb8004],'L'  ; Print "L"
-  mov byte [0xb8005],0x1b ; In color
-  mov byte [0xb8006],'O'  ; Print "O"
-  mov byte [0xb8007],0x1b ; In color
+  mov   cl,0x04                           ; three tries (we decrement first, so +1)
+
+.reset:
+  dec   cl                                ; Decrement cl, without changing carry
+  jz    .done                             ; Tries exhausted if zero
+
+  mov   ah,0                              ; Function 0
+  mov   dl,0                              ; Drive zero (TODO hardcoded!)
+  int   0x13                              ; Int 0x13 for disks
+  jc    .reset                            ; If carry, error, so loop and try again...
+
+.done:
+  pop   ax                                ; Restore regs
+  pop   cx
+  pop   dx
+  ret
+
+
+; Read floppy sectors
+;
+; Arguments:
+;   AX - Sector num
+;   CL - Sector count
+;   DL - Drive
+;   ES:BX - Buffer
+;
+; Modifies:
+;   AH - Status code
+;   AL - Sector count
+;   CF - Set on error (AX values are not valid in this case!)
+;
+read_floppy_sectors:
+  push  dx                                ; Save regs
+  push  cx
+
+  call  reset_floppy                      ; Try to reset
+  jc    .done                             ; If we can't reset, just give up
+
+  push  cx
+  call  lba_to_chs                        ; Convert LBA sector in AX to CHS in correct registers for BIOS
+  pop   ax
+
+  mov   ah,0x04                           ; three tries (we decrement first, so +1)
+
+.read:
+  dec   ah                                ; Decrement tries, without changing carry
+  jz    .done                             ; Tries exhausted if zero
   
-  call enable_a20         ; Enable A20 gate
-  call init_page_tables   ; Init basic (identity) page tables for long-mode switch
-  jmp go_long
+  push  ax                                ; Save current tries count
+  mov   ah,0x02                           ; Function 2
 
-.die:
-  hlt
-  jmp .die                ; Just halt for now...
+  int   0x13                              ; Int 0x13 for disks
 
+  mov   [.result],ax                      ; Save result for a sec
+  pop   ax                                ; Tries count back into ah
+  jc    .read                             ; If carry, error, so loop and try again...
 
-; Enable the A20 line, unless it's already enabled (in which case,
-; this is a no-op success).
-;
-; Call in protected mode.
-;
-; Modifies: nothing
-;
-enable_a20:
-  push eax                ; Save registers
-
-  call check_a20          ; Check the A20 line
-
-  cmp ax,0                ; Is AX zero?
-  pop eax                 ; Restore registers
-  je  .disabled             
-
-  mov byte [0xb8000],'E'  ; Print "E"
-  mov byte [0xb8001],0x2a ; In color
+.done:
+  pop   cx                                ; Restore regs
+  pop   dx                          
+  mov   ax,[.result]                      ; Restore result and done
   ret
+.result   dw  0
 
-.disabled:
-  mov byte [0xb8000],'D'  ; Print "D"
-  mov byte [0xb8001],0x4c ; In color
 
-  ; TODO actually enable, if not already!
-.die:
-  hlt
-  jmp .die                ; Don't enable, just die for now...
-  
-
-; Is the A20 line enabled?
+; Convert LBA to CHS for floppy (only!)
+; 
+; Arguments:
 ;
-; Call in protected mode.
+;   AX - LBA sector num
 ;
-; Returns: ax = 0 if the A20 line is disabled
-;          ax = 1 if the A20 line is enabled
+; Modifies:
 ;
-; Modifies: ax
-;
-check_a20:
-  push esi                ; Save registers
-  push edi
+;   CH - Track number (low order 8 bits)
+;   CL - Sector number (max 5 bits)
+;   DH - Head number
+; 
+lba_to_chs:
+  push  ax                                ; Save regs
+  push  bx
 
-  mov esi,0x007c07        ; Use the second half of our OEM signature for the check
-  mov edi,0x107c07        ; Address 1MB above
+  mov   bx,dx                             ; Stash DX (for drive number) in BX
 
-  mov [edi],dword 0x20532055    ; Set different value at higher address
+  xor   dx,dx                             ; Zero DX for div
+  div   word [BPB_SECTPERTRACK]           ; divide by sectors per track
+  inc   dl                                ; add 1 for 1-based sector
+  mov   cl,dl                             ; CL is now sector number
 
-  cmpsd                   ; Compare them
+  xor   dx,dx                             ; Zero DX again for another div
+  div   word [BPB_HEADS]                  ; mod previous result by number of heads
+  mov   dh,dl                             ; Remainder of that is head number
+  mov   ch,al                             ; And result is cylinder number
 
-  pop edi                 ; Restore registers
-  pop esi
+  mov   dl,bl                             ; Put drive number back into DL
 
-  jne .is_set
-  xor ax,ax               ; A20 disabled, so clear ax
+  pop   bx                                ; Restore regs
+  pop   ax
   ret
-
-.is_set:
-  mov ax,1                ; A20 enabled, so set ax
-  ret
-
-
-; Initialise the initial page tables ready for long mode. Just identity maps
-; the bottom 2MB for the switch - proper tables will be set up later...
-;
-; Call in protected mode.
-;
-; Modifies: Nothing
-init_page_tables:
-  push eax                ; Save registers
-  push ecx
-  push edi
-
-  ; Zero out the page table memory
-  mov eax,0               ; Value is zero
-  mov ecx,0x4000 / 4      ; Count is number of dwords
-  mov edi,PM4_START       ; Start at table start
-  rep stosd               ; Zero
-
-  ; Set up a single PM4 entry, pointing to the PDP
-  mov eax,PDP_START | PRESENT | WRITE
-  mov [PM4_START], eax
-
-  ; Set up a single PDPT entry, pointing to the PD
-  mov eax,PD_START | PRESENT | WRITE
-  mov [PDP_START], eax
-
-  ; Set up a single PD entry, pointing to PT
-  mov eax,PT_START | PRESENT | WRITE
-  mov [PD_START], eax
-
-  ; Set up the page table to map the first 2MB
-  mov eax,PRESENT | WRITE ; Start at addr 0, PRESENT | WRITE
-  mov edi,PT_START        ; Filling the PT from the beginning
-
-.pt_loop: 
-  mov [edi],eax           ; Move current eax (address and flags) into the current PTE
-  add eax,0x1000          ; Add 4K to eax, to point to the next table
-  add edi,8               ; Move pointer to next PTE
-  cmp eax, 0x200000       ; Have we done 2MB?
-  jb  .pt_loop            ; Keep looping if not...
-
-  pop edi                 ; Restore registers and done
-  pop ecx
-  pop eax
-  ret
-
-
-; Go long mode. This jumps to main64 at the end, so it's noreturn.
-; Just jump to it rather than calling it :) 
-go_long:  
-  mov eax,0b10100000      ; Set PAE and PGE bits
-  mov cr4,eax
-
-  mov eax,PM4_START       ; Load PML3 into cr3
-  mov cr3,eax
-
-  mov ecx,0xC0000080      ; Read EFER MSR
-  rdmsr
-
-  or eax,0x100            ; Set the long-mode enable bit
-  wrmsr                   ; and write back to EFER MSR
-
-  mov eax,cr0             ; Activate paging to go full long mode
-  or  eax,0x80000000      ; (we're already in protected mode)
-  mov cr0,eax
-
-  jmp 0x18:main64         ; Go go go
-
-
-; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; 64-bit section
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-bits 64
-main64:
-  mov ax,0x20             ; Set ax to 0x20 - offset of segment 4, the 64-bit data segment...
-  mov ds,ax               ; and set DS to that..
-  mov es,ax               ; and ES too...
-  mov ss,ax               ; as well as SS.
-  mov rsp,PM4_START       ; Stack below page tables (16k below top of free low RAM)
-
-  mov byte [0xb8002],'L'  ; Print "L"
-  mov byte [0xb8003],0x2a ; In color
-
-.die:
-  hlt
-  jmp .die                ; Just die for now...
 
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Data section
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Start of the page tables / top of stack
-PM4_START   equ 0x9c000
-PDP_START   equ 0x9d000
-PD_START    equ 0x9e000
-PT_START    equ 0x9f000
+%defstr version_str VERSTR
+SEARCH_MSG  db "ANBOOT #",version_str,"; Loading stage 2", 0
+NO_FILE     db "Stage 2 not found; Halting.", 10, 13, 0
+READ_ERROR  db "Read error; Halting.", 10, 13, 0
+CRLF        db 10, 13, 0
+STAGE_2     db "STAGE2  BIN"
 
-PRESENT     equ (1 << 0)
-WRITE       equ (1 << 1)
+bootDrv     db  0
 
-MSG db "Stage 1 starting up...", 10, 13, 0
+align 2
 
-GDT:
-  ; segment 0 - null
-  dq 0
-
-  ; segment 1 - 32-bit code
-  dw 0xFFFF               ; limit 4GB
-  dw 0                    ; Base (bits 0-15) - 0
-  db 0                    ; Base (bits 15-23) - 0
-  db 0b10011010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 1 = Executable, 0 = Nonconforming, 1 = Readable, 0 = Accessed
-  db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
-  db 0                    ; Base (bits 23-31) - 0
-
-  ; segment 2 - 32-bit data
-  dw 0xFFFF               ; limit 4GB
-  dw 0                    ; Base (bits 0-15) - 0
-  db 0                    ; Base (bits 15-23) - 0
-  db 0b10010010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 0 = Non-Executable, 0 = Grows up, 1 = Writeable, 0 = Accessed
-  db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
-  db 0                    ; Base (bits 23-31) - 0
-
-  ; segment 1 - 64-bit code
-  dw 0xFFFF               ; limit 4GB
-  dw 0                    ; Base (bits 0-15) - 0
-  db 0                    ; Base (bits 15-23) - 0
-  db 0b10011010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 1 = Executable, 0 = Nonconforming, 1 = Readable, 0 = Accessed
-  db 0b10101111           ; Flags + Limit: 1 = 4k granularity, 0 = 16-bit, 1 = Long mode, 0 = reserved (for our use)
-  db 0                    ; Base (bits 23-31) - 0
-
-  ; segment 2 - 64-bit data
-  dw 0xFFFF               ; limit 4GB
-  dw 0                    ; Base (bits 0-15) - 0
-  db 0                    ; Base (bits 15-23) - 0
-  db 0b10010010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 0 = Non-Executable, 0 = Grows up, 1 = Writeable, 0 = Accessed
-  db 0b10101111           ; Flags + Limit: 1 = 4k granularity, 0 = 16-bit, 1 = Llong mode, 0 = reserved (for our use)
-  db 0                    ; Base (bits 23-31) - 0
-
-GDT_DESC:
-  ; GDT Descriptor
-  dw  GDT_DESC-GDT-1      ; Size (computed from here - start)
-  dd  GDT                 ; Address (GDT, above)
-
-  times 510-($-$$) nop
-  dw  0xaa55
+BUFFER:
+times 510-($-$$) nop
+dw  0xaa55
 
