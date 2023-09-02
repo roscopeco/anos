@@ -73,7 +73,7 @@ BPB_DRIVENUM      db  0                 ; Logical drive number
 BPB_RESERVED      db  0                 ; RESERVED
 BPB_EXTSIG        db  0x29              ; Extended signature
 BPB_SERIAL        dd  0x12345678        ; Serial number
-BPB_VOLNAME       db  "ANOS-DISK01"     ; Volume Name
+BPB_VOLNAME       db  "ANOSDISK001"     ; Volume Name
 BPB_FSTYPE        db  "FAT12   "        ; Filesystem type
   
 start:
@@ -164,7 +164,7 @@ start:
   ; TODO Fixed load position at 0x9c00, leaves 8K for FAT (16 sectors)
   ; Works for floppy, probably won't for anything bigger...
   ;
-  mov   bx,0x9c00                         ; Set BX up to load stage 2 at 0x9c00
+  mov   bx,STAGE_2_ADDR                   ; Set BX up to load stage 2 at 0x9c00
   pop   dx                                ; Get starting cluster back into DX
 
 .load_loop:
@@ -210,10 +210,17 @@ start:
   call  read_floppy_sectors               ; Read in this cluster
 
   pop   dx                                ; Get current cluster back into DX (again 🙄)
+  call  next_cluster                      ; Else, replace dx with next cluster...
 
-  ; TODO Loop for further clusters, just testing at the mo...
+  cmp   dx,0xFFF                          ; Is this the last cluster?
+  je    .load_done                        ; Done if so
 
-  jmp   bx                                ; Go for stage 2...
+  add   bx,0x200                          ; Else move buffer pointer to start of next sector...
+  jmp   .load_loop                        ; ... and loop
+
+.load_done:
+  mov   bx,STAGE_2_ADDR                   ; Go for stage 2...
+  jmp   bx
 
 .read_error:
   mov   si,READ_ERROR                     ; Load message...
@@ -231,33 +238,43 @@ start:
   jmp .die
 
 
-; Print sz string
+; Get next cluster in FAT chain
 ;
 ; Arguments:
-;   SI - Should point to string
+;   DX - Current cluster
 ;
 ; Modifies:
+;   Nothing
 ;
-;   SI
-;
-print_sz:
-  push  ax
+next_cluster:
+  push  ax                                ; Save registers
   push  bx
+  push  cx
 
-  mov   bh,0
-  mov   ah,0x0e                           ; Set up for int 10 function 0x0e (TELETYPE OUTPUT) 
+  mov   ax,dx                             ; Copy current cluster
+  mov   cx,dx                             ; Twice...
+  shr   dx,0x01                           ; Divide cluster by 2
+  add   cx,dx                             ; And add it to get byte offset in FAT into CX
 
-.charloop:
-  lodsb                                   ; get next char (increments si too)
-  cmp   al,0                              ; Is is zero?
-  je    .done                             ; We're done if so...
-  int   0x10                              ; Otherwise, print it
-  jmp   .charloop                         ; And continue testing...
+  mov   bx,BUFFER                         ; FAT buffer pointer in BX
+  add   bx,cx                             ; Offset to first FAT byte for cluster
+  mov   dx,word [bx]                      ; Fetch a word
+
+  test  ax,0x01                           ; Is it odd?
+  jz    .even                             ; Nope, go deal with that...
+
+.odd:
+  shr   dx,0x4                            ; Else, yes! Discard low four bits
+  jmp   .done
+
+.even:
+  and   dx,0x0FFF                         ; Even - Mask off high four bits
 
 .done:
+  pop   cx                                ; Restore regs
   pop   bx
   pop   ax
-  ret
+  ret                                     ; And we're done
 
 
 ; Reset floppy drive.
@@ -369,14 +386,43 @@ lba_to_chs:
   ret
 
 
+; Print sz string
+;
+; Arguments:
+;   SI - Should point to string
+;
+; Modifies:
+;
+;   SI
+;
+print_sz:
+  push  ax
+  push  bx
+
+  mov   bh,0
+  mov   ah,0x0e                           ; Set up for int 10 function 0x0e (TELETYPE OUTPUT)
+
+.charloop:
+  lodsb                                   ; get next char (increments si too)
+  cmp   al,0                              ; Is is zero?
+  je    .done                             ; We're done if so...
+  int   0x10                              ; Otherwise, print it
+  jmp   .charloop                         ; And continue testing...
+
+.done:
+  pop   bx
+  pop   ax
+  ret
+
+
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Data section
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Start of the page tables / top of stack
 %defstr version_str VERSTR
-SEARCH_MSG  db "ANBOOT #",version_str,"; Loading stage 2", 0
-NO_FILE     db "Stage 2 not found; Halting.", 10, 13, 0
-READ_ERROR  db "Read error; Halting.", 10, 13, 0
+SEARCH_MSG  db "ANBOOT #",version_str, 0
+NO_FILE     db "E:NF", 10, 13, 0
+READ_ERROR  db "E:RE", 10, 13, 0
 CRLF        db 10, 13, 0
 STAGE_2     db "STAGE2  BIN"
 

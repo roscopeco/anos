@@ -25,9 +25,15 @@
 ;   * Enable A20 - both emulators I'm using enable it anyway
 ;   * Disable IRQ or NMI - works for now on the emulators, but will need it later
 ;   * Set up IDT - Didn't want to bother in 32-bit mode, I'll take the triple-faults...
+;
+; Notes:
+;
+;   * As implemented, this **must** be loaded into segment 0x0!
+;     * If I want to change that, I'll need to either change the segment bases for 32/64 bits,
+;       or have separate sections that are linked at different base addresses in an LD script...
+;
 
-
-global _start
+global _start                             ; Shut up NASM, I (imagine I) know what I'm doing... 🙄🤣
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; 16-bit section
@@ -36,6 +42,10 @@ bits 16
 
 _start:
   jmp   _continue
+
+_waste:                                   ; TODO remove this!
+times 512 nop                             ; This is just here to make it larger than one sector,
+                                          ; to test the FAT cluster chain code in stage1...
 
 _continue:
   xor   ax,ax                             ; Zero ax
@@ -54,8 +64,6 @@ _continue:
 .protect:
   ; Jump to protected mode
   cli                                     ; No interrupts
-  ; xor ax,ax                             ; zero ax...
-  ; mov ds,ax                             ; and set DS to that zero  
 
   lgdt  [GDT_DESC]                        ; Load GDT reg with the descriptor
 
