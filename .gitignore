@@ -1,6 +1,7 @@
 stage1
 stage2
 floppy.img
+fat
 *.o
 *.elf
 *.dis
