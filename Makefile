@@ -22,7 +22,7 @@ clean:
 	rm -rf *.dis *.elf *.o stage1 stage2 floppy.img
 
 %.o: %.asm
-	$(ASM) -DVERSTR=$(SHORT_HASH) -DSTAGE_2_ADDR=$(STAGE_2_ADDR) -f elf64 -o $@ $<
+	$(ASM) -DVERSTR=$(SHORT_HASH) -DSTAGE_2_ADDR=$(STAGE_2_ADDR) -f elf64 -F dwarf -g -o $@ $<
 
 stage1.dis: stage1.elf
 	$(XOBJDUMP) -D -mi386 -Maddr16,data16 $< > $@
@@ -49,11 +49,13 @@ floppy.img: stage1 stage2
 	mcopy -i $@ stage2 ::stage2.bin
 
 qemu: floppy.img
-	$(QEMU) -drive file=$<,if=floppy,format=raw,index=0,media=disk
+	$(QEMU) -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac
 
-debug-qemu: floppy.img
-	echo "Start gdb: gdb -ex \"target remote localhost:9666\""
-	$(QEMU) -drive file=$<,if=floppy,format=raw,index=0,media=disk -gdb tcp::9666 -S
+debug-qemu-start: floppy.img
+	$(QEMU) -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -gdb tcp::9666 -S &
+
+debug-qemu: debug-qemu-start
+	gdb
 
 bochs: floppy.img bochsrc
 	$(BOCHS)
