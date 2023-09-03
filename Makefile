@@ -6,7 +6,7 @@ QEMU?=qemu-system-x86_64
 XCC?=x86_64-elf-gcc
 BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
-CFLAGS=-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -g
+CFLAGS=-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -fno-asynchronous-unwind-tables -g
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -33,7 +33,7 @@ all: floppy.img
 clean:
 	rm -rf $(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 			\
 	       $(STAGE2_DIR)/*.dis $(STAGE2_DIR)/*.elf $(STAGE2_DIR)/*.o 			\
-		   $(STAGE1_BIN) $(STAGE2_BIN) $(FLOPPY_IMG)
+		   $(STAGE2_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) $(FLOPPY_IMG)
 
 %.o: %.asm
 	$(ASM) -DVERSTR=$(SHORT_HASH) -DSTAGE_2_ADDR=$(STAGE_2_ADDR) $(ASFLAGS) -o $@ $<
@@ -49,18 +49,18 @@ $(STAGE1_DIR)/$(STAGE1).elf: $(STAGE1_DIR)/$(STAGE1).o
 	chmod a-x $@
 
 $(STAGE1_DIR)/$(STAGE1_BIN): $(STAGE1_DIR)/$(STAGE1).elf $(STAGE1_DIR)/$(STAGE1).dis
-	$(XOBJCOPY) -O binary $< $@
+	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
 
 $(STAGE2_DIR)/$(STAGE2).dis: $(STAGE2_DIR)/$(STAGE2).elf
 	$(XOBJDUMP) -D -mi386 -Maddr32,data32 $< > $@
 
 $(STAGE2_DIR)/$(STAGE2).elf: $(STAGE2_DIR)/$(STAGE2).o $(STAGE2_DIR)/$(STAGE2)_ctest.o
-	$(XLD) -Ttext=$(STAGE_2_ADDR) -o $@ $^
+	$(XLD) -T $(STAGE2_DIR)/$(STAGE2).ld -o $@ $^
 	chmod a-x $@
 
 $(STAGE2_DIR)/$(STAGE2_BIN): $(STAGE2_DIR)/$(STAGE2).elf $(STAGE2_DIR)/$(STAGE2).dis
-	$(XOBJCOPY) -O binary $< $@
+	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
 
 $(FLOPPY_IMG): $(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN)

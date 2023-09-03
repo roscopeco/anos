@@ -39,6 +39,9 @@
 ;
 
 global _start                             ; Shut up NASM, I (imagine I) know what I'm doing... 🙄🤣
+extern _code_end                          ; Linker defined symbols
+extern _data_start, _data_end             ; ...
+extern _bss_start, _bss_end               ; ...
 extern stage2_ctest                       ; Defined in stage2_ctest.c
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -464,11 +467,67 @@ main64:
   mov   byte [0xb8002],'L'                ; Print "L"
   mov   byte [0xb8003],0x2a               ; In color
 
-  call  stage2_ctest
+  call  init_c_land                       ; Init basic C context - just .data and .bss at the moment
+  call  stage2_ctest                      ; Call out to C - N.B. This can stomp a bunch of registers!
+                                          ; §3.4 - https://uclibc.org/docs/psABI-x86_64.pdf
 
 .die:
   hlt
-  jmp   .die                ; Just die for now...
+  jmp   .die                              ; Just die for now...
+
+
+; Initialize C-land: copy data and zero BSS...
+;
+; Modifies: nothing
+;
+init_c_land:
+  push  rax                               ; Save registers
+  push  rbx
+  push  rcx
+  push  rdx
+
+  mov   rcx,_bss_end                      ; Get end of .bss section (VMA)
+  mov   rax,_bss_start                    ; Get start of .bss section (VMA)
+  sub   rcx,rax                           ; Compute length of .bss (bytes) in RCX
+  shr   rcx,0x2                           ; Divide by 4 (we're zeroing dwords)
+  push  rcx                               ; Stash this away for later...
+
+  mov   rcx,_data_end                     ; Get end of .data section (VMA)
+  mov   rax,_data_start                   ; Get start of .data section (VMA)
+  sub   rcx,rax                           ; Compute length of .data (bytes) in RCX
+  shr   rcx,0x2                           ; Divide by 4 (we're copying dwords)
+
+  test  rcx,rcx                           ; Do we have zero-size .data?
+  jz    .zero_bss                         ; Skip to zero BSS if so...
+
+  mov   rbx,_code_end                     ; End of .text (i.e. start of loaded .data) into rbx
+.copy_data:
+  mov   edx, dword [rbx]                  ; Read from end of .text
+  mov   dword [rax],edx                   ; Write to VMA of .data
+  add   rax,0x4                           ; increment write pointer by one dword
+  add   rbx,0x4                           ; increment read pointer by one dword
+  dec   rcx                               ; Decrement loop counter
+  jnz   .copy_data                        ; Loop until CX is zero
+
+.zero_bss:
+  pop   rcx                               ; pop bss size back into RCX
+  test  rcx,rcx                           ; Do we have zero-size .bss?
+  jz    .done                             ; We're done if so...
+
+  mov   rbx,_bss_start                    ; bss start (VMA) into rbx
+.zero_bss_loop:
+  mov   dword [rbx],0x0                   ; Clear one dword
+  add   rbx,0x4                           ; Increment write pointer
+  dec   rcx                               ; Decrement loop counter
+  jnz   .zero_bss_loop                    ; Loop until CX is zero
+
+.done:
+  pop   rdx                               ; Restore registers
+  pop   rcx
+  pop   rbx
+  pop   rax
+  ret
+
 
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

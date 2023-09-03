@@ -6,11 +6,15 @@
  * C to work...
  */
 
+// these will end up in bss
 static char *vram = (char*)0xb8000;
 static char *MSG = "Made it to C";
 
+// this will end up in bss
+static char *msgp;
+
 void stage2_ctest() {
-    char *msgp = MSG;
+    msgp = MSG;
     int vrptr = 160;
 
     while (*msgp) {
