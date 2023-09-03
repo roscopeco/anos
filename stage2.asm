@@ -3,13 +3,19 @@
 ;
 ; Copyright (c) 2023 Ross Bamford
 ;
-; Second-stage loader. Stage 1 loads this at 0x7e00 and goes
-; from there...
+; Second-stage loader. Stage 1 loads this at 0x9c00 and goes from there...
+;
+; What it expects:
+;
+;   * Entry point at 0x0000:9c00 in real mode
+;   * Real-mode segments set up (including a small, usable stack somewhere)
+;   * Interrupts disabled
 ; 
 ; What it does:
 ;
 ;   * Entry in real mode (from stage1)
 ;     * Prints a message as proof of life (with BIOS routines)
+;     * Checks the CPU supports long mode (and dies with a message if not)
 ;     * Sets up the GDT with both 32- and 64-bit code / data segments
 ;   * Enables 32-bit protected mode
 ;     * Sets up data and stack segments for protected mode
@@ -22,7 +28,6 @@
 ;
 ; What it doesn't:
 ;
-;   * Enable A20 - both emulators I'm using enable it anyway
 ;   * Disable IRQ or NMI - works for now on the emulators, but will need it later
 ;   * Set up IDT - Didn't want to bother in 32-bit mode, I'll take the triple-faults...
 ;
@@ -41,30 +46,20 @@ global _start                             ; Shut up NASM, I (imagine I) know wha
 bits 16
 
 _start:
-  jmp   _continue
-
-_waste:                                   ; TODO remove this!
-times 512 nop                             ; This is just here to make it larger than one sector,
-                                          ; to test the FAT cluster chain code in stage1...
-
-_continue:
   xor   ax,ax                             ; Zero ax
   mov   ds,ax                             ; Set up data segment...
 
   mov   si,MSG                            ; Load message
-  mov   ah,0x0e                           ; Set up for int 10 function 0x0e (TELETYPE OUTPUT) 
+  call  real_print_sz                     ; And print it...
+  call  guard_386                         ; Ensure we have at least a 386 processor before doing 32-bit stuff
 
-.charloop:
-  lodsb                                   ; get next char (increments si too)
-  cmp   al,0                              ; Is is zero?
-  je    .protect                          ; We're done if so...
-  int   0x10                              ; Otherwise, print it
-  jmp   .charloop                         ; And continue testing...
+  mov   si,DOT                            ; Print a dot (wastefully)
+  call  real_print_sz
+
+  call  guard_long_mode                   ; Now ensure we have a processor with long mode, might as well die early if not...
 
 .protect:
   ; Jump to protected mode
-  cli                                     ; No interrupts
-
   lgdt  [GDT_DESC]                        ; Load GDT reg with the descriptor
 
   mov   eax,cr0                           ; Get control register 0 into eax
@@ -72,6 +67,135 @@ _continue:
   mov   cr0,eax                           ; And put back into cr0
 
   jmp   0x08:main32                       ; Far jump to main32, use GDT selector at offset 0x08.
+
+
+; Check if the processor is a 386 or higher, and die (with a message) if not.
+;
+; Modifies: nothing
+; Returns: sometimes
+;
+guard_386:
+  push  ax                                ; Save registers
+  push  cx        
+
+  ; Is it a 286+?
+  pushf                                   ; Push FLAGS
+  pop   ax                                ; Pop FLAGS into AX
+  mov   cx,ax                             ; Save original FLAGS for later restoration
+
+  test  ax,0xC000                         ; Check bits 14 & 15
+  jnz   too_old                           ; If set, CPU is too old... 
+
+  ; Okay, but is it a 386+?
+  or    ax,0x4000                         ; Set NT and IOPL flags
+  push  ax                                ; push it
+  popf                                    ; ... and pop into FLAGS
+  pushf                                   ; Push FLAGS again
+  pop   ax                                ; And get them back into AX
+  test  ax,0x7000                         ; Are they still set?
+
+  jz    too_old                           ; If not, CPU is too old...
+
+  push  cx                                ; Otherwise, it's at least a 386. Restore original flags
+  popf
+
+  pop   cx                                ; Restore registers
+  pop   ax
+
+  ret                                     ; And we're done
+
+
+; Check if the processor has long-mode support, and die (with a message) if not.
+;
+; Does 32-bit stuff in a real-mode world, so do guard_386 first.
+;
+; Modifies: nothing
+; Returns: sometimes
+;
+guard_long_mode:
+  push  ecx                               ; Save registers
+  push  edx
+  push  esi
+
+  ; Is CPUID supported?
+  pushfd                                  ; Push EFLAGS
+  pop   ecx                               ; And pop into ECX
+  mov   edx,ecx                           ; Copy into EDX for comparision
+
+  xor   ecx,0x00200000                    ; Toggle ID bit
+  push  ecx                               ; Push to stack
+  popfd                                   ; ... back into EFLAGS
+  pushfd                                  ; ... back onto stack
+  pop   ecx                               ; ... and finally back into ECX
+
+  cmp   ecx,edx                           ; Did the bit toggle?
+  jz    too_old                           ; If not, CPU is too old (or just doesn't have CPUID, but whatever)...
+
+  push  edx                               ; Restore original EFLAGS
+  popfd
+
+  mov   si,DOT                            ; Print a dot indicating CPUID is supported 
+  call  real_print_sz
+
+  ; Check extended function 0x80000001 is supported...
+  mov   eax,0x80000000                    ; Check extended function
+  cpuid                                   ; Do CPUID
+
+  cmp   eax,0x80000001                    ; Is 0x80000001 supported?
+  jb    too_old                           ; Too old (not enough CPUID support) if not
+
+  mov   si,DOT                            ; Print a dot indicating 0x80000001 is supported
+  call  real_print_sz
+
+  mov   eax,0x80000001                    ; Use efunction 0x80000001
+  cpuid                                   ; Do CPUID again
+
+  test  edx,0x20000000                    ; Is bit 31 (LM) set?
+  jz    too_old                           ; Too old if not...
+
+  mov   si,GOOD                           ; Print CPU good message
+  call  real_print_sz
+
+  pop   esi                               ; Restore registers
+  pop   edx
+  pop   ecx 
+
+  ret                                     ; And we have long mode, so carry on!
+
+too_old:
+  mov   si,OLD                            ; Load "too old" message
+  call  real_print_sz                     ; Print it
+.die:
+  hlt                                     ; Die...
+  jmp   .die                              ; and stay dead
+
+; Print sz string (16-bit)
+;
+; Arguments:
+;   SI - Should point to string
+;
+; Modifies:
+;
+;   SI
+;
+real_print_sz:
+  push  ax
+  push  bx
+
+  mov   bh,0
+  mov   ah,0x0e                           ; Set up for int 10 function 0x0e (TELETYPE OUTPUT)
+
+.charloop:
+  lodsb                                   ; get next char (increments si too)
+  test  al,al                             ; Is is zero?
+  je    .done                             ; We're done if so...
+  int   0x10                              ; Otherwise, print it
+  jmp   .charloop                         ; And continue testing...
+
+.done:
+  pop   bx
+  pop   ax
+  ret
 
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -220,8 +344,6 @@ enable_a20_kbd:
   jz    .wait_a20_read                  ; If it's clear, just busywait
   ret
 
-    
-
 
 ; Is the A20 line enabled?
 ;
@@ -355,7 +477,10 @@ PRESENT     equ (1 << 0)
 WRITE       equ (1 << 1)
 
 %defstr version_str VERSTR
-MSG  db "ANLOAD #",version_str,"; Starting up...", 0
+MSG   db  "ANLOAD #", version_str, 0
+OLD   db  13, 10, "Sorry, your CPU is not supported.", 0
+GOOD  db  13, 10, 0
+DOT   db  ".", 0
 
 GDT:
   ; segment 0 - null

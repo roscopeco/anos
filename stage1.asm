@@ -16,25 +16,24 @@
 ;
 ; What it doesn't:
 ;
-;   * Support any drive other than zero
 ;   * Check any file attributes or anything
 ;   * Much error checking at all really...
 ;   * Support anything other than FAT12 (currently, _maybe_ FAT16 in future)
 ; 
 
-%define FAT_FILENAME    0x00
-%define FAT_FILEEXT     0x08
-%define FAT_ATTRS       0x0b
-%define FAT_UNUSED      0x0c
-%define FAT_CTIME_MS    0x0d
-%define FAT_CTIME_FMT   0x0e
-%define FAT_CDATE_FMT   0x10
-%define FAT_ADATE_FMT   0x12
-%define FAT_EADATE      0x14
-%define FAT_MTIME       0x16
-%define FAT_MDATE       0x18
-%define FAT_CLUSTER     0x1a
-%define FAT_FILESIZE    0x1c
+%define FAT_FILENAME    0x00              ; Offset to filename (8 bytes)
+%define FAT_FILEEXT     0x08              ; Offset to extension (3 bytes)
+%define FAT_ATTRS       0x0b              ; Offset to attribute byte
+%define FAT_UNUSED      0x0c              ; Offset to unused byte
+%define FAT_CTIME_MS    0x0d              ; Offset to create time MS byte
+%define FAT_CTIME_FMT   0x0e              ; Offset to create time word
+%define FAT_CDATE_FMT   0x10              ; Offset to create date word
+%define FAT_ADATE_FMT   0x12              ; Offset to access date word
+%define FAT_EADATE      0x14              ; Offset to ext access date word
+%define FAT_MTIME       0x16              ; Offset to modified time word
+%define FAT_MDATE       0x18              ; Offset to modified date word
+%define FAT_CLUSTER     0x1a              ; Offset to start cluster word
+%define FAT_FILESIZE    0x1c              ; Offset to filesize (5 bytes?)
 
 global _start
 
@@ -52,35 +51,36 @@ BPB:
   ; N.B. mtools can change these values, so don't hardcode them
   ; elsewhere - get them from this mem location instead!
   ; 
-BPB_PADDING       db  0                 ; Padding byte
-BPB_OEMNAME       db  "A N O S "        ; OEM Name
-BPB_BYTESPERSECT  dw  512               ; Bytes per sector
-BPB_SECTPERCLUST  db  1                 ; Sectors per cluster
-BPB_RESERVEDSECT  dw  1                 ; Reserved sectors
-BPB_FATCOUNT      db  1                 ; Number of FAT tables
-BPB_ROOTENTCOUNT  dw  224               ; Root dir entries
-BPB_SECTCOUNT     dw  2880              ; Sector count
-BPB_MEDIA_DESC    db  0xf0              ; Media descriptor
-BPB_SECTPERFAT    dw  9                 ; Sectors per FAT
-BPB_SECTPERTRACK  dw  9                 ; Sectors per track
-BPB_HEADS         dw  2                 ; Heads
-BPB_HIDDEN        dw  0                 ; Hidden sectors
+BPB_PADDING       db  0                   ; Padding byte
+BPB_OEMNAME       db  "A N O S "          ; OEM Name
+BPB_BYTESPERSECT  dw  512                 ; Bytes per sector
+BPB_SECTPERCLUST  db  1                   ; Sectors per cluster
+BPB_RESERVEDSECT  dw  1                   ; Reserved sectors
+BPB_FATCOUNT      db  1                   ; Number of FAT tables
+BPB_ROOTENTCOUNT  dw  224                 ; Root dir entries
+BPB_SECTCOUNT     dw  2880                ; Sector count
+BPB_MEDIA_DESC    db  0xf0                ; Media descriptor
+BPB_SECTPERFAT    dw  9                   ; Sectors per FAT
+BPB_SECTPERTRACK  dw  9                   ; Sectors per track
+BPB_HEADS         dw  2                   ; Heads
+BPB_HIDDEN        dw  0                   ; Hidden sectors
   
   ; ebpb
-BPB_HIDDEN_HI     dw  0                 ; Hidden sectors (hi)
-BPB_SECTPERFS     dd  0                 ; Sectors in filesystem
-BPB_DRIVENUM      db  0                 ; Logical drive number
-BPB_RESERVED      db  0                 ; RESERVED
-BPB_EXTSIG        db  0x29              ; Extended signature
-BPB_SERIAL        dd  0x12345678        ; Serial number
-BPB_VOLNAME       db  "ANOSDISK001"     ; Volume Name
-BPB_FSTYPE        db  "FAT12   "        ; Filesystem type
-  
+BPB_HIDDEN_HI     dw  0                   ; Hidden sectors (hi)
+BPB_SECTPERFS     dd  0                   ; Sectors in filesystem
+BPB_DRIVENUM      db  0                   ; Logical drive number
+BPB_RESERVED      db  0                   ; RESERVED
+BPB_EXTSIG        db  0x29                ; Extended signature
+BPB_SERIAL        dd  0x12345678          ; Serial number
+BPB_VOLNAME       db  "ANOSDISK001"       ; Volume Name
+BPB_FSTYPE        db  "FAT12   "          ; Filesystem type
+
 start:
   jmp   0x0000:.init                      ; Far jump in case BIOS jumped here via 0x07c0:0000
-  mov   [bootDrv],dl                      ; Stash boot drive away for later...
 
 .init:
+  cli                                     ; No interrupts for the foreseeable...
+  mov   [bootDrv],dl                      ; Stash boot drive away for later...
   xor   ax,ax                             ; Zero ax
   mov   ds,ax                             ; Set up data segment...
   mov   es,ax                             ; ... and extra segment (floppy read uses this)
@@ -121,7 +121,7 @@ start:
 
   mov   bh,0                              ; Set up a dot for printing
   mov   ah,0x0e
-  mov   al,'.'                            
+  mov   al,[DOT]
 
 .search:
   int   0x10                              ; Print a dot
@@ -232,7 +232,6 @@ start:
   call  print_sz                          ; And print it
 
 .die:
-  cli
   hlt
   jmp .die
 
@@ -419,6 +418,7 @@ print_sz:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 %defstr version_str VERSTR
 SEARCH_MSG  db "ANBOOT #",version_str, 0
+DOT         db '.'
 NO_FILE     db "E:NF", 10, 13, 0
 READ_ERROR  db "E:RE", 10, 13, 0
 CRLF        db 10, 13, 0
