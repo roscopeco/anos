@@ -24,6 +24,8 @@ certainly end up using `gcc` too) along with cross `binutils`
 (for `objcopy` and `objdump` at least). Latest versions of these
 are recommended.
 
+All assembly code is built with NASM. 2.16 or higher is recommended.
+
 For running and debugging, you'll want `qemu-system-x86_64`. 
 Bochs is also supported if you prefer (there's a minimal `bochsrc`
 in the repo that will get you going).
