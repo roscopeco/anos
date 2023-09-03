@@ -24,6 +24,8 @@
 ;     * Builds a basic page table to identity-map the first 2MB, so we can...
 ;   * Enable 64-bit long mode
 ;     * Does a bit more printing (I like printing, okay?)
+;     * Initializes enough to run some simple C code
+;     * Runs some simple C code (just a test for now)
 ;     * halts
 ;
 ; What it doesn't:
