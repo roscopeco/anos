@@ -39,6 +39,7 @@
 ;
 
 global _start                             ; Shut up NASM, I (imagine I) know what I'm doing... 🙄🤣
+extern stage2_ctest                       ; Defined in stage2_ctest.c
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; 16-bit section
@@ -458,6 +459,8 @@ main64:
 
   mov   byte [0xb8002],'L'                ; Print "L"
   mov   byte [0xb8003],0x2a               ; In color
+
+  call  stage2_ctest
 
 .die:
   hlt

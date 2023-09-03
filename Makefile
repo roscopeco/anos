@@ -3,7 +3,10 @@ XLD?=x86_64-elf-ld
 XOBJCOPY?=x86_64-elf-objcopy
 XOBJDUMP?=x86_64-elf-objdump
 QEMU?=qemu-system-x86_64
+XCC?=x86_64-elf-gcc
 BOCHS?=bochs
+ASFLAGS=-f elf64 -F dwarf -g
+CFLAGS=-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -g
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -22,7 +25,10 @@ clean:
 	rm -rf *.dis *.elf *.o stage1 stage2 floppy.img
 
 %.o: %.asm
-	$(ASM) -DVERSTR=$(SHORT_HASH) -DSTAGE_2_ADDR=$(STAGE_2_ADDR) -f elf64 -F dwarf -g -o $@ $<
+	$(ASM) -DVERSTR=$(SHORT_HASH) -DSTAGE_2_ADDR=$(STAGE_2_ADDR) $(ASFLAGS) -o $@ $<
+
+%.o: %.c
+	$(XCC) $(CFLAGS) -c -o $@ $<
 
 stage1.dis: stage1.elf
 	$(XOBJDUMP) -D -mi386 -Maddr16,data16 $< > $@
@@ -33,7 +39,7 @@ stage1.elf: stage1.o
 stage2.dis: stage2.elf
 	$(XOBJDUMP) -D -mi386 -Maddr32,data32 $< > $@
 
-stage2.elf: stage2.o
+stage2.elf: stage2.o stage2_ctest.o
 	$(XLD) -Ttext=$(STAGE_2_ADDR) -o $@ $^
 
 stage1: stage1.elf stage1.dis
