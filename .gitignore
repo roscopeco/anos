@@ -1,8 +1,8 @@
-stage1
-stage2
+stage1.bin
+stage2.bin
 floppy.img
-fat
-*.o
-*.elf
-*.dis
+native_tests/fat
+**/*.o
+**/*.elf
+**/*.dis
 
