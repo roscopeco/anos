@@ -6,7 +6,7 @@
  * C to work...
  */
 
-// these will end up in bss
+// these will end up in data
 static char *vram = (char*)0xb8000;
 static char *MSG = "Made it to C";
 
