@@ -59,6 +59,10 @@ _start:
 
   call  guard_long_mode                   ; Now ensure we have a processor with long mode, might as well die early if not...
 
+  mov   ax,0xec00                         ; Let the BIOS know we're planning to go to long mode  
+  mov   bl,0x02                           ; (Target Operating Mode Callback)  - Neither Bochs nor qemu
+  int   0x15                              ; appear to support this, so give back CF=1 and AH=0x86...
+
 .protect:
   ; Jump to protected mode
   lgdt  [GDT_DESC]                        ; Load GDT reg with the descriptor
