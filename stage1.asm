@@ -403,7 +403,7 @@ print_sz:
 
 .charloop:
   lodsb                                   ; get next char (increments si too)
-  cmp   al,0                              ; Is is zero?
+  test  al,al                             ; Is is zero?
   je    .done                             ; We're done if so...
   int   0x10                              ; Otherwise, print it
   jmp   .charloop                         ; And continue testing...

@@ -14,7 +14,7 @@
 ;   * Enables 32-bit protected mode
 ;     * Sets up data and stack segments for protected mode
 ;     * Prints another message (direct to VGA mem, because, why not?)
-;     * Checks if A20 is enabled, and dies if not (enabling is still TODO!)
+;     * Checks if A20 is enabled, and tries to enable it (keyboard controller method only right now)
 ;     * Builds a basic page table to identity-map the first 2MB, so we can...
 ;   * Enable 64-bit long mode
 ;     * Does a bit more printing (I like printing, okay?)
