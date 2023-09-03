@@ -63,7 +63,7 @@ uint16_t fatEntry(size_t cluster, uint8_t *fat) {
 static uint8_t buffer[1048576];
 
 int main() {
-    FILE *f = fopen("floppy.img", "rb");
+    FILE *f = fopen("../floppy.img", "rb");
 
     if (!f) {
         printf("File not opened\n");
