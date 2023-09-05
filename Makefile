@@ -55,7 +55,7 @@ $(STAGE1_DIR)/$(STAGE1_BIN): $(STAGE1_DIR)/$(STAGE1).elf $(STAGE1_DIR)/$(STAGE1)
 $(STAGE2_DIR)/$(STAGE2).dis: $(STAGE2_DIR)/$(STAGE2).elf
 	$(XOBJDUMP) -D -mi386 -Maddr32,data32 $< > $@
 
-$(STAGE2_DIR)/$(STAGE2).elf: $(STAGE2_DIR)/$(STAGE2).o $(STAGE2_DIR)/$(STAGE2)_ctest.o
+$(STAGE2_DIR)/$(STAGE2).elf: $(STAGE2_DIR)/$(STAGE2).o $(STAGE2_DIR)/$(STAGE2)_ctest.o $(STAGE2_DIR)/memorymap.o
 	$(XLD) -T $(STAGE2_DIR)/$(STAGE2).ld -o $@ $^
 	chmod a-x $@
 

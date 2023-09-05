@@ -45,6 +45,7 @@ extern _code_end                          ; Linker defined symbols
 extern _data_start, _data_end             ; ...
 extern _bss_start, _bss_end               ; ...
 extern stage2_ctest                       ; Defined in stage2_ctest.c
+extern build_e820_memory_map              ; Defined in memorymap.asm
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; 16-bit section
@@ -64,6 +65,9 @@ _start:
 
   call  guard_long_mode                   ; Now ensure we have a processor with long mode, might as well die early if not...
 
+  call  build_e820_memory_map             ; Looks like we're good, so let's grab the mem map before leaving real mode.
+  jc    .too_bad                          ; Just print message and die on fail (see also comments in memorymap.asm!)
+
   mov   ax,0xec00                         ; Let the BIOS know we're planning to go to long mode  
   mov   bl,0x02                           ; (Target Operating Mode Callback)  - Neither Bochs nor qemu
   int   0x15                              ; appear to support this, so give back CF=1 and AH=0x86...
@@ -77,6 +81,13 @@ _start:
   mov   cr0,eax                           ; And put back into cr0
 
   jmp   0x08:main32                       ; Far jump to main32, use GDT selector at offset 0x08.
+
+.too_bad:
+  mov   si,OLD                            ; Load "too old" message
+  call  real_print_sz                     ; Print it
+.die:
+  hlt                                     ; Die...
+  jmp   .die                              ; and stay dead
 
 
 ; Check if the processor is a 386 or higher, and die (with a message) if not.
@@ -231,10 +242,6 @@ main32:
   call  enable_a20                        ; Enable A20 gate
   call  init_page_tables                  ; Init basic (identity) page tables for long-mode switch
   jmp   go_long
-
-.die:
-  hlt
-  jmp .die                                ; Just halt for now...
 
 
 ; Enable the A20 line, unless it's already enabled (in which case,
@@ -547,6 +554,7 @@ WRITE       equ (1 << 1)
 %defstr version_str VERSTR
 MSG   db  "ANLOAD #", version_str, 0
 OLD   db  13, 10, "Sorry, your CPU is not supported.", 0
+BAD   db  13, 10, "Sorry, your computer is not supported.", 0
 GOOD  db  13, 10, 0
 DOT   db  ".", 0
 

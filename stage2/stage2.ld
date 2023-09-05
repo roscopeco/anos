@@ -11,7 +11,7 @@ ENTRY(_start)
 
 MEMORY {
     STAGE2  : org = 0x00009c00,  l = 0x00006400     /* 25KB for Stage 2 (up to segment boundary) */
-    STAGE1  : org = 0x00007c00,  l = 0x00002000     /* Use Stage 1's 8KB memory for BSS etc */
+    STAGE1  : org = 0x00007c00,  l = 0x00000800     /* Use 2KB Stage 1's 8KB memory for BSS etc */
 }
 
 SECTIONS
