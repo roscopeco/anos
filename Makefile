@@ -26,6 +26,15 @@ STAGE_2_ADDR?=0x9c00
 
 FLOPPY_IMG?=floppy.img
 
+STAGE2_OBJS=$(STAGE2_DIR)/$(STAGE2).o 											\
+			$(STAGE2_DIR)/prints.o 												\
+			$(STAGE2_DIR)/$(STAGE2)_ctest.o 									\
+			$(STAGE2_DIR)/memorymap.o 											\
+			$(STAGE2_DIR)/a20.o 												\
+			$(STAGE2_DIR)/modern.o 												\
+			$(STAGE2_DIR)/init_pagetables.o 									\
+			$(STAGE2_DIR)/init_cruntime.o
+			
 .PHONY: all clean qemu bochs
 
 all: floppy.img
@@ -55,7 +64,7 @@ $(STAGE1_DIR)/$(STAGE1_BIN): $(STAGE1_DIR)/$(STAGE1).elf $(STAGE1_DIR)/$(STAGE1)
 $(STAGE2_DIR)/$(STAGE2).dis: $(STAGE2_DIR)/$(STAGE2).elf
 	$(XOBJDUMP) -D -mi386 -Maddr32,data32 $< > $@
 
-$(STAGE2_DIR)/$(STAGE2).elf: $(STAGE2_DIR)/$(STAGE2).o $(STAGE2_DIR)/$(STAGE2)_ctest.o $(STAGE2_DIR)/memorymap.o
+$(STAGE2_DIR)/$(STAGE2).elf: $(STAGE2_OBJS)
 	$(XLD) -T $(STAGE2_DIR)/$(STAGE2).ld -o $@ $^
 	chmod a-x $@
 
