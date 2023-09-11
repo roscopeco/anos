@@ -76,6 +76,7 @@ BPB_VOLNAME       db  "ANOSDISK001"       ; Volume Name
 BPB_FSTYPE        db  "FAT12   "          ; Filesystem type
 
 start:
+  cld                                     ; Ensure forward direction is set
   jmp   0x0000:.init                      ; Far jump in case BIOS jumped here via 0x07c0:0000
 
 .init:
