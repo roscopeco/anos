@@ -228,10 +228,6 @@ start:
   mov   si,READ_ERROR                     ; Load message...
 
 .show_error:
-  push  si
-  mov   si,CRLF
-  call  print_sz
-  pop   si
   call  print_sz                          ; And print it
 
 .die:
@@ -422,8 +418,8 @@ print_sz:
 %defstr version_str VERSTR
 SEARCH_MSG  db "ANBOOT #",version_str, 0
 DOT         db '.'
-NO_FILE     db "NF", 10, 13, 0
-READ_ERROR  db "RE", 10, 13, 0
+NO_FILE     db "E:NF", 10, 13, 0
+READ_ERROR  db "E:RE", 10, 13, 0
 CRLF        db 10, 13, 0
 STAGE_2     db "STAGE2  BIN"
 
