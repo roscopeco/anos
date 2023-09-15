@@ -19,7 +19,7 @@ static char *msgp;
 
 noreturn void start_kernel() {
     msgp = MSG;
-    int vrptr = 320;
+    int vrptr = 160;
 
     while (*msgp) {
         vram[vrptr++] = *msgp++;

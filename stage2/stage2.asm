@@ -50,8 +50,6 @@ extern check_a20, enable_a20              ; Defined in a20.asm
 extern guard_386, guard_long_mode, too_old; Defined in modern.asm
 extern load_stage3                        ; Defined in fat.asm
 extern init_page_tables                   ; Defined in init_pagetables.asm
-extern init_c_land                        ; Defined in init_cruntime.asm
-extern stage2_ctest                       ; Defined in stage2_ctest.c
 
 extern PM4_START                          ; Variable, Defined in init_pagetables.asm
 
@@ -190,11 +188,6 @@ main64:
 
   mov   byte [0xb8002],'L'                ; Print "L"
   mov   byte [0xb8003],0x2a               ; In color
-
-  call  init_c_land                       ; Init basic C context - just .data and .bss at the moment
-
-  call  stage2_ctest                      ; Calling out to C can stomp a bunch of registers!
-                                          ; §3.4 - https://uclibc.org/docs/psABI-x86_64.pdf
 
   mov   rbx,STAGE_3_ADDR                  
   jmp   rbx                               ; Finally, jump to stage3 which we loaded earlier 🥳
