@@ -6,7 +6,10 @@ QEMU?=qemu-system-x86_64
 XCC?=x86_64-elf-gcc
 BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
-CFLAGS=-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -fno-asynchronous-unwind-tables -g
+CFLAGS=-Wall -Werror -Wpedantic 												\
+		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
+		-fno-asynchronous-unwind-tables 										\
+		-g
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -63,7 +66,7 @@ clean:
 	-o $@ $<
 
 %.o: %.c
-	$(XCC) $(CFLAGS) -c -o $@ $<
+	$(XCC) -DVERSTR=$(SHORT_HASH) $(CFLAGS) -c -o $@ $<
 
 
 # ############# Stage 1 ##############

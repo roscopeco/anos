@@ -139,15 +139,6 @@ main32:
   mov   ss,ax                             ; as well as SS.
   mov   esp,PM4_START                     ; Stack below page tables (16k below top of free low RAM)
 
-  mov   byte [0xb8000],'Y'                ; Print "Y"
-  mov   byte [0xb8001],0x1b               ; In color
-  mov   byte [0xb8002],'O'                ; Print "O"
-  mov   byte [0xb8003],0x1b               ; In color
-  mov   byte [0xb8004],'L'                ; Print "L"
-  mov   byte [0xb8005],0x1b               ; In color
-  mov   byte [0xb8006],'O'                ; Print "O"
-  mov   byte [0xb8007],0x1b               ; In color
-
   call  enable_a20                        ; Enable A20 gate
   call  init_page_tables                  ; Init basic (identity) page tables for long-mode switch
   jmp   go_long
