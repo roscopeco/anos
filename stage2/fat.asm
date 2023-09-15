@@ -1,99 +1,70 @@
-; stage1 - Boot sector stage 1 loader
+; stage2 - Boot sector stage 2 loader
 ; anos - An Operating System
 ;
 ; Copyright (c) 2023 Ross Bamford
 ;
-; Totally for fun and learning, it should work but it's likely wrong
-; in many and subtle ways...
+; Unreal mode FAT loader for stage3 (the kernel)
 ;
-; What it does:
-;
-;   * Entry in real mode (from the bios)
-;     * Prints a message as proof of life (with BIOS routines)
-;     * Searches the FAT for STAGE2.BIN
-;       * If found, loads it at 0x9c00 (TODO make this more flexible!)
-;       * Otherwise, prints error message and halts
-;
-; What it doesn't:
-;
-;   * Check any file attributes or anything
-;   * Much error checking at all really...
-;   * Support anything other than FAT12 (currently, _maybe_ FAT16 in future)
-; 
+; This is largely copied verbatim from stage1, maybe there's
+; an opportunity to share some code (though this is assembled
+; 32-bit, for running in unreal mode, so would want to include
+; rather than just link I guess).
 
-%define FAT_FILENAME    0x00              ; Offset to filename (8 bytes)
-%define FAT_FILEEXT     0x08              ; Offset to extension (3 bytes)
-%define FAT_ATTRS       0x0b              ; Offset to attribute byte
-%define FAT_UNUSED      0x0c              ; Offset to unused byte
-%define FAT_CTIME_MS    0x0d              ; Offset to create time MS byte
-%define FAT_CTIME_FMT   0x0e              ; Offset to create time word
-%define FAT_CDATE_FMT   0x10              ; Offset to create date word
-%define FAT_ADATE_FMT   0x12              ; Offset to access date word
-%define FAT_EADATE      0x14              ; Offset to ext access date word
-%define FAT_MTIME       0x16              ; Offset to modified time word
-%define FAT_MDATE       0x18              ; Offset to modified date word
-%define FAT_CLUSTER     0x1a              ; Offset to start cluster word
-%define FAT_FILESIZE    0x1c              ; Offset to filesize (5 bytes?)
-
-global _start
-
-; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; 16-bit section
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 bits 16
 
-_start:
-BPB:
-  jmp start
-  
-  ; bpb
-  ;
-  ; N.B. mtools can change these values, so don't hardcode them
-  ; elsewhere - get them from this mem location instead!
-  ; 
-BPB_PADDING       db  0                   ; Padding byte
-BPB_OEMNAME       db  "A N O S "          ; OEM Name
-BPB_BYTESPERSECT  dw  512                 ; Bytes per sector
-BPB_SECTPERCLUST  db  1                   ; Sectors per cluster
-BPB_RESERVEDSECT  dw  1                   ; Reserved sectors
-BPB_FATCOUNT      db  1                   ; Number of FAT tables
-BPB_ROOTENTCOUNT  dw  224                 ; Root dir entries
-BPB_SECTCOUNT     dw  2880                ; Sector count
-BPB_MEDIA_DESC    db  0xf0                ; Media descriptor
-BPB_SECTPERFAT    dw  9                   ; Sectors per FAT
-BPB_SECTPERTRACK  dw  9                   ; Sectors per track
-BPB_HEADS         dw  2                   ; Heads
-BPB_HIDDEN        dw  0                   ; Hidden sectors
-  
-  ; ebpb
-BPB_HIDDEN_HI     dw  0                   ; Hidden sectors (hi)
-BPB_SECTPERFS     dd  0                   ; Sectors in filesystem
-BPB_DRIVENUM      db  0                   ; Logical drive number
-BPB_RESERVED      db  0                   ; RESERVED
-BPB_EXTSIG        db  0x29                ; Extended signature
-BPB_SERIAL        dd  0x12345678          ; Serial number
-BPB_VOLNAME       db  "ANOSDISK001"       ; Volume Name
-BPB_FSTYPE        db  "FAT12   "          ; Filesystem type
+global load_stage3
 
-start:
-  cld                                     ; Ensure forward direction is set
-  jmp   0x0000:.init                      ; Far jump in case BIOS jumped here via 0x07c0:0000
+extern real_print_sz                      ; Defined in prints.asm
 
-.init:
-  cli                                     ; No interrupts for the foreseeable...
-  mov   [bootDrv],dl                      ; Stash boot drive away for later...
-  xor   ax,ax                             ; Zero ax
-  mov   ds,ax                             ; Set up data segment...
-  mov   es,ax                             ; ... and extra segment (floppy read uses this)
+%define FAT_FILENAME      0x00            ; Offset to filename (8 bytes)
+%define FAT_FILEEXT       0x08            ; Offset to extension (3 bytes)
+%define FAT_ATTRS         0x0b            ; Offset to attribute byte
+%define FAT_UNUSED        0x0c            ; Offset to unused byte
+%define FAT_CTIME_MS      0x0d            ; Offset to create time MS byte
+%define FAT_CTIME_FMT     0x0e            ; Offset to create time word
+%define FAT_CDATE_FMT     0x10            ; Offset to create date word
+%define FAT_ADATE_FMT     0x12            ; Offset to access date word
+%define FAT_EADATE        0x14            ; Offset to ext access date word
+%define FAT_MTIME         0x16            ; Offset to modified time word
+%define FAT_MDATE         0x18            ; Offset to modified date word
+%define FAT_CLUSTER       0x1a            ; Offset to start cluster word
+%define FAT_FILESIZE      0x1c            ; Offset to filesize (5 bytes?)
 
-  mov   ax,0x7fff                         ; Put stack near top of conventional mem for now...
-  mov   ss,ax                             ; ...
-  mov   sp,0x400                          ; ...
+%define BPB_PADDING       0x7c00          ; Padding byte
+%define BPB_OEMNAME       0x7c03          ; OEM Name
+%define BPB_BYTESPERSECT  0x7c0B          ; Bytes per sector
+%define BPB_SECTPERCLUST  0x7c0D          ; Sectors per cluster
+%define BPB_RESERVEDSECT  0x7c0E          ; Reserved sectors
+%define BPB_FATCOUNT      0x7c10          ; Number of FAT tables
+%define BPB_ROOTENTCOUNT  0x7c11          ; Root dir entries
+%define BPB_SECTCOUNT     0x7c13          ; Sector count
+%define BPB_MEDIA_DESC    0x7c15          ; Media descriptor
+%define BPB_SECTPERFAT    0x7c16          ; Sectors per FAT
+%define BPB_SECTPERTRACK  0x7c18          ; Sectors per track
+%define BPB_HEADS         0x7c1a          ; Heads
+%define BPB_HIDDEN        0x7c1c          ; Hidden sectors
+%define BPB_HIDDEN_HI     0x7c1e          ; Hidden sectors (hi)
+%define BPB_SECTPERFS     0x7c20          ; Sectors in filesystem
+%define BPB_DRIVENUM      0x7c24          ; Logical drive number
+%define BPB_RESERVED      0x7c25          ; RESERVED
+%define BPB_EXTSIG        0x7c26          ; Extended signature
+%define BPB_SERIAL        0x7c27          ; Serial number
+%define BPB_VOLNAME       0x7c2b          ; Volume Name
+%define BPB_FSTYPE        0x7c36          ; Filesystem type
 
-  mov   si,SEARCH_MSG                     ; Load message
-  call  print_sz                          ; And print it
+%define DATA_BUFFER       0x7400          ; Data buffer, 2048 bytes below stage 1
+                                          ; N.B. This makes max sectors / cluster 4!
+                                          ; TODO is this ever the case? Should we check and die if it is?
 
-.load:
+%define BUFFER            0x7e00          ; Buffer as it was before, at end of loaded boot sector
+
+; Load KERNEL.BIN from disk at the 1MB mark (well, just above).
+; TODO could parameterise this in stage 1 and then use it from there,
+; it's still loaded anyway when we call this (since we use the BPB).
+;
+; Modifies: Everything (trashes GP whatever registers)
+;
+load_stage3:
   mov   ax,[BPB_BYTESPERSECT]             ; Bytes per sector in AX
   mov   cx,0x20                           ; Bytes per entry in DX
   xor   dx,dx                             ; Zero DX before dividing...
@@ -107,6 +78,7 @@ start:
 
   ; TODO does this scale? Is it safe to load the whole root directory?
   mov   ax,[BPB_ROOTENTCOUNT]             ; Number of root entries in AX
+  xor   dx,dx                             ; Zero DX before dividing again...
   div   bx                                ; Divide by entries per sector
   xor   cx,cx                             ; Zero cx out...
   mov   cl,al                             ; CX is now number of sectors to load
@@ -117,35 +89,27 @@ start:
   call  read_floppy_sectors               ; Read the sectors
   jc    .read_error                       ; Read error if carry flag set
 
-  ; Search the root directory for stage2
+  ; Search the root directory for stage3
   mov   cx,[BPB_ROOTENTCOUNT]             ; Number of root entries in CX
   mov   di,BUFFER                         ; Start at buffer pointer
 
-  mov   bh,0                              ; Set up a dot for printing
-  mov   ah,0x0e
-  mov   al,[DOT]
-
 .search:
-  int   0x10                              ; Print a dot
   push  cx                                ; Stash counter
   mov   cx,11                             ; Names are 11 bytes
-  mov   si,STAGE_2                        ; Comparing with our expected name...
+  mov   si,STAGE_3                        ; Comparing with our expected name...
   push  di                                ; rep will change DI
   rep cmpsb                               ; Compare strings...
   pop   di                                ; Restore DI
   pop   cx                                ; Restore counter...
-  je    .load_stage2                      ; Match - jump to finding the starting cluster
+  je    .load_stage3                      ; Match - jump to finding the starting cluster
   add   di,0x20                           ; ... advance DI 32-bytes to next filename...
   loop  .search                           ; ... and loop
 
   mov   si,NO_FILE                        ; If we're out of entries, load error message
   jmp   .show_error                       ; Show it, then die...
 
-.load_stage2:
-  mov   si,CRLF                           ; Print loading message...
-  call  print_sz
-
-  mov   dx,[di + FAT_CLUSTER]             ; Get stage2 starting cluster
+.load_stage3:
+  mov   dx,[di + FAT_CLUSTER]             ; Get stage3 starting cluster
 
 .load_fat:
   push  dx                                ; Stash starting cluster
@@ -161,11 +125,11 @@ start:
   cmp   al,cl                             ; Did we read the right number?
   jne   .read_error                       ; Error and die if not
 
-  mov   si,bx                             ; Move BUFFER ptr into SI
+  mov   ebx,DATA_BUFFER                   ; And set BX up to load stage 3 sectors into DATA_BUFFER
+  mov   edi,STAGE_3_ADDR                  ; And (32-bit) target buffer into EDI...
 
-  ; TODO Fixed load position (currently at 0x9c00)
+  ; TODO Fixed load position (currently at 0x100000)
   ;
-  mov   bx,STAGE_2_ADDR                   ; Set BX up to load stage 2 at 0x9c00
   pop   dx                                ; Get starting cluster back into DX
 
 .load_loop:
@@ -211,18 +175,18 @@ start:
   call  read_floppy_sectors               ; Read in this cluster
   jc    .read_error                       ; Halt on error
 
+  call  copy_data_buffer                  ; Copy data buffer to target location
+
   pop   dx                                ; Get current cluster back into DX (again 🙄)
   call  next_cluster                      ; Else, replace dx with next cluster...
 
   cmp   dx,0xFFF                          ; Is this the last cluster?
-  je    .load_done                        ; Done if so
-
-  add   bx,0x200                          ; Else move buffer pointer to start of next sector...
-  jmp   .load_loop                        ; ... and loop
+  je    .load_done                        ; Done if so...
+  jmp   .load_loop                        ; ... and loop if not
 
 .load_done:
-  mov   bx,STAGE_2_ADDR                   ; Go for stage 2...
-  jmp   bx
+  call  reset_floppy                      ; We're done with this from BIOS land, so reset it...  
+  ret
 
 .read_error:
   mov   si,READ_ERROR                     ; Load message...
@@ -230,14 +194,51 @@ start:
 .show_error:
   push  si
   mov   si,CRLF
-  call  print_sz
+  call  real_print_sz
   pop   si
-  call  print_sz                          ; And print it
+  call  real_print_sz                     ; And print it
 
 .die:
   hlt
   jmp .die
 
+
+; Copy data buffer to target location
+;
+; Arguments:
+;   EBX - Source pointer
+;   EDI - target pointer
+;   
+; Modifies:
+;   EDI - New target location
+;
+copy_data_buffer:
+  push  ecx                               ; Save registers
+  push  ebx
+  push  eax
+
+  xor   ecx,ecx                           ; Zero ECX for sector size calculation
+  mov   ax,[BPB_BYTESPERSECT]             ; Bytes per sector in AX
+  mov   cl,byte [BPB_SECTPERCLUST]        ; Sectors per cluster in CX
+  imul  cx,ax                             ; Multiply them (we know we're on 386+ now 🎉)
+  add   ecx,edi                           ; + buffer start to get ending position
+
+;   mov   ecx,edi                           ; End at buffer...
+;   add   ecx,0x200                         ; + 512 bytes
+
+.loop
+  mov   eax,dword [ebx]                   ; Get next dword
+  mov   dword [ds:edi],eax                ; And copy it
+  add   ebx,4                             ; Advance source pointer in ebx
+  add   edi,4                             ; Advance dest pointer in edi
+  cmp   edi,ecx                           ; Are we at the end?
+  jne   .loop                             ; Loop if not
+
+  pop   eax
+  pop   ebx                               ; Else restore regs
+  pop   ecx
+  ret                                     ; And done
+    
 
 ; Get next cluster in FAT chain
 ;
@@ -250,7 +251,7 @@ start:
 next_cluster:
   push  ax                                ; Save registers
   push  bx
-  push  cx
+  push  cx; Restore regs
 
   mov   ax,dx                             ; Copy current cluster
   mov   cx,dx                             ; Twice...
@@ -386,53 +387,12 @@ lba_to_chs:
   pop   ax
   ret
 
-
-; Print sz string
-;
-; Arguments:
-;   SI - Should point to string
-;
-; Modifies:
-;
-;   SI
-;
-print_sz:
-  push  ax
-  push  bx
-
-  mov   bh,0
-  mov   ah,0x0e                           ; Set up for int 10 function 0x0e (TELETYPE OUTPUT)
-
-.charloop:
-  lodsb                                   ; get next char (increments si too)
-  test  al,al                             ; Is is zero?
-  je    .done                             ; We're done if so...
-  int   0x10                              ; Otherwise, print it
-  jmp   .charloop                         ; And continue testing...
-
-.done:
-  pop   bx
-  pop   ax
-  ret
-
-
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Data section
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-%defstr version_str VERSTR
-SEARCH_MSG  db "ANBOOT #",version_str, 0
-DOT         db '.'
-NO_FILE     db "NF", 10, 13, 0
-READ_ERROR  db "RE", 10, 13, 0
+READ_ERROR  db "Kernel read error; Halting", 0
+NO_FILE     db "Kernel file not found; Halting", 0
 CRLF        db 10, 13, 0
-STAGE_2     db "STAGE2  BIN"
-
-bootDrv     db  0
-
-align 2
-
-times 510-($-$$) nop
-dw  0xaa55
-
-BUFFER:
-
+STAGE_3     db "KERNEL  BIN"
+DOT         db '.'
+bootDrv     db 0                            ; TODO This is hardcoded!!

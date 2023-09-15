@@ -10,23 +10,25 @@
 ;   * Entry point at 0x0000:9c00 in real mode
 ;   * Real-mode segments set up (including a small, usable stack somewhere)
 ;   * Interrupts disabled
+;   * FAT boot sector (i.e. stage 1, but with BPB / EBPB also) at 0000:7c00
 ; 
 ; What it does:
 ;
 ;   * Entry in real mode (from stage1)
 ;     * Prints a message as proof of life (with BIOS routines)
 ;     * Checks the CPU supports long mode (and dies with a message if not)
+;     * Grabs a memory map from BIOS E820h and leaves it in low RAM
 ;     * Sets up the GDT with both 32- and 64-bit code / data segments
-;   * Enables 32-bit protected mode
+;   * Enables Unreal mode for a bit
+;     * Loads stage3 at 0x00120000 using BIOS routines (still has to copy because using BIOS floppy)
+;   * Enables 32-bit protected mode for a short time
 ;     * Sets up data and stack segments for protected mode
 ;     * Prints another message (direct to VGA mem, because, why not?)
 ;     * Checks if A20 is enabled, and tries to enable it (keyboard controller method only right now)
 ;     * Builds a basic page table to identity-map the first 2MB, so we can...
 ;   * Enable 64-bit long mode
 ;     * Does a bit more printing (I like printing, okay?)
-;     * Initializes enough to run some simple C code
-;     * Runs some simple C code (just a test for now)
-;     * halts
+;     * Jumps to stage 3
 ;
 ; What it doesn't:
 ;
@@ -42,13 +44,14 @@
 
 global _start                             ; Shut up NASM, I (imagine I) know what I'm doing... 🙄🤣
 
-extern stage2_ctest                       ; Defined in stage2_ctest.c
 extern real_print_sz                      ; Defined in prints.asm
 extern build_e820_memory_map              ; Defined in memorymap.asm
 extern check_a20, enable_a20              ; Defined in a20.asm
 extern guard_386, guard_long_mode, too_old; Defined in modern.asm
+extern load_stage3                        ; Defined in fat.asm
 extern init_page_tables                   ; Defined in init_pagetables.asm
 extern init_c_land                        ; Defined in init_cruntime.asm
+extern stage2_ctest                       ; Defined in stage2_ctest.c
 
 extern PM4_START                          ; Variable, Defined in init_pagetables.asm
 
@@ -75,10 +78,42 @@ _start:
   mov   bl,0x02                           ; (Target Operating Mode Callback)  - Neither Bochs nor qemu
   int   0x15                              ; appear to support this, so give back CF=1 and AH=0x86...
 
-.protect:
-  ; Jump to protected mode
+.unreal:
+  ; Jump to unreal mode
+  push  ds                                ; Save DS and ES (both should be zero anyway)
+  push  es
+
   lgdt  [GDT_DESC]                        ; Load GDT reg with the descriptor
 
+  mov   eax,cr0                           ; Get control register 0 into eax
+  or    al,1                              ; Set PR bit (enable protected mode)
+  mov   cr0,eax                           ; And put back into cr0
+  
+.enter_unreal:
+  mov   bx,0x10                           ; Loading segment 2 (32-bit data)...
+  mov   ds,bx                             ; ... into DS
+  mov   es,bx
+  
+  and   al,0xFE                           ; Back to real mode (unreal mode)
+  mov   cr0,eax
+
+  jmp   0x00:.in_unreal                       ; Far jump back to unreal mode
+
+
+; Entry point into unreal mode (for loading stage 3)
+.in_unreal:
+  pop   es
+  pop   ds                                ; (... base from 0, where 32-bit segment starts)
+
+  call  load_stage3                       ; Let's do the stage3 load now we're in unreal mode...
+                                          ; TODO This isn't safe! Real BIOS can kick us back to real mode...
+
+  mov ah, 0x00                            ; One last thing before we leave (un)real mode forever...
+  mov al, 0x03                            ; Set video to text mode 80x25 16 colours,
+  int 0x10                                ; which will clear the screen...
+
+.protect:
+  ; Jump to protected mode for reals this time
   mov   eax,cr0                           ; Get control register 0 into eax
   or    al,1                              ; Set PR bit (enable protected mode)
   mov   cr0,eax                           ; And put back into cr0
@@ -97,6 +132,8 @@ _start:
 ; 32-bit section
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 bits 32
+
+; Entry point into protected mode proper, for setting up long mode
 main32:
   mov   ax,0x10                           ; Set ax to 0x10 - offset of segment 2, the 32-bit data segment...
   mov   ds,ax                             ; and set DS to that..
@@ -156,12 +193,11 @@ main64:
 
   call  init_c_land                       ; Init basic C context - just .data and .bss at the moment
 
-  call  stage2_ctest                      ; Callinh out to C can stomp a bunch of registers!
+  call  stage2_ctest                      ; Calling out to C can stomp a bunch of registers!
                                           ; §3.4 - https://uclibc.org/docs/psABI-x86_64.pdf
 
-.die:
-  hlt
-  jmp   .die                              ; Just die for now...
+  mov   rbx,STAGE_3_ADDR                  
+  jmp   rbx                               ; Finally, jump to stage3 which we loaded earlier 🥳
 
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

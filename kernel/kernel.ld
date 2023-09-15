@@ -1,5 +1,5 @@
 /*
- * ANOS Stage 2 (ANLOAD)
+ * ANOS Stage 3 (ANINIT)
  * Link Script
  *
  * (c)2023 Ross Bamford & Contributors
@@ -10,8 +10,8 @@ OUTPUT_FORMAT("elf64-x86-64")
 ENTRY(_start)
 
 MEMORY {
-    STAGE2  : org = 0x00009c00,  l = 0x00006400     /* 25KB for Stage 2 (up to segment boundary) */
-    STAGE1  : org = 0x00100000,  l = 0x00020000     /* Stage 2 BSS goes at the 1MiB mark... */
+    CODE    : org = 0x00120000,  l = 0x00100000     /* 1MiB for Stage 3 code */
+    DATA    : org = 0x00020000,  l = 0x00010000     /* 128KiB for bss */
 }
 
 SECTIONS
@@ -19,6 +19,7 @@ SECTIONS
   .text :
   {
     _code = .;
+    *(.text.init)
     *(.text*)
     *(.rodata*)
     _code_end = .;
@@ -26,7 +27,7 @@ SECTIONS
     *(.data*)
     . = ALIGN(4);
     _data_end = .;
-  } > STAGE2
+  } > CODE
 
   .bss :
   {
@@ -35,7 +36,7 @@ SECTIONS
     *(COMMON)
     . = ALIGN(4);
     _bss_end = .;
-  } > STAGE1 AT > STAGE2
+  } > DATA AT > CODE
 
   _end = .;
 }
