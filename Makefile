@@ -23,6 +23,8 @@ STAGE1_BIN=$(STAGE1).bin
 STAGE2_BIN=$(STAGE2).bin
 STAGE3_BIN=$(STAGE3).bin
 
+STAGE3_INC=$(STAGE3)/include
+
 # Base addresses; Stage 1
 STAGE_1_ADDR?=0x7c00
 
@@ -44,7 +46,10 @@ STAGE2_OBJS=$(STAGE2_DIR)/$(STAGE2).o 											\
 			$(STAGE2_DIR)/fat.o 												\
 			$(STAGE2_DIR)/init_pagetables.o
 			
-STAGE3_OBJS=$(STAGE3_DIR)/init.o $(STAGE3_DIR)/entrypoint.o
+STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
+			$(STAGE3_DIR)/entrypoint.o											\
+			$(STAGE3_DIR)/debugprint.o											\
+			$(STAGE3_DIR)/printhex.o
 
 .PHONY: all clean qemu bochs
 
@@ -66,7 +71,7 @@ clean:
 	-o $@ $<
 
 %.o: %.c
-	$(XCC) -DVERSTR=$(SHORT_HASH) $(CFLAGS) -c -o $@ $<
+	$(XCC) -DVERSTR=$(SHORT_HASH) -I$(STAGE3_INC) $(CFLAGS) -c -o $@ $<
 
 
 # ############# Stage 1 ##############

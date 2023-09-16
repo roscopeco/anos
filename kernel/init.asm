@@ -17,30 +17,13 @@
 ;   * Stack already set up somewhere (we'll move it in a bit)
 ;   * Interrupts disabled
 ;   * VGA 80x26 16-color text mode
+;   * RDI contains address of memory map from stage2
 ; 
 ; What it does:
 ;
-;   * Entry in real mode (from stage1)
-;     * Prints a message as proof of life (with BIOS routines)
-;     * Checks the CPU supports long mode (and dies with a message if not)
-;     * Sets up the GDT with both 32- and 64-bit code / data segments
-;   * Enables Unreal mode for a bit
-;     * Loads stage3 at 0x00120000 using BIOS routines (still has to copy because using BIOS floppy)
-;   * Enables 32-bit protected mode for a short time
-;     * Sets up data and stack segments for protected mode
-;     * Prints another message (direct to VGA mem, because, why not?)
-;     * Checks if A20 is enabled, and tries to enable it (keyboard controller method only right now)
-;     * Builds a basic page table to identity-map the first 2MB, so we can...
-;   * Enable 64-bit long mode
-;     * Does a bit more printing (I like printing, okay?)
-;     * Initializes enough to run some simple C code
-;     * Runs some simple C code (just a test for now)
-;     * halts
+;   * Zeroes BSS
+;   * Calls out to the C entry point
 ;
-; What it doesn't:
-;
-;   * Disable IRQ or NMI - works for now on the emulators, but will need it later
-;   * Set up IDT - Didn't want to bother in 32-bit mode, I'll take the triple-faults...
 
 bits 64
 global _start

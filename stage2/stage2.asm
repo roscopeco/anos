@@ -69,9 +69,6 @@ _start:
 
   call  guard_long_mode                   ; Now ensure we have a processor with long mode, might as well die early if not...
 
-  call  build_e820_memory_map             ; Looks like we're good, so let's grab the mem map before leaving real mode.
-  jc    .too_bad                          ; Just print message and die on fail (see also comments in memorymap.asm!)
-
   mov   ax,0xec00                         ; Let the BIOS know we're planning to go to long mode  
   mov   bl,0x02                           ; (Target Operating Mode Callback)  - Neither Bochs nor qemu
   int   0x15                              ; appear to support this, so give back CF=1 and AH=0x86...
@@ -95,7 +92,7 @@ _start:
   and   al,0xFE                           ; Back to real mode (unreal mode)
   mov   cr0,eax
 
-  jmp   0x00:.in_unreal                       ; Far jump back to unreal mode
+  jmp   0x00:.in_unreal                   ; Far jump back to unreal mode
 
 
 ; Entry point into unreal mode (for loading stage 3)
@@ -105,6 +102,9 @@ _start:
 
   call  load_stage3                       ; Let's do the stage3 load now we're in unreal mode...
                                           ; TODO This isn't safe! Real BIOS can kick us back to real mode...
+
+  call  build_e820_memory_map             ; Looks like we're good, so let's grab the mem map before leaving real mode.
+  jc    .too_bad                          ; Just print message and die on fail (see also comments in memorymap.asm!)
 
   mov ah, 0x00                            ; One last thing before we leave (un)real mode forever...
   mov al, 0x03                            ; Set video to text mode 80x25 16 colours,
@@ -180,6 +180,7 @@ main64:
   mov   byte [0xb8002],'L'                ; Print "L"
   mov   byte [0xb8003],0x2a               ; In color
 
+  mov   rdi,0x8400                        ; Memory map was loaded at 0x8400, pass that to stage 3
   mov   rbx,STAGE_3_ADDR                  
   jmp   rbx                               ; Finally, jump to stage3 which we loaded earlier 🥳
 
