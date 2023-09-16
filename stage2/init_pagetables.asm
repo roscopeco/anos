@@ -24,8 +24,8 @@
 ;
 ; This is how the address 0xFFFFFFFF80000000 breaks down in the page tables:
 ;
-; 1111111111111111 111111111 111111110 000000000 000000000000 000000000
-;   16-bit unused     PM4       PDPT      PD          PT        Offset
+; 1111111111111111 111111111 111111110 000000000 000000000 000000000000
+;  [16-bit unused]    PM4       PDPT       PD       PT       [Offset]
 ;
 ; I expect that having the kernel sat at ~1MiB physical is gonna come back
 ; to bite me at some point because DMA or something, but it's fine for now...
