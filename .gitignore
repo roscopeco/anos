@@ -3,6 +3,7 @@ stage2.bin
 kernel.bin
 floppy.img
 native_tests/fat
+native_tests/printhex
 **/*.o
 **/*.elf
 **/*.dis
