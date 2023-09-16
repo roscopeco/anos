@@ -16,13 +16,39 @@ official reference materials (like the Intel manuals).
 
   - Ross Bamford, August 2023
 
+### High-level overview
+
+> **Note** this is still evolving!
+
+Right now, there's a two-stage bootloader (I know there are existing,
+better options, but one of my goals is to figure legacy bootloaders out)
+that will load from FAT floppy (and only floppy - no hard-disk support yet).
+
+The bootloader does enough basic set up to load a (flat binary, ELF might
+be supported eventually) kernel at 0x120000 (physical), set up long mode
+with initial (super basic) paging, and call that kernel at 
+0xFFFFFFFF80120000 (virtual, mapped to the physical load address).
+
+The loader also fetches a BIOS memory map before leaving (un)real mode
+forever, and passes that map (unprocessed, currently) to the kernel via a 
+pointer parameter.
+
+The loader **does not** do any BSS clearing or other C set-up - the kernel
+has a small assembly stub that just zeroes out that segment and passes
+control. No (C++, or C with GCC extensions) static constructors or anything
+else are run at the moment - this is not a complete C environment :D
+
+Also worth noting that the loader doesn't do **anything** at all with 
+interrupt vectors - that's totally up to the kernel (and interrupts are
+left disabled throughout the load and remain so on kernel entry).
+
 ### Building
 
 Everything is built with `make`. You'll want a cross-compiler
-toolchain for `x86_64` (for `ld` at the moment, though I'll almost
-certainly end up using `gcc` too) along with cross `binutils` 
-(for `objcopy` and `objdump` at least). Latest versions of these
-are recommended.
+toolchain for `x86_64` (for `ld` and `gcc` plus supporting things)
+along with cross `binutils` (for `objcopy` and `objdump` at least). 
+
+Latest versions of these are recommended.
 
 All assembly code is built with NASM. 2.16 or higher is recommended.
 
