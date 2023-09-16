@@ -10,8 +10,8 @@ OUTPUT_FORMAT("elf64-x86-64")
 ENTRY(_start)
 
 MEMORY {
-    CODE    : org = 0x00120000,  l = 0x00100000     /* 1MiB for Stage 3 code */
-    DATA    : org = 0x00020000,  l = 0x00010000     /* 128KiB for bss */
+    CODE    : org = 0xFFFFFFFF80120000,  l = 0x00100000     /* 1MiB for Stage 3 code */
+    DATA    : org = 0xFFFFFFFF80100000,  l = 0x00020000     /* 128KiB for bss */
 }
 
 SECTIONS

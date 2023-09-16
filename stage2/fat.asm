@@ -126,7 +126,7 @@ load_stage3:
   jne   .read_error                       ; Error and die if not
 
   mov   ebx,DATA_BUFFER                   ; And set BX up to load stage 3 sectors into DATA_BUFFER
-  mov   edi,STAGE_3_ADDR                  ; And (32-bit) target buffer into EDI...
+  mov   edi,STAGE_3_LO_ADDR               ; And (32-bit) target buffer into EDI. Later this is mapped to the top 2GB
 
   ; TODO Fixed load position (currently at 0x100000)
   ;

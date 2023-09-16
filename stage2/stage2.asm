@@ -181,8 +181,9 @@ main64:
   mov   byte [0xb8003],0x2a               ; In color
 
   mov   rdi,0x8400                        ; Memory map was loaded at 0x8400, pass that to stage 3
-  mov   rbx,STAGE_3_ADDR                  
-  jmp   rbx                               ; Finally, jump to stage3 which we loaded earlier 🥳
+  mov   rsp,0xFFFFFFFF8009c000            ; Reset stack, and move it to kernel space
+  mov   rbx,STAGE_3_HI_ADDR                  
+  jmp   rbx                               ; Finally, jump to stage3 at high address, which we loaded earlier 🥳
 
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

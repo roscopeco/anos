@@ -11,7 +11,6 @@ ENTRY(_start)
 
 MEMORY {
     STAGE2  : org = 0x00009c00,  l = 0x00006400     /* 25KB for Stage 2 (up to segment boundary) */
-    STAGE1  : org = 0x00100000,  l = 0x00020000     /* Stage 2 BSS goes at the 1MiB mark... */
 }
 
 SECTIONS
@@ -27,15 +26,6 @@ SECTIONS
     . = ALIGN(4);
     _data_end = .;
   } > STAGE2
-
-  .bss :
-  {
-    _bss_start = .;
-    *(.bss*)
-    *(COMMON)
-    . = ALIGN(4);
-    _bss_end = .;
-  } > STAGE1 AT > STAGE2
 
   _end = .;
 }

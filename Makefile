@@ -9,6 +9,7 @@ ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wpedantic 												\
 		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
 		-fno-asynchronous-unwind-tables 										\
+		-mcmodel=kernel															\
 		-g
 
 SHORT_HASH?=`git rev-parse --short HEAD`
@@ -33,8 +34,11 @@ STAGE_1_ADDR?=0x7c00
 STAGE_2_ADDR?=0x9c00
 
 # Stage 3 loads at 0x00120000 (just after 1MiB, leaving a bit for BSS etc
-# at 1MiB).
-STAGE_3_ADDR?=0x00120000
+# at 1MiB), but runs as 0xFFFFFFFF80120000 (in the top / negative 2GB).
+#
+# Initial page tables in stage 2 map both to the same physical memory.
+STAGE_3_LO_ADDR?=0x00120000
+STAGE_3_HI_ADDR?=0xFFFFFFFF80120000
 
 FLOPPY_IMG?=floppy.img
 
@@ -66,7 +70,8 @@ clean:
 %.o: %.asm
 	$(ASM) 																		\
 	-DVERSTR=$(SHORT_HASH) 														\
-	-DSTAGE_2_ADDR=$(STAGE_2_ADDR) -DSTAGE_3_ADDR=$(STAGE_3_ADDR) 				\
+	-DSTAGE_2_ADDR=$(STAGE_2_ADDR)												\
+	-DSTAGE_3_LO_ADDR=$(STAGE_3_LO_ADDR) -DSTAGE_3_HI_ADDR=$(STAGE_3_HI_ADDR)	\
 	$(ASFLAGS) 																	\
 	-o $@ $<
 
