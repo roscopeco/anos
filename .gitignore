@@ -9,3 +9,5 @@ native_tests/printhex
 **/*.dis
 tests/build
 .vscode
+tests/interrupts
+
