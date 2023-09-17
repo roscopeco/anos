@@ -42,6 +42,12 @@ Also worth noting that the loader doesn't do **anything** at all with
 interrupt vectors - that's totally up to the kernel (and interrupts are
 left disabled throughout the load and remain so on kernel entry).
 
+As far as the Kernel is concerned, there's much to still be decided. 
+However, since this is being designed as 64-bit from the beginning, there's
+a lot of things I can do that I wouldn't otherwise be able to - I'll map
+all (or, at least, a **lot** of) physical RAM directly into the
+virtual address space for easy (and efficient) access by the Kernel. 
+
 ### Building
 
 Everything is built with `make`. You'll want a cross-compiler
@@ -161,4 +167,10 @@ make debug-qemu-start
 which will skip starting GDB for you, allowing you to launch 
 your frontend and connect (`localhost:9666` by default).
 
+### Recent screenshot
+
+This probably isn't up to date enough to represent where it's at, but
+it should be relatively recent.
+
+![Hopefully-recent Screenshot](images/Screenshot 2023-09-17 at 22.47.52.png)
 
