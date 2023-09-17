@@ -10,4 +10,5 @@ native_tests/printhex
 tests/build
 .vscode
 tests/interrupts
+native_tests/pt
 
