@@ -53,19 +53,34 @@ STAGE2_OBJS=$(STAGE2_DIR)/$(STAGE2).o 											\
 STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/debugprint.o											\
-			$(STAGE3_DIR)/printhex.o
+			$(STAGE3_DIR)/printhex.o											\
+			$(STAGE3_DIR)/machine.o												\
+			$(STAGE3_DIR)/interrupts.o											\
+			$(STAGE3_DIR)/isr_handlers.o										\
+			$(STAGE3_DIR)/isr_dispatch.o										\
+			$(STAGE3_DIR)/init_interrupts.o
+
+ALL_TARGETS=floppy.img
+
+FLOPPY_DEPENDENCIES=$(STAGE1_DIR)/$(STAGE1_BIN) 								\
+					$(STAGE2_DIR)/$(STAGE2_BIN) 								\
+					$(STAGE3_DIR)/$(STAGE3_BIN)
+
+CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
+	       		$(STAGE2_DIR)/*.dis $(STAGE2_DIR)/*.elf $(STAGE2_DIR)/*.o 		\
+	       		$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
+		   		$(STAGE2_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
+		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
+		   		$(FLOPPY_IMG)
+
+include tests/include.mk
 
 .PHONY: all clean qemu bochs
 
-all: floppy.img
+all: $(ALL_TARGETS)
 
 clean:
-	rm -rf $(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 			\
-	       $(STAGE2_DIR)/*.dis $(STAGE2_DIR)/*.elf $(STAGE2_DIR)/*.o 			\
-	       $(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 			\
-		   $(STAGE2_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 				\
-		   $(STAGE3_DIR)/$(STAGE3_BIN) 											\
-		   $(FLOPPY_IMG)
+	rm -rf $(CLEAN_ARTIFACTS)
 
 %.o: %.asm
 	$(ASM) 																		\
@@ -116,7 +131,7 @@ $(STAGE3_DIR)/$(STAGE3_BIN): $(STAGE3_DIR)/$(STAGE3).elf $(STAGE3_DIR)/$(STAGE3)
 	chmod a-x $@
 
 # ############## Image ###############
-$(FLOPPY_IMG): $(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) $(STAGE3_DIR)/$(STAGE3_BIN)
+$(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	dd of=$@ if=/dev/zero bs=1440k count=1
 	mformat -f 1440 -B $(STAGE1_DIR)/$(STAGE1_BIN) -v ANOSDISK001 -k -i $@ ::
 	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
@@ -133,4 +148,3 @@ debug-qemu: debug-qemu-start
 
 bochs: floppy.img bochsrc
 	$(BOCHS)
-

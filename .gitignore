@@ -7,4 +7,5 @@ native_tests/printhex
 **/*.o
 **/*.elf
 **/*.dis
-
+tests/build
+.vscode

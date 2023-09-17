@@ -8,14 +8,16 @@
  */
 
 #include <stdint.h>
-#include <stdbool.h>
 #include <stdnoreturn.h>
 
 #include "debugprint.h"
 #include "printhex.h"
+#include "machine.h"
+#include "interrupts.h"
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
+#define VERSTR #unknown
 #endif
 
 #define XSTRVER(verstr) #verstr
@@ -48,14 +50,6 @@ static char * MEM_TYPES[] = {
     "UNKNOWN"
 };
 
-noreturn void halt() {
-    while (true) {
-        __asm__ volatile (
-            "hlt\n\t"
-        );
-    }
-}
-
 void debug_memmap(MemMap *memmap) {
     debugstr("\nThere are ");
     printhex16(memmap->num_entries, debugchar);
@@ -83,10 +77,24 @@ void debug_memmap(MemMap *memmap) {
     }
 }
 
+extern void interrupt_handler_nc(void);
+extern void interrupt_handler_wc(void);
+
+void install_interrupts() {
+    idt_install(0x18);
+}
+
 noreturn void start_kernel(MemMap *memmap) {
     debugstr(MSG);
+    install_interrupts();
     debug_memmap(memmap);
-    halt();
+
+    // Force a page fault for testing purporse. Should have the WRITE bit set in the error code...
+    uint32_t *bad = (uint32_t*)0x200000;
+    *bad = 0x0BADF00D;
+
+    debugstr("All is well! Halting for now.");
+    halt_and_catch_fire();
  }
 
 
