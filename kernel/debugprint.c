@@ -42,4 +42,6 @@ void debugstr(char *str) {
     } 
 }
 
-
+void debugattr(uint8_t new_attr) {
+    attr = new_attr;
+}

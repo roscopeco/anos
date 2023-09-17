@@ -58,7 +58,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/interrupts.o											\
 			$(STAGE3_DIR)/isr_handlers.o										\
 			$(STAGE3_DIR)/isr_dispatch.o										\
-			$(STAGE3_DIR)/init_interrupts.o
+			$(STAGE3_DIR)/init_interrupts.o										\
+			$(STAGE3_DIR)/pagefault.o
 
 ALL_TARGETS=floppy.img
 

@@ -36,7 +36,7 @@ typedef struct {
     MemMapEntry     entries[];
 } __attribute__((packed)) MemMap;
 
-static char *MSG = "ANOS #" VERSION "\n";
+static char *MSG = VERSION "\n";
 
 static char * MEM_TYPES[] = {
     "INVALID",
@@ -80,15 +80,29 @@ void debug_memmap(MemMap *memmap) {
 extern void interrupt_handler_nc(void);
 extern void interrupt_handler_wc(void);
 
-void install_interrupts() {
+static inline void banner() {
+    debugattr(0x0B);
+    debugchar('A');
+    debugchar('N');
+    debugchar('O');
+    debugchar('S');
+    debugattr(0x08);
+    debugstr(" #");
+    debugattr(0x0F);
+    debugstr(MSG);
+    debugattr(0x07);
+}
+
+static inline void install_interrupts() {
     idt_install(0x18);
 }
 
 noreturn void start_kernel(MemMap *memmap) {
-    debugstr(MSG);
+    banner();
     install_interrupts();
     debug_memmap(memmap);
 
+    debugstr("\nForcing a page fault...\n");
     // Force a page fault for testing purporse. Should have the WRITE bit set in the error code...
     uint32_t *bad = (uint32_t*)0x200000;
     *bad = 0x0BADF00D;

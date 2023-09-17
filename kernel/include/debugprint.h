@@ -10,5 +10,6 @@
 
 void debugchar(char chr);
 void debugstr(char *str);
+void debugattr(uint8_t new_attr);
 
 #endif//__ANOS_KERNEL_DEBUGPRINT_H

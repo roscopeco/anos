@@ -8,14 +8,15 @@
 
 bits 64
 global irq_handler
-extern debug_interrupt_nc, debug_interrupt_wc
+extern handle_interrupt_nc, handle_interrupt_wc
 
 %macro isr_dispatcher_with_code 1         ; General handler for traps that stack an error code
 global isr_dispatcher_%+%1                ; Ensure declared global
 isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_0`
   mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
   pop   rsi                               ; Pop error code into the second C argument
-  call  debug_interrupt_wc                ; Call the with-code handler
+  mov   rdx,[rsp]                         ; Peek return address into third C argument
+  call  handle_interrupt_wc               ; Call the with-code handler
   iretq                                   ; And done...
 %endmacro
 
@@ -23,7 +24,8 @@ isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_0`
 global isr_dispatcher_%+%1                ; Ensure declared global
 isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_1`
   mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
-  call  debug_interrupt_nc                ; Call the no-code handler
+  mov   rsi,[rsp]                         ; Peek return address into second C argument
+  call  handle_interrupt_nc               ; Call the no-code handler
   iretq                                   ; And done...
 %endmacro
 
@@ -62,5 +64,5 @@ isr_dispatcher_no_code      31            ; <reserved>
 
 ; ISR dispatcher for IRQs
 irq_handler:
-  call  debug_interrupt_nc                ; Just call directly to C handler
+  call  handle_interrupt_nc               ; Just call directly to C handler
   iretq
