@@ -174,14 +174,16 @@ main64:
   mov   ax,0x20                           ; Set ax to 0x20 - offset of segment 4, the 64-bit data segment...
   mov   ds,ax                             ; and set DS to that..
   mov   es,ax                             ; and ES too...
+  mov   fs,ax                             ; and FS too...
+  mov   gs,ax                             ; and GS too...
   mov   ss,ax                             ; as well as SS.
-  mov   rsp,PM4_START                     ; Stack below page tables (16k below top of free low RAM)
+
+  mov   rsp,0xFFFFFFFF80110000            ; Reset stack, and move it to kernel address space at bottom of BSS
 
   mov   byte [0xb8002],'L'                ; Print "L"
   mov   byte [0xb8003],0x2a               ; In color
 
   mov   rdi,0x8400                        ; Memory map was loaded at 0x8400, pass that to stage 3
-  mov   rsp,0xFFFFFFFF8009c000            ; Reset stack, and move it to kernel space
   mov   rbx,STAGE_3_HI_ADDR                  
   jmp   rbx                               ; Finally, jump to stage3 at high address, which we loaded earlier 🥳
 
@@ -199,7 +201,7 @@ GDT:
   ; segment 1 - 32-bit code
   dw 0xFFFF               ; limit 4GB
   dw 0                    ; Base (bits 0-15) - 0
-  db 0                    ; Base (bits 15-23) - 0
+  db 0                    ; Base (bits 16-23) - 0
   db 0b10011010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 1 = Executable, 0 = Nonconforming, 1 = Readable, 0 = Accessed
   db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
@@ -207,7 +209,7 @@ GDT:
   ; segment 2 - 32-bit data
   dw 0xFFFF               ; limit 4GB
   dw 0                    ; Base (bits 0-15) - 0
-  db 0                    ; Base (bits 15-23) - 0
+  db 0                    ; Base (bits 16-23) - 0
   db 0b10010010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 0 = Non-Executable, 0 = Grows up, 1 = Writeable, 0 = Accessed
   db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
@@ -215,7 +217,7 @@ GDT:
   ; segment 1 - 64-bit code
   dw 0xFFFF               ; limit 4GB
   dw 0                    ; Base (bits 0-15) - 0
-  db 0                    ; Base (bits 15-23) - 0
+  db 0                    ; Base (bits 16-23) - 0
   db 0b10011010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 1 = Executable, 0 = Nonconforming, 1 = Readable, 0 = Accessed
   db 0b10101111           ; Flags + Limit: 1 = 4k granularity, 0 = 16-bit, 1 = Long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
@@ -223,7 +225,7 @@ GDT:
   ; segment 2 - 64-bit data
   dw 0xFFFF               ; limit 4GB
   dw 0                    ; Base (bits 0-15) - 0
-  db 0                    ; Base (bits 15-23) - 0
+  db 0                    ; Base (bits 16-23) - 0
   db 0b10010010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 0 = Non-Executable, 0 = Grows up, 1 = Writeable, 0 = Accessed
   db 0b10101111           ; Flags + Limit: 1 = 4k granularity, 0 = 16-bit, 1 = Llong mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
