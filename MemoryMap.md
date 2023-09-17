@@ -32,6 +32,7 @@ The following are **physical** addresses:
 ### Kernel Physical Mem (after stage2 is done)
 
 | Start              | End                | Use                                                          |
+|--------------------|--------------------|--------------------------------------------------------------|
 | 0x0000000000008400 | 0x0000000000009bff | BIOS E820h memory map (passed to kernel by stage2)           |
 | 0x0000000000100000 | 0x000000000010ffff | Initial 64KiB long-mode stack (set up by stage 2 for kernel) |
 | 0x0000000000110000 | 0x000000000011ffff | 64KiB Kernel BSS                                             |
