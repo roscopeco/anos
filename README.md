@@ -172,5 +172,5 @@ your frontend and connect (`localhost:9666` by default).
 This probably isn't up to date enough to represent where it's at, but
 it should be relatively recent.
 
-![Hopefully-recent Screenshot](images/Screenshot 2023-09-17 at 22.47.52.png)
+<img src="images/Screenshot 2023-09-17 at 22.47.52.png" alt="Hopefully-recent Screenshot">
 
