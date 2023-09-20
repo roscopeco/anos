@@ -17,21 +17,21 @@ static void* setup(const MunitParameter params[], void* user_data) {
 }
 
 static MunitResult test_set_bit_zero(const MunitParameter params[], void *param) {
-    munit_assert_ullong(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
 
     bitmap_set(test_bitmap, 0);
 
-    munit_assert_ullong(0x0000000000000001, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000001, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
 
 static MunitResult test_set_bit_one(const MunitParameter params[], void *param) {
-    munit_assert_ullong(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
 
     bitmap_set(test_bitmap, 1);
 
-    munit_assert_ullong(0x0000000000000002, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000002, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -41,7 +41,7 @@ static MunitResult test_set_bit_zero_already(const MunitParameter params[], void
 
     bitmap_set(test_bitmap, 0);
 
-    munit_assert_ullong(0x0000000000000001, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000001, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -51,38 +51,38 @@ static MunitResult test_set_bit_one_zero_already(const MunitParameter params[], 
 
     bitmap_set(test_bitmap, 1);
 
-    munit_assert_ullong(0x0000000000000003, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000003, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
 
 static MunitResult test_set_two_bits(const MunitParameter params[], void *param) {
-    munit_assert_ullong(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
 
     bitmap_set(test_bitmap, 0);
     bitmap_set(test_bitmap, 1);
 
-    munit_assert_ullong(0x0000000000000003, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000003, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
 
 static MunitResult test_set_one_bit_second_word(const MunitParameter params[], void *param) {
-    munit_assert_ullong(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
 
     bitmap_set(test_bitmap, 64);
 
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[0]);
-    munit_assert_ullong(0x0000000000000001, ==, test_bitmap[1]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000001, ==, test_bitmap[1]);
 
     return MUNIT_OK;
 }
 
 static MunitResult test_set_bit_boundary(const MunitParameter params[], void *param) {
-    munit_assert_ullong(0, ==, test_bitmap[0]);
-    munit_assert_ullong(0, ==, test_bitmap[1]);
-    munit_assert_ullong(0, ==, test_bitmap[2]);
-    munit_assert_ullong(0, ==, test_bitmap[3]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[1]);
+    munit_assert_uint64(0, ==, test_bitmap[2]);
+    munit_assert_uint64(0, ==, test_bitmap[3]);
 
     bitmap_set(test_bitmap, 63);
     bitmap_set(test_bitmap, 64);
@@ -93,10 +93,10 @@ static MunitResult test_set_bit_boundary(const MunitParameter params[], void *pa
     bitmap_set(test_bitmap, 191);
     bitmap_set(test_bitmap, 192);
 
-    munit_assert_ullong(0x8000000000000000, ==, test_bitmap[0]);
-    munit_assert_ullong(0x8000000000000001, ==, test_bitmap[1]);
-    munit_assert_ullong(0x8000000000000001, ==, test_bitmap[2]);
-    munit_assert_ullong(0x0000000000000001, ==, test_bitmap[3]);
+    munit_assert_uint64(0x8000000000000000, ==, test_bitmap[0]);
+    munit_assert_uint64(0x8000000000000001, ==, test_bitmap[1]);
+    munit_assert_uint64(0x8000000000000001, ==, test_bitmap[2]);
+    munit_assert_uint64(0x0000000000000001, ==, test_bitmap[3]);
 
     return MUNIT_OK;
 }
@@ -106,7 +106,7 @@ static MunitResult test_clear_bit_zero(const MunitParameter params[], void *para
 
     bitmap_clear(test_bitmap, 0);
 
-    munit_assert_ullong(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -116,7 +116,7 @@ static MunitResult test_clear_bit_zero_already(const MunitParameter params[], vo
 
     bitmap_clear(test_bitmap, 0);
 
-    munit_assert_ullong(0x000000000000000e, ==, test_bitmap[0]);
+    munit_assert_uint64(0x000000000000000e, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -126,7 +126,7 @@ static MunitResult test_clear_bit_one(const MunitParameter params[], void *param
 
     bitmap_clear(test_bitmap, 1);
 
-    munit_assert_ullong(0x0000000000000001, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000001, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -136,7 +136,7 @@ static MunitResult test_clear_bit_one_zero_already(const MunitParameter params[]
 
     bitmap_clear(test_bitmap, 1);
 
-    munit_assert_ullong(0x0000000000000001, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000001, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -148,7 +148,7 @@ static MunitResult test_clear_two_bits(const MunitParameter params[], void *para
     bitmap_clear(test_bitmap, 0);
     bitmap_clear(test_bitmap, 1);
 
-    munit_assert_ullong(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -158,7 +158,7 @@ static MunitResult test_clear_one_bit_second_word(const MunitParameter params[],
 
     bitmap_clear(test_bitmap, 64);
 
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[1]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[1]);
 
     return MUNIT_OK;
 }
@@ -178,24 +178,24 @@ static MunitResult test_clear_bit_boundary(const MunitParameter params[], void *
     bitmap_clear(test_bitmap, 191);
     bitmap_clear(test_bitmap, 192);
 
-    munit_assert_ullong(0, ==, test_bitmap[0]);
-    munit_assert_ullong(0, ==, test_bitmap[1]);
-    munit_assert_ullong(0, ==, test_bitmap[2]);
-    munit_assert_ullong(0, ==, test_bitmap[3]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[1]);
+    munit_assert_uint64(0, ==, test_bitmap[2]);
+    munit_assert_uint64(0, ==, test_bitmap[3]);
 
     return MUNIT_OK;
 }
 
 static MunitResult test_flip_bit_zero(const MunitParameter params[], void *param) {
-    munit_assert_ullong(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
 
     bitmap_flip(test_bitmap, 0);
 
-    munit_assert_ullong(0x0000000000000001, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000001, ==, test_bitmap[0]);
 
     bitmap_flip(test_bitmap, 0);
 
-    munit_assert_ullong(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -205,7 +205,7 @@ static MunitResult test_flip_bit_zero_already(const MunitParameter params[], voi
 
     bitmap_flip(test_bitmap, 0);
 
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -215,11 +215,11 @@ static MunitResult test_flip_bit_one(const MunitParameter params[], void *param)
 
     bitmap_flip(test_bitmap, 1);
 
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[0]);
 
     bitmap_flip(test_bitmap, 1);
 
-    munit_assert_ullong(0x0000000000000002, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000002, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -229,11 +229,11 @@ static MunitResult test_flip_bit_one_zero_already(const MunitParameter params[],
 
     bitmap_flip(test_bitmap, 1);
 
-    munit_assert_ullong(0x0000000000000001, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000001, ==, test_bitmap[0]);
 
     bitmap_flip(test_bitmap, 1);
 
-    munit_assert_ullong(0x0000000000000003, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000003, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -244,12 +244,12 @@ static MunitResult test_flip_two_bits(const MunitParameter params[], void *param
     bitmap_flip(test_bitmap, 0);
     bitmap_flip(test_bitmap, 1);
 
-    munit_assert_ullong(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
 
     bitmap_flip(test_bitmap, 0);
     bitmap_flip(test_bitmap, 1);
 
-    munit_assert_ullong(0x0000000000000003, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000003, ==, test_bitmap[0]);
 
     return MUNIT_OK;
 }
@@ -259,26 +259,26 @@ static MunitResult test_flip_one_bit_second_word(const MunitParameter params[], 
 
     bitmap_flip(test_bitmap, 64);
 
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[0]);
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[1]);
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[2]);
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[3]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[1]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[2]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[3]);
 
     bitmap_flip(test_bitmap, 64);
 
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[0]);
-    munit_assert_ullong(0x0000000000000001, ==, test_bitmap[1]);
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[2]);
-    munit_assert_ullong(0x0000000000000000, ==, test_bitmap[3]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[0]);
+    munit_assert_uint64(0x0000000000000001, ==, test_bitmap[1]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[2]);
+    munit_assert_uint64(0x0000000000000000, ==, test_bitmap[3]);
 
     return MUNIT_OK;
 }
 
 static MunitResult test_flip_bit_boundary(const MunitParameter params[], void *param) {
-    munit_assert_ullong(0, ==, test_bitmap[0]);
-    munit_assert_ullong(0, ==, test_bitmap[1]);
-    munit_assert_ullong(0, ==, test_bitmap[2]);
-    munit_assert_ullong(0, ==, test_bitmap[3]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[1]);
+    munit_assert_uint64(0, ==, test_bitmap[2]);
+    munit_assert_uint64(0, ==, test_bitmap[3]);
 
     bitmap_flip(test_bitmap, 63);
     bitmap_flip(test_bitmap, 64);
@@ -289,10 +289,10 @@ static MunitResult test_flip_bit_boundary(const MunitParameter params[], void *p
     bitmap_flip(test_bitmap, 191);
     bitmap_flip(test_bitmap, 192);
 
-    munit_assert_ullong(0x8000000000000000, ==, test_bitmap[0]);
-    munit_assert_ullong(0x8000000000000001, ==, test_bitmap[1]);
-    munit_assert_ullong(0x8000000000000001, ==, test_bitmap[2]);
-    munit_assert_ullong(0x0000000000000001, ==, test_bitmap[3]);
+    munit_assert_uint64(0x8000000000000000, ==, test_bitmap[0]);
+    munit_assert_uint64(0x8000000000000001, ==, test_bitmap[1]);
+    munit_assert_uint64(0x8000000000000001, ==, test_bitmap[2]);
+    munit_assert_uint64(0x0000000000000001, ==, test_bitmap[3]);
 
     bitmap_flip(test_bitmap, 63);
     bitmap_flip(test_bitmap, 64);
@@ -303,10 +303,10 @@ static MunitResult test_flip_bit_boundary(const MunitParameter params[], void *p
     bitmap_flip(test_bitmap, 191);
     bitmap_flip(test_bitmap, 192);
 
-    munit_assert_ullong(0, ==, test_bitmap[0]);
-    munit_assert_ullong(0, ==, test_bitmap[1]);
-    munit_assert_ullong(0, ==, test_bitmap[2]);
-    munit_assert_ullong(0, ==, test_bitmap[3]);
+    munit_assert_uint64(0, ==, test_bitmap[0]);
+    munit_assert_uint64(0, ==, test_bitmap[1]);
+    munit_assert_uint64(0, ==, test_bitmap[2]);
+    munit_assert_uint64(0, ==, test_bitmap[3]);
 
     return MUNIT_OK;
 }
