@@ -24,18 +24,6 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION         STRVER(VERSTR)
 
-typedef struct {
-    uint64_t        base;
-    uint64_t        length;
-    uint32_t        type;
-    uint32_t        attrs;
-} __attribute__((packed)) MemMapEntry;
-
-typedef struct {
-    uint16_t        num_entries;
-    MemMapEntry     entries[];
-} __attribute__((packed)) MemMap;
-
 static char *MSG = VERSION "\n";
 
 static char * MEM_TYPES[] = {
@@ -50,13 +38,13 @@ static char * MEM_TYPES[] = {
     "UNKNOWN"
 };
 
-void debug_memmap(MemMap *memmap) {
+void debug_memmap(E820h_MemMap *memmap) {
     debugstr("\nThere are ");
     printhex16(memmap->num_entries, debugchar);
     debugstr(" memory map entries\n");
 
     for (int i = 0; i < memmap->num_entries; i++) {
-        MemMapEntry *entry = &memmap->entries[i];
+        E820h_MemMapEntry *entry = &memmap->entries[i];
 
         debugstr("Entry ");
         printhex16(i, debugchar);
@@ -97,7 +85,7 @@ static inline void install_interrupts() {
     idt_install(0x18);
 }
 
-noreturn void start_kernel(MemMap *memmap) {
+noreturn void start_kernel(E820h_MemMap *memmap) {
     banner();
     install_interrupts();
     debug_memmap(memmap);
