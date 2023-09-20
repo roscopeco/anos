@@ -1,0 +1,38 @@
+name: compile_and_test
+
+on:
+  push:
+    branches: [ main ]
+
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build_and_test:
+    name: Build & test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [ gcc-13 ]
+        include:
+          - os: ubuntu-latest
+            compiler: gcc-13
+            target: Linux
+
+          - os: macos-latest
+            compiler: gcc-13
+            target: Macos
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build all artifacts
+        run: make clean all
