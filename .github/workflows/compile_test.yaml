@@ -34,5 +34,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Build all artifacts
-        run: make clean all
+      - name: Build & run tests
+        run: make clean test
