@@ -44,9 +44,7 @@ left disabled throughout the load and remain so on kernel entry).
 
 As far as the Kernel is concerned, there's much to still be decided. 
 However, since this is being designed as 64-bit from the beginning, there's
-a lot of things I can do that I wouldn't otherwise be able to - I'll map
-all (or, at least, a **lot** of) physical RAM directly into the
-virtual address space for easy (and efficient) access by the Kernel. 
+a lot of things I can do that I wouldn't otherwise be able to.
 
 ### Building
 
