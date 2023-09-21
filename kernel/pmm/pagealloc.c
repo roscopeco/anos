@@ -1,5 +1,5 @@
 /*
- * stage3 - The page allocator
+ * stage3 - The page allocator (Modified stack allocator)
  * anos - An Operating System
  *
  * Copyright (c) 2023 Ross Bamford
@@ -10,127 +10,101 @@
 #include "machine.h"
 #include "pmm/pagealloc.h"
 
-#define NULL                ((void*)0)
-
-#define PAGE_SIZE           4096                            // 4KiB pages only for now
-#define MAX_ORDER_PAGES     1 << (MAX_ORDER-1)              // Max number of pages in a block
-#define MAX_ORDER_BYTES     PAGE_SIZE << (MAX_ORDER-1)      // Maximum block size, in bytes
-
-/*
- * Standard popcount algorithm from wikipedia.
- *
- * TODO it's probably safe to use the POPCNT instruction for this,
- * it was introduced in like 2013...
- */
-static uint8_t popcnt(uint64_t y) {
-    y -= ((y >> 1) & 0x5555555555555555ull);
-    y = (y & 0x3333333333333333ull) + (y >> 2 & 0x3333333333333333ull);
-    return ((y + (y >> 4)) & 0xf0f0f0f0f0f0f0full) * 0x101010101010101ull >> 56;
-}
-
-/*
- * Round **down** to next power of 2, to get largest 
- * possible block size once we're below max.
- */
-static uint64_t next_lower_pow2(uint64_t x) {
-    if (x == 0) {
-        return 0;
-    }
-
-    x |= (x >> 1);
-    x |= (x >> 2);
-    x |= (x >> 4);
-    x |= (x >> 8);
-    x |= (x >> 16);
-    x |= (x >> 32);
-    return x - (x >> 1);
-}
-
-// TODO these regions can overlap, be out of order, etc. Need to clean them up!
-//
-//      clean this function up while you're at it 🤣
 MemoryRegion* page_alloc_init(E820h_MemMap *memmap, void* buffer) {
-
     MemoryRegion *region = (MemoryRegion*)buffer;
-    PhysicalBlock *next_block = (PhysicalBlock*)(region + 1);
-    PhysicalBlock *order_nexts[MAX_ORDER];
+    region->sp = (MemoryBlock*)(region + 1);
+    region->sp--;   // Start below bottom of stack
 
     region->size = region->free = 0;
-
-    for (int i = 0; i < MAX_ORDER; i++) {
-        region->order_lists[i] = NULL;
-        order_nexts[i] = NULL;
-    }
 
     for (int i = 0; i < memmap->num_entries; i++) {
         E820h_MemMapEntry *entry = &memmap->entries[i];
 
-        if (entry->type == MEM_MAP_ENTRY_AVAILABLE) {
-            region->size += entry->length;
-            region->free += entry->length;
-
+        if (entry->type == MEM_MAP_ENTRY_AVAILABLE && entry->length > 0) {
             // Ensure start is page aligned
             uint64_t start = entry->base & 0xFFFFFFFFFFFFF000;
 
             // Grab end, and align that too
-            uint64_t end = (entry->base + entry->length) &  0xFFFFFFFFFFFFF000;
+            uint64_t end = (entry->base + entry->length) & 0xFFFFFFFFFFFFF000;
 
             // Is the aligned base below the actual base for this block?
-            if (start > entry->base) {
+            if (entry->base > start) {
                 // Round up to next page boundary if so...
                 start += 0x1000;
             }
 
             // Calculate number of bytes remaining...
-            uint64_t bytes_remain = end - start;
+            uint64_t total_bytes = end - start;
 
-            while (bytes_remain > 0) {                          
-                if (bytes_remain >= MAX_ORDER_BYTES) {
-                    // Just take largest possible page
-                    next_block->base = start;
-                    next_block->order = MAX_ORDER - 1;
-                    next_block->next = NULL;
-
-                    start += MAX_ORDER_BYTES;
-                    bytes_remain -= MAX_ORDER_BYTES;
-                } else {
-                    // Work out the largest page we can take...
-                    uint64_t largest_possible = next_lower_pow2(bytes_remain);
-
-                    // Figure out the order (pages are always powers of 2, so pop count in base - 1 is the order)
-                    uint8_t order = popcnt((largest_possible >> 12) - 1);
-
-                    next_block->base = start;
-                    next_block->order = order;
-                    next_block->next = NULL;
-
-                    start += largest_possible;
-                    bytes_remain -= largest_possible;
-                }
-
-                if (region->order_lists[next_block->order] == NULL) {
-                    // This is the first block for this order, so link it from the region
-                    region->order_lists[next_block->order] = next_block;
-                } else {
-                    // This is not the first block for this order, so we must already have a previous
-                    // in order_nexts - just link up to that.
-                    order_nexts[next_block->order]->next = next_block;
-                }
-
-                order_nexts[next_block->order] = next_block;
-                next_block++;
+            // Just in case we get a block < 4KiB
+            if (total_bytes == 0) {
+                continue;
             }
+
+            region->size += total_bytes;
+            region->free += total_bytes;
+
+            // Stack this block
+            region->sp++;
+            region->sp->base = start;
+            region->sp->size = total_bytes >> 12;   // size is pages, not bytes...
         }
     }
 
     return region;
 }
 
-bool page_alloc_alloc_page(PhysPage *page) {
-    return false;
+uint64_t page_alloc(MemoryRegion *region) {
+    if (region->sp < ((MemoryBlock*)(region + 1))) {
+        // Empty stack
+        return 0xFF;
+    }
+
+    region->free -= 0x1000;
+
+    if (region->sp->size > 1) {
+        // More than one page in this block - just adjust in-place
+        uint64_t page = region->sp->base;
+        region->sp->base += 0x1000;
+        region->sp->size--;
+        return page;
+    } else {
+        // Must be exactly one page in this block - just pop and return
+        uint64_t page = region->sp->base;
+        region->sp--;
+        return page;
+    }
 }
 
-#ifdef UNIT_TEST
-void* page_alloc_get_physical_blocks() {
+static inline bool stack_empty(MemoryRegion *region) {
+    return region->sp == (((MemoryBlock*)(region + 1)) - 1);
 }
-#endif
+
+void page_free(MemoryRegion *region, uint64_t page) {
+    // No-op unaligned addresses...
+    if (page & 0xFFF) {
+        return;
+    }
+
+    region->free += 0x1000;
+
+#   ifndef NO_PMM_FREE_COALESCE_ADJACENT
+    if (!stack_empty(region)) {
+        if (region->sp->base == page + 0x1000) {
+            // Freeing page below current stack top, so just rebase and resize
+            region->sp->base = page;
+            region->sp->size += 1;
+            return;
+        } else if (region->sp->base == page - 0x1000) {
+            // Freeing page above current stack top, so just resize
+            region->sp->size += 1;
+            return;
+        }
+    }
+#   endif
+
+    // Freeing non-contiguous page, just stack
+    region->sp++;
+    region->sp->base = page;
+    region->sp->size = 1;
+}

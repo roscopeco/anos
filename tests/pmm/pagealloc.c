@@ -16,11 +16,18 @@ static E820h_MemMap* create_mem_map(int num_entries) {
     return map;
 }
 
+static MemoryBlock* stack_base(MemoryRegion *region) {
+    return ((MemoryBlock*)(region + 1)) - 1;
+}
+
 static MunitResult test_init_empty(const MunitParameter params[], void *param) {
     E820h_MemMap map = { .num_entries = 0 };
 
     MemoryRegion* region = page_alloc_init(&map, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
+
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
 
     return MUNIT_OK;
 }
@@ -32,6 +39,9 @@ static MunitResult test_init_all_invalid(const MunitParameter params[], void *pa
 
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
+
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
 
     free(map);
     return MUNIT_OK;
@@ -45,6 +55,9 @@ static MunitResult test_init_all_reserved(const MunitParameter params[], void *p
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
     free(map);
     return MUNIT_OK;
 }
@@ -56,6 +69,9 @@ static MunitResult test_init_all_acpi(const MunitParameter params[], void *param
 
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
+
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
 
     free(map);
     return MUNIT_OK;
@@ -69,6 +85,9 @@ static MunitResult test_init_all_acpi_nvs(const MunitParameter params[], void *p
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
     free(map);
     return MUNIT_OK;
 }
@@ -80,6 +99,9 @@ static MunitResult test_init_all_unusable(const MunitParameter params[], void *p
 
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
+
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
 
     free(map);
     return MUNIT_OK;
@@ -93,6 +115,9 @@ static MunitResult test_init_all_disabled(const MunitParameter params[], void *p
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
     free(map);
     return MUNIT_OK;
 }
@@ -104,6 +129,9 @@ static MunitResult test_init_all_persistent(const MunitParameter params[], void 
 
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
+
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
 
     free(map);
     return MUNIT_OK;
@@ -117,6 +145,9 @@ static MunitResult test_init_all_unknown(const MunitParameter params[], void *pa
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
     free(map);
     return MUNIT_OK;
 }
@@ -129,6 +160,39 @@ static MunitResult test_init_all_illegal(const MunitParameter params[], void *pa
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_init_zero_length(const MunitParameter params[], void *param) {
+    E820h_MemMapEntry entry = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000000000, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry;
+
+    MemoryRegion* region = page_alloc_init(map, region_buffer);
+    munit_assert_uint64(region->size, ==, 0);
+
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_init_too_small(const MunitParameter params[], void *param) {
+    E820h_MemMapEntry entry = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000000400, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry;
+
+    MemoryRegion* region = page_alloc_init(map, region_buffer);
+    munit_assert_uint64(region->size, ==, 0);
+
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
     free(map);
     return MUNIT_OK;
 }
@@ -140,6 +204,45 @@ static MunitResult test_init_one_available(const MunitParameter params[], void *
 
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0x100000);
+
+    // One entry on stack
+    munit_assert_ptr_equal(region->sp, stack_base(region) + 1);
+    munit_assert_uint64(region->sp->base, ==, 0);
+    munit_assert_uint64(region->sp->size, ==, 0x100);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_init_unaligned_zero(const MunitParameter params[], void *param) {
+    // One block, unaligned. When aligned, it will give us zero bytes
+    E820h_MemMapEntry entry = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000400, .length = 0x0000000000001080, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry;
+
+    MemoryRegion* region = page_alloc_init(map, region_buffer);
+    munit_assert_uint64(region->size, ==, 0x0);
+
+    // empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_init_unaligned_one(const MunitParameter params[], void *param) {
+    // One block, unaligned. When aligned, it will give us 4KiB
+    E820h_MemMapEntry entry = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000400, .length = 0x0000000000002080, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry;
+
+    MemoryRegion* region = page_alloc_init(map, region_buffer);
+    munit_assert_uint64(region->size, ==, 0x1000);
+
+    // One entry on stack
+    munit_assert_ptr_equal(region->sp, stack_base(region) + 1);
+    munit_assert_uint64(region->sp->base, ==, 0x1000);
+    munit_assert_uint64(region->sp->size, ==, 0x1);
 
     free(map);
     return MUNIT_OK;
@@ -154,6 +257,11 @@ static MunitResult test_init_some_available(const MunitParameter params[], void 
 
     MemoryRegion* region = page_alloc_init(map, region_buffer);
     munit_assert_uint64(region->size, ==, 0x100000);
+
+    // One entry on stack
+    munit_assert_ptr_equal(region->sp, stack_base(region) + 1);
+    munit_assert_uint64(region->sp->base, ==, 0);
+    munit_assert_uint64(region->sp->size, ==, 0x100);
 
     free(map);
     return MUNIT_OK;
@@ -171,6 +279,11 @@ static MunitResult test_init_1M_at_zero(const MunitParameter params[], void *par
     munit_assert_uint64(region->size, ==, 0x100000);
     munit_assert_uint64(region->free, ==, 0x100000);
 
+    // One entry on stack
+    munit_assert_ptr_equal(region->sp, stack_base(region) + 1);
+    munit_assert_uint64(region->sp->base, ==, 0);
+    munit_assert_uint64(region->sp->size, ==, 0x100);
+
     free(map);
     return MUNIT_OK;
 }
@@ -186,34 +299,10 @@ static MunitResult test_init_large_region(const MunitParameter params[], void *p
     munit_assert_uint64(region->size, ==, 0x10000000);
     munit_assert_uint64(region->free, ==, 0x10000000);
 
-    // Do we have 128 order-9 blocks with increasing (by max block size) bases?
-    munit_assert_not_null(region->order_lists[9]);
-
-    PhysicalBlock *current = region->order_lists[9];
-    int count = 0;
-    uint64_t expected_base = 0;
-
-    while (current) {
-      munit_assert_uint64(current->base, ==, expected_base);
-      munit_assert_uint64(current->order, ==, 9);
-
-      current = current->next;
-      count++;
-      expected_base += 0x200000;
-    }
-
-    munit_assert_int(count, ==, 128);   // 128 blocks, 2MiB each == 256MiB (0x10000000)
-
-    // Are all the other order lists empty?
-    munit_assert_null(region->order_lists[0]);
-    munit_assert_null(region->order_lists[1]);
-    munit_assert_null(region->order_lists[2]);
-    munit_assert_null(region->order_lists[3]);
-    munit_assert_null(region->order_lists[4]);
-    munit_assert_null(region->order_lists[5]);
-    munit_assert_null(region->order_lists[6]);
-    munit_assert_null(region->order_lists[7]);
-    munit_assert_null(region->order_lists[8]);
+    // One entry on stack
+    munit_assert_ptr_equal(region->sp, stack_base(region) + 1);
+    munit_assert_uint64(region->sp->base, ==, 0);
+    munit_assert_uint64(region->sp->size, ==, 0x10000);
 
     free(map);
     return MUNIT_OK;
@@ -230,30 +319,19 @@ static MunitResult test_init_two_regions(const MunitParameter params[], void *pa
 
     MemoryRegion* region = page_alloc_init(map, region_buffer);
 
-    munit_assert_uint64(region->size, ==, 0x120000);
-    munit_assert_uint64(region->free, ==, 0x120000);
+    munit_assert_uint64(region->size, ==, 0x00120000);
+    munit_assert_uint64(region->free, ==, 0x00120000);
 
-    // Is there a single order-8 block at base 0x100000?
-    munit_assert_not_null(region->order_lists[8]);
-    munit_assert_null(region->order_lists[8]->next);
-    munit_assert_uint64(region->order_lists[8]->base, ==, 0x000000);
-    munit_assert_uint64(region->order_lists[8]->order, ==, 8);
+    // Two entries on stack
+    munit_assert_ptr_equal(region->sp, stack_base(region) + 2);
 
-    // Is there a single order-5 block at base 0x100000?
-    munit_assert_not_null(region->order_lists[5]);
-    munit_assert_null(region->order_lists[5]->next);
-    munit_assert_uint64(region->order_lists[5]->base, ==, 0x100000);
-    munit_assert_uint64(region->order_lists[5]->order, ==, 5);
+    // Top entry is based at 1MiB, 32 pages
+    munit_assert_uint64(region->sp->base, ==, 0x100000);
+    munit_assert_uint64(region->sp->size, ==, 0x20);
 
-    // Are all the other order lists empty?
-    munit_assert_null(region->order_lists[0]);
-    munit_assert_null(region->order_lists[1]);
-    munit_assert_null(region->order_lists[2]);
-    munit_assert_null(region->order_lists[3]);
-    munit_assert_null(region->order_lists[4]);
-    munit_assert_null(region->order_lists[6]);
-    munit_assert_null(region->order_lists[7]);
-    munit_assert_null(region->order_lists[9]);
+    // Next entry is based at 0MiB, 256 pages
+    munit_assert_uint64((region->sp - 1)->base, ==, 0x0);
+    munit_assert_uint64((region->sp - 1)->size, ==, 0x100);
 
     free(map);
     return MUNIT_OK;
@@ -272,34 +350,16 @@ static MunitResult test_init_two_large_regions(const MunitParameter params[], vo
     munit_assert_uint64(region->size, ==, 0x20000000);
     munit_assert_uint64(region->free, ==, 0x20000000);
 
-    // Do we have 256 order-9 blocks with increasing (by max block size) bases?
-    munit_assert_not_null(region->order_lists[9]);
+    // Two entries on stack
+    munit_assert_ptr_equal(region->sp, stack_base(region) + 2);
 
-    PhysicalBlock *current = region->order_lists[9];
-    int count = 0;
-    uint64_t expected_base = 0;
+    // Top entry is based at 256MiB, 65536 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x10000000);
+    munit_assert_uint64(region->sp->size, ==, 0x10000);
 
-    while (current) {
-      munit_assert_uint64(current->base, ==, expected_base);
-      munit_assert_uint64(current->order, ==, 9);
-
-      current = current->next;
-      count++;
-      expected_base += 0x200000;
-    }
-
-    munit_assert_int(count, ==, 256);   // 256 blocks, 2MiB each == 512MiB (0x20000000)
-
-    // Are all the other order lists empty?
-    munit_assert_null(region->order_lists[0]);
-    munit_assert_null(region->order_lists[1]);
-    munit_assert_null(region->order_lists[2]);
-    munit_assert_null(region->order_lists[3]);
-    munit_assert_null(region->order_lists[4]);
-    munit_assert_null(region->order_lists[5]);
-    munit_assert_null(region->order_lists[6]);
-    munit_assert_null(region->order_lists[7]);
-    munit_assert_null(region->order_lists[8]);
+    // Next entry is based at 0MiB, 65536 pages
+    munit_assert_uint64((region->sp - 1)->base, ==, 0x0);
+    munit_assert_uint64((region->sp - 1)->size, ==, 0x10000);
 
     free(map);
     return MUNIT_OK;
@@ -318,47 +378,16 @@ static MunitResult test_init_two_noncontig_regions(const MunitParameter params[]
     munit_assert_uint64(region->size, ==, 0x20000000);
     munit_assert_uint64(region->free, ==, 0x20000000);
 
-    // Do we have 128 order-9 blocks with increasing (by max block size) bases, based at 0?
-    munit_assert_not_null(region->order_lists[9]);
+    // Two entries on stack
+    munit_assert_ptr_equal(region->sp, stack_base(region) + 2);
 
-    PhysicalBlock *current = region->order_lists[9];
-    int count = 0;
-    uint64_t expected_base = 0;
+    // Top entry is based at 1GiB, 65536 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x40000000);
+    munit_assert_uint64(region->sp->size, ==, 0x10000);
 
-    for (int i = 0; i < 128; i++) {
-      munit_assert_uint64(current->base, ==, expected_base);
-      munit_assert_uint64(current->order, ==, 9);
-
-      current = current->next;
-      count++;
-      expected_base += 0x200000;
-    }
-
-    // Followed by another 128 blocks, increasing the same, but based at 0x40000000?
-    expected_base = 0x40000000;
-
-    for (int i = 0; i < 128; i++) {
-      munit_assert_uint64(current->base, ==, expected_base);
-      munit_assert_uint64(current->order, ==, 9);
-
-      current = current->next;
-      count++;
-      expected_base += 0x200000;
-    }
-
-    // And no more?
-    munit_assert_null(current);
-
-    // Are all the other order lists empty?
-    munit_assert_null(region->order_lists[0]);
-    munit_assert_null(region->order_lists[1]);
-    munit_assert_null(region->order_lists[2]);
-    munit_assert_null(region->order_lists[3]);
-    munit_assert_null(region->order_lists[4]);
-    munit_assert_null(region->order_lists[5]);
-    munit_assert_null(region->order_lists[6]);
-    munit_assert_null(region->order_lists[7]);
-    munit_assert_null(region->order_lists[8]);
+    // Next entry is based at 0MiB, 65536 pages
+    munit_assert_uint64((region->sp - 1)->base, ==, 0x0);
+    munit_assert_uint64((region->sp - 1)->size, ==, 0x10000);
 
     free(map);
     return MUNIT_OK;
@@ -377,95 +406,315 @@ static MunitResult test_init_two_unequal_regions(const MunitParameter params[], 
     munit_assert_uint64(region->size, ==, 0x10100000);
     munit_assert_uint64(region->free, ==, 0x10100000);
 
-    // Do we have 128 order-9 blocks with increasing (by max block size) bases, based at 0?
-    munit_assert_not_null(region->order_lists[9]);
+    // Two entries on stack
+    munit_assert_ptr_equal(region->sp, stack_base(region) + 2);
 
-    PhysicalBlock *current = region->order_lists[9];
-    int count = 0;
-    uint64_t expected_base = 0;
+    // Top entry is based at 1GiB, 256 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x10000000);
+    munit_assert_uint64(region->sp->size, ==, 0x100);
 
-    for (int i = 0; i < 128; i++) {
-      munit_assert_uint64(current->base, ==, expected_base);
-      munit_assert_uint64(current->order, ==, 9);
+    // Next entry is based at 0MiB, 65536 pages
+    munit_assert_uint64((region->sp - 1)->base, ==, 0x0);
+    munit_assert_uint64((region->sp - 1)->size, ==, 0x10000);
 
-      current = current->next;
-      count++;
-      expected_base += 0x200000;
-    }
+    free(map);
+    return MUNIT_OK;
+}
 
-    munit_assert_int(count, ==, 128);   // 256 blocks, 2MiB each == 512MiB (0x20000000)
+static MunitResult test_alloc_page_empty(const MunitParameter params[], void *param) {
+    E820h_MemMapEntry entry0 = { .type = MEM_MAP_ENTRY_RESERVED, .base = 0x0000000000000000, .length = 0x0000000000000100, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
 
-    // And no more?
-    munit_assert_null(current);
+    MemoryRegion* region = page_alloc_init(map, region_buffer);
 
-    // Also 1 block, order-8, based at 0x10000000
-    expected_base = 0x10000000;
-    current = region->order_lists[8];
-    count = 0;
+    uint64_t page = page_alloc(region);
 
-    munit_assert_uint64(current->base, ==, expected_base);
-    munit_assert_uint64(current->order, ==, 8);
-    munit_assert_null(current->next);
-
-    // Are all the other order lists empty?
-    munit_assert_null(region->order_lists[0]);
-    munit_assert_null(region->order_lists[1]);
-    munit_assert_null(region->order_lists[2]);
-    munit_assert_null(region->order_lists[3]);
-    munit_assert_null(region->order_lists[4]);
-    munit_assert_null(region->order_lists[5]);
-    munit_assert_null(region->order_lists[6]);
-    munit_assert_null(region->order_lists[7]);
+    munit_assert_uint64(page & 0xFF, ==, 0xFF);
 
     free(map);
     return MUNIT_OK;
 }
 
 static MunitResult test_alloc_page(const MunitParameter params[], void *param) {
-    E820h_MemMapEntry entry0 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000100000, .attrs = 0 };
-    E820h_MemMapEntry entry1 = { .type = MEM_MAP_ENTRY_RESERVED,  .base = 0x0010000000000000, .length = 0x0100000000100000, .attrs = 0 };
-    E820h_MemMapEntry entry2 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000100000, .length = 0x0000000000020000, .attrs = 0 };
-    E820h_MemMap *map = create_mem_map(3);
+    E820h_MemMapEntry entry0 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000001000, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
-    map->entries[1] = entry1;
-    map->entries[2] = entry2;
 
-    PhysPage page;
     MemoryRegion* region = page_alloc_init(map, region_buffer);
 
-    // munit_assert_true(page_alloc_alloc_page(&page));
+    // Can allocate the one available page
+    uint64_t page = page_alloc(region);
+    munit_assert_uint64(page, ==, 0);
 
-    // munit_assert_uint64(page.phys_addr, ==, 0);
+    // No more pages
+    page = page_alloc(region);
+    munit_assert_uint64(page & 0xFF, ==, 0xFF);
 
-    // munit_assert_uint64(region->size, ==, 0x120000);
-    // munit_assert_uint64(region->free, ==, 0x11F000);
-
+    free(map);
     return MUNIT_OK;
 }
 
 static MunitResult test_alloc_two_pages(const MunitParameter params[], void *param) {
-    E820h_MemMapEntry entry0 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000100000, .attrs = 0 };
+    E820h_MemMapEntry entry0 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000002000, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion* region = page_alloc_init(map, region_buffer);
+
+    // Two pages total, two free
+    munit_assert_uint64(region->size, ==, 0x2000);
+    munit_assert_uint64(region->free, ==, 0x2000);
+
+    // Top entry is based at 0, 2 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x0);
+    munit_assert_uint64(region->sp->size, ==, 0x2);
+
+    // Can allocate the first available page
+    uint64_t page = page_alloc(region);
+    munit_assert_uint64(page, ==, 0);
+
+    // Two pages total, only one free
+    munit_assert_uint64(region->size, ==, 0x2000);
+    munit_assert_uint64(region->free, ==, 0x1000);
+
+    // Top entry is based at 0x1000, 1 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x1000);
+    munit_assert_uint64(region->sp->size, ==, 0x1);
+
+    // Can allocate the last available page
+    page = page_alloc(region);
+    munit_assert_uint64(page, ==, 0x1000);
+
+    // Two pages total, none free
+    munit_assert_uint64(region->size, ==, 0x2000);
+    munit_assert_uint64(region->free, ==, 0x0);
+
+    // Stack is now empty
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_alloc_two_blocks(const MunitParameter params[], void *param) {
+    E820h_MemMapEntry entry0 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000001000, .attrs = 0 };
     E820h_MemMapEntry entry1 = { .type = MEM_MAP_ENTRY_RESERVED,  .base = 0x0010000000000000, .length = 0x0100000000100000, .attrs = 0 };
-    E820h_MemMapEntry entry2 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000100000, .length = 0x0000000000020000, .attrs = 0 };
+    E820h_MemMapEntry entry2 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000100000, .length = 0x0000000000002000, .attrs = 0 };
     E820h_MemMap *map = create_mem_map(3);
     map->entries[0] = entry0;
     map->entries[1] = entry1;
     map->entries[2] = entry2;
 
-    PhysPage page1, page2;
     MemoryRegion* region = page_alloc_init(map, region_buffer);
 
-    // munit_assert_true(page_alloc_alloc_page(&page1));
-    // munit_assert_true(page_alloc_alloc_page(&page2));
+    // Two pages total, two free
+    munit_assert_uint64(region->size, ==, 0x3000);
+    munit_assert_uint64(region->free, ==, 0x3000);
 
-    // munit_assert_uint64(page1.phys_addr, ==, 0);
-    // munit_assert_uint64(page2.phys_addr, ==, 4096);
+    // Top entry is based at 1MiB, 2 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x100000);
+    munit_assert_uint64(region->sp->size, ==, 0x2);
 
-    // munit_assert_uint64(region->size, ==, 0x120000);
-    // munit_assert_uint64(region->free, ==, 0x11E000);
+    // Can allocate the first available page
+    uint64_t page = page_alloc(region);
+    munit_assert_uint64(page, ==, 0x100000);
 
+    // Two pages total, only one free
+    munit_assert_uint64(region->size, ==, 0x3000);
+    munit_assert_uint64(region->free, ==, 0x2000);
+
+    // Top entry is based at 1MiB + 4KiB, 1 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x101000);
+    munit_assert_uint64(region->sp->size, ==, 0x1);
+
+    // Can allocate the second available page (last one in the first block)
+    page = page_alloc(region);
+    munit_assert_uint64(page, ==, 0x101000);
+
+    // Two pages total, none free
+    munit_assert_uint64(region->size, ==, 0x3000);
+    munit_assert_uint64(region->free, ==, 0x1000);
+
+    // Top entry is based at 0, 1 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x0);
+    munit_assert_uint64(region->sp->size, ==, 0x1);
+
+    // Can allocate the third available page (only one in the last block)
+    page = page_alloc(region);
+    munit_assert_uint64(page, ==, 0);
+
+    // Two pages total, none free
+    munit_assert_uint64(region->size, ==, 0x3000);
+    munit_assert_uint64(region->free, ==, 0x0);
+
+    // Stack is now empty
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    free(map);
     return MUNIT_OK;
 }
+
+static MunitResult test_free_page(const MunitParameter params[], void *param) {
+    E820h_MemMapEntry entry0 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000001000, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion* region = page_alloc_init(map, region_buffer);
+    uint64_t page = page_alloc(region);
+
+    // Stack is now empty
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    // One page total, none free
+    munit_assert_uint64(region->size, ==, 0x1000);
+    munit_assert_uint64(region->free, ==, 0x0);
+
+    // Free the page
+    page_free(region, page);
+
+    // Stack is no longer empty
+    munit_assert_ptr_equal(region->sp, region + 1);
+
+    // Top entry is based at 0, 1 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x0);
+    munit_assert_uint64(region->sp->size, ==, 0x1);
+
+    // One page total, one free
+    munit_assert_uint64(region->size, ==, 0x1000);
+    munit_assert_uint64(region->free, ==, 0x1000);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_free_unaligned_page(const MunitParameter params[], void *param) {
+    E820h_MemMapEntry entry0 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000001000, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion* region = page_alloc_init(map, region_buffer);
+    uint64_t page = page_alloc(region);
+
+    // Stack is now empty
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    // One page total, none free
+    munit_assert_uint64(region->size, ==, 0x1000);
+    munit_assert_uint64(region->free, ==, 0x0);
+
+    // Free an unaligned address
+    page_free(region, 0x100F);
+
+    // Stack is still empty
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_free_contig_pages_forward(const MunitParameter params[], void *param) {
+    // Special case - if we free contiguous pages, where the page being freed is **above**
+    // the one at the stack top, we should coalesce them.
+    //
+    // Not sure how useful this will end up being, but it's cheap and worth testing,
+    // should maybe add some metrics to see how common it is...
+    //
+    E820h_MemMapEntry entry0 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000002000, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion* region = page_alloc_init(map, region_buffer);
+    uint64_t page1 = page_alloc(region);        // will be at 0x1000
+    uint64_t page2 = page_alloc(region);        // will be at 0x2000
+
+    // Stack is now empty
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    // Two pages total, none free
+    munit_assert_uint64(region->size, ==, 0x2000);
+    munit_assert_uint64(region->free, ==, 0x0);
+
+    // Free the lower page
+    page_free(region, page1);
+
+    // Stack is no longer empty
+    munit_assert_ptr_equal(region->sp, region + 1);
+
+    // Top entry is based at 0, 1 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x0);
+    munit_assert_uint64(region->sp->size, ==, 0x1);
+
+    // Two pages total, one free
+    munit_assert_uint64(region->size, ==, 0x2000);
+    munit_assert_uint64(region->free, ==, 0x1000);
+
+    // Free the higher page
+    page_free(region, page2);
+
+    // Top entry still based at 0, but now 2 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x0);
+    munit_assert_uint64(region->sp->size, ==, 0x2);
+
+    // Two pages total, two free
+    munit_assert_uint64(region->size, ==, 0x2000);
+    munit_assert_uint64(region->free, ==, 0x2000);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_free_contig_pages_backward(const MunitParameter params[], void *param) {
+    // Special case - if we free contiguous pages, where the page being freed is **below**
+    // the one at the stack top, we should coalesce them.
+    //
+    // Not sure how useful this will end up being, but it's cheap and worth testing,
+    // should maybe add some metrics to see how common it is...
+    //
+    E820h_MemMapEntry entry0 = { .type = MEM_MAP_ENTRY_AVAILABLE, .base = 0x0000000000000000, .length = 0x0000000000002000, .attrs = 0 };
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion* region = page_alloc_init(map, region_buffer);
+    uint64_t page1 = page_alloc(region);        // will be at 0x1000
+    uint64_t page2 = page_alloc(region);        // will be at 0x2000
+
+    // Stack is now empty
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    // Two pages total, none free
+    munit_assert_uint64(region->size, ==, 0x2000);
+    munit_assert_uint64(region->free, ==, 0x0);
+
+    // Free the lower page
+    page_free(region, page2);
+
+    // Stack is no longer empty
+    munit_assert_ptr_equal(region->sp, region + 1);
+
+    // Top entry is based at 0x1000, 1 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x1000);
+    munit_assert_uint64(region->sp->size, ==, 0x1);
+
+    // Two pages total, one free
+    munit_assert_uint64(region->size, ==, 0x2000);
+    munit_assert_uint64(region->free, ==, 0x1000);
+
+    // Free the lower page
+    page_free(region, page1);
+
+    // Top entry now based at 0, and now 2 pages 
+    munit_assert_uint64(region->sp->base, ==, 0x0);
+    munit_assert_uint64(region->sp->size, ==, 0x2);
+
+    // Two pages total, two free
+    munit_assert_uint64(region->size, ==, 0x2000);
+    munit_assert_uint64(region->free, ==, 0x2000);
+
+    free(map);
+    return MUNIT_OK;
+}
+
 
 static void* setup(const MunitParameter params[], void* user_data) {
     region_buffer = malloc(0x100000);
@@ -487,17 +736,28 @@ static MunitTest test_suite_tests[] = {
   { (char*) "/pmm/palloc/init_persistent", test_init_all_persistent, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/init_unknown", test_init_all_unknown, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/init_illegal", test_init_all_illegal, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
+  { (char*) "/pmm/palloc/init_zero_length", test_init_zero_length, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
+  { (char*) "/pmm/palloc/init_too_small", test_init_too_small, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/init_one_avail", test_init_one_available, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
+  { (char*) "/pmm/palloc/init_unaligned_zero", test_init_unaligned_zero, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
+  { (char*) "/pmm/palloc/init_unaligned_one", test_init_unaligned_one, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/init_some_avail", test_init_some_available, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/init_1M_at_zero", test_init_1M_at_zero, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
-  { (char*) "/pmm/palloc/init_big_regions", test_init_large_region, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
+  { (char*) "/pmm/palloc/init_big_region", test_init_large_region, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/init_two_regions", test_init_two_regions, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/init_two_big_regions", test_init_two_large_regions, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/init_two_split_regions", test_init_two_noncontig_regions, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/init_two_unequal_regions", test_init_two_unequal_regions, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
 
+  { (char*) "/pmm/palloc/alloc_page_empty", test_alloc_page_empty, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/alloc_page", test_alloc_page, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
   { (char*) "/pmm/palloc/alloc_two_pages", test_alloc_two_pages, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
+  { (char*) "/pmm/palloc/alloc_from_two_blocks", test_alloc_two_blocks, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
+
+  { (char*) "/pmm/palloc/free_page", test_free_page, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
+  { (char*) "/pmm/palloc/free_unaligned", test_free_unaligned_page, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
+  { (char*) "/pmm/palloc/free_contig_fwd", test_free_contig_pages_forward, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
+  { (char*) "/pmm/palloc/free_contig_bwd", test_free_contig_pages_backward, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL },
 
   { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
 };

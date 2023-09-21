@@ -12,23 +12,20 @@
 
 #include "machine.h"
 
-#define MAX_ORDER           10                              // Max order is 10 = 4MiB
-
 typedef struct {
     uintptr_t       phys_addr;
 } PhysPage;
 
-typedef struct _PhysicalBlock {
-    uintptr_t                   base;
-    uintptr_t                   order;
-    struct _PhysicalBlock*      next;
-} PhysicalBlock;
+typedef struct {
+    uint64_t        base;
+    uint64_t        size;    
+} MemoryBlock;
 
 typedef struct {
+    uint64_t        flags;
     uint64_t        size;
     uint64_t        free;
-    PhysicalBlock*  order_lists[MAX_ORDER];
-    uint64_t*       bitmap;
+    MemoryBlock*    sp;
 } MemoryRegion;
 
 /*
@@ -42,35 +39,33 @@ typedef struct {
  * 
  * Will also make sure all free areas are page-aligned.
  * 
- * Returns `true` if initialization succeeded, or `false` otherwise
- * (probably because the map was empty or had no usable memory).
+ * The supplied buffer will be used for the MemoryRegion struct,
+ * as well as the stack of MemoryBlocks, which will grow upward
+ * as needed, and must be able to accomodate a fully-fragmented
+ * region. Growing upward means, if the buffer is in a virtual 
+ * alloc area, physical memory will only be allocated as it grows.
  * 
- * Allocator information is populated into the given PageAllocator
- * struct.
+ * Returns a MemoryRegion pointer, created in the given buffer.
  */
 MemoryRegion* page_alloc_init(E820h_MemMap *memmap, void* buffer);
 
 /*
- * Allocate a physical page. 
+ * Allocate a single physical page. 
  *
  * Currently, only 4KiB pages are supported.
  * 
- * Returns `true` if allocation succeeded, or `false` otherwise
- * (probably because there were no free pages left).
+ * Returns a page aligned start address on success.
  * 
- * Page information (needed for free) is filled into the provided
- * PhysPage structure.
+ * If unsuccessful, an unaligned number (with 0xFF in the least-significant
+ * byte) will be returned.
  */
-bool page_alloc_alloc_page(PhysPage *page);
+uint64_t page_alloc(MemoryRegion *region);
 
 /*
  * Free a physical page. 
  *
  * Currently, only 4KiB pages are supported.
- * 
- * Returns `true` if allocation succeeded, or `false` otherwise
- * (probably because there were no free pages left).
  */
-bool page_alloc_free_page(PhysPage *page);
+void page_free(MemoryRegion *region, uint64_t page);
 
 #endif//__ANOS_KERNEL_PMM_PAGEALLOC_H
