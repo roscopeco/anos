@@ -46,6 +46,11 @@ As far as the Kernel is concerned, there's much to still be decided.
 However, since this is being designed as 64-bit from the beginning, there's
 a lot of things I can do that I wouldn't otherwise be able to.
 
+Right now, it's very early days. There's a simple stack-based physical
+memory allocator, a very simple (for testing only) page fault handler,
+and the beginnings of a virtual memory manager (currently, just able
+to map pages for the fault handler).
+
 ### Building
 
 Everything is built with `make`. You'll want a cross-compiler
@@ -170,5 +175,5 @@ your frontend and connect (`localhost:9666` by default).
 This probably isn't up to date enough to represent where it's at, but
 it should be relatively recent.
 
-<img src="images/Screenshot 2023-09-17 at 22.47.52.png" alt="Hopefully-recent Screenshot">
+<img src="images/Screenshot 2023-09-23 at 01.02.25.png" alt="Hopefully-recent Screenshot">
 

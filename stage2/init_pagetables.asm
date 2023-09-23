@@ -5,11 +5,15 @@
 ;
 ; Initial page-tables for jump to long mode
 ;
-; Kernel space is the top 2GB (or, the negative 2GB if you prefer), so the
-; base address for kernel space is 0xFFFFFFFF80000000. 
+; Kernel **code** space is the top 2GB (or, the negative 2GB if you prefer),
+; so the base address for that is 0xFFFFFFFF80000000. 
 ;
-; I load the Kernel in unreal mode to 0x120000 (just above 1MiB), leaving 
-; 128KB at the bottom of that MiB for BSS etc.
+; However, the top 512GB is allocated as kernel-reserved space, so kernel
+; space actually begins at 0xFFFFFF8000000000, i.e. the whole last PML4
+; entry.
+;
+; I load the Kernel in unreal mode to physical 0x120000 (just above 1MiB), 
+; leaving 128KB at the bottom of that MiB for BSS etc.
 ;
 ; For an easy life, in these initial page tables I'm just going to identity map
 ; the first 2MB (so the running code doesn't blow up when I switch paging on)
@@ -61,7 +65,7 @@ init_page_tables:
   mov   [PM4_START], eax                  ; Identity map (first PM4 entry)
   mov   [PM4_START+0xFF8], eax            ; Also kernel space (last PM4 entry)
 
-  ; Set up a single PDPT entry, pointing to the PD
+  ; Set up a single PDPT entry, pointing to the PD (this will introduce a copy at 512GiB, but whatever...)
   mov   eax,PD_START | PRESENT | WRITE
   mov   [PDP_START], eax                  ; Identity map (first PDPT entry)
   mov   [PDP_START+0xFF0], eax            ; Also kernel space (second-to-last PDPT entry)
@@ -84,6 +88,10 @@ init_page_tables:
   pop   edi                               ; Restore registers and done
   pop   ecx
   pop   eax
+
+  ; Now, set up the tables for the 
+  mov   [PM4_START+0xFF0], eax            ; And PMM stack stack (second-to-last PM4 entry)
+
   ret
 
 

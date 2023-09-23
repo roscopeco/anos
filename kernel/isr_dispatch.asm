@@ -13,19 +13,62 @@ extern handle_interrupt_nc, handle_interrupt_wc
 %macro isr_dispatcher_with_code 1         ; General handler for traps that stack an error code
 global isr_dispatcher_%+%1                ; Ensure declared global
 isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_0`
-  mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
-  pop   rsi                               ; Pop error code into the second C argument
-  mov   rdx,[rsp]                         ; Peek return address into third C argument
+  push  rax                               ; Save all C-clobbered registers
+  push  rcx
+  push  rdx
+  push  rsi
+  push  rdi
+  push  r8
+  push  r9
+  push  r10
+  push  r11  
+  
+  mov   rdi,%1                            ; Put the trap number in the first C argument
+  mov   rsi,72[rsp]                         ; Error code from stack into the second C argument
+  mov   rdx,80[rsp]                         ; Peek return address into third C argument
   call  handle_interrupt_wc               ; Call the with-code handler
-  iretq                                   ; And done...
+
+  pop   r11                               ; Restore registers...
+  pop   r10
+  pop   r9
+  pop   r8
+
+  pop   rdi
+  pop   rsi
+  pop   rdx
+  pop   rcx
+  pop   rax
+  add   rsp,8                             ; Discard the error code
+
+  iretq                                    ; And done...
 %endmacro
 
 %macro isr_dispatcher_no_code 1           ; General handler for traps that stack an error code
 global isr_dispatcher_%+%1                ; Ensure declared global
 isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_1`
+  push  rax                               ; Save all C-clobbered registers
+  push  rcx
+  push  rdx
+  push  rsi
+  push  rdi
+  push  r8
+  push  r9
+  push  r10
+  push  r11  
+  
   mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
   mov   rsi,[rsp]                         ; Peek return address into second C argument
   call  handle_interrupt_nc               ; Call the no-code handler
+
+  pop   r11                              ; Restore registers...
+  pop   r10
+  pop   r9
+  pop   r8
+  pop   rdi
+  pop   rsi
+  pop   rdx
+  pop   rcx
+  pop   rax
   iretq                                   ; And done...
 %endmacro
 
