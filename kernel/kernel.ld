@@ -20,12 +20,15 @@ SECTIONS
   {
     _code = .;
     *(.text.init)
+    . = ALIGN(16);
     *(.text*)
+    . = ALIGN(16);
     *(.rodata*)
     _code_end = .;
     _data_start = .;
+    . = ALIGN(16);
     *(.data*)
-    . = ALIGN(4);
+    . = ALIGN(16);
     _data_end = .;
   } > CODE
 
@@ -34,7 +37,7 @@ SECTIONS
     _bss_start = .;
     *(.bss*)
     *(COMMON)
-    . = ALIGN(4);
+    . = ALIGN(16);
     _bss_end = .;
   } > DATA AT > CODE
 

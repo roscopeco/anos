@@ -28,6 +28,9 @@ tests/build/pmm/pagealloc: tests/munit.o tests/pmm/pagealloc.o tests/build/pmm/p
 tests/build/vmm/vmmapper: tests/munit.o tests/vmm/vmmapper.o tests/build/vmm/vmmapper.o
 	$(CC) -o $@ $^
 
-test: tests/build/interrupts tests/build/pmm/bitmap tests/build/pmm/pagealloc tests/build/vmm/vmmapper
+tests/build/debugprint: tests/munit.o tests/debugprint.o tests/build/debugprint.o
+	$(CC) -o $@ $^
+
+test: tests/build/interrupts tests/build/pmm/bitmap tests/build/pmm/pagealloc tests/build/vmm/vmmapper tests/build/debugprint
 	sh -c 'for test in $^; do $$test; done'
 

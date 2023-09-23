@@ -91,9 +91,8 @@ void pagetables_init() {
     pdpt[0] = 0x9a000 | PRESENT | WRITE;
 
     // Just load cr3 to dump the TLB...
-    uint64_t pml4_phys = 0x9c000;
     __asm__ volatile (
-        "mov %%rax, %0\n\t"
-        "mov %%cr3, %%rax\n\t" : : "m"(pml4_phys)
+        "mov %cr3, %rax\n\t"
+        "mov %rax, %cr3\n\t"
     );    
 }

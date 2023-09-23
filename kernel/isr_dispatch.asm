@@ -24,8 +24,8 @@ isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_0`
   push  r11  
   
   mov   rdi,%1                            ; Put the trap number in the first C argument
-  mov   rsi,72[rsp]                         ; Error code from stack into the second C argument
-  mov   rdx,80[rsp]                         ; Peek return address into third C argument
+  mov   rsi,72[rsp]                       ; Error code from stack into the second C argument
+  mov   rdx,80[rsp]                       ; Peek return address into third C argument
   call  handle_interrupt_wc               ; Call the with-code handler
 
   pop   r11                               ; Restore registers...
@@ -57,7 +57,7 @@ isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_1`
   push  r11  
   
   mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
-  mov   rsi,[rsp]                         ; Peek return address into second C argument
+  mov   rsi,72[rsp]                       ; Peek return address into second C argument
   call  handle_interrupt_nc               ; Call the no-code handler
 
   pop   r11                              ; Restore registers...
