@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "executable": "kernel/kernel.elf",
+            "name": "(gdb) Attach",
+            "type": "gdb",
+            "request": "attach",
+            "preLaunchTask": "debug-qemu",
+            "target": "localhost:9666",
+            "remote": true,
+            "cwd": "${workspaceRoot}"
+        },
+    ]
+}

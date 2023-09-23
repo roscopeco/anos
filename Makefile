@@ -145,11 +145,16 @@ $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 qemu: $(FLOPPY_IMG)
 	$(QEMU) -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac
 
-debug-qemu-start: $(FLOPPY_IMG)
-	$(QEMU) -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -gdb tcp::9666 -S &
+QEMU_OPTS=-drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -gdb tcp::9666 -S
 
-debug-qemu: debug-qemu-start
-	gdb
+debug-qemu-start: $(FLOPPY_IMG)
+	$(QEMU) $(QEMU_OPTS)
+
+debug-qemu-start-terminal: $(FLOPPY_IMG)
+	$(QEMU) $(QEMU_OPTS) &
+
+debug-qemu: debug-qemu-start-terminal
+	gdb -ex 'target remote localhost:9666'
 
 bochs: floppy.img bochsrc
 	$(BOCHS)
