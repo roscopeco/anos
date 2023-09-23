@@ -170,6 +170,24 @@ make debug-qemu-start
 which will skip starting GDB for you, allowing you to launch 
 your frontend and connect (`localhost:9666` by default).
 
+#### Debugging in VSCode
+
+If Visual Studio Code is your bag, you should be able to debug visually using that,
+there are `launch.json` and `tasks.json` files included that seem to work on 
+my machine. 
+
+You'll probably need the "Native Debugging" extension installed from the marketplace,
+the standard one seems to be unusually braindead, even by Visual Studio standards.
+
+Once you have that, stick a breakpoint in the margin somewhere and then run the 
+`(gdb) Attach` configuration from the debug tab. It should build the project,
+kick off qemu and then connect to it allowing you to debug things.
+
+> **Note**: Certain things don't work well, I'd still go with `gdb` terminal if
+> you're comfortable with it. The stack doesn't get populated correctly in vscode,
+> for example - though it _does_ use the symbols we give it so it can at least find
+> the appropriate line of code in both C and assembly source, so it's _basicaly usable_.
+
 ### Recent screenshot
 
 This probably isn't up to date enough to represent where it's at, but
