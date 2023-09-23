@@ -42,7 +42,7 @@
 
 // For now, just supporting a single set of page tables,
 // mapped into kernel space at this address.
-#define STATIC_PML4             0xFFFFFFFF8009c000
+#define STATIC_PML4            ((uint64_t*) 0xFFFFFFFF8009c000)
 
 // Again, for now, all physical memory used must be mapped
 // here, the mapper expects to be able to access pages
@@ -60,7 +60,7 @@
  * which means it needs to allocate physical pages - it uses the PMM
  * (obviously) and thus it **can** pagefault.
  */
-void map_page(uintptr_t virt_addr, uint32_t page);
+void map_page(uint64_t *pml4, uintptr_t virt_addr, uint32_t page, uint16_t flags);
 
 #endif//__ANOS_KERNEL_VM_MAPPER_H
 

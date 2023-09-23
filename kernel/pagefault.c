@@ -55,7 +55,7 @@ static inline void debug_page_fault(uint64_t code, uintptr_t fault_addr, uintptr
         C_DEBUGSTR("\n");
 
         // Map the page
-        map_page(fault_addr, page);
+        map_page(STATIC_PML4, fault_addr, page, PRESENT | WRITE);
         C_DEBUGATTR(0x07);
 
         return;
