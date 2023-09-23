@@ -34,6 +34,9 @@ extern _bss_start, _bss_end               ; Linker defined symbols
 section .text.init                        ; Linker needs to make sure this goes in first...
 
 ; Initialize C-land: Zero BSS, sort out memory pointer argument and call main
+; This also moves the GDT into the top 2GB virtual address, so things don't break 
+; when I get rid of the bottom 2MiB identity map during kernel bootstrap (or,
+; more correctly, the first time there's an exception after that).
 ;
 _start:
   mov   rcx,_bss_end                      ; Get end of .bss section (VMA)
@@ -51,9 +54,21 @@ _start:
   dec   rcx                               ; Decrement loop counter
   jnz   .zero_bss_loop                    ; Loop until CX is zero
 
-.done
+  sgdt  [.GDT_DESC]                       ; Get the current GDTR
+  mov   rax,[.GDT_DESC+2]                 ; Move the address into RAX
+  or    rax,0xFFFFFFFF80000000            ; Or with kernel-space base address
+  mov   [.GDT_DESC+2],rax                 ; Put back into the structure
+  lgdt  [.GDT_DESC]                       ; And load back to GDTR.
+                                          ; No need to reload CS or anything here, it's
+                                          ; fine until next time there's an exception...
+
+.done:
   jmp   start_kernel                      ; Let's do some C...
 
+.GDT_DESC:
+  ; GDT Descriptor
+  dw  0      ; Size (computed from here - start)
+  dd  0                 ; Address (GDT, above)
 
 
 
