@@ -33,6 +33,10 @@
 #define PMM_PHYS_BASE       0x200000
 #endif
 
+#ifndef VRAM_VIRT_BASE
+#define VRAM_VIRT_BASE      ((char * const)0xffffffff800b8000)
+#endif
+
 #define XSTRVER(verstr) #verstr
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION         STRVER(VERSTR)
@@ -98,7 +102,9 @@ static inline void install_interrupts() {
 MemoryRegion *physical_region;
 
 noreturn void start_kernel(E820h_MemMap *memmap) {
+    debugterm_init(VRAM_VIRT_BASE);    
     banner();
+
     pagetables_init();
     physical_region = page_alloc_init(memmap, PMM_PHYS_BASE, STATIC_PMM_VREGION);
     install_interrupts();
@@ -125,7 +131,7 @@ noreturn void start_kernel(E820h_MemMap *memmap) {
     bad = (uint32_t*)0x1200000;
     *bad = 0x0BADF00D;
 
-    debugstr("All is well! Halting for now.");
+    debugstr("All is well! Halting for now.\n");
     halt_and_catch_fire();
  }
 

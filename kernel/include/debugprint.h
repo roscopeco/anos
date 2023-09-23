@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+void debugterm_init(char * vram_addr);
+
 void debugchar(char chr);
 void debugstr(char *str);
 void debugattr(uint8_t new_attr);
