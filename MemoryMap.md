@@ -31,9 +31,14 @@ The following are **physical** addresses:
 
 ### Kernel Physical Mem (after stage2 is done)
 
+These memory areas are reserved, and not added into the pool managed by the PMM.
+
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
 | `0x0000000000008400` | `0x0000000000009bff` | BIOS E820h memory map (passed to kernel by stage2)           |
+| `0x0000000000099000` | `0x000000000009cfff` | PMM Bootstrap page (Region struct and bottom of stack)       |
+| `0x000000000009a000` | `0x000000000009cfff` | PMM Area bootstrap page directory                            |
+| `0x000000000009b000` | `0x000000000009cfff` | PMM Area bootstrap page table                                |
 | `0x000000000009c000` | `0x000000000009cfff` | Inital PML4 set up in stage2 init_pagetables.asm             |
 | `0x000000000009d000` | `0x000000000009dfff` | Inital PDPT set up in stage2 init_pagetables.asm             |
 | `0x000000000009e000` | `0x000000000009efff` | Inital PD set up in stage2 init_pagetables.asm               |
@@ -48,11 +53,41 @@ Once long mode gets set up, we set up two mappings in the
 initial page tables:
 
 * `0x0000000000000000` -> `0x0000000000200000` : Identity mapped to physical bottom 2MiB
-* `0xFFFFFFFF80000000` -> `0xFFFFFFFF80200000` : First 2MiB of top (or negative) 2GiB mapped to first 2MiB phys
+* `0xffffffff80000000` -> `0xffffffff801fffff` : First 2MiB of top (or negative) 2GiB mapped to first 2MiB phys
 
 This mapping lets the long mode setup keep running as it was (in the 
 identity-mapped space), up until it jumps directly to the kernel at it's
 (virtual) load address (in the kernel space mapping).
+
+> **Note**: The second 2MiB of physical is mapped into kernel space for convenience,
+> to make it easy to access the first 2MiB of RAM that's managed by the PMM during init.
+>
+> It likely won't stay...
+>
+> The first 2MiB is excluded from the PMM, so is manually managed. This is just because
+> there's already a kernel and various data (page tables etc) there by the time the PMM
+> is getting initialized, and stomping on them would be **bad** 😱
+
+### Long Mode Page Table Layout After Kernel Bootstrap
+
+Once stage 2 has exited and we're in the kernel proper, the identity mapping of low RAM 
+is dropped (the first 2MB physical mapping into the top 2GiB is retained).
+
+We also create the mapping for the 128GiB reserved address space for the PMM structures
+at this point, leaving us with:
+
+* `0xffffff8000000000` -> `0xffffff9fffffefff` : PMM structures area.
+* `0xffffff9ffffff000` -> `0xffffffa000000000` : PMM structures guard page (Reserved, never mapped)
+* `0xffffffff80000000` -> `0xffffffff80200000` : First 2MiB of top (or negative) 2GiB mapped to first 2MiB phys
+* `0xffffffff80200000` -> `0xffffffff803fffff` : Second 2MiB of top (or negative) 2GiB mapped to second 2MiB phys*
+
+Additionally, the debug page fault handler manages this:
+
+* `0xFFFFFFFF80400000` -> `0xFFFFFFFF81000000` : Kernel "Automap" space, **for testing only**
+
+This space is not represented by page tables at boot, but if there's a page
+fault there the handler will automatically map in a page. 
+**This is just for testing, and is not a feature - it will be removed soon!!**.
 
 This is all fun and games, but will almost certainly be a problem later 
 (i.e. the kernel being stuck at <1MiB size and located at the ~1MiB mark in physical 

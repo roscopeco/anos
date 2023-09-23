@@ -1,25 +1,66 @@
+/*
+ * stage3 - The page fault handler
+ * anos - An Operating System
+ *
+ * Copyright (c) 2023 Ross Bamford
+ */
+
 #include <stdint.h>
 
 #include "debugprint.h"
 #include "printhex.h"
 #include "machine.h"
+#include "pmm/pagealloc.h"
+#include "vmm/vmmapper.h"
 
 #define IS_KERNEL_CODE(addr)    (( (addr & 0xFFFFFFFF80000000) != 0 ))
 
+#ifdef DEBUG_PAGE_FAULT
+#define C_DEBUGSTR    debugstr
+#define C_DEBUGATTR   debugattr
+#define C_PRINTHEX64  printhex64
+#else
+#define C_DEBUGSTR(...)
+#define C_DEBUGATTR(...)
+#define C_PRINTHEX64(...)
+#endif
+
 static inline void debug_page_fault_code(uint8_t code) {
-    debugstr(" [");
-    debugstr(code & 0x8000 ? "SGX|" : "sgx|");
-    debugstr(code & 0x40   ?  "SS|" :  "ss|");
-    debugstr(code & 0x20   ?  "PK|" :  "pk|");
-    debugstr(code & 0x10   ?   "I|" :   "i|");
-    debugstr(code & 0x8    ?   "R|" :   "r|");
-    debugstr(code & 0x4    ?   "U|" :   "u|");
-    debugstr(code & 0x2    ?   "W|" :   "w|");
-    debugstr(code & 0x1    ?   "P"  :   "p" );
-    debugstr("]");
+    C_DEBUGSTR(" [");
+    C_DEBUGSTR(code & 0x8000 ? "SGX|" : "sgx|");
+    C_DEBUGSTR(code & 0x40   ?  "SS|" :  "ss|");
+    C_DEBUGSTR(code & 0x20   ?  "PK|" :  "pk|");
+    C_DEBUGSTR(code & 0x10   ?   "I|" :   "i|");
+    C_DEBUGSTR(code & 0x8    ?   "R|" :   "r|");
+    C_DEBUGSTR(code & 0x4    ?   "U|" :   "u|");
+    C_DEBUGSTR(code & 0x2    ?   "W|" :   "w|");
+    C_DEBUGSTR(code & 0x1    ?   "P"  :   "p" );
+    C_DEBUGSTR("]");
 }
 
+extern MemoryRegion *physical_region;
+
 static inline void debug_page_fault(uint64_t code, uintptr_t fault_addr, uintptr_t origin_addr) {
+    if (fault_addr > 0xFFFFFFFF80400000 && fault_addr < 0xFFFFFFFF81000000) {
+        C_DEBUGATTR(0x0E);
+        C_DEBUGSTR("## Page fault in kernel vmspace; Will alloc & map a page...\n");
+
+        // Allocate a page
+        uint64_t page = page_alloc(physical_region);
+
+        C_DEBUGSTR("Mapped page for ");
+        C_PRINTHEX64(fault_addr, debugchar);
+        C_DEBUGSTR(" at phys ");
+        C_PRINTHEX64(page, debugchar);
+        C_DEBUGSTR("\n");
+
+        // Map the page
+        map_page(fault_addr, page);
+        C_DEBUGATTR(0x07);
+
+        return;
+    }
+
     debugattr(0x4C);
     debugstr("PANIC");
     debugattr(0x0C);

@@ -45,9 +45,12 @@ typedef struct {
  * region. Growing upward means, if the buffer is in a virtual 
  * alloc area, physical memory will only be allocated as it grows.
  * 
+ * Any memory found in the memory map that falls below the supplied
+ * managed base address will be ignored by the allocator.
+ * 
  * Returns a MemoryRegion pointer, created in the given buffer.
  */
-MemoryRegion* page_alloc_init(E820h_MemMap *memmap, void* buffer);
+MemoryRegion* page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base, void* buffer);
 
 /*
  * Allocate a single physical page. 

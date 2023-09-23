@@ -10,7 +10,7 @@
 #include "machine.h"
 #include "pmm/pagealloc.h"
 
-MemoryRegion* page_alloc_init(E820h_MemMap *memmap, void* buffer) {
+MemoryRegion* page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base, void* buffer) {
     MemoryRegion *region = (MemoryRegion*)buffer;
     region->sp = (MemoryBlock*)(region + 1);
     region->sp--;   // Start below bottom of stack
@@ -31,6 +31,17 @@ MemoryRegion* page_alloc_init(E820h_MemMap *memmap, void* buffer) {
             if (entry->base > start) {
                 // Round up to next page boundary if so...
                 start += 0x1000;
+            }
+
+            // Cut off any memory below the supplied managed base.
+            if (start < managed_base) {
+                if (end <= managed_base) {
+                    // This block is entirely below the managed base, just skip it
+                    continue;
+                } else {
+                    // This block extends beyond the managed base, so adjust the start
+                    start = managed_base;
+                }
             }
 
             // Calculate number of bytes remaining...

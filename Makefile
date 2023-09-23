@@ -11,6 +11,7 @@ CFLAGS=-Wall -Werror -Wpedantic 												\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=kernel															\
 		-g
+CDEFS=-DDEBUG_PMM -DDEBUG_VMM -DDEBUG_PAGE_FAULT
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -59,8 +60,11 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/isr_handlers.o										\
 			$(STAGE3_DIR)/isr_dispatch.o										\
 			$(STAGE3_DIR)/init_interrupts.o										\
-			$(STAGE3_DIR)/pagefault.o
-
+			$(STAGE3_DIR)/pagefault.o											\
+			$(STAGE3_DIR)/init_pagetables.o										\
+			$(STAGE3_DIR)/pmm/pagealloc.o										\
+			$(STAGE3_DIR)/vmm/vmmapper.o
+			
 ALL_TARGETS=floppy.img
 
 FLOPPY_DEPENDENCIES=$(STAGE1_DIR)/$(STAGE1_BIN) 								\
@@ -92,7 +96,7 @@ clean:
 	-o $@ $<
 
 %.o: %.c
-	$(XCC) -DVERSTR=$(SHORT_HASH) -I$(STAGE3_INC) $(CFLAGS) -c -o $@ $<
+	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -I$(STAGE3_INC) $(CFLAGS) -c -o $@ $<
 
 
 # ############# Stage 1 ##############
