@@ -36,9 +36,9 @@ These memory areas are reserved, and not added into the pool managed by the PMM.
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
 | `0x0000000000008400` | `0x0000000000009bff` | BIOS E820h memory map (passed to kernel by stage2)           |
-| `0x0000000000099000` | `0x000000000009cfff` | PMM Bootstrap page (Region struct and bottom of stack)       |
-| `0x000000000009a000` | `0x000000000009cfff` | PMM Area bootstrap page directory                            |
-| `0x000000000009b000` | `0x000000000009cfff` | PMM Area bootstrap page table                                |
+| `0x0000000000099000` | `0x0000000000099fff` | PMM Bootstrap page (Region struct and bottom of stack)       |
+| `0x000000000009a000` | `0x000000000009afff` | PMM Area bootstrap page directory                            |
+| `0x000000000009b000` | `0x000000000009bfff` | PMM Area bootstrap page table                                |
 | `0x000000000009c000` | `0x000000000009cfff` | Inital PML4 set up in stage2 init_pagetables.asm             |
 | `0x000000000009d000` | `0x000000000009dfff` | Inital PDPT set up in stage2 init_pagetables.asm             |
 | `0x000000000009e000` | `0x000000000009efff` | Inital PD set up in stage2 init_pagetables.asm               |
