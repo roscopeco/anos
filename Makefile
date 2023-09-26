@@ -11,7 +11,18 @@ CFLAGS=-Wall -Werror -Wpedantic 												\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=kernel															\
 		-g
-CDEFS=-DDEBUG_PMM -DDEBUG_VMM -DDEBUG_PAGE_FAULT
+
+# The following C defines are recognised by stage3 and enable various things
+#
+#   DEBUG_VMM 			Enable debugging of the VMM
+#	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
+#	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
+#
+# Additionally:
+#
+#	UNIT_TESTS			Enables stubs and mocks used in unit tests
+#
+CDEFS=
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -30,9 +41,14 @@ STAGE3_INC=$(STAGE3)/include
 # Base addresses; Stage 1
 STAGE_1_ADDR?=0x7c00
 
-# Stage 2 at this address leaves 8K for FAT (16 sectors) after stage1
+# Stage 2 at this address leaves 8K for FAT (16 sectors) after stage1, 
+# before (potentially - at least on bochs and qemu) EBDA.
+#
 # Works for floppy, probably won't for anything bigger...
-STAGE_2_ADDR?=0x9c00
+#
+# It also means stage 2 is limited to 23KiB, which is probably fine 😅
+#
+STAGE_2_ADDR?=0xa400
 
 # Stage 3 loads at 0x00120000 (just after 1MiB, leaving a bit for BSS etc
 # at 1MiB), but runs as 0xFFFFFFFF80120000 (in the top / negative 2GB).
@@ -75,6 +91,7 @@ FLOPPY_DEPENDENCIES=$(STAGE1_DIR)/$(STAGE1_BIN) 								\
 CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 	       		$(STAGE2_DIR)/*.dis $(STAGE2_DIR)/*.elf $(STAGE2_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
+	       		$(STAGE3_DIR)/pmm/*.o $(STAGE3_DIR)/vmm/*.o				 		\
 		   		$(STAGE2_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 		   		$(FLOPPY_IMG)
