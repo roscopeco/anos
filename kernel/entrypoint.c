@@ -132,6 +132,7 @@ noreturn void start_kernel(E820h_MemMap *memmap) {
     *bad = 0x0BADF00D;
 
     debugstr("All is well! Halting for now.\n");
+
     halt_and_catch_fire();
  }
 

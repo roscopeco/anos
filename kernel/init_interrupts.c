@@ -14,7 +14,9 @@
         idt_entry(idt + N, isr_dispatcher_##N, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_TRAP));    \
     } while (0)
 
+extern void pic_irq_handler(void);
 extern void irq_handler(void);
+extern void pic_init(void);
 
 // These can't live here long-term, but it'll do for now...
 static IdtEntry idt[256];
@@ -54,6 +56,11 @@ void idt_install(uint16_t kernel_cs) {
     install_trap(30);
     install_trap(31);
 
+    // Entries 0x20 - 0x2F are the PIC handlers - when disabled, they should only ever be spurious...
+    for (int i = 0x20; i < 0x2F; i++) {
+        idt_entry(idt + i, pic_irq_handler, kernel_cs, 0, idt_attr(0, 0, IDT_TYPE_IRQ));
+    }
+
     // Just fill the rest of the table with "not present" handlers for now...
     for (int i = 0x20; i < 0x100; i++) {
         idt_entry(idt + i, irq_handler, kernel_cs, 0, idt_attr(0, 0, IDT_TYPE_IRQ));
@@ -62,8 +69,16 @@ void idt_install(uint16_t kernel_cs) {
     // Setup the IDTR
     idt_r(&idtr, (uint64_t)idt, (uint16_t)sizeof(IdtEntry) * 256 - 1);
 
+    // Init (i.e. disable) the PICs
+    pic_init();
+
     // And load it!
     __asm__ volatile (
         "lidt %0" : : "m"(idtr)
+    );
+
+    // Enable interrupts
+    __asm__ volatile (
+        "sti\n\t"
     );
 }

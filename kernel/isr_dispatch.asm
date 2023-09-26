@@ -7,7 +7,7 @@
 ;
 
 bits 64
-global irq_handler
+global pic_irq_handler, irq_handler, spurious_irq_count
 extern handle_interrupt_nc, handle_interrupt_wc
 
 %macro isr_dispatcher_with_code 1         ; General handler for traps that stack an error code
@@ -105,7 +105,19 @@ isr_dispatcher_no_code      29            ; VMM Communication Exception
 isr_dispatcher_with_code    30            ; Security Exception
 isr_dispatcher_no_code      31            ; <reserved>
 
+; ISR dispatcher for PIC IRQs (all of which _should_ be spurious)
+pic_irq_handler:
+  push  rax                               ; Stash rax
+  mov   rax,[spurious_irq_count]          ; Load the count
+  inc   rax                               ; Increment it
+  mov   [spurious_irq_count],rax          ; And store it back
+  pop   rax                               ; Restore regs
+  iretq                                   ; And done
+
 ; ISR dispatcher for IRQs
 irq_handler:
   call  handle_interrupt_nc               ; Just call directly to C handler
   iretq
+
+; Running count of spurious IRQs
+spurious_irq_count  dq  0
