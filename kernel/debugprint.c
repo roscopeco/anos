@@ -62,6 +62,12 @@ void debugstr(char *str) {
     } 
 }
 
+void debugstr_len(char *str, int len) {
+    for (int i = 0; i < len; i++) {
+        debugchar(*str++);
+    }
+}
+
 void debugattr(uint8_t new_attr) {
     attr = new_attr;
 }
