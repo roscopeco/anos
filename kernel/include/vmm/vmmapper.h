@@ -52,15 +52,26 @@
 // Just used to page-align addresses to their containing page
 #define PAGE_ALIGN_MASK         0xFFFFFFFFFFFFF000
 
+// Just used to extract page-relative addresses from their containing page
+#define PAGE_RELATIVE_MASK      (~PAGE_ALIGN_MASK)
+
 /*
- * Map a page into virtual memory. 
+ * Map the given page-aligned physical address into virtual memory.
  *
  * This always maps under the static PML4 at the address given above.
  * It will create PDPT/PD/PT entries and associated tables as needed,
  * which means it needs to allocate physical pages - it uses the PMM
  * (obviously) and thus it **can** pagefault.
  */
-void map_page(uint64_t *pml4, uintptr_t virt_addr, uint32_t page, uint16_t flags);
+void map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags);
+
+/*
+ * Map the page containing the given physical address into virtual memory.
+ *
+ * Simple wrapper around `map_page` - see documentation for that function 
+ * for specifics.
+ */
+void map_page_containing(uint64_t *pml4, uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags);
 
 #endif//__ANOS_KERNEL_VM_MAPPER_H
 

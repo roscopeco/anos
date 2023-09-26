@@ -17,12 +17,19 @@ CFLAGS=-Wall -Werror -Wpedantic 												\
 #   DEBUG_VMM 			Enable debugging of the VMM
 #	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
+#	DEBUG_ACPI			Enable debugging in ACPI mapper / parser
+#	VERY_NOISY_ACPI		Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
+#
+# These ones enable some specific feature tests
+#
+#	DEBUG_FORCE_HANDLED_PAGE_FAULT
+#	DEBUG_FORCE_UNHANDLED_PAGE_FAULT
 #
 # Additionally:
 #
-#	UNIT_TESTS			Enables stubs and mocks used in unit tests
+#	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=
+CDEFS=-DDEBUG_MADT
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -80,7 +87,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/pagefault.o											\
 			$(STAGE3_DIR)/init_pagetables.o										\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
-			$(STAGE3_DIR)/vmm/vmmapper.o
+			$(STAGE3_DIR)/vmm/vmmapper.o										\
+			$(STAGE3_DIR)/acpitables.o
 			
 ALL_TARGETS=floppy.img
 
