@@ -31,6 +31,16 @@ tests/build/vmm/vmmapper: tests/munit.o tests/vmm/vmmapper.o tests/build/vmm/vmm
 tests/build/debugprint: tests/munit.o tests/debugprint.o tests/build/debugprint.o
 	$(CC) -o $@ $^
 
-test: tests/build/interrupts tests/build/pmm/bitmap tests/build/pmm/pagealloc tests/build/vmm/vmmapper tests/build/debugprint
+tests/build/acpitables: tests/munit.o tests/acpitables.o tests/build/acpitables.o
+	$(CC) -o $@ $^
+
+ALL_TESTS=tests/build/interrupts 										\
+			tests/build/pmm/bitmap 										\
+			tests/build/pmm/pagealloc									\
+			tests/build/vmm/vmmapper									\
+			tests/build/debugprint										\
+			tests/build/acpitables
+
+test: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test; done'
 

@@ -167,20 +167,20 @@ void debug_madt(BIOS_SDTHeader *rsdt) {
             debugstr("]\n");
 
             break;
-        // case 4:     // LAPIC NMI
-        //     debugstr("  LAPIC NMI      [Processor: ");
-        //     printhex8(*ptr++, debugchar);
+        case 4:     // LAPIC NMI
+            debugstr("  LAPIC NMI      [Processor: ");
+            printhex8(*ptr++, debugchar);
 
-        //     flags16 = (uint16_t*)ptr;
-        //     ptr += 2;
-        //     debugstr("; Flags: ");
-        //     printhex16(*flags16, debugchar);
+            flags16 = (uint16_t*)ptr;
+            ptr += 2;
+            debugstr("; Flags: ");
+            printhex16(*flags16, debugchar);
 
-        //     debugstr("; LINT#: ");
-        //     printhex8(*ptr++, debugchar);
-        //     debugstr("]\n");
+            debugstr("; LINT#: ");
+            printhex8(*ptr++, debugchar);
+            debugstr("]\n");
 
-        //     break;
+            break;
         default:
             // Just skip over
             debugstr("  #TODO UNKNOWN  [Type: ");

@@ -136,14 +136,23 @@ static BIOS_SDTHeader* map_sdt(uint64_t phys_addr) {
 
     if (vaddr == 0) {
         // Mapping failed
+#       ifdef DEBUG_ACPI
+        debugstr("Failed to find a virtual address for SDT physical ");
+        printhex64(phys_addr, debugchar);
+        debugstr("\n");
+#       endif
         return NULL;
     }
     
     BIOS_SDTHeader *sdt = (BIOS_SDTHeader*)(vaddr);    
 
     if (!checksum_sdt(sdt)) {
-        debugstr("SDT checksum failed\n");
-        halt_and_catch_fire();
+#       ifdef DEBUG_ACPI
+        debugstr("Checksum failed for SDT physical ");
+        printhex64(phys_addr, debugchar);
+        debugstr("\n");
+#       endif
+        return NULL;
     }
 
 #   ifdef DEBUG_ACPI
@@ -175,9 +184,18 @@ static BIOS_SDTHeader* map_sdt(uint64_t phys_addr) {
 }
 
 BIOS_SDTHeader* map_acpi_tables(BIOS_RSDP *rsdp) {
+    if (!rsdp) {
+#       ifdef DEBUG_ACPI
+        debugstr("Cannot map NULL RSDP!\n");
+#       endif
+        return NULL;
+    }
+
     if (!checksum_rsdp(rsdp)) {
-        debugstr("RSDP checksum failed\n");
-        halt_and_catch_fire();
+#       ifdef DEBUG_ACPI
+        debugstr("RSDP checksum failed!\n");
+#       endif
+        return NULL;
     }
 
     return map_sdt(rsdp->rsdt_address);
