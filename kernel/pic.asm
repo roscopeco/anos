@@ -53,7 +53,7 @@ pic_init:
   out   PIC2_DATA,al
   call  .wait
 
-  mov   al,0xff                           ; Now, disable the PICs
+  mov   al,0xff                           ; Now, disable the PICs (mask all interrupts)
   out   PIC1_DATA,al
   call  .wait
   out   PIC2_DATA,al
