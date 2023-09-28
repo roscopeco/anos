@@ -11,6 +11,7 @@ CFLAGS=-Wall -Werror -Wpedantic 												\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=kernel															\
 		-g
+HOST_ARCH?=macho64
 
 # The following C defines are recognised by stage3 and enable various things
 #
