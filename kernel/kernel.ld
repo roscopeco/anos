@@ -1,5 +1,5 @@
 /*
- * ANOS Stage 3 (ANINIT)
+ * ANOS kernel (STAGE3)
  * Link Script
  *
  * (c)2023 Ross Bamford & Contributors

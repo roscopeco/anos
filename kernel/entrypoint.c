@@ -201,10 +201,9 @@ void debug_madt(BIOS_SDTHeader *rsdt) {
 
 static inline void banner() {
     debugattr(0x0B);
-    debugchar('A');
-    debugchar('N');
-    debugchar('O');
-    debugchar('S');
+    debugstr("STAGE");
+    debugattr(0x03);
+    debugchar('3');
     debugattr(0x08);
     debugstr(" #");
     debugattr(0x0F);
