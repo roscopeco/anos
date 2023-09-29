@@ -170,7 +170,7 @@ $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
 
 qemu: $(FLOPPY_IMG)
-	$(QEMU) -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac
+	$(QEMU) -smp cpus=2 -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac
 
 QEMU_OPTS=-drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -gdb tcp::9666 -S
 
