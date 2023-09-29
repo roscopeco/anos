@@ -10,8 +10,8 @@
 
 // This is a bit messy, but it works and is "good enough" for now 😅
 #define install_trap(N) do {                                                                    \
-        extern void (isr_dispatcher_##N)(void);                                                 \
-        idt_entry(idt + N, isr_dispatcher_##N, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_TRAP));    \
+        extern void (trap_dispatcher_##N)(void);                                                \
+        idt_entry(idt + N, trap_dispatcher_##N, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_TRAP));   \
     } while (0)
 
 extern void pic_irq_handler(void);
@@ -58,12 +58,12 @@ void idt_install(uint16_t kernel_cs) {
 
     // Entries 0x20 - 0x2F are the PIC handlers - when disabled, they should only ever be spurious...
     for (int i = 0x20; i < 0x2F; i++) {
-        idt_entry(idt + i, pic_irq_handler, kernel_cs, 0, idt_attr(0, 0, IDT_TYPE_IRQ));
+        idt_entry(idt + i, pic_irq_handler, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
     }
 
-    // Just fill the rest of the table with "not present" handlers for now...
+    // Just fill the rest of the table with generic handlers for now...
     for (int i = 0x20; i < 0x100; i++) {
-        idt_entry(idt + i, irq_handler, kernel_cs, 0, idt_attr(0, 0, IDT_TYPE_IRQ));
+        idt_entry(idt + i, irq_handler, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
     }
 
     // Setup the IDTR

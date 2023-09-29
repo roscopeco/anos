@@ -18,6 +18,7 @@
 #include "init_pagetables.h"
 #include "pmm/pagealloc.h"
 #include "acpitables.h"
+#include "kdrivers/drivers.h"
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -193,11 +194,6 @@ void debug_madt(BIOS_SDTHeader *rsdt) {
 
         remain -= *len;
     }
-
-
-
-
-
 }
 #else
 #define debug_madt(...)
@@ -258,8 +254,10 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
         halt_and_catch_fire();
     }
 
-    debug_madt(acpi_root_table);
     debug_memmap(memmap);
+    debug_madt(acpi_root_table);    
+
+    init_kernel_drivers(acpi_root_table);
 
 #   ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT
     debugstr("\nForcing a (handled) page fault with write to 0xFFFFFFFF80600000...\n");
@@ -283,7 +281,11 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
 
     debugstr("All is well! Halting for now.\n");
 
-    halt_and_catch_fire();
+    while (true) {
+        __asm__ volatile (
+            "hlt\n\t"
+        );
+    }
  }
 
 

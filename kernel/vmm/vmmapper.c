@@ -55,7 +55,7 @@ static inline uint64_t* ensure_table_entry(uint64_t *table, uint16_t index, uint
     return ENTRY_TO_V(table[index]);
 }
 
-void map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags) {
+void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags) {
     C_DEBUGSTR("PML4 @ ");
     C_PRINTHEX64((uint64_t)pml4, debugchar);
     C_DEBUGSTR(" [Entry ");
@@ -104,6 +104,6 @@ void map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags
     return;
 }
 
-void map_page_containing(uint64_t *pml4, uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags) {
-    map_page(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
+void vmm_map_page_containing(uint64_t *pml4, uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags) {
+    vmm_map_page(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }

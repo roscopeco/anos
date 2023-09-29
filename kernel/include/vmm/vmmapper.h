@@ -63,7 +63,7 @@
  * which means it needs to allocate physical pages - it uses the PMM
  * (obviously) and thus it **can** pagefault.
  */
-void map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags);
+void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags);
 
 /*
  * Map the page containing the given physical address into virtual memory.
@@ -71,7 +71,7 @@ void map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags
  * Simple wrapper around `map_page` - see documentation for that function 
  * for specifics.
  */
-void map_page_containing(uint64_t *pml4, uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags);
+void vmm_map_page_containing(uint64_t *pml4, uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags);
 
 #endif//__ANOS_KERNEL_VM_MAPPER_H
 

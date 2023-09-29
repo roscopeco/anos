@@ -8,11 +8,11 @@
 
 bits 64
 global pic_irq_handler, irq_handler, spurious_irq_count
-extern handle_interrupt_nc, handle_interrupt_wc
+extern handle_exception_nc, handle_exception_wc, handle_interrupt
 
-%macro isr_dispatcher_with_code 1         ; General handler for traps that stack an error code
-global isr_dispatcher_%+%1                ; Ensure declared global
-isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_0`
+%macro trap_dispatcher_with_code 1        ; General handler for traps that stack an error code
+global trap_dispatcher_%+%1               ; Ensure declared global
+trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
   push  rax                               ; Save all C-clobbered registers
   push  rcx
   push  rdx
@@ -26,7 +26,7 @@ isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_0`
   mov   rdi,%1                            ; Put the trap number in the first C argument
   mov   rsi,72[rsp]                       ; Error code from stack into the second C argument
   mov   rdx,80[rsp]                       ; Peek return address into third C argument
-  call  handle_interrupt_wc               ; Call the with-code handler
+  call  handle_exception_wc               ; Call the with-code handler
 
   pop   r11                               ; Restore registers...
   pop   r10
@@ -40,12 +40,12 @@ isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_0`
   pop   rax
   add   rsp,8                             ; Discard the error code
 
-  iretq                                    ; And done...
+  iretq                                   ; And done...
 %endmacro
 
-%macro isr_dispatcher_no_code 1           ; General handler for traps that stack an error code
-global isr_dispatcher_%+%1                ; Ensure declared global
-isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_1`
+%macro trap_dispatcher_no_code 1          ; General handler for traps that stack an error code
+global trap_dispatcher_%+%1               ; Ensure declared global
+trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_1`
   push  rax                               ; Save all C-clobbered registers
   push  rcx
   push  rdx
@@ -58,9 +58,9 @@ isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_1`
   
   mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
   mov   rsi,72[rsp]                       ; Peek return address into second C argument
-  call  handle_interrupt_nc               ; Call the no-code handler
+  call  handle_exception_nc               ; Call the no-code handler
 
-  pop   r11                              ; Restore registers...
+  pop   r11                               ; Restore registers...
   pop   r10
   pop   r9
   pop   r8
@@ -69,41 +69,41 @@ isr_dispatcher_%+%1:                      ; Name e.g. `isr_dispatcher_1`
   pop   rdx
   pop   rcx
   pop   rax
-  iretq                                   ; And done...
+  iretq                                    ; And done...
 %endmacro
 
-isr_dispatcher_no_code      0             ; Division Error
-isr_dispatcher_no_code      1             ; Debug
-isr_dispatcher_no_code      2             ; NMI
-isr_dispatcher_no_code      3             ; Breakpoint
-isr_dispatcher_no_code      4             ; Overflow
-isr_dispatcher_no_code      5             ; Bound Range Exceeded
-isr_dispatcher_no_code      6             ; Invalid Opcode
-isr_dispatcher_no_code      7             ; Device Not Available
-isr_dispatcher_with_code    8             ; Double Fault
-isr_dispatcher_no_code      9             ; Coprocessor Segment Overrun
-isr_dispatcher_with_code    10            ; Invalid TSS
-isr_dispatcher_with_code    11            ; Segment Not Present
-isr_dispatcher_with_code    12            ; Stack-segment Fault
-isr_dispatcher_with_code    13            ; GPF
-isr_dispatcher_with_code    14            ; Page Fault
-isr_dispatcher_no_code      15            ; <reserved>
-isr_dispatcher_no_code      16            ; x87 Floating-point Exception
-isr_dispatcher_with_code    17            ; Alignment Check
-isr_dispatcher_no_code      18            ; Machine Check
-isr_dispatcher_no_code      19            ; SIMD Floating-point Exception
-isr_dispatcher_no_code      20            ; Virtualization Exception
-isr_dispatcher_no_code      21            ; Control Protection Exception
-isr_dispatcher_no_code      22            ; <reserved>
-isr_dispatcher_no_code      23            ; <reserved> 
-isr_dispatcher_no_code      24            ; <reserved>
-isr_dispatcher_no_code      25            ; <reserved>
-isr_dispatcher_no_code      26            ; <reserved>
-isr_dispatcher_no_code      27            ; <reserved>
-isr_dispatcher_no_code      28            ; Hypervisor Injection Exception
-isr_dispatcher_no_code      29            ; VMM Communication Exception
-isr_dispatcher_with_code    30            ; Security Exception
-isr_dispatcher_no_code      31            ; <reserved>
+trap_dispatcher_no_code      0             ; Division Error
+trap_dispatcher_no_code      1             ; Debug
+trap_dispatcher_no_code      2             ; NMI
+trap_dispatcher_no_code      3             ; Breakpoint
+trap_dispatcher_no_code      4             ; Overflow
+trap_dispatcher_no_code      5             ; Bound Range Exceeded
+trap_dispatcher_no_code      6             ; Invalid Opcode
+trap_dispatcher_no_code      7             ; Device Not Available
+trap_dispatcher_with_code    8             ; Double Fault
+trap_dispatcher_no_code      9             ; Coprocessor Segment Overrun
+trap_dispatcher_with_code    10            ; Invalid TSS
+trap_dispatcher_with_code    11            ; Segment Not Present
+trap_dispatcher_with_code    12            ; Stack-segment Fault
+trap_dispatcher_with_code    13            ; GPF
+trap_dispatcher_with_code    14            ; Page Fault
+trap_dispatcher_no_code      15            ; <reserved>
+trap_dispatcher_no_code      16            ; x87 Floating-point Exception
+trap_dispatcher_with_code    17            ; Alignment Check
+trap_dispatcher_no_code      18            ; Machine Check
+trap_dispatcher_no_code      19            ; SIMD Floating-point Exception
+trap_dispatcher_no_code      20            ; Virtualization Exception
+trap_dispatcher_no_code      21            ; Control Protection Exception
+trap_dispatcher_no_code      22            ; <reserved>
+trap_dispatcher_no_code      23            ; <reserved> 
+trap_dispatcher_no_code      24            ; <reserved>
+trap_dispatcher_no_code      25            ; <reserved>
+trap_dispatcher_no_code      26            ; <reserved>
+trap_dispatcher_no_code      27            ; <reserved>
+trap_dispatcher_no_code      28            ; Hypervisor Injection Exception
+trap_dispatcher_no_code      29            ; VMM Communication Exception
+trap_dispatcher_with_code    30            ; Security Exception
+trap_dispatcher_no_code      31            ; <reserved>
 
 ; ISR dispatcher for PIC IRQs (all of which _should_ be spurious)
 pic_irq_handler:
@@ -116,7 +116,7 @@ pic_irq_handler:
 
 ; ISR dispatcher for IRQs
 irq_handler:
-  call  handle_interrupt_nc               ; Just call directly to C handler
+  call  handle_interrupt                  ; Just call directly to C handler
   iretq
 
 ; Running count of spurious IRQs

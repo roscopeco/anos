@@ -1,5 +1,5 @@
 FLOPPY_DEPENDENCIES+=test
-CLEAN_ARTIFACTS+=tests/*.o tests/pmm/*.o tests/build
+CLEAN_ARTIFACTS+=tests/*.o tests/pmm/*.o tests/vmm/*.o tests/structs/*.o tests/build
 	
 tests/%.o: tests/%.c tests/munit.h
 	$(CC) -DUNIT_TESTS -g -Ikernel/include -Itests -c -o $@ $<
