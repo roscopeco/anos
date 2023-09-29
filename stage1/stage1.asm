@@ -11,7 +11,7 @@
 ;   * Entry in real mode (from the bios)
 ;     * Prints a message as proof of life (with BIOS routines)
 ;     * Searches the FAT for STAGE2.BIN
-;       * If found, loads it at 0x9c00 (TODO make this more flexible!)
+;       * If found, loads it at 0xa400 (TODO make this more flexible!)
 ;       * Otherwise, prints error message and halts
 ;
 ; What it doesn't:
@@ -163,9 +163,9 @@ start:
 
   mov   si,bx                             ; Move BUFFER ptr into SI
 
-  ; TODO Fixed load position (currently at 0x9c00)
+  ; TODO Fixed load position (currently at 0xa400)
   ;
-  mov   bx,STAGE_2_ADDR                   ; Set BX up to load stage 2 at 0x9c00
+  mov   bx,STAGE_2_ADDR                   ; Set BX up to load stage 2 at 0xa400
   pop   dx                                ; Get starting cluster back into DX
 
 .load_loop:

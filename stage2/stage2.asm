@@ -183,16 +183,77 @@ main64:
   mov   byte [0xb8002],'L'                ; Print "L"
   mov   byte [0xb8003],0x2a               ; In color
 
-  mov   rdi,0xFFFFFFFF80008400            ; Memory map was loaded at 0x8400, pass kernel-space mapping into stage3
+  mov   rax,TSS
+  or    rax,0xFFFFFFFF80000000
+  mov   word [TSS_BASE_LOW],ax
+  shr   rax,0x10
+  mov   byte [TSS_BASE_MID],bl
+  shr   rax,0x08
+  mov   byte [TSS_BASE_HIGH],bl
+  mov   ax,0x28
+  ltr   ax                                ; Load the TSS (GDT selector 5)
+
+  call  find_acpi_tables                  ; Find the ACPI tables (places address in rdi for stage 3, first param)
+  mov   rsi,0xFFFFFFFF80008400            ; Memory map was loaded at 0x8400, pass kernel-space mapping into stage3
   mov   rbx,STAGE_3_HI_ADDR                  
   jmp   rbx                               ; Finally, jump to stage3 at high address, which we loaded earlier 🥳
 
+
+find_acpi_tables:
+  push  rcx                               ; Save registers
+                                          ; Don't bother saving rsi, we'll overwrite it after this sub anyway...
+
+  ; Try searching in EBDA first...
+  xor   rdi,rdi                           ; Clear rsi  
+  mov   di,word [0x040E]                  ; Get segment address from BDA
+  shl   rdi,0x04                          ; Convert to linear physical address
+
+  mov   rcx,0x40                          ; 64 16-byte boundaries to check in first 1KB of EBDA
+  call  .search                           ; .search returns directly to caller if found...
+
+  ; Didn't find it? Try the main BIOS area instead then...
+  mov   rdi,0xe0000                       ; Main BIOS area starts at 0xe0000
+  mov   rcx,0x2000                        ; 8192 16-byte boundaries to check in 128KB BIOS area
+  call  .search                           ; .search returns directly to caller if found...
+
+.show_error:
+  mov   byte [0xb8004],'A'                ; Print "A"
+  mov   byte [0xb8005],0x4c               ; In color (red)
+
+.die:
+  cli
+  hlt
+  jmp   .die
+
+
+.search:
+  push  rcx                               ; Stash outer loop counter
+  mov   rcx,8                             ; RSDP ident is 8 bytes
+  mov   rsi,RSDP                          ; Comparing with our expected ident
+  push  rdi                               ; rep will change rdi
+  rep cmpsb                               ; Compare strings...
+  pop   rdi                               ; Restore rdi
+  pop   rcx                               ; Restore outer counter...
+  je    .found                            ; Match - jump to success 🥳
+  add   rdi,0x10                          ; ... else, advance rdi 16-bytes to next search location
+  loop  .search                           ; ... and loop
+
+  ret                                     ; Not found, return to find_acpi_tables
+
+.found:
+  mov   byte [0xb8004],'A'                ; Print "A"
+  mov   byte [0xb8005],0x2a               ; In color (green)
+
+  add   rsp,0x8                           ; Skip find_acpi_tables return address - return directly to caller of find_acpi_tables
+  pop   rcx                               ; Pop again for original rcx we stashed on entry to find_acpi_tables
+  ret
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Data section
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 %defstr version_str VERSTR
 MSG   db  "ANLOAD #", version_str, 0
+RSDP  db  "RSD PTR "
 
 GDT:
   ; segment 0 - null
@@ -214,7 +275,7 @@ GDT:
   db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
 
-  ; segment 1 - 64-bit code
+  ; segment 3 - 64-bit code
   dw 0xFFFF               ; limit 4GB
   dw 0                    ; Base (bits 0-15) - 0
   db 0                    ; Base (bits 16-23) - 0
@@ -222,16 +283,45 @@ GDT:
   db 0b10101111           ; Flags + Limit: 1 = 4k granularity, 0 = 16-bit, 1 = Long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
 
-  ; segment 2 - 64-bit data
+  ; segment 4 - 64-bit data
   dw 0xFFFF               ; limit 4GB
   dw 0                    ; Base (bits 0-15) - 0
   db 0                    ; Base (bits 16-23) - 0
   db 0b10010010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 0 = Non-Executable, 0 = Grows up, 1 = Writeable, 0 = Accessed
-  db 0b10101111           ; Flags + Limit: 1 = 4k granularity, 0 = 16-bit, 1 = Llong mode, 0 = reserved (for our use)
+  db 0b10101111           ; Flags + Limit: 1 = 4k granularity, 1 = 16-bit, 1 = Llong mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
+
+  ; segment 5 - TSS - Base is calculated in code...
+  dw 0x0067               ; 104 bytes for a TSS
+TSS_BASE_LOW:
+  dw 0                    ; Base (bits 0-15) - 0 (calculated at runtime)
+TSS_BASE_MID:
+  db 0                    ; Base (bits 16-23) - 0 (calculated at runtime)
+  db 0b10001001           ; Access: 1 = Present, 00 = Ring 0, 0 = Type (system), 1 = Non-Executable, 0 = Grows up, 0 = Not busy, 1 = TSS (not LDT)
+  db 0b00010000           ; Flags + Limit: 0 = byte granularity, 0 = 16-bit, 0 = Llong mode, 1 = Available
+TSS_BASE_HIGH
+  db 0                    ; Base (bits 23-31) - 0 (calculated at runtime)
+  dd 0xFFFFFFFF           ; Base (bits 32-63) - 0xFFFFFFFF (in the identity-mapped kernel mem)
+  dd 0                    ; Reserved
+
 
 GDT_DESC:
   ; GDT Descriptor
   dw  GDT_DESC-GDT-1      ; Size (computed from here - start)
   dd  GDT                 ; Address (GDT, above)
 
+
+TSS:
+  dq  0
+  dq  0
+  dq  0
+  dq  0
+  dq  0
+  dq  0
+  dq  0
+  dq  0
+  dq  0
+  dq  0
+  dq  0
+  dq  0
+  dq  0

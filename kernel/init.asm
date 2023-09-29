@@ -22,6 +22,7 @@
 ; What it does:
 ;
 ;   * Zeroes BSS
+;   * Fixes the GDTR and TR to point to linear addresses (Might move this to stage2)
 ;   * Calls out to the C entry point
 ;
 

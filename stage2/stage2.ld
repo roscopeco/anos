@@ -10,7 +10,7 @@ OUTPUT_FORMAT("elf64-x86-64")
 ENTRY(_start)
 
 MEMORY {
-    STAGE2  : org = 0x00009c00,  l = 0x00006400     /* 25KB for Stage 2 (up to segment boundary) */
+    STAGE2  : org = 0x0000a400,  l = 0x00006400     /* 25KB for Stage 2 (up to segment boundary) */
 }
 
 SECTIONS

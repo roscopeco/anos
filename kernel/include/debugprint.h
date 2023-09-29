@@ -14,6 +14,7 @@ void debugterm_init(char * vram_addr);
 
 void debugchar(char chr);
 void debugstr(char *str);
+void debugstr_len(char *str, int len);
 void debugattr(uint8_t new_attr);
 
 #endif//__ANOS_KERNEL_DEBUGPRINT_H

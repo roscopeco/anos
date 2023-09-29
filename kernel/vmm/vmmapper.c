@@ -16,20 +16,21 @@
 #endif
 
 #ifdef DEBUG_VMM
-#define C_DEBUGSTR    debugstr
-#define C_PRINTHEX64  printhex64
+#   define C_DEBUGSTR    debugstr
+#   define C_PRINTHEX64  printhex64
 #else
-#define C_DEBUGSTR(...)
-#define C_PRINTHEX64(...)
+#   define C_DEBUGSTR(...)
+#   define C_PRINTHEX64(...)
 #endif
 
 #ifdef UNIT_TESTS
-#define PAGE_TO_V(page)     ((uint64_t*) page)
-#define ENTRY_TO_V(entry)   ((uint64_t*) (entry & PAGE_ALIGN_MASK))
+#    define PAGE_TO_V(page)     ((uint64_t*) page)
+#    define ENTRY_TO_V(entry)   ((uint64_t*) (entry & PAGE_ALIGN_MASK))
 #else
-#define PAGE_TO_V(page)     ((uint64_t*) (page | STATIC_KERNEL_SPACE))
-#define ENTRY_TO_V(entry)   ((uint64_t*) ((entry | STATIC_KERNEL_SPACE) & PAGE_ALIGN_MASK))
+#    define PAGE_TO_V(page)     ((uint64_t*) (page | STATIC_KERNEL_SPACE))
+#    define ENTRY_TO_V(entry)   ((uint64_t*) ((entry | STATIC_KERNEL_SPACE) & PAGE_ALIGN_MASK))
 #endif
+
 
 extern MemoryRegion *physical_region;
 
@@ -54,7 +55,7 @@ static inline uint64_t* ensure_table_entry(uint64_t *table, uint16_t index, uint
     return ENTRY_TO_V(table[index]);
 }
 
-void map_page(uint64_t *pml4, uintptr_t virt_addr, uint32_t page, uint16_t flags) {
+void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags) {
     C_DEBUGSTR("PML4 @ ");
     C_PRINTHEX64((uint64_t)pml4, debugchar);
     C_DEBUGSTR(" [Entry ");
@@ -101,4 +102,8 @@ void map_page(uint64_t *pml4, uintptr_t virt_addr, uint32_t page, uint16_t flags
     pt[PTENTRY(virt_addr)] = page | flags;
 
     return;
+}
+
+void vmm_map_page_containing(uint64_t *pml4, uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags) {
+    vmm_map_page(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }

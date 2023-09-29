@@ -22,7 +22,7 @@ The following are **physical** addresses:
 | `0x0000000000007c00` | `0x0000000000007dff` | Bootsector / Stage 1                                         |
 | `0x0000000000007e00` | `0x000000000000a200` | FAT buffer (only during stage 1 file search)                 | 
 | `0x0000000000008400` | `0x0000000000009bff` | BIOS E820h memory map (passed to kernel by stage2)           |
-| `0x0000000000009c00` | `0x000000000000ffff` | Stage 2 load area (max 25k, doesn't use it all)              |
+| `0x000000000000a400` | `0x000000000000ffff` | Stage 2 load area (max 23k, doesn't use it all)              |
 | `------------------` | `0x000000000009bfff` | Stage 2 Protected stack (probably pointless moving it here..)|
 | `0x000000000009c000` | `0x000000000009cfff` | Inital PML4 set up in stage2 init_pagetables.asm             |
 | `0x000000000009d000` | `0x000000000009dfff` | Inital PDPT set up in stage2 init_pagetables.asm             |
@@ -36,9 +36,9 @@ These memory areas are reserved, and not added into the pool managed by the PMM.
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
 | `0x0000000000008400` | `0x0000000000009bff` | BIOS E820h memory map (passed to kernel by stage2)           |
-| `0x0000000000099000` | `0x000000000009cfff` | PMM Bootstrap page (Region struct and bottom of stack)       |
-| `0x000000000009a000` | `0x000000000009cfff` | PMM Area bootstrap page directory                            |
-| `0x000000000009b000` | `0x000000000009cfff` | PMM Area bootstrap page table                                |
+| `0x0000000000099000` | `0x0000000000099fff` | PMM Bootstrap page (Region struct and bottom of stack)       |
+| `0x000000000009a000` | `0x000000000009afff` | PMM Area bootstrap page directory                            |
+| `0x000000000009b000` | `0x000000000009bfff` | PMM Area bootstrap page table                                |
 | `0x000000000009c000` | `0x000000000009cfff` | Inital PML4 set up in stage2 init_pagetables.asm             |
 | `0x000000000009d000` | `0x000000000009dfff` | Inital PDPT set up in stage2 init_pagetables.asm             |
 | `0x000000000009e000` | `0x000000000009efff` | Inital PD set up in stage2 init_pagetables.asm               |
@@ -76,10 +76,19 @@ is dropped (the first 2MB physical mapping into the top 2GiB is retained).
 We also create the mapping for the 128GiB reserved address space for the PMM structures
 at this point, leaving us with:
 
-* `0xffffff8000000000` -> `0xffffff9fffffefff` : PMM structures area.
+* `0xffffff8000000000` -> `0xffffff9fffffefff` : PMM structures area (only the first page is actually present).
 * `0xffffff9ffffff000` -> `0xffffffa000000000` : PMM structures guard page (Reserved, never mapped)
 * `0xffffffff80000000` -> `0xffffffff80200000` : First 2MiB of top (or negative) 2GiB mapped to first 2MiB phys
 * `0xffffffff80200000` -> `0xffffffff803fffff` : Second 2MiB of top (or negative) 2GiB mapped to second 2MiB phys*
+
+ACPI tables are mapped into a small (8-page currently) reserved space, which is _probably_
+going to be just temporary (just during bootstrap) - not sure there's much point in keeping
+it around once the devices are setup 🤔:
+
+* `0xffffffff81000000` -> `0xffffffff81008000` : Reserved space for ACPI tables
+
+Probably worth noting that these aren't moved or copied - they stay at their original 
+phys location, and I just map it in. Maybe a bad idea, but works for now (on emus).
 
 Additionally, the debug page fault handler manages this:
 
@@ -88,6 +97,12 @@ Additionally, the debug page fault handler manages this:
 This space is not represented by page tables at boot, but if there's a page
 fault there the handler will automatically map in a page. 
 **This is just for testing, and is not a feature - it will be removed soon!!**.
+
+Finally, the local APIC is **temporarily** mapped to:
+
+* `0xFFFF800000000000` -> `0xFFFF800000000400` : Local APIC (for all CPUs)
+
+This, again, won't be staying there, but it works for now.
 
 This is all fun and games, but will almost certainly be a problem later 
 (i.e. the kernel being stuck at <1MiB size and located at the ~1MiB mark in physical 

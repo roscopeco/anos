@@ -51,6 +51,9 @@ memory allocator, a very simple (for testing only) page fault handler,
 and the beginnings of a virtual memory manager (currently, just able
 to map pages for the fault handler).
 
+The basics of interrupt handling is configured, with the local APIC 
+timer currently providing a "proof-of-life" heartbeat.
+
 ### Building
 
 Everything is built with `make`. You'll want a cross-compiler
@@ -193,5 +196,5 @@ kick off qemu and then connect to it allowing you to debug things.
 This probably isn't up to date enough to represent where it's at, but
 it should be relatively recent.
 
-<img src="images/Screenshot 2023-09-23 at 01.02.25.png" alt="Hopefully-recent Screenshot">
+<img src="images/Screenshot 2023-09-29 at 23.08.45.png" alt="Hopefully-recent Screenshot">
 
