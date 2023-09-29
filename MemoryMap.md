@@ -98,6 +98,12 @@ This space is not represented by page tables at boot, but if there's a page
 fault there the handler will automatically map in a page. 
 **This is just for testing, and is not a feature - it will be removed soon!!**.
 
+Finally, the local APIC is **temporarily** mapped to:
+
+* `0xFFFF800000000000` -> `0xFFFF800000000400` : Local APIC (for all CPUs)
+
+This, again, won't be staying there, but it works for now.
+
 This is all fun and games, but will almost certainly be a problem later 
 (i.e. the kernel being stuck at <1MiB size and located at the ~1MiB mark in physical 
 RAM - I'm thinking DMA or whatever will probably want that area...)
