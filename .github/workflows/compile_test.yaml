@@ -25,10 +25,14 @@ jobs:
           - os: ubuntu-latest
             compiler: gcc-13
             target: Linux
+            - env:
+              HOST_ARCH: elf64
 
           - os: macos-latest
             compiler: gcc-13
             target: Macos
+            - env:
+              HOST_ARCH: macho64
 
     steps:
       - name: Checkout
