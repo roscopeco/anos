@@ -25,18 +25,20 @@ jobs:
           - os: ubuntu-latest
             compiler: gcc-13
             target: Linux
-            - env:
-              HOST_ARCH: elf64
 
           - os: macos-latest
             compiler: gcc-13
             target: Macos
-            - env:
-              HOST_ARCH: macho64
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
       - name: Build & run tests
-        run: make clean test
+        run: |
+          if ["${{ matrix.os }}" = "ubuntu-latest"]; then
+            HOST_ARCH=elf64 make clean test
+          else
+            make clean test
+          fi
+        shell: bash
