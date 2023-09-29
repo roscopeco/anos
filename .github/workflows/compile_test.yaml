@@ -22,8 +22,11 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build & run tests
-        run: brew install nasm
-        run: make clean test
+        run: |
+          brew install nasm
+          make clean test
+        shell: bash
+
 
   linux_build_and_test:
     name: Build & test (Ubuntu)
@@ -33,5 +36,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build & run tests
-        run: sudo apt-get install nasm
-        run: HOST_ARCH=elf64 make clean test
+        run: |
+          sudo apt-get install nasm
+          HOST_ARCH=elf64 make clean test
+        shell: bash
