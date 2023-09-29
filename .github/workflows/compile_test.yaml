@@ -36,7 +36,7 @@ jobs:
 
       - name: Build & run tests
         run: |
-          if ["${{ matrix.os }}" = "ubuntu-latest"]; then
+          if [[ "${{ matrix.os }}" = "ubuntu-latest" ]]; then
             HOST_ARCH=elf64 make clean test
           else
             make clean test
