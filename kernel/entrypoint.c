@@ -19,6 +19,7 @@
 #include "pmm/pagealloc.h"
 #include "acpitables.h"
 #include "kdrivers/drivers.h"
+#include "kdrivers/local_apic.h"
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -215,6 +216,18 @@ static inline void install_interrupts() {
     idt_install(0x18);
 }
 
+void init_this_cpu(BIOS_SDTHeader *rsdt) {
+    // Init local APIC on this CPU
+    BIOS_SDTHeader* madt = find_acpi_table(rsdt, "APIC");
+
+    if (madt == NULL) {
+        debugstr("No MADT; Halting\n");
+        halt_and_catch_fire();
+    }
+
+    init_local_apic(madt);
+}
+
 MemoryRegion *physical_region;
 BIOS_SDTHeader *acpi_root_table;
 
@@ -254,8 +267,8 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     }
 
     debug_memmap(memmap);
-    debug_madt(acpi_root_table);    
-
+    debug_madt(acpi_root_table);
+    init_this_cpu(acpi_root_table);
     init_kernel_drivers(acpi_root_table);
 
 #   ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT

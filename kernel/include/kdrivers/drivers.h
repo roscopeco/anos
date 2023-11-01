@@ -15,7 +15,6 @@
 #define __ANOS_KERNEL_DRIVERS_H
 
 #include <stdint.h>
-#include "acpitables.h"
 
 #define KERNEL_HARDWARE_VADDR_BASE       0xFFFF800000000000
 #define KERNEL_DRIVER_VADDR_BASE         0xFFFFFFFF81008000
@@ -31,8 +30,5 @@ typedef struct _KernelDriver {
 } KernelDriver;
 
 void init_kernel_drivers(BIOS_SDTHeader *rsdp);
-
-// TODO Obviously doesn't belong here, just a hack for proof of life...
-void local_apic_eoe();
 
 #endif//__ANOS_KERNEL_DRIVERS_H
