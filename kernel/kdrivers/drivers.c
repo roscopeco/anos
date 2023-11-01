@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include "acpitables.h"
 #include "kdrivers/drivers.h"
 
 void init_kernel_drivers(BIOS_SDTHeader *rsdt) {
