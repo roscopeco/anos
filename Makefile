@@ -90,7 +90,9 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/vmm/vmmapper.o										\
 			$(STAGE3_DIR)/acpitables.o											\
-			$(STAGE3_DIR)/kdrivers/drivers.o
+			$(STAGE3_DIR)/kdrivers/drivers.o									\
+			$(STAGE3_DIR)/kdrivers/local_apic.o
+			
 			
 ALL_TARGETS=floppy.img
 

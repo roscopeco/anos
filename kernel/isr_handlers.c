@@ -11,7 +11,8 @@
 #include "printhex.h"
 #include "machine.h"
 #include "pagefault.h"
-#include "kdrivers/drivers.h"
+#include "acpitables.h"
+#include "kdrivers/local_apic.h"
 
 /*
  * Basic debug handler for exceptions with no error code.
