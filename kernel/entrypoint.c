@@ -285,6 +285,12 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     *bad = 0x0BADF00D;
 #endif
 
+#   ifdef DEBUG_TEST_TASKS
+    void debug_test_tasks(void);
+    debugstr("Running endless task test...\n");
+    debug_test_tasks();     // this won't return...
+#   endif
+
     debugstr("All is well! Halting for now.\n");
 
     while (true) {

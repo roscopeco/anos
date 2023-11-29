@@ -32,14 +32,15 @@ endif
 #
 # These ones enable some specific feature tests
 #
-#	DEBUG_FORCE_HANDLED_PAGE_FAULT
-#	DEBUG_FORCE_UNHANDLED_PAGE_FAULT
+#	DEBUG_FORCE_HANDLED_PAGE_FAULT		Force a handled page fault at startup
+#	DEBUG_FORCE_UNHANDLED_PAGE_FAULT	Force an unhandled page fault at startup (causes a panic/halt)
+#   DEBUG_TEST_TASKS					Run a noreturn func that just tests the basic task switch
 #
 # Additionally:
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_MADT
+CDEFS=-DDEBUG_MADT -DDEBUG_TEST_TASKS
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -100,7 +101,9 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/vmm/vmmapper.o										\
 			$(STAGE3_DIR)/acpitables.o											\
 			$(STAGE3_DIR)/kdrivers/drivers.o									\
-			$(STAGE3_DIR)/kdrivers/local_apic.o
+			$(STAGE3_DIR)/kdrivers/local_apic.o									\
+			$(STAGE3_DIR)/task.o												\
+			$(STAGE3_DIR)/task_switch.o
 			
 			
 ALL_TARGETS=floppy.img
