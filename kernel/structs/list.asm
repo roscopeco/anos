@@ -71,7 +71,7 @@ FUNC(list_add):
   jmp   .loop
   
 .found_end:
-  jmp   _list_insert_after                ; Now we have the end, it's just an insert_after...
+  jmp   FUNC(list_insert_after)           ; Now we have the end, it's just an insert_after...
 
 
 ; Delete after func; C-callable (SYSV AMD64)
