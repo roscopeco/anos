@@ -27,7 +27,8 @@ endif
 #   DEBUG_VMM 			Enable debugging of the VMM
 #	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
-#	DEBUG_ACPI			Enable debugging in ACPI mapper / parser
+#	DEBUG_ACPI				Enable debugging in ACPI mapper / parser
+#	DEBUG_MADT			Enable debug dump of the Multiple APIC Descriptor Table at boot
 #	VERY_NOISY_ACPI		Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
 #	DEBUG_PCI_ENUM		Enable debugging of PCI enumeration
 #	VERY_NOISY_PCI_ENUM	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
