@@ -110,12 +110,14 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 
 HOST_ARCH=$(shell uname -p)
 
-.PHONY: all clean qemu bochs
+.PHONY: all clean qemu bochs test
 
 all: $(ALL_TARGETS)
 
 ifeq ($(HOST_ARCH),arm)
 $(info WARN: Host architecture is ARM, tests will not be included...)
+test:
+	@echo Host architecture is ARM, tests requested but they were skipped
 else
 include tests/include.mk
 endif
