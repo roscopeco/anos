@@ -27,20 +27,21 @@ endif
 #   DEBUG_VMM 			Enable debugging of the VMM
 #	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
-#	DEBUG_ACPI		Enable debugging in ACPI mapper / parser
+#	DEBUG_ACPI			Enable debugging in ACPI mapper / parser
+#	DEBUG_MADT			Enable debug dump of the Multiple APIC Descriptor Table at boot
 #	VERY_NOISY_ACPI		Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
 #
 # These ones enable some specific feature tests
 #
 #	DEBUG_FORCE_HANDLED_PAGE_FAULT		Force a handled page fault at startup
 #	DEBUG_FORCE_UNHANDLED_PAGE_FAULT	Force an unhandled page fault at startup (causes a panic/halt)
-#   DEBUG_TEST_TASKS					Run a noreturn func that just tests the basic task switch
+#	DEBUG_TEST_TASKS					Run a noreturn func that just tests the basic task switch
 #
 # Additionally:
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_MADT -DDEBUG_TEST_TASKS
+CDEFS=-DDEBUG_MADT
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
