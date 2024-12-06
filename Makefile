@@ -18,7 +18,7 @@ HOST_ARCH?=macho64
 #   DEBUG_VMM 			Enable debugging of the VMM
 #	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
-#	DEBUG_ACPI			Enable debugging in ACPI mapper / parser
+#	DEBUG_ACPI		Enable debugging in ACPI mapper / parser
 #	VERY_NOISY_ACPI		Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
 #
 # These ones enable some specific feature tests
