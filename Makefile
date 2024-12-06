@@ -11,7 +11,15 @@ CFLAGS=-Wall -Werror -Wpedantic 												\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=kernel															\
 		-g
-HOST_ARCH?=macho64
+
+# Setup host stuff for tests etc.
+HOST_ARCH?=$(shell uname -p)
+HOST_OS=$(shell uname)
+ifeq ($(HOST_OS),Darwin)
+HOST_OBJFORMAT=macho64
+else
+HOST_OBJFORMAT=elf64
+endif
 
 # The following C defines are recognised by stage3 and enable various things
 #
@@ -107,8 +115,6 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 		   		$(FLOPPY_IMG)
-
-HOST_ARCH=$(shell uname -p)
 
 .PHONY: all clean qemu bochs test
 

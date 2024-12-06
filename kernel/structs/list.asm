@@ -6,8 +6,14 @@
 ; Implemented in asm for efficient calling from either C or assembly
 ;
 
+%ifdef asm_macho64
+%define FUNC(name) _ %+ name
+%else
+%define FUNC(name) name
+%endif
+
 bits 64
-global _list_add, _list_insert_after, _list_delete_after, _list_find 
+global FUNC(list_add), FUNC(list_insert_after), FUNC(list_delete_after), FUNC(list_find)
 
 %define NODE_SIZE 0x00
 %define NODE_TYPE 0x08
@@ -23,7 +29,7 @@ global _list_add, _list_insert_after, _list_delete_after, _list_find
 ; rax return (the subject node)
 ; rdx trashed
 ;
-_list_insert_after: 
+FUNC(list_insert_after):
   xor   rdx,rdx                           ; Zero out rdx
   test  rdi,rdi                           ; Is target null?
   jz   .link_subject                      ; Just link subject if so
@@ -52,7 +58,7 @@ _list_insert_after:
 ;   rax return (the subject node)
 ;   rdx trashed
 ;
-_list_add: 
+FUNC(list_add):
   test  rdi,rdi                           ; Is target null?
   jz    .found_end                        ; If so, we've already found the end of the list 🥳
   
@@ -65,7 +71,7 @@ _list_add:
   jmp   .loop
   
 .found_end:
-  jmp   _list_insert_after                ; Now we have the end, it's just an insert_after...
+  jmp   FUNC(list_insert_after)           ; Now we have the end, it's just an insert_after...
 
 
 ; Delete after func; C-callable (SYSV AMD64)
@@ -77,7 +83,7 @@ _list_add:
 ;   rax return (the deleted node)
 ;   rdx trashed
 ;
-_list_delete_after:
+FUNC(list_delete_after):
   test  rdi,rdi                           ; Is target null?
   jnz   .nonnull                          ; Continue if not
 
@@ -115,7 +121,7 @@ _list_delete_after:
 ; Modifies:
 ;   rax return (the matching node, or null)
 ;
-_list_find:
+FUNC(list_find):
   push  rbp                               ; Might call back to C, so maintain alignment...
   mov   rbp,rsp                           ; ... by making a stack frame (for the push really).
 
