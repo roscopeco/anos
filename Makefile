@@ -18,7 +18,7 @@ HOST_ARCH?=macho64
 #   DEBUG_VMM 			Enable debugging of the VMM
 #	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
-#	DEBUG_ACPI			Enable debugging in ACPI mapper / parser
+#	DEBUG_ACPI		Enable debugging in ACPI mapper / parser
 #	VERY_NOISY_ACPI		Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
 #
 # These ones enable some specific feature tests
@@ -104,15 +104,23 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 	       		$(STAGE2_DIR)/*.dis $(STAGE2_DIR)/*.elf $(STAGE2_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/pmm/*.o $(STAGE3_DIR)/vmm/*.o				 		\
-		   		$(STAGE2_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
+		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 		   		$(FLOPPY_IMG)
 
-include tests/include.mk
+HOST_ARCH=$(shell uname -p)
 
-.PHONY: all clean qemu bochs
+.PHONY: all clean qemu bochs test
 
 all: $(ALL_TARGETS)
+
+ifeq ($(HOST_ARCH),arm)
+$(info WARN: Host architecture is ARM, tests will not be included...)
+test:
+	@echo Host architecture is ARM, tests requested but they were skipped
+else
+include tests/include.mk
+endif
 
 clean:
 	rm -rf $(CLEAN_ARTIFACTS)
