@@ -20,7 +20,7 @@ tests/build/%.o: kernel/%.c tests/build tests/build/pmm tests/build/vmm tests/bu
 	$(CC) -DUNIT_TESTS -g -Ikernel/include -c -o $@ $<
 
 tests/build/%.o: kernel/%.asm tests/build tests/build/pmm tests/build/vmm tests/build/structs
-	$(ASM) -DUNIT_TESTS -f $(HOST_ARCH) -F dwarf -g -o $@ $<
+	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
 
 tests/build/interrupts: tests/munit.o tests/interrupts.o tests/build/interrupts.o
 	$(CC) -o $@ $^
