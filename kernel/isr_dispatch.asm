@@ -7,12 +7,10 @@
 ;
 
 bits 64
-global pic_irq_handler, irq_handler, spurious_irq_count
-extern handle_exception_nc, handle_exception_wc, handle_interrupt
+global pic_irq_handler, timer_interrupt_handler, unknown_interrupt_handler, spurious_irq_count
+extern handle_exception_nc, handle_exception_wc, handle_timer_interrupt, handle_unknown_interrupt
 
-%macro trap_dispatcher_with_code 1        ; General handler for traps that stack an error code
-global trap_dispatcher_%+%1               ; Ensure declared global
-trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
+%macro pusha_sysv 0
   push  rax                               ; Save all C-clobbered registers
   push  rcx
   push  rdx
@@ -22,22 +20,32 @@ trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
   push  r9
   push  r10
   push  r11  
+%endmacro
+
+%macro popa_sysv 0
+  pop   r11                               ; Restore registers...
+  pop   r10
+  pop   r9
+  pop   r8
+  pop   rdi
+  pop   rsi
+  pop   rdx
+  pop   rcx
+  pop   rax
+%endmacro
+
+%macro trap_dispatcher_with_code 1        ; General handler for traps that stack an error code
+global trap_dispatcher_%+%1               ; Ensure declared global
+trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
+  pusha_sysv
   
   mov   rdi,%1                            ; Put the trap number in the first C argument
   mov   rsi,72[rsp]                       ; Error code from stack into the second C argument
   mov   rdx,80[rsp]                       ; Peek return address into third C argument
   call  handle_exception_wc               ; Call the with-code handler
 
-  pop   r11                               ; Restore registers...
-  pop   r10
-  pop   r9
-  pop   r8
+  popa_sysv
 
-  pop   rdi
-  pop   rsi
-  pop   rdx
-  pop   rcx
-  pop   rax
   add   rsp,8                             ; Discard the error code
 
   iretq                                   ; And done...
@@ -46,29 +54,14 @@ trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
 %macro trap_dispatcher_no_code 1          ; General handler for traps that stack an error code
 global trap_dispatcher_%+%1               ; Ensure declared global
 trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_1`
-  push  rax                               ; Save all C-clobbered registers
-  push  rcx
-  push  rdx
-  push  rsi
-  push  rdi
-  push  r8
-  push  r9
-  push  r10
-  push  r11  
+  pusha_sysv
   
   mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
   mov   rsi,72[rsp]                       ; Peek return address into second C argument
   call  handle_exception_nc               ; Call the no-code handler
 
-  pop   r11                               ; Restore registers...
-  pop   r10
-  pop   r9
-  pop   r8
-  pop   rdi
-  pop   rsi
-  pop   rdx
-  pop   rcx
-  pop   rax
+  popa_sysv
+
   iretq                                    ; And done...
 %endmacro
 
@@ -114,10 +107,25 @@ pic_irq_handler:
   pop   rax                               ; Restore regs
   iretq                                   ; And done
 
-; ISR dispatcher for IRQs
-irq_handler:
-  call  handle_interrupt                  ; Just call directly to C handler
+; TODO I suspect we might need a separate handler here, specifically for PIC IRQ 15
+; (vector 0x2f) because we should be sending EOI to the master PIC in that case...
+
+timer_interrupt_handler:
+  pusha_sysv
+
+  call  handle_timer_interrupt            ; Just call directly to C handler
+
+  popa_sysv
   iretq
 
-; Running count of spurious IRQs
+; ISR dispatcher for Unknown (unhandled) IRQs
+unknown_interrupt_handler:
+  pusha_sysv
+
+  call  handle_unknown_interrupt          ; Just call directly to C handler
+  
+  popa_sysv
+  iretq
+
+; Running count of spurious PIC IRQs
 spurious_irq_count  dq  0
