@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 
-void handle_page_fault(uint64_t code, uintptr_t fault_addr, uintptr_t origin_addr);
+void handle_page_fault(uint64_t code, uintptr_t fault_addr,
+                       uintptr_t origin_addr);
 
-#endif//__ANOS_KERNEL_PAGEFAULT_H
+#endif //__ANOS_KERNEL_PAGEFAULT_H

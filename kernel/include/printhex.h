@@ -10,11 +10,11 @@
 
 #include <stdint.h>
 
-typedef void (PrintHexCharHandler)(char chr);
+typedef void(PrintHexCharHandler)(char chr);
 
 void printhex64(uint64_t num, PrintHexCharHandler printfunc);
 void printhex32(uint64_t num, PrintHexCharHandler printfunc);
 void printhex16(uint64_t num, PrintHexCharHandler printfunc);
 void printhex8(uint64_t num, PrintHexCharHandler printfunc);
 
-#endif//__ANOS_KERNEL_PRINTHEX_H
+#endif //__ANOS_KERNEL_PRINTHEX_H

@@ -8,13 +8,13 @@
 #include <stdint.h>
 
 void bitmap_set(uint64_t *bitmap, uint64_t bit) {
-    bitmap[bit >> 6] |= (1ULL << (bit & 0x3f));
+  bitmap[bit >> 6] |= (1ULL << (bit & 0x3f));
 }
 
 void bitmap_clear(uint64_t *bitmap, uint64_t bit) {
-    bitmap[bit >> 6] &= ~(1ULL << (bit & 0x3f));
+  bitmap[bit >> 6] &= ~(1ULL << (bit & 0x3f));
 }
 
 void bitmap_flip(uint64_t *bitmap, uint64_t bit) {
-    bitmap[bit >> 6] ^= (1ULL << (bit & 0x3f));
+  bitmap[bit >> 6] ^= (1ULL << (bit & 0x3f));
 }
