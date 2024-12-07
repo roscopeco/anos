@@ -41,7 +41,7 @@ void init_local_apic(BIOS_SDTHeader *madt) {
     // Set up timer
     *REG_LAPIC_DIVIDE(lapic) = 0x03;            // /16 mode
     *REG_LAPIC_INITIAL_COUNT(lapic) = 20000000; // 20000000 init count
-    *REG_LAPIC_LVT_TIMER(lapic) = 0x20030;      // Vector 0x30
+    *REG_LAPIC_LVT_TIMER(lapic) = 0x20000 | LAPIC_TIMER_VECTOR;
 }
 
 void local_apic_eoe() {
