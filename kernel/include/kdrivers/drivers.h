@@ -22,11 +22,11 @@
 typedef uint64_t (*KDriverEntrypoint)(void *arg);
 
 typedef struct _KernelDriver {
-  struct _KernelDriver *first_child;
-  struct _KernelDriver *next_sibling;
-  const char ident[30];
-  const char manufacturer[20];
-  KDriverEntrypoint entrypoint;
+    struct _KernelDriver *first_child;
+    struct _KernelDriver *next_sibling;
+    const char ident[30];
+    const char manufacturer[20];
+    KDriverEntrypoint entrypoint;
 } KernelDriver;
 
 void init_kernel_drivers(BIOS_SDTHeader *rsdp);

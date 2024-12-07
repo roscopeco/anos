@@ -11,5 +11,5 @@
 #include "kdrivers/drivers.h"
 
 void init_kernel_drivers(BIOS_SDTHeader *rsdt) {
-  // TODO not yet
+    // TODO not yet
 }

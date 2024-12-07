@@ -42,55 +42,55 @@
 #define WRITE (1 << 1)
 
 void pagetables_init() {
-  uint64_t *pml4 = (uint64_t *)0xFFFFFFFF8009c000;
-  uint64_t *pdpt = (uint64_t *)0xFFFFFFFF8009d000;
-  uint64_t *pd = (uint64_t *)0xFFFFFFFF8009e000;
+    uint64_t *pml4 = (uint64_t *)0xFFFFFFFF8009c000;
+    uint64_t *pdpt = (uint64_t *)0xFFFFFFFF8009d000;
+    uint64_t *pd = (uint64_t *)0xFFFFFFFF8009e000;
 
-  // Remove the bottom of the address-space identity mapping that
-  // was set up by the bootloader, it's no longer needed...
-  *pml4 = 0;
-  *pdpt = 0;
+    // Remove the bottom of the address-space identity mapping that
+    // was set up by the bootloader, it's no longer needed...
+    *pml4 = 0;
+    *pdpt = 0;
 
-  // Map the second 2MiB at the bottom of RAM into kernel space,
-  // immediately following the 2MiB mapped by stage2.
-  //
-  // This should only be temporary, to allow us to easily access
-  // that bit of RAM during kernel init...
-  //
-  // Use 0x98000 as the page table
-  uint64_t *newpt = (uint64_t *)0xFFFFFFFF80098000;
-  for (int i = 0; i < 0x200; i++) {
-    newpt[i] = ((i << 12) + 0x200000) | PRESENT | WRITE;
-  }
+    // Map the second 2MiB at the bottom of RAM into kernel space,
+    // immediately following the 2MiB mapped by stage2.
+    //
+    // This should only be temporary, to allow us to easily access
+    // that bit of RAM during kernel init...
+    //
+    // Use 0x98000 as the page table
+    uint64_t *newpt = (uint64_t *)0xFFFFFFFF80098000;
+    for (int i = 0; i < 0x200; i++) {
+        newpt[i] = ((i << 12) + 0x200000) | PRESENT | WRITE;
+    }
 
-  // And hook it into the page directory as the second 2MiB
-  pd[1] = 0x98000 | PRESENT | WRITE;
+    // And hook it into the page directory as the second 2MiB
+    pd[1] = 0x98000 | PRESENT | WRITE;
 
-  // Set up initial page directory and table for the PMM stack.
-  // Might as well use the 8KiB below the existing page tables,
-  // and only mapping one page for now, just to give the PMM
-  // room to start - once it's running additional mapping will be
-  // done by the page fault handler as needed...
-  uint64_t *pmm_pd = (uint64_t *)0xFFFFFFFF8009a000;
-  uint64_t *pmm_pt = (uint64_t *)0xFFFFFFFF8009b000;
+    // Set up initial page directory and table for the PMM stack.
+    // Might as well use the 8KiB below the existing page tables,
+    // and only mapping one page for now, just to give the PMM
+    // room to start - once it's running additional mapping will be
+    // done by the page fault handler as needed...
+    uint64_t *pmm_pd = (uint64_t *)0xFFFFFFFF8009a000;
+    uint64_t *pmm_pt = (uint64_t *)0xFFFFFFFF8009b000;
 
-  // Zero them out
-  for (int i = 0; i < 0x400; i++) {
-    pmm_pd[i] = 0;
-  }
+    // Zero them out
+    for (int i = 0; i < 0x400; i++) {
+        pmm_pd[i] = 0;
+    }
 
-  // Map the new table into the directory, with physical address
-  pmm_pd[0] = 0x9b000 | PRESENT | WRITE;
+    // Map the new table into the directory, with physical address
+    pmm_pd[0] = 0x9b000 | PRESENT | WRITE;
 
-  // Map the physical page below these page tables as the PMM bootstrap
-  // page - this will contain the region struct and first bit of the
-  // stack.
-  pmm_pt[0] = 0x99000 | PRESENT | WRITE;
+    // Map the physical page below these page tables as the PMM bootstrap
+    // page - this will contain the region struct and first bit of the
+    // stack.
+    pmm_pt[0] = 0x99000 | PRESENT | WRITE;
 
-  // Hook this into the PDPT
-  pdpt[0] = 0x9a000 | PRESENT | WRITE;
+    // Hook this into the PDPT
+    pdpt[0] = 0x9a000 | PRESENT | WRITE;
 
-  // Just load cr3 to dump the TLB...
-  __asm__ volatile("mov %cr3, %rax\n\t"
-                   "mov %rax, %cr3\n\t");
+    // Just load cr3 to dump the TLB...
+    __asm__ volatile("mov %cr3, %rax\n\t"
+                     "mov %rax, %cr3\n\t");
 }

@@ -27,11 +27,11 @@
 #define LAPIC_LVT_TIMER(lapic) (LAPIC_REG(lapic, LVT_TIMER))
 
 typedef struct {
-  uint64_t base_address;
-  uint8_t processor_id;
-  uint8_t apic_id;
-  uint32_t flags;
-  uint16_t reserved;
+    uint64_t base_address;
+    uint8_t processor_id;
+    uint8_t apic_id;
+    uint32_t flags;
+    uint16_t reserved;
 } LocalAPIC;
 
 void init_local_apic(BIOS_SDTHeader *madt);

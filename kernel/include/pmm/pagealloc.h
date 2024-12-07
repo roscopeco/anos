@@ -13,19 +13,19 @@
 #include "machine.h"
 
 typedef struct {
-  uintptr_t phys_addr;
+    uintptr_t phys_addr;
 } PhysPage;
 
 typedef struct {
-  uint64_t base;
-  uint64_t size;
+    uint64_t base;
+    uint64_t size;
 } MemoryBlock;
 
 typedef struct {
-  uint64_t flags;
-  uint64_t size;
-  uint64_t free;
-  MemoryBlock *sp;
+    uint64_t flags;
+    uint64_t size;
+    uint64_t free;
+    MemoryBlock *sp;
 } MemoryRegion;
 
 /*

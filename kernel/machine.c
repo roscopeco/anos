@@ -11,9 +11,9 @@
 #include <stdnoreturn.h>
 
 noreturn void halt_and_catch_fire() {
-  __asm__ volatile("cli\n\t");
+    __asm__ volatile("cli\n\t");
 
-  while (true) {
-    __asm__ volatile("hlt\n\t");
-  }
+    while (true) {
+        __asm__ volatile("hlt\n\t");
+    }
 }
