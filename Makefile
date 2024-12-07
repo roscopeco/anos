@@ -10,6 +10,7 @@ CFLAGS=-Wall -Werror -Wpedantic 												\
 		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=kernel															\
+		-O3																		\
 		-g
 
 # Setup host stuff for tests etc.
