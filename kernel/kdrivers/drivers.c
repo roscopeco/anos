@@ -1,7 +1,7 @@
 /*
  * stage3 - Kernel driver management
  * anos - An Operating System
- * 
+ *
  * Copyright (c) 2023 Ross Bamford
  */
 

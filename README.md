@@ -191,6 +191,19 @@ kick off qemu and then connect to it allowing you to debug things.
 > for example - though it _does_ use the symbols we give it so it can at least find
 > the appropriate line of code in both C and assembly source, so it's _basicaly usable_.
 
+### Developing
+
+If you're developing the code, you'll want to have
+[clang-format](https://clang.llvm.org/docs/ClangFormat.html) installed for code formatting.
+
+If you're committing to git, we use [pre-commit](https://pre-commit.com) to manage 
+pre-commit hooks that handle formatting automatically on commit.
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
 ### Recent screenshot
 
 This probably isn't up to date enough to represent where it's at, but

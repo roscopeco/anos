@@ -7,19 +7,19 @@
  * We're fully 64-bit at this point 🎉
  */
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdnoreturn.h>
 
-#include "debugprint.h"
-#include "printhex.h"
-#include "machine.h"
-#include "interrupts.h"
-#include "init_pagetables.h"
-#include "pmm/pagealloc.h"
 #include "acpitables.h"
+#include "debugprint.h"
+#include "init_pagetables.h"
+#include "interrupts.h"
 #include "kdrivers/drivers.h"
 #include "kdrivers/local_apic.h"
+#include "machine.h"
+#include "pmm/pagealloc.h"
+#include "printhex.h"
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -29,36 +29,28 @@
 // This is the static virtual address region (128GB from this base)
 // that is reserved for PMM structures and stack.
 #ifndef STATIC_PMM_VREGION
-#define STATIC_PMM_VREGION  ((void*)0xFFFFFF8000000000)
+#define STATIC_PMM_VREGION ((void *)0xFFFFFF8000000000)
 #endif
 
 // The base address of the physical region this allocator should manage.
 #ifndef PMM_PHYS_BASE
-#define PMM_PHYS_BASE       0x200000
+#define PMM_PHYS_BASE 0x200000
 #endif
 
 #ifndef VRAM_VIRT_BASE
-#define VRAM_VIRT_BASE      ((char * const)0xffffffff800b8000)
+#define VRAM_VIRT_BASE ((char *const)0xffffffff800b8000)
 #endif
 
 #define XSTRVER(verstr) #verstr
 #define STRVER(xstrver) XSTRVER(xstrver)
-#define VERSION         STRVER(VERSTR)
+#define VERSION STRVER(VERSTR)
 
 static char *MSG = VERSION "\n";
 
 #ifdef DEBUG_MEMMAP
-static char * MEM_TYPES[] = {
-    "INVALID",
-    "AVAILABLE",
-    "RESERVED",
-    "ACPI",
-    "NVS",
-    "UNUSABLE",
-    "DISABLED",
-    "PERSISTENT",
-    "UNKNOWN"
-};
+static char *MEM_TYPES[] = {"INVALID",  "AVAILABLE",  "RESERVED",
+                            "ACPI",     "NVS",        "UNUSABLE",
+                            "DISABLED", "PERSISTENT", "UNKNOWN"};
 
 void debug_memmap(E820h_MemMap *memmap) {
     debugstr("\nThere are ");
@@ -103,7 +95,7 @@ void debug_madt(BIOS_SDTHeader *rsdt) {
     printhex32(madt->length, debugchar);
     debugstr("\n");
 
-    uint32_t *lapic_addr = ((uint32_t*)(madt + 1));
+    uint32_t *lapic_addr = ((uint32_t *)(madt + 1));
     uint32_t *flags = lapic_addr + 1;
     debugstr("LAPIC address  : ");
     printhex32(*lapic_addr, debugchar);
@@ -113,36 +105,36 @@ void debug_madt(BIOS_SDTHeader *rsdt) {
     debugstr("\n");
 
     uint16_t remain = madt->length - 0x2C;
-    uint8_t *ptr = ((uint8_t*)madt) + 0x2C;
+    uint8_t *ptr = ((uint8_t *)madt) + 0x2C;
 
     while (remain > 0) {
-        uint8_t* type = ptr++;
-        uint8_t* len = ptr++;
+        uint8_t *type = ptr++;
+        uint8_t *len = ptr++;
 
         uint16_t *flags16;
         uint32_t *flags32;
 
         switch (*type) {
-        case 0:     // Processor local APIC
+        case 0: // Processor local APIC
             debugstr("  CPU            [ID: ");
             printhex8(*ptr++, debugchar);
             debugstr("; LAPIC ");
             printhex8(*ptr++, debugchar);
-            flags32 = (uint32_t*)ptr;
+            flags32 = (uint32_t *)ptr;
             debugstr("; Flags: ");
             printhex32(*flags32, debugchar);
             debugstr("]\n");
             ptr += 4;
             break;
-        case 1:      // IO APIC
+        case 1: // IO APIC
             debugstr("  IOAPIC         [ID: ");
             printhex8(*ptr++, debugchar);
-            
-            ptr++;  // skip reserved
 
-            uint32_t *apicaddr = (uint32_t*)ptr;
+            ptr++; // skip reserved
+
+            uint32_t *apicaddr = (uint32_t *)ptr;
             ptr += 4;
-            uint32_t *gsibase = (uint32_t*)ptr;
+            uint32_t *gsibase = (uint32_t *)ptr;
             ptr += 4;
 
             debugstr("; Addr: ");
@@ -151,29 +143,29 @@ void debug_madt(BIOS_SDTHeader *rsdt) {
             printhex32(*gsibase, debugchar);
             debugstr("]\n");
             break;
-        case 2:     // IP APIC Source Override
+        case 2: // IP APIC Source Override
             debugstr("  IOAPIC Src O/R [Bus: ");
             printhex8(*ptr++, debugchar);
             debugstr("; IRQ: ");
             printhex8(*ptr++, debugchar);
 
-            uint32_t *gsi = (uint32_t*)ptr;
+            uint32_t *gsi = (uint32_t *)ptr;
             ptr += 4;
             debugstr("; GSI: ");
             printhex32(*gsi, debugchar);
 
-            flags16 = (uint16_t*)ptr;
+            flags16 = (uint16_t *)ptr;
             ptr += 2;
             debugstr("; Flags: ");
             printhex16(*flags16, debugchar);
             debugstr("]\n");
 
             break;
-        case 4:     // LAPIC NMI
+        case 4: // LAPIC NMI
             debugstr("  LAPIC NMI      [Processor: ");
             printhex8(*ptr++, debugchar);
 
-            flags16 = (uint16_t*)ptr;
+            flags16 = (uint16_t *)ptr;
             ptr += 2;
             debugstr("; Flags: ");
             printhex16(*flags16, debugchar);
@@ -212,13 +204,11 @@ static inline void banner() {
     debugattr(0x07);
 }
 
-static inline void install_interrupts() {
-    idt_install(0x18);
-}
+static inline void install_interrupts() { idt_install(0x18); }
 
 void init_this_cpu(BIOS_SDTHeader *rsdt) {
     // Init local APIC on this CPU
-    BIOS_SDTHeader* madt = find_acpi_table(rsdt, "APIC");
+    BIOS_SDTHeader *madt = find_acpi_table(rsdt, "APIC");
 
     if (madt == NULL) {
         debugstr("No MADT; Halting\n");
@@ -232,33 +222,34 @@ MemoryRegion *physical_region;
 BIOS_SDTHeader *acpi_root_table;
 
 noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
-    debugterm_init(VRAM_VIRT_BASE);    
+    debugterm_init(VRAM_VIRT_BASE);
     banner();
 
     pagetables_init();
-    physical_region = page_alloc_init(memmap, PMM_PHYS_BASE, STATIC_PMM_VREGION);
+    physical_region =
+            page_alloc_init(memmap, PMM_PHYS_BASE, STATIC_PMM_VREGION);
     install_interrupts();
-    
+
     debugstr("We have ");
     printhex64(physical_region->size, debugchar);
     debugstr(" bytes physical memory\n");
 
-#   ifdef DEBUG_ACPI
+#ifdef DEBUG_ACPI
     debugstr("RSDP at ");
     printhex64((uint64_t)rsdp, debugchar);
     debugstr(" (physical): OEM is ");
-#   endif
+#endif
 
-    rsdp = (BIOS_RSDP*)(((uint64_t)rsdp) | 0xFFFFFFFF80000000);
+    rsdp = (BIOS_RSDP *)(((uint64_t)rsdp) | 0xFFFFFFFF80000000);
 
-#   ifdef DEBUG_ACPI
+#ifdef DEBUG_ACPI
     debugstr(rsdp->oem_id);
     debugstr("\nRSDP revision is ");
     printhex8(rsdp->revision, debugchar);
     debugstr("\nRSDT at ");
     printhex32(rsdp->rsdt_address, debugchar);
     debugstr("\n");
-#   endif
+#endif
 
     acpi_root_table = map_acpi_tables(rsdp);
     if (acpi_root_table == NULL) {
@@ -271,33 +262,32 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     init_this_cpu(acpi_root_table);
     init_kernel_drivers(acpi_root_table);
 
-#   ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT
-    debugstr("\nForcing a (handled) page fault with write to 0xFFFFFFFF80600000...\n");
+#ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT
+    debugstr("\nForcing a (handled) page fault with write to "
+             "0xFFFFFFFF80600000...\n");
 
-    // Force a page fault for testing purpose. This one should get handled and a page mapped...
-    uint32_t *bad = (uint32_t*)0xFFFFFFFF80600000;
+    // Force a page fault for testing purpose. This one should get handled and a
+    // page mapped...
+    uint32_t *bad = (uint32_t *)0xFFFFFFFF80600000;
     *bad = 0x0A11C001;
     debugstr("Continued after fault, write succeeded. Value is ");
     debugattr(0x02);
     printhex32(*bad, debugchar);
     debugattr(0x07);
     debugstr("\n");
-#   endif
+#endif
 
-#   ifdef DEBUG_FORCE_UNHANDLED_PAGE_FAULT
-    // Force another page fault, to a non-handled address. Should have the WRITE bit set in the error code...
+#ifdef DEBUG_FORCE_UNHANDLED_PAGE_FAULT
+    // Force another page fault, to a non-handled address. Should have the WRITE
+    // bit set in the error code...
     debugstr("Forcing another, this time unhandled, with write to 0x1200000\n");
-    bad = (uint32_t*)0x1200000;
+    bad = (uint32_t *)0x1200000;
     *bad = 0x0BADF00D;
-#   endif
+#endif
 
     debugstr("All is well! Halting for now.\n");
 
     while (true) {
-        __asm__ volatile (
-            "hlt\n\t"
-        );
+        __asm__ volatile("hlt\n\t");
     }
- }
-
-
+}

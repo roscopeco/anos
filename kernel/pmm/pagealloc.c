@@ -10,10 +10,11 @@
 #include "machine.h"
 #include "pmm/pagealloc.h"
 
-MemoryRegion* page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base, void* buffer) {
-    MemoryRegion *region = (MemoryRegion*)buffer;
-    region->sp = (MemoryBlock*)(region + 1);
-    region->sp--;   // Start below bottom of stack
+MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
+                              void *buffer) {
+    MemoryRegion *region = (MemoryRegion *)buffer;
+    region->sp = (MemoryBlock *)(region + 1);
+    region->sp--; // Start below bottom of stack
 
     region->size = region->free = 0;
 
@@ -36,10 +37,12 @@ MemoryRegion* page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base, void*
             // Cut off any memory below the supplied managed base.
             if (start < managed_base) {
                 if (end <= managed_base) {
-                    // This block is entirely below the managed base, just skip it
+                    // This block is entirely below the managed base, just skip
+                    // it
                     continue;
                 } else {
-                    // This block extends beyond the managed base, so adjust the start
+                    // This block extends beyond the managed base, so adjust the
+                    // start
                     start = managed_base;
                 }
             }
@@ -58,7 +61,7 @@ MemoryRegion* page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base, void*
             // Stack this block
             region->sp++;
             region->sp->base = start;
-            region->sp->size = total_bytes >> 12;   // size is pages, not bytes...
+            region->sp->size = total_bytes >> 12; // size is pages, not bytes...
         }
     }
 
@@ -66,7 +69,7 @@ MemoryRegion* page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base, void*
 }
 
 uint64_t page_alloc(MemoryRegion *region) {
-    if (region->sp < ((MemoryBlock*)(region + 1))) {
+    if (region->sp < ((MemoryBlock *)(region + 1))) {
         // Empty stack
         return 0xFF;
     }
@@ -88,7 +91,7 @@ uint64_t page_alloc(MemoryRegion *region) {
 }
 
 static inline bool stack_empty(MemoryRegion *region) {
-    return region->sp == (((MemoryBlock*)(region + 1)) - 1);
+    return region->sp == (((MemoryBlock *)(region + 1)) - 1);
 }
 
 void page_free(MemoryRegion *region, uint64_t page) {
@@ -99,7 +102,7 @@ void page_free(MemoryRegion *region, uint64_t page) {
 
     region->free += 0x1000;
 
-#   ifndef NO_PMM_FREE_COALESCE_ADJACENT
+#ifndef NO_PMM_FREE_COALESCE_ADJACENT
     if (!stack_empty(region)) {
         if (region->sp->base == page + 0x1000) {
             // Freeing page below current stack top, so just rebase and resize
@@ -112,7 +115,7 @@ void page_free(MemoryRegion *region, uint64_t page) {
             return;
         }
     }
-#   endif
+#endif
 
     // Freeing non-contiguous page, just stack
     region->sp++;

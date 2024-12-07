@@ -14,4 +14,4 @@ void bitmap_set(uint64_t *bitmap, uint64_t bit);
 void bitmap_clear(uint64_t *bitmap, uint64_t bit);
 void bitmap_flip(uint64_t *bitmap, uint64_t bit);
 
-#endif//__ANOS_KERNEL_PMM_BITMAP_H
+#endif //__ANOS_KERNEL_PMM_BITMAP_H

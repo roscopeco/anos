@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define SECT_SIZE   512
+#define SECT_SIZE 512
 
 typedef struct {
     char header[3];
@@ -56,7 +56,7 @@ size_t clusterToSector(size_t cluster, uint16_t sectorsPerCluster) {
 }
 
 uint16_t fatEntry(size_t cluster, uint8_t *fat) {
-    uint16_t raw = *(uint16_t*)(fat + ((cluster >> 1) + cluster));
+    uint16_t raw = *(uint16_t *)(fat + ((cluster >> 1) + cluster));
     return cluster & 0x1 ? raw >> 4 : raw & 0x0FFF;
 }
 
@@ -73,17 +73,19 @@ int main(int argc, char **argv) {
     // Read BPB / boot sect
     read_sectors(buffer, 0, 1, f);
 
-    BPB *bpb = (BPB*)buffer;
+    BPB *bpb = (BPB *)buffer;
 
-    printf("VOLUME: %.11s [%.8s] [%d sectors / cluster]\n", bpb->volumeName, bpb->fsType, bpb->sectorsPerCluster);
+    printf("VOLUME: %.11s [%.8s] [%d sectors / cluster]\n", bpb->volumeName,
+           bpb->fsType, bpb->sectorsPerCluster);
 
     uint16_t bytesPerSector = bpb->bytesPerSector;
     uint16_t reservedSectors = bpb->reservedSectors;
     uint16_t sectorsPerFat = bpb->sectorsPerFat;
-    uint16_t rootStart = reservedSectors + bpb->fatCount * sectorsPerFat;    
+    uint16_t rootStart = reservedSectors + bpb->fatCount * sectorsPerFat;
     uint16_t sectorsPerCluster = bpb->sectorsPerCluster;
 
-    uint32_t dataStart = rootStart + (bpb->rootEntryCount / (bytesPerSector / 0x20));
+    uint32_t dataStart =
+            rootStart + (bpb->rootEntryCount / (bytesPerSector / 0x20));
 
     printf("Root dir begins at sector %d\n", rootStart);
     printf("Data area begins at sector %d\n", dataStart);
@@ -91,7 +93,7 @@ int main(int argc, char **argv) {
     // Read root dir
     read_sectors(buffer, rootStart, 1, f);
 
-    DIRENT *dirent = (DIRENT*)buffer;
+    DIRENT *dirent = (DIRENT *)buffer;
 
     printf("FILE: %.8s.%.3s\n", dirent->filename, dirent->fileext);
 
@@ -118,21 +120,25 @@ int main(int argc, char **argv) {
     int tots = bytesPerSector;
 
     do {
-#       ifdef DATA_DUMP
+#ifdef DATA_DUMP
         printf("\n\n\n");
-        printf("################################################################\n");
-#       endif
+        printf("###############################################################"
+               "#\n");
+#endif
 
         printf("%-4d ==> %-4d\n", thisCluster, nextCluster);
 
-#       ifdef DATA_DUMP
+#ifdef DATA_DUMP
         uint8_t data[sectorsPerCluster * bytesPerSector];
-        read_sectors(data, dataStart + clusterToSector(thisCluster, sectorsPerCluster), 1, f);
+        read_sectors(data,
+                     dataStart +
+                             clusterToSector(thisCluster, sectorsPerCluster),
+                     1, f);
 
         for (int i = 0; i < bytesPerSector; i++) {
             printf("%c", data[i]);
         }
-#       endif
+#endif
 
         tots += sectorsPerCluster * bytesPerSector;
         thisCluster = nextCluster;
@@ -140,7 +146,8 @@ int main(int argc, char **argv) {
     } while (nextCluster != 0xfff);
 
     printf("End of chain; %d byte(s) in total sectors\n", tots);
-    printf("%d byte(s) wasted based on reported size of %d byte(s)\n", tots - size, size);
+    printf("%d byte(s) wasted based on reported size of %d byte(s)\n",
+           tots - size, size);
 
     fclose(f);
     return 0;

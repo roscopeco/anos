@@ -23,7 +23,9 @@ jobs:
 
       - name: Build & run tests
         run: |
-          brew install nasm
+          brew install nasm clang-format
+          find . -name '*.c' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
+          find . -name '*.h' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
           make clean test
         shell: bash
   linux_build_and_test:
@@ -36,5 +38,8 @@ jobs:
       - name: Build & run tests
         run: |
           sudo apt-get install nasm
-          HOST_ARCH=elf64 make clean test
+          pip install clang-format
+          find . -name '*.c' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
+          find . -name '*.h' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
+          make clean test
         shell: bash

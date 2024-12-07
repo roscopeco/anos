@@ -5,13 +5,15 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include <stdint.h>
 #include "interrupts.h"
+#include <stdint.h>
 
 // This is a bit messy, but it works and is "good enough" for now 😅
-#define install_trap(N) do {                                                                    \
-        extern void (trap_dispatcher_##N)(void);                                                \
-        idt_entry(idt + N, trap_dispatcher_##N, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_TRAP));   \
+#define install_trap(N)                                                        \
+    do {                                                                       \
+        extern void(trap_dispatcher_##N)(void);                                \
+        idt_entry(idt + N, trap_dispatcher_##N, kernel_cs, 0,                  \
+                  idt_attr(1, 0, IDT_TYPE_TRAP));                              \
     } while (0)
 
 extern void pic_irq_handler(void);
@@ -20,7 +22,7 @@ extern void pic_init(void);
 
 // These can't live here long-term, but it'll do for now...
 static IdtEntry idt[256];
-static Idtr     idtr;
+static Idtr idtr;
 
 void idt_install(uint16_t kernel_cs) {
     install_trap(0);
@@ -56,14 +58,17 @@ void idt_install(uint16_t kernel_cs) {
     install_trap(30);
     install_trap(31);
 
-    // Entries 0x20 - 0x2F are the PIC handlers - when disabled, they should only ever be spurious...
+    // Entries 0x20 - 0x2F are the PIC handlers - when disabled, they should
+    // only ever be spurious...
     for (int i = 0x20; i < 0x2F; i++) {
-        idt_entry(idt + i, pic_irq_handler, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
+        idt_entry(idt + i, pic_irq_handler, kernel_cs, 0,
+                  idt_attr(1, 0, IDT_TYPE_IRQ));
     }
 
     // Just fill the rest of the table with generic handlers for now...
     for (int i = 0x20; i < 0x100; i++) {
-        idt_entry(idt + i, irq_handler, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
+        idt_entry(idt + i, irq_handler, kernel_cs, 0,
+                  idt_attr(1, 0, IDT_TYPE_IRQ));
     }
 
     // Setup the IDTR
@@ -73,12 +78,8 @@ void idt_install(uint16_t kernel_cs) {
     pic_init();
 
     // And load it!
-    __asm__ volatile (
-        "lidt %0" : : "m"(idtr)
-    );
+    __asm__ volatile("lidt %0" : : "m"(idtr));
 
     // Enable interrupts
-    __asm__ volatile (
-        "sti\n\t"
-    );
+    __asm__ volatile("sti\n\t");
 }

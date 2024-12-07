@@ -7,22 +7,20 @@
 
 #include <stdint.h>
 
-#define PHYSICAL(x, y)      (( (x << 1) + (y * 160) ))
+#define PHYSICAL(x, y) (((x << 1) + (y * 160)))
 
 static char *vram;
 static uint8_t logical_x = 0;
 static uint8_t logical_y = 0;
 static uint8_t attr = 0x07;
 
-void debugterm_init(char *vram_addr) {
-    vram = vram_addr;
-}
+void debugterm_init(char *vram_addr) { vram = vram_addr; }
 
 static inline uint16_t scroll() {
     for (int i = 160; i < 4000; i++) {
         vram[i - 160] = vram[i];
     }
-    for (int i = 3840; i < 4000; i+=2) {
+    for (int i = 3840; i < 4000; i += 2) {
         vram[i] = ' ';
         vram[i + 1] = 0x07;
     }
@@ -39,7 +37,7 @@ void debugchar(char chr) {
     }
 
     switch (chr) {
-    case 10: 
+    case 10:
         // TODO scrolling etc!
         logical_y += 1;
         logical_x = 0;
@@ -48,10 +46,10 @@ void debugchar(char chr) {
         vram[phys] = chr;
         vram[phys + 1] = attr;
         logical_x += 1;
-        if (logical_x > 79) {                
+        if (logical_x > 79) {
             logical_y += 1;
             logical_x = 0;
-        }        
+        }
         break;
     }
 }
@@ -59,7 +57,7 @@ void debugchar(char chr) {
 void debugstr(char *str) {
     while (*str) {
         debugchar(*str++);
-    } 
+    }
 }
 
 void debugstr_len(char *str, int len) {
@@ -68,6 +66,4 @@ void debugstr_len(char *str, int len) {
     }
 }
 
-void debugattr(uint8_t new_attr) {
-    attr = new_attr;
-}
+void debugattr(uint8_t new_attr) { attr = new_attr; }

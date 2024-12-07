@@ -5,11 +5,11 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include <stdint.h>
 #include "printhex.h"
+#include <stdint.h>
 
-#define ZERO    48
-#define EX      120
+#define ZERO 48
+#define EX 120
 
 static inline void preamble(PrintHexCharHandler printfunc) {
     printfunc(ZERO);
@@ -32,7 +32,7 @@ void printhex64(uint64_t num, PrintHexCharHandler printfunc) {
     for (int i = 0; i < 64; i += 4) {
         char digit = (num & 0xF000000000000000) >> 60;
         num <<= 4;
-        digitprint(digit, printfunc);        
+        digitprint(digit, printfunc);
     }
 }
 
@@ -42,7 +42,7 @@ void printhex32(uint64_t num, PrintHexCharHandler printfunc) {
     for (int i = 0; i < 32; i += 4) {
         char digit = (num & 0xF0000000) >> 28;
         num <<= 4;
-        digitprint(digit, printfunc);        
+        digitprint(digit, printfunc);
     }
 }
 
@@ -52,7 +52,7 @@ void printhex16(uint64_t num, PrintHexCharHandler printfunc) {
     for (int i = 0; i < 16; i += 4) {
         char digit = (num & 0xF000) >> 12;
         num <<= 4;
-        digitprint(digit, printfunc);        
+        digitprint(digit, printfunc);
     }
 }
 
@@ -62,6 +62,6 @@ void printhex8(uint64_t num, PrintHexCharHandler printfunc) {
     for (int i = 0; i < 8; i += 4) {
         char digit = (num & 0xF0) >> 4;
         num <<= 4;
-        digitprint(digit, printfunc);        
+        digitprint(digit, printfunc);
     }
 }
