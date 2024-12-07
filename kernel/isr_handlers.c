@@ -79,10 +79,20 @@ void handle_exception_wc(uint8_t vector, uint64_t code, uint64_t origin_addr) {
     }
 }
 
+void handle_unknown_interrupt() {
+    debugattr(0x4C);
+    debugstr("PANIC");
+    debugattr(0x0C);
+
+    debugstr(": Unhandled interrupt!\n");
+    debugstr("Halting...");
+    halt_and_catch_fire();
+}
+
 // TODO Obviously doesn't belong here, just a hack for proof of life...
 #define VRAM_VIRTUAL_HEART 0xffffffff800b809e
 static bool heart_state = false;
-void handle_interrupt() {
+void handle_timer_interrupt() {
     uint8_t *vram = (uint8_t *)VRAM_VIRTUAL_HEART;
 
     vram[0] = 0x03; // heart

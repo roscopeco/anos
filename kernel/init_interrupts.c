@@ -6,6 +6,7 @@
  */
 
 #include "interrupts.h"
+#include "kdrivers/local_apic.h" // TODO this should be used here...
 #include <stdint.h>
 
 // This is a bit messy, but it works and is "good enough" for now 😅
@@ -17,7 +18,9 @@
     } while (0)
 
 extern void pic_irq_handler(void);
-extern void irq_handler(void);
+extern void timer_interrupt_handler(void);
+extern void unknown_interrupt_handler(void);
+
 extern void pic_init(void);
 
 // These can't live here long-term, but it'll do for now...
@@ -65,11 +68,17 @@ void idt_install(uint16_t kernel_cs) {
                   idt_attr(1, 0, IDT_TYPE_IRQ));
     }
 
-    // Just fill the rest of the table with generic handlers for now...
-    for (int i = 0x20; i < 0x100; i++) {
-        idt_entry(idt + i, irq_handler, kernel_cs, 0,
+    // Just fill the rest of the table with generic / unknown handlers for now,
+    // Use IRQ type since these don't return and that'll disable interrupts for
+    // us...
+    for (int i = 0x30; i < 0x100; i++) {
+        idt_entry(idt + i, unknown_interrupt_handler, kernel_cs, 0,
                   idt_attr(1, 0, IDT_TYPE_IRQ));
     }
+
+    // Set up the handler for the LAPIC Timer vector...
+    idt_entry(idt + LAPIC_TIMER_VECTOR, timer_interrupt_handler, kernel_cs, 0,
+              idt_attr(1, 0, IDT_TYPE_IRQ));
 
     // Setup the IDTR
     idt_r(&idtr, (uint64_t)idt, (uint16_t)sizeof(IdtEntry) * 256 - 1);
