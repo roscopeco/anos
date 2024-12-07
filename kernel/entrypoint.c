@@ -380,7 +380,7 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
 #ifdef DEBUG_TEST_TASKS
     void debug_test_tasks(void);
     debugstr("Running endless task test...\n");
-    debug_test_tasks();     // this won't return...
+    debug_test_tasks(); // this won't return...
 #endif
 
 #ifdef DEBUG_NO_START_SYSTEM
