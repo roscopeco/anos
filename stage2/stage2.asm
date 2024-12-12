@@ -187,9 +187,9 @@ main64:
   or    rax,0xFFFFFFFF80000000
   mov   word [TSS_BASE_LOW],ax
   shr   rax,0x10
-  mov   byte [TSS_BASE_MID],bl
+  mov   byte [TSS_BASE_MID],al
   shr   rax,0x08
-  mov   byte [TSS_BASE_HIGH],bl
+  mov   byte [TSS_BASE_HIGH],al
   mov   ax,0x28
   ltr   ax                                ; Load the TSS (GDT selector 5)
 
@@ -260,7 +260,7 @@ GDT:
   dq 0
 
   ; segment 1 - 32-bit code
-  dw 0xFFFF               ; limit 4GB
+  dw 0xFFFF               ; Limit 4GB
   dw 0                    ; Base (bits 0-15) - 0
   db 0                    ; Base (bits 16-23) - 0
   db 0b10011010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 1 = Executable, 0 = Nonconforming, 1 = Readable, 0 = Accessed
@@ -268,7 +268,7 @@ GDT:
   db 0                    ; Base (bits 23-31) - 0
 
   ; segment 2 - 32-bit data
-  dw 0xFFFF               ; limit 4GB
+  dw 0xFFFF               ; Limit 4GB
   dw 0                    ; Base (bits 0-15) - 0
   db 0                    ; Base (bits 16-23) - 0
   db 0b10010010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 0 = Non-Executable, 0 = Grows up, 1 = Writeable, 0 = Accessed
@@ -276,7 +276,7 @@ GDT:
   db 0                    ; Base (bits 23-31) - 0
 
   ; segment 3 - 64-bit code
-  dw 0xFFFF               ; limit 4GB
+  dw 0                    ; limit ignored for long mode
   dw 0                    ; Base (bits 0-15) - 0
   db 0                    ; Base (bits 16-23) - 0
   db 0b10011010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 1 = Executable, 0 = Nonconforming, 1 = Readable, 0 = Accessed
@@ -284,11 +284,11 @@ GDT:
   db 0                    ; Base (bits 23-31) - 0
 
   ; segment 4 - 64-bit data
-  dw 0xFFFF               ; limit 4GB
+  dw 0                    ; limit (ignored in 64-bit mode)
   dw 0                    ; Base (bits 0-15) - 0
   db 0                    ; Base (bits 16-23) - 0
   db 0b10010010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 0 = Non-Executable, 0 = Grows up, 1 = Writeable, 0 = Accessed
-  db 0b10101111           ; Flags + Limit: 1 = 4k granularity, 1 = 16-bit, 1 = Llong mode, 0 = reserved (for our use)
+  db 0b00100000           ; Flags + Limit: 0 = 1-byte granularity, 0 = 16-bit, 1 = Long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
 
   ; segment 5 - TSS - Base is calculated in code...
@@ -297,13 +297,12 @@ TSS_BASE_LOW:
   dw 0                    ; Base (bits 0-15) - 0 (calculated at runtime)
 TSS_BASE_MID:
   db 0                    ; Base (bits 16-23) - 0 (calculated at runtime)
-  db 0b10001001           ; Access: 1 = Present, 00 = Ring 0, 0 = Type (system), 1 = Non-Executable, 0 = Grows up, 0 = Not busy, 1 = TSS (not LDT)
-  db 0b00010000           ; Flags + Limit: 0 = byte granularity, 0 = 16-bit, 0 = Llong mode, 1 = Available
-TSS_BASE_HIGH
+  db 0b10001001           ; Access: 1 = Present, 00 = Ring 0, 0 = Type (system), 1001 = Long mode TSS (Available)
+  db 0b00010000           ; Flags + Limit: 0 = byte granularity, 0 = 16-bit, 0 = Long mode, 1 = Available
+TSS_BASE_HIGH:
   db 0                    ; Base (bits 23-31) - 0 (calculated at runtime)
   dd 0xFFFFFFFF           ; Base (bits 32-63) - 0xFFFFFFFF (in the identity-mapped kernel mem)
   dd 0                    ; Reserved
-
 
 GDT_DESC:
   ; GDT Descriptor
@@ -312,16 +311,18 @@ GDT_DESC:
 
 
 TSS:
-  dq  0
-  dq  0
-  dq  0
-  dq  0
-  dq  0
-  dq  0
-  dq  0
-  dq  0
-  dq  0
-  dq  0
-  dq  0
-  dq  0
-  dq  0
+  dd  0                   ; Reserved
+  dq  0xFFFFFFFF80110000  ; RSP0
+  dq  0                   ; RSP1
+  dq  0                   ; RSP2
+  dq  0                   ; Reserved
+  dq  0                   ; IST1
+  dq  0                   ; IST2
+  dq  0                   ; IST3
+  dq  0                   ; IST4
+  dq  0                   ; IST5
+  dq  0                   ; IST6
+  dq  0                   ; IST7
+  dq  0                   ; IST8
+  dw  0                   ; Reserved
+  dw  0                   ; IOPB

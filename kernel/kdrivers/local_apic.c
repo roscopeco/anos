@@ -5,7 +5,9 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include "kdrivers/local_apic.h"
+#include <stdint.h>
+
+#include "machine.h"
 #include "acpitables.h"
 #include "debugprint.h"
 #include "kdrivers/drivers.h"

@@ -6,7 +6,7 @@ QEMU?=qemu-system-x86_64
 XCC?=x86_64-elf-gcc
 BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
-CFLAGS=-Wall -Werror -Wpedantic 												\
+CFLAGS=-Wall -Werror -Wpedantic -std=c23												\
 		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=kernel															\
@@ -34,6 +34,7 @@ endif
 #
 #	DEBUG_FORCE_HANDLED_PAGE_FAULT
 #	DEBUG_FORCE_UNHANDLED_PAGE_FAULT
+#	DEBUG_TEST_USER_MODE_SWITCH
 #
 # Additionally:
 #
@@ -99,6 +100,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/vmm/vmmapper.o										\
 			$(STAGE3_DIR)/acpitables.o											\
+			$(STAGE3_DIR)/gdt.o													\
 			$(STAGE3_DIR)/kdrivers/drivers.o									\
 			$(STAGE3_DIR)/kdrivers/local_apic.o
 			
