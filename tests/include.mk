@@ -49,6 +49,9 @@ tests/build/acpitables: tests/munit.o tests/acpitables.o tests/build/acpitables.
 tests/build/structs/list: tests/munit.o tests/structs/list.o tests/build/structs/list.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+tests/build/gdt: tests/munit.o tests/gdt.o tests/build/gdt.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 
 ALL_TESTS=tests/build/interrupts 										\
 			tests/build/pmm/bitmap 										\
@@ -56,7 +59,8 @@ ALL_TESTS=tests/build/interrupts 										\
 			tests/build/vmm/vmmapper									\
 			tests/build/debugprint										\
 			tests/build/acpitables										\
-			tests/build/structs/list
+			tests/build/structs/list									\
+			tests/build/gdt
 
 test: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test || exit 1; done'

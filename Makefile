@@ -6,7 +6,7 @@ QEMU?=qemu-system-x86_64
 XCC?=x86_64-elf-gcc
 BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
-CFLAGS=-Wall -Werror -Wpedantic -std=c23												\
+CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=kernel															\
@@ -115,6 +115,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 	       		$(STAGE2_DIR)/*.dis $(STAGE2_DIR)/*.elf $(STAGE2_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/pmm/*.o $(STAGE3_DIR)/vmm/*.o				 		\
+				$(STAGE3_DIR)/kdrivers/*.o										\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 		   		$(FLOPPY_IMG)

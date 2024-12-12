@@ -10,6 +10,27 @@
 
 #include <stdint.h>
 
+#define GDT_ENTRY_ACCESS_ACCESSED 0x01
+#define GDT_ENTRY_ACCESS_READ_WRITE 0x02
+#define GDT_ENTRY_ACCESS_DOWN_CONFORMING 0x04
+#define GDT_ENTRY_ACCESS_EXECUTABLE 0x08
+#define GDT_ENTRY_ACCESS_NON_SYSTEM 0x10
+#define GDT_ENTRY_ACCESS_DPL_MASK 0x60
+#define GDT_ENTRY_ACCESS_PRESENT 0x80
+
+#define GDT_ENTRY_ACCESS_DPL(dpl) (((dpl & 0x03) << 5))
+
+#define GDT_ENTRY_ACCESS_RING0 0x00
+#define GDT_ENTRY_ACCESS_RING1 0x20
+#define GDT_ENTRY_ACCESS_RING2 0x40
+#define GDT_ENTRY_ACCESS_RING3 0x60
+
+#define GDT_ENTRY_FLAGS_LONG_MODE 0x20
+#define GDT_ENTRY_FLAGS_SIZE 0x40
+#define GDT_ENTRY_FLAGS_GRANULARITY 0x80
+
+#define GDT_ENTRY_FLAGS_64BIT ((GDT_ENTRY_FLAGS_LONG_MODE))
+
 typedef struct {
     uint16_t limit;
     uint64_t base;
@@ -21,7 +42,7 @@ typedef struct {
     uint16_t base_low;
     uint8_t base_middle;
     uint8_t access;
-    uint8_t granularity;
+    uint8_t flags_limit_h;
     uint8_t base_high;
 } __attribute__((packed)) GDTEntry;
 
@@ -40,6 +61,6 @@ GDTEntry *get_gdt_entry(GDTR *gdtr, int index);
 
 // Update values in a GDT entry. Caller should disable interrupts!
 void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
-                    uint8_t access, uint8_t granularity);
+                    uint8_t access, uint8_t flags_limit_h);
 
 #endif //__ANOS_KERNEL_GDT_H
