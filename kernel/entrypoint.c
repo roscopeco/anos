@@ -11,15 +11,9 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#include "debugprint.h"
-#include "printhex.h"
-#include "machine.h"
-#include "interrupts.h"
-#include "init_pagetables.h"
-#include "pmm/pagealloc.h"
-#include "vmm/vmmapper.h"
 #include "acpitables.h"
 #include "debugprint.h"
+#include "gdt.h"
 #include "init_pagetables.h"
 #include "interrupts.h"
 #include "kdrivers/drivers.h"
@@ -27,7 +21,7 @@
 #include "machine.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
-#include "gdt.h"
+#include "vmm/vmmapper.h"
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -313,7 +307,7 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     debugstr("Going to infinite user-mode loop\n");
 
     // Set up a page for the user code
-    uint64_t *pml4 = (uint64_t*)0xFFFFFFFF8009c000;
+    uint64_t *pml4 = (uint64_t *)0xFFFFFFFF8009c000;
     uint64_t user_phys_page = page_alloc(physical_region);
     uint16_t flags = PRESENT | WRITE | USER;
     vmm_map_page(pml4, 0x1000000, user_phys_page, flags);
@@ -326,23 +320,22 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     vmm_map_page(pml4, user_stack, user_stack_phys, flags);
 
     // Set up a small function in user memory. Some say that it loops forever...
-    uint8_t *user_func = (uint8_t*)0x1000000;
-    user_func[0] = 0xEB;  // JMP instruction
-    user_func[1] = 0xFE;  // ... to the same instruction
+    uint8_t *user_func = (uint8_t *)0x1000000;
+    user_func[0] = 0xEB; // JMP instruction
+    user_func[1] = 0xFE; // ... to the same instruction
 
     // Switch to user mode
-    __asm__ volatile (
-        "mov %0, %%rsp\n\t"          // Set stack pointer
-        "push $0x13\n\t"             // Push user data segment selector (GDT entry 2)
-        "push %0\n\t"                // Push user stack pointer
-        "pushf\n\t"                  // Push EFLAGS
-        "push $0x0B\n\t"             // Push user code segment selector (GDT entry 1)
-        "push %1\n\t"                // Push user code entry point
-        "iretq\n\t"                  // "Return" to user mode
-        :
-        : "r"(user_stack + 0x1000), "r"(user_func)
-        : "memory"
-    );
+    __asm__ volatile(
+            "mov %0, %%rsp\n\t" // Set stack pointer
+            "push $0x13\n\t"    // Push user data segment selector (GDT entry 2)
+            "push %0\n\t"       // Push user stack pointer
+            "pushf\n\t"         // Push EFLAGS
+            "push $0x0B\n\t"    // Push user code segment selector (GDT entry 1)
+            "push %1\n\t"       // Push user code entry point
+            "iretq\n\t"         // "Return" to user mode
+            :
+            : "r"(user_stack + 0x1000), "r"(user_func)
+            : "memory");
 #endif
 
     debugstr("All is well! Halting for now.\n");

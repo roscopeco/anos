@@ -7,7 +7,6 @@
 
 #include <stdint.h>
 
-#include "machine.h"
 #include "acpitables.h"
 #include "debugprint.h"
 #include "kdrivers/drivers.h"

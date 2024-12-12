@@ -1,7 +1,7 @@
 /*
  * stage3 - GDT manipulation and setup routines
  * anos - An Operating System
- * 
+ *
  * Copyright (c) 2024 Ross Bamford
  */
 
@@ -27,18 +27,19 @@ typedef struct {
 
 // Execute `lgdt` to load a variable with the GDTR
 static inline void load_gdtr(GDTR *gdtr) {
-    __asm__ __volatile__ ("lgdt (%0)" : : "r" (gdtr));
+    __asm__ __volatile__("lgdt (%0)" : : "r"(gdtr));
 }
 
 // Execute `sgdt` to load GDTR from a variable
 static inline void store_gdtr(GDTR *gdtr) {
-    __asm__ __volatile__ ("sgdt (%0)" : : "r" (gdtr));
+    __asm__ __volatile__("sgdt (%0)" : : "r"(gdtr));
 }
 
 // Function to get a GDT entry given a GDTR and index
 GDTEntry *get_gdt_entry(GDTR *gdtr, int index);
 
 // Update values in a GDT entry. Caller should disable interrupts!
-void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit, uint8_t access, uint8_t granularity);
+void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
+                    uint8_t access, uint8_t granularity);
 
-#endif//__ANOS_KERNEL_GDT_H
+#endif //__ANOS_KERNEL_GDT_H

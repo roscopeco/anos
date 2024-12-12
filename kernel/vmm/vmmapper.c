@@ -64,7 +64,8 @@ void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
     C_PRINTHEX64(PML4ENTRY(virt_addr), debugchar);
     C_DEBUGSTR("]\n");
 
-    // If we don't have a PML4 entry at this index - create one, and a PDPT for it to point to
+    // If we don't have a PML4 entry at this index - create one, and a PDPT for
+    // it to point to
     uint64_t *pdpt = ensure_table_entry(pml4, PML4ENTRY(virt_addr), flags);
 
     C_DEBUGSTR("PDPT @ ");
@@ -83,7 +84,8 @@ void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
     C_PRINTHEX64(PDENTRY(virt_addr), debugchar);
     C_DEBUGSTR("]\n");
 
-    // If we don't have a PD entry at this index - create one, and a PT for it to point to
+    // If we don't have a PD entry at this index - create one, and a PT for it
+    // to point to
     uint64_t *pt = ensure_table_entry(pd, PDENTRY(virt_addr), flags);
 
     C_DEBUGSTR("PT   @ ");

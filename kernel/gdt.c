@@ -3,7 +3,8 @@
 #include "gdt.h"
 
 // Function to create a GDT entry
-void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit, uint8_t access, uint8_t granularity) {
+void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
+                    uint8_t access, uint8_t granularity) {
     entry->limit_low = (limit & 0xFFFF);
     entry->base_low = (base & 0xFFFF);
     entry->base_middle = (base >> 16) & 0xFF;

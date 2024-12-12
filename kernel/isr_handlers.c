@@ -72,7 +72,7 @@ void handle_exception_wc(uint8_t vector, uint64_t code, uint64_t origin_addr) {
     if (vector == 0x0e) {
         // page fault - grab fault address from cr2...
         uint64_t fault_addr;
-        __asm__ volatile ("movq %%cr2,%0\n\t" : "=r"(fault_addr));    
+        __asm__ volatile("movq %%cr2,%0\n\t" : "=r"(fault_addr));
         handle_page_fault(code, fault_addr, origin_addr);
     } else {
         debug_exception_wc(vector, code, origin_addr);

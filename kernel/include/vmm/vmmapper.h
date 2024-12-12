@@ -43,7 +43,7 @@
 /*
  * Page user attribute
  */
-#define USER        (1 << 2)
+#define USER (1 << 2)
 
 // For now, just supporting a single set of page tables,
 // mapped into kernel space at this address.
