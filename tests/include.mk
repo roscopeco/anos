@@ -1,4 +1,3 @@
-FLOPPY_DEPENDENCIES+=test
 CLEAN_ARTIFACTS+=tests/*.o tests/pmm/*.o tests/vmm/*.o tests/structs/*.o tests/build
 UBSAN_CFLAGS=-fsanitize=undefined -fno-sanitize-recover=all
 TEST_CFLAGS=-g -Ikernel/include -O3 $(UBSAN_CFLAGS)

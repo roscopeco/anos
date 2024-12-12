@@ -119,14 +119,16 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 		   		$(FLOPPY_IMG)
 
-.PHONY: all clean qemu bochs test
+.PHONY: all build clean qemu bochs test
 
-all: $(ALL_TARGETS)
+all: build test
 
-include tests/include.mk
+build: $(ALL_TARGETS)
 
 clean:
 	rm -rf $(CLEAN_ARTIFACTS)
+
+include tests/include.mk
 
 %.o: %.asm
 	$(ASM) 																		\
