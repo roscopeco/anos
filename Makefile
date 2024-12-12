@@ -35,6 +35,7 @@ endif
 #	DEBUG_FORCE_HANDLED_PAGE_FAULT
 #	DEBUG_FORCE_UNHANDLED_PAGE_FAULT
 #	DEBUG_TEST_USER_MODE_SWITCH
+#		DEBUG_TEST_USER_MODE_PRIVILEGED_INSTRUCTION_FAULT
 #
 # Additionally:
 #
@@ -101,6 +102,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/vmm/vmmapper.o										\
 			$(STAGE3_DIR)/acpitables.o											\
 			$(STAGE3_DIR)/gdt.o													\
+			$(STAGE3_DIR)/general_protection_fault.o							\
+			$(STAGE3_DIR)/timer_isr.o											\
 			$(STAGE3_DIR)/kdrivers/drivers.o									\
 			$(STAGE3_DIR)/kdrivers/local_apic.o
 			
