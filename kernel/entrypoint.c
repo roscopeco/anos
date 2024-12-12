@@ -11,8 +11,6 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-<<<<<<< HEAD
-=======
 #include "debugprint.h"
 #include "printhex.h"
 #include "machine.h"
@@ -20,20 +18,16 @@
 #include "init_pagetables.h"
 #include "pmm/pagealloc.h"
 #include "vmm/vmmapper.h"
->>>>>>> 538624d (First cut user mode)
 #include "acpitables.h"
 #include "debugprint.h"
 #include "init_pagetables.h"
 #include "interrupts.h"
 #include "kdrivers/drivers.h"
 #include "kdrivers/local_apic.h"
-<<<<<<< HEAD
 #include "machine.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
-=======
 #include "gdt.h"
->>>>>>> 538624d (First cut user mode)
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
