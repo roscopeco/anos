@@ -123,13 +123,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 
 all: $(ALL_TARGETS)
 
-ifeq ($(HOST_ARCH),arm)
-$(info WARN: Host architecture is ARM, tests will not be included...)
-test:
-	@echo Host architecture is ARM, tests requested but they were skipped
-else
 include tests/include.mk
-endif
 
 clean:
 	rm -rf $(CLEAN_ARTIFACTS)

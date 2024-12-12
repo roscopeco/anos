@@ -2,6 +2,11 @@ FLOPPY_DEPENDENCIES+=test
 CLEAN_ARTIFACTS+=tests/*.o tests/pmm/*.o tests/vmm/*.o tests/structs/*.o tests/build
 UBSAN_CFLAGS=-fsanitize=undefined -fno-sanitize-recover=all
 TEST_CFLAGS=-g -Ikernel/include -O3 $(UBSAN_CFLAGS)
+HOST_ARCH=$(shell uname -p)
+
+ifeq ($(HOST_ARCH),arm)
+TEST_CFLAGS+=-arch x86_64
+endif
 
 tests/%.o: tests/%.c tests/munit.h
 	$(CC) -DUNIT_TESTS $(TEST_CFLAGS) -Itests -c -o $@ $<

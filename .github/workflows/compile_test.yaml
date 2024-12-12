@@ -14,8 +14,22 @@ defaults:
     shell: bash
 
 jobs:
-  macos_build_and_test:
-    name: Build & test (macOS)
+  macos_arm_build_and_test:
+    name: Build & test (macOS / ARM64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Build & run tests
+        run: |
+          brew install nasm clang-format
+          find . -name '*.c' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
+          find . -name '*.h' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
+          make clean test
+        shell: bash
+  macos_x64_build_and_test:
+    name: Build & test (macOS / x86_64)
     runs-on: macos-13
     steps:
       - name: Checkout
