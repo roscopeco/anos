@@ -40,6 +40,11 @@
  */
 #define WRITE (1 << 1)
 
+/*
+ * Page user attribute
+ */
+#define USER (1 << 2)
+
 // For now, just supporting a single set of page tables,
 // mapped into kernel space at this address.
 #define STATIC_PML4 ((uint64_t *)0xFFFFFFFF8009c000)

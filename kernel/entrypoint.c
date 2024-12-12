@@ -13,6 +13,7 @@
 
 #include "acpitables.h"
 #include "debugprint.h"
+#include "gdt.h"
 #include "init_pagetables.h"
 #include "interrupts.h"
 #include "kdrivers/drivers.h"
@@ -20,6 +21,7 @@
 #include "machine.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
+#include "vmm/vmmapper.h"
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -206,7 +208,7 @@ static inline void banner() {
 
 static inline void install_interrupts() { idt_install(0x18); }
 
-void init_this_cpu(BIOS_SDTHeader *rsdt) {
+static inline void init_this_cpu(BIOS_SDTHeader *rsdt) {
     // Init local APIC on this CPU
     BIOS_SDTHeader *madt = find_acpi_table(rsdt, "APIC");
 
@@ -218,12 +220,28 @@ void init_this_cpu(BIOS_SDTHeader *rsdt) {
     init_local_apic(madt);
 }
 
+static inline void init_kernel_gdt() {
+    GDTR gdtr;
+    GDTEntry *user_code;
+    GDTEntry *user_data;
+
+    store_gdtr(&gdtr);
+
+    user_code = get_gdt_entry(&gdtr, 1);
+    user_data = get_gdt_entry(&gdtr, 2);
+
+    init_gdt_entry(user_code, 0, 0, 0b11111010, 0b00100000);
+    init_gdt_entry(user_data, 0, 0, 0b11110010, 0b00100000);
+}
+
 MemoryRegion *physical_region;
 BIOS_SDTHeader *acpi_root_table;
 
 noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     debugterm_init(VRAM_VIRT_BASE);
     banner();
+
+    init_kernel_gdt();
 
     pagetables_init();
     physical_region =
@@ -283,6 +301,41 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     debugstr("Forcing another, this time unhandled, with write to 0x1200000\n");
     bad = (uint32_t *)0x1200000;
     *bad = 0x0BADF00D;
+#endif
+
+#ifdef DEBUG_TEST_USER_MODE_SWITCH
+    debugstr("Going to infinite user-mode loop\n");
+
+    // Set up a page for the user code
+    uint64_t *pml4 = (uint64_t *)0xFFFFFFFF8009c000;
+    uint64_t user_phys_page = page_alloc(physical_region);
+    uint16_t flags = PRESENT | WRITE | USER;
+    vmm_map_page(pml4, 0x1000000, user_phys_page, flags);
+
+    // TODO invalidate tlb?
+
+    // Set up a page for the user stack
+    uint64_t user_stack = 0x1001000;
+    uint64_t user_stack_phys = page_alloc(physical_region);
+    vmm_map_page(pml4, user_stack, user_stack_phys, flags);
+
+    // Set up a small function in user memory. Some say that it loops forever...
+    uint8_t *user_func = (uint8_t *)0x1000000;
+    user_func[0] = 0xEB; // JMP instruction
+    user_func[1] = 0xFE; // ... to the same instruction
+
+    // Switch to user mode
+    __asm__ volatile(
+            "mov %0, %%rsp\n\t" // Set stack pointer
+            "push $0x13\n\t"    // Push user data segment selector (GDT entry 2)
+            "push %0\n\t"       // Push user stack pointer
+            "pushf\n\t"         // Push EFLAGS
+            "push $0x0B\n\t"    // Push user code segment selector (GDT entry 1)
+            "push %1\n\t"       // Push user code entry point
+            "iretq\n\t"         // "Return" to user mode
+            :
+            : "r"(user_stack + 0x1000), "r"(user_func)
+            : "memory");
 #endif
 
     debugstr("All is well! Halting for now.\n");

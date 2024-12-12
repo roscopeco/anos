@@ -5,10 +5,12 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include "kdrivers/local_apic.h"
+#include <stdint.h>
+
 #include "acpitables.h"
 #include "debugprint.h"
 #include "kdrivers/drivers.h"
+#include "kdrivers/local_apic.h"
 #include "machine.h"
 #include "printhex.h"
 #include "vmm/vmmapper.h"
