@@ -10,6 +10,7 @@
 #include "acpitables.h"
 #include "debugprint.h"
 #include "kdrivers/drivers.h"
+#include "kdrivers/local_apic.h"
 #include "machine.h"
 #include "printhex.h"
 #include "vmm/vmmapper.h"
