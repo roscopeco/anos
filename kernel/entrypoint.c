@@ -220,6 +220,11 @@ static inline void init_this_cpu(BIOS_SDTHeader *rsdt) {
     init_local_apic(madt);
 }
 
+// Replace the bootstrap 32-bit pages with 64-bit user pages.
+//
+// TODO we should remap the memory as read-only after this since they
+// won't be changing again, accessed bit is already set ready for this...
+//
 static inline void init_kernel_gdt() {
     GDTR gdtr;
     GDTEntry *user_code;
@@ -230,8 +235,19 @@ static inline void init_kernel_gdt() {
     user_code = get_gdt_entry(&gdtr, 1);
     user_data = get_gdt_entry(&gdtr, 2);
 
-    init_gdt_entry(user_code, 0, 0, 0b11111010, 0b00100000);
-    init_gdt_entry(user_data, 0, 0, 0b11110010, 0b00100000);
+    init_gdt_entry(
+            user_code, 0, 0,
+            GDT_ENTRY_ACCESS_PRESENT | GDT_ENTRY_ACCESS_DPL(3) |
+                    GDT_ENTRY_ACCESS_NON_SYSTEM | GDT_ENTRY_ACCESS_EXECUTABLE |
+                    GDT_ENTRY_ACCESS_READ_WRITE | GDT_ENTRY_ACCESS_ACCESSED,
+            GDT_ENTRY_FLAGS_64BIT);
+
+    init_gdt_entry(user_data, 0, 0,
+                   GDT_ENTRY_ACCESS_PRESENT | GDT_ENTRY_ACCESS_DPL(3) |
+                           GDT_ENTRY_ACCESS_NON_SYSTEM |
+                           GDT_ENTRY_ACCESS_READ_WRITE |
+                           GDT_ENTRY_ACCESS_ACCESSED,
+                   GDT_ENTRY_FLAGS_64BIT);
 }
 
 MemoryRegion *physical_region;
