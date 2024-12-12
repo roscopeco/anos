@@ -337,9 +337,13 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
 
     // Set up a small function in user memory. Some say that it loops forever...
     uint8_t *user_func = (uint8_t *)0x1000000;
+
+#ifdef DEBUG_TEST_USER_MODE_PRIVILEGED_INSTRUCTION_FAULT
+    user_func[0] = 0xFA; // CLI (should result in a GPF)
+#else
     user_func[0] = 0xEB; // JMP instruction
     user_func[1] = 0xFE; // ... to the same instruction
-
+#endif
     // Switch to user mode
     __asm__ volatile(
             "mov %0, %%rsp\n\t" // Set stack pointer
