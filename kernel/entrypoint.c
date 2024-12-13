@@ -19,6 +19,7 @@
 #include "kdrivers/drivers.h"
 #include "kdrivers/local_apic.h"
 #include "machine.h"
+#include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
 #include "vmm/vmmapper.h"
@@ -358,6 +359,7 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
             : "memory");
 #endif
 
+    pci_enumerate();
     debugstr("All is well! Halting for now.\n");
 
     while (true) {

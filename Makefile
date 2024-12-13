@@ -27,8 +27,10 @@ endif
 #   DEBUG_VMM 			Enable debugging of the VMM
 #	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
-#	DEBUG_ACPI		Enable debugging in ACPI mapper / parser
+#	DEBUG_ACPI			Enable debugging in ACPI mapper / parser
 #	VERY_NOISY_ACPI		Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
+#	DEBUG_PCI_ENUM		Enable debugging of PCI enumeration
+#	VERY_NOISY_PCI_ENUM	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
 #
 # These ones enable some specific feature tests
 #
@@ -41,7 +43,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_MADT
+CDEFS=-DDEBUG_MADT -DDEBUG_PCI_ENUM
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -105,7 +107,10 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/general_protection_fault.o							\
 			$(STAGE3_DIR)/timer_isr.o											\
 			$(STAGE3_DIR)/kdrivers/drivers.o									\
-			$(STAGE3_DIR)/kdrivers/local_apic.o
+			$(STAGE3_DIR)/kdrivers/local_apic.o									\
+			$(STAGE3_DIR)/pci/bus.o												\
+			$(STAGE3_DIR)/pci/enumerate.o
+			
 			
 			
 ALL_TARGETS=floppy.img
@@ -118,7 +123,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 	       		$(STAGE2_DIR)/*.dis $(STAGE2_DIR)/*.elf $(STAGE2_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/pmm/*.o $(STAGE3_DIR)/vmm/*.o				 		\
-				$(STAGE3_DIR)/kdrivers/*.o										\
+				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 		   		$(FLOPPY_IMG)
@@ -189,16 +194,17 @@ $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
 
+QEMU_OPTS=-smp cpus=2 -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35
+QEMU_DEBUG_OPTS=$(QEMU_OPTS) -gdb tcp::9666 -S
+
 qemu: $(FLOPPY_IMG)
-	$(QEMU) -smp cpus=2 -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac
-
-QEMU_OPTS=-drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -gdb tcp::9666 -S
-
-debug-qemu-start: $(FLOPPY_IMG)
 	$(QEMU) $(QEMU_OPTS)
 
+debug-qemu-start: $(FLOPPY_IMG)
+	$(QEMU) $(QEMU_DEBUG_OPTS)
+
 debug-qemu-start-terminal: $(FLOPPY_IMG)
-	$(QEMU) $(QEMU_OPTS) &
+	$(QEMU) $(QEMU_DEBUG_OPTS) &
 
 debug-qemu: debug-qemu-start-terminal
 	gdb -ex 'target remote localhost:9666'
