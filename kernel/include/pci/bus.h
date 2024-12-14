@@ -20,6 +20,11 @@
 #define PCI_REG_COMMON_CLASS ((2))
 #define PCI_REG_COMMON_BIST_TYPE ((3))
 
+#define PCI_HEADER_TYPE(header_type) ((header_type & 0x7f))
+#define PCI_HEADER_MULTIFUNCTION(header_type) ((header_type & 0x80))
+
+#define PCI_REG_BRIDGE_BUSN ((6))
+
 #define PCI_ADDR_ENABLE pci_addr_get_enable
 #define PCI_ADDR_BUS pci_addr_get_bus
 #define PCI_ADDR_DEVICE pci_addr_get_device
