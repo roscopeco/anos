@@ -43,6 +43,9 @@ typedef struct {
     E820h_MemMapEntry entries[];
 } __attribute__((packed)) E820h_MemMap;
 
-noreturn void halt_and_catch_fire();
+noreturn void halt_and_catch_fire(void);
+
+void outl(uint16_t port, uint32_t value);
+uint32_t inl(uint16_t port);
 
 #endif //__ANOS_KERNEL_MACHINE_H

@@ -1,6 +1,6 @@
-CLEAN_ARTIFACTS+=tests/*.o tests/pmm/*.o tests/vmm/*.o tests/structs/*.o tests/build
+CLEAN_ARTIFACTS+=tests/*.o tests/pmm/*.o tests/vmm/*.o tests/structs/*.o tests/pci/*.o tests/build
 UBSAN_CFLAGS=-fsanitize=undefined -fno-sanitize-recover=all
-TEST_CFLAGS=-g -Ikernel/include -O3 $(UBSAN_CFLAGS)
+TEST_CFLAGS=-g -Ikernel/include -Itests/include -O3 $(UBSAN_CFLAGS)
 HOST_ARCH=$(shell uname -p)
 
 ifeq ($(HOST_ARCH),arm)
@@ -22,10 +22,13 @@ tests/build/vmm:
 tests/build/structs:
 	mkdir -p tests/build/structs
 
-tests/build/%.o: kernel/%.c tests/build tests/build/pmm tests/build/vmm tests/build/structs
+tests/build/pci:
+	mkdir -p tests/build/pci
+
+tests/build/%.o: kernel/%.c tests/build tests/build/pmm tests/build/vmm tests/build/structs tests/build/pci
 	$(CC) -DUNIT_TESTS $(TEST_CFLAGS) -c -o $@ $<
 
-tests/build/%.o: kernel/%.asm tests/build tests/build/pmm tests/build/vmm tests/build/structs
+tests/build/%.o: kernel/%.asm tests/build tests/build/pmm tests/build/vmm tests/build/structs tests/build/pci
 	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
 
 tests/build/interrupts: tests/munit.o tests/interrupts.o tests/build/interrupts.o
@@ -52,6 +55,9 @@ tests/build/structs/list: tests/munit.o tests/structs/list.o tests/build/structs
 tests/build/gdt: tests/munit.o tests/gdt.o tests/build/gdt.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+tests/build/pci/bus: tests/munit.o tests/pci/bus.o tests/build/pci/bus.o tests/test_machine.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 
 ALL_TESTS=tests/build/interrupts 										\
 			tests/build/pmm/bitmap 										\
@@ -60,7 +66,8 @@ ALL_TESTS=tests/build/interrupts 										\
 			tests/build/debugprint										\
 			tests/build/acpitables										\
 			tests/build/structs/list									\
-			tests/build/gdt
+			tests/build/gdt												\
+			tests/build/pci/bus
 
 test: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test || exit 1; done'
