@@ -255,27 +255,26 @@ static void teardown(void *param) {
 }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/vmm/map/empty_pml4_0M", test_map_page_empty_pml4_0, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/vmm/map/empty_pml4_2M", test_map_page_empty_pml4_2M, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/vmm/map/empty_pml4_1G", test_map_page_empty_pml4_1G, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/vmm/map/empty_pml4_512G", test_map_page_empty_pml4_512G,
-         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/vmm/map/complete_pml4_0M", test_map_page_complete_pml4_0,
-         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/vmm/map/containing_already",
-         test_map_page_containing_already, setup, teardown,
+        {(char *)"/empty_pml4_0M", test_map_page_empty_pml4_0, setup, teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/vmm/map/containing_within", test_map_page_containing_within,
-         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/empty_pml4_2M", test_map_page_empty_pml4_2M, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/empty_pml4_1G", test_map_page_empty_pml4_1G, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/empty_pml4_512G", test_map_page_empty_pml4_512G, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/complete_pml4_0M", test_map_page_complete_pml4_0, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/containing_already", test_map_page_containing_already, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/containing_within", test_map_page_containing_within, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"/vmm/map", test_suite_tests,
+                                      NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);

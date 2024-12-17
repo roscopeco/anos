@@ -43,6 +43,9 @@ tests/build/pmm/pagealloc: tests/munit.o tests/pmm/pagealloc.o tests/build/pmm/p
 tests/build/vmm/vmmapper: tests/munit.o tests/vmm/vmmapper.o tests/build/vmm/vmmapper.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+tests/build/vmm/vmalloc_redblack: tests/munit.o tests/vmm/vmalloc_redblack.o tests/build/vmm/vmalloc_redblack.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 tests/build/debugprint: tests/munit.o tests/debugprint.o tests/build/debugprint.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
@@ -63,6 +66,7 @@ ALL_TESTS=tests/build/interrupts 										\
 			tests/build/pmm/bitmap 										\
 			tests/build/pmm/pagealloc									\
 			tests/build/vmm/vmmapper									\
+			tests/build/vmm/vmalloc_redblack							\
 			tests/build/debugprint										\
 			tests/build/acpitables										\
 			tests/build/structs/list									\
