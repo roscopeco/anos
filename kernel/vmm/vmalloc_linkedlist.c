@@ -3,6 +3,9 @@
  * anos - An Operating System
  *
  * Copyright (c) 2024 Ross Bamford
+ *
+ * This is a simple linked-list based allocator with coalescing on free.
+ * It'll do the job for now...
  */
 
 #include "vmm/vmalloc.h"
