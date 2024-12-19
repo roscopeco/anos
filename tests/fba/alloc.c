@@ -15,8 +15,7 @@
 #include "vmm/vmmapper.h"
 
 #define TEST_PML4_ADDR (((uint64_t *)0x100000))
-#define TEST_PAGE_COUNT                                                        \
-    ((4)) // We only need actual allocated mem for the bitmap...
+#define TEST_PAGE_COUNT ((4)) // only need allocated mem for the bitmap...
 
 // These are conditionally defined in the main code, which sucks, but works "for
 // now"...
