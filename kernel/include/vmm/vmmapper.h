@@ -8,6 +8,7 @@
 #ifndef __ANOS_KERNEL_VM_MAPPER_H
 #define __ANOS_KERNEL_VM_MAPPER_H
 
+#include "vmm/vmconfig.h"
 #include <stdint.h>
 
 /*

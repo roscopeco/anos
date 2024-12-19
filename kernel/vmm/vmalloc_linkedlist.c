@@ -50,12 +50,12 @@ static void free_range(range_t *r) {
 
 // Helper: Align address up to page boundary
 static uint64_t align_up(uint64_t addr) {
-    return (addr + PAGE_SIZE - 1) & ~((uint64_t)PAGE_SIZE - 1);
+    return (addr + VM_PAGE_SIZE - 1) & ~((uint64_t)VM_PAGE_SIZE - 1);
 }
 
 // Helper: Align address down to page boundary
 static uint64_t align_down(uint64_t addr) {
-    return addr & ~((uint64_t)PAGE_SIZE - 1);
+    return addr & ~((uint64_t)VM_PAGE_SIZE - 1);
 }
 
 // Initialize the VMM

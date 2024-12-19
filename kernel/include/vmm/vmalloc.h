@@ -8,11 +8,9 @@
 #ifndef __ANOS_KERNEL_PMM_VMALLOC_H
 #define __ANOS_KERNEL_PMM_VMALLOC_H
 
+#include "vmm/vmconfig.h"
 #include <stdbool.h>
 #include <stdint.h>
-
-// Size of a page in bytes
-#define PAGE_SIZE 4096
 
 // Error codes
 #define VMM_SUCCESS 0
