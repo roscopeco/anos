@@ -85,7 +85,7 @@ static MunitResult test_alloc_basic(const MunitParameter params[],
     uint64_t addr1 = vmm_alloc_block(1);
     munit_assert_uint64(addr1, !=, 0);
     munit_assert_uint64(addr1, >=, f->managed_start);
-    munit_assert_uint64(addr1 + PAGE_SIZE, <=,
+    munit_assert_uint64(addr1 + VM_PAGE_SIZE, <=,
                         f->managed_start + f->managed_size);
 
     // Allocate another page
@@ -102,7 +102,7 @@ static MunitResult test_alloc_exhaust(const MunitParameter params[],
     vmm_fixture_t *f = (vmm_fixture_t *)fixture;
 
     // Calculate number of pages in managed region
-    uint64_t total_pages = f->managed_size / PAGE_SIZE;
+    uint64_t total_pages = f->managed_size / VM_PAGE_SIZE;
     uint64_t last_addr = 0;
 
     // Allocate all pages one by one
@@ -159,8 +159,8 @@ static MunitResult test_coalesce(const MunitParameter params[], void *fixture) {
     uint64_t addr3 = vmm_alloc_block(1);
 
     munit_assert_uint64(addr1, !=, 0);
-    munit_assert_uint64(addr2, ==, addr1 + PAGE_SIZE);
-    munit_assert_uint64(addr3, ==, addr2 + PAGE_SIZE);
+    munit_assert_uint64(addr2, ==, addr1 + VM_PAGE_SIZE);
+    munit_assert_uint64(addr3, ==, addr2 + VM_PAGE_SIZE);
 
     // Free them in reverse order
     int result = vmm_free_block(addr3, 1);
@@ -185,12 +185,12 @@ static MunitResult test_large_alloc(const MunitParameter params[],
     vmm_fixture_t *f = (vmm_fixture_t *)fixture;
 
     // Try to allocate more pages than available
-    uint64_t too_many_pages = (f->managed_size / PAGE_SIZE) + 1;
+    uint64_t too_many_pages = (f->managed_size / VM_PAGE_SIZE) + 1;
     uint64_t addr = vmm_alloc_block(too_many_pages);
     munit_assert_uint64(addr, ==, 0);
 
     // Allocate exactly half the space
-    uint64_t half_pages = (f->managed_size / PAGE_SIZE) / 2;
+    uint64_t half_pages = (f->managed_size / VM_PAGE_SIZE) / 2;
     addr = vmm_alloc_block(half_pages);
     munit_assert_uint64(addr, !=, 0);
 

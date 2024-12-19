@@ -6,9 +6,9 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "munit.h"
+#include "test_pmm.h"
 #include "vmm/vmmapper.h"
 
 static uint64_t *empty_pml4;
@@ -17,8 +17,6 @@ static uint64_t *complete_pml4;
 static uint64_t *complete_pdpt;
 static uint64_t *complete_pd;
 static uint64_t *complete_pt;
-
-static uint8_t total_page_allocs = 0;
 
 static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[],
                                               void *param) {
@@ -51,7 +49,7 @@ static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[],
     munit_assert_uint64(pt[0], ==, 0x1000);
 
     // We allocated three pages (one for each table level)
-    munit_assert_uint8(total_page_allocs, ==, 3);
+    munit_assert_uint8(test_pmm_get_total_page_allocs(), ==, 3);
 
     return MUNIT_OK;
 }
@@ -92,7 +90,7 @@ static MunitResult test_map_page_empty_pml4_2M(const MunitParameter params[],
     munit_assert_uint64(pt[0], ==, 0x1000);
 
     // We allocated three pages (one for each table level)
-    munit_assert_uint8(total_page_allocs, ==, 3);
+    munit_assert_uint8(test_pmm_get_total_page_allocs(), ==, 3);
 
     return MUNIT_OK;
 }
@@ -135,7 +133,7 @@ static MunitResult test_map_page_empty_pml4_1G(const MunitParameter params[],
     munit_assert_uint64(pt[0], ==, 0x1000);
 
     // We allocated three pages (one for each table level)
-    munit_assert_uint8(total_page_allocs, ==, 3);
+    munit_assert_uint8(test_pmm_get_total_page_allocs(), ==, 3);
 
     return MUNIT_OK;
 }
@@ -178,7 +176,7 @@ static MunitResult test_map_page_empty_pml4_512G(const MunitParameter params[],
     munit_assert_uint64(pt[0], ==, 0x1000);
 
     // We allocated three pages (one for each table level)
-    munit_assert_uint8(total_page_allocs, ==, 3);
+    munit_assert_uint8(test_pmm_get_total_page_allocs(), ==, 3);
 
     return MUNIT_OK;
 }
@@ -193,7 +191,7 @@ static MunitResult test_map_page_complete_pml4_0(const MunitParameter params[],
     munit_assert_uint64(complete_pt[0], ==, 0x1000);
 
     // No pages were allocated
-    munit_assert_uint8(total_page_allocs, ==, 0);
+    munit_assert_uint8(test_pmm_get_total_page_allocs(), ==, 0);
 
     return MUNIT_OK;
 }
@@ -243,10 +241,8 @@ static void *setup(const MunitParameter params[], void *user_data) {
     return NULL;
 }
 
-void free_alloc_pages();
-
 static void teardown(void *param) {
-    free_alloc_pages();
+    test_pmm_reset();
     free(empty_pml4);
     free(complete_pml4);
     free(complete_pdpt);
@@ -278,32 +274,4 @@ static const MunitSuite test_suite = {(char *)"/vmm/map", test_suite_tests,
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);
-}
-
-/* ********** Mocks ************ */
-
-#include "pmm/pagealloc.h"
-
-#define MAX_PAGES 128
-
-MemoryRegion *physical_region;
-uint64_t *pages[MAX_PAGES];
-uint8_t page_ptr = 0;
-
-uint64_t page_alloc(MemoryRegion *region) {
-    if (page_ptr == (MAX_PAGES - 1)) {
-        fprintf(stderr, "\n\nWARN: Mock page allocator is out of space 😱\n\n");
-        return 0;
-    }
-
-    total_page_allocs++;
-    posix_memalign((void **)&pages[page_ptr], 0x1000, 0x1000);
-    return (uint64_t)pages[page_ptr++];
-}
-
-void free_alloc_pages() {
-    while (page_ptr > 0) {
-        free(pages[--page_ptr]);
-    }
-    total_page_allocs = 0;
 }
