@@ -10,6 +10,13 @@
 #include "machine.h"
 #include "pmm/pagealloc.h"
 
+#ifdef HOSTED_PMM_PRINTF_DEBUGGING
+#include <stdio.h>
+#define hprintf(...) printf(__VA_ARGS__)
+#else
+#define hprintf(...)
+#endif
+
 MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
                               void *buffer) {
     MemoryRegion *region = (MemoryRegion *)buffer;
@@ -68,9 +75,59 @@ MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
     return region;
 }
 
+static inline bool stack_empty(MemoryRegion *region) {
+    return region->sp < ((MemoryBlock *)(region + 1));
+}
+
+uint64_t page_alloc_m(MemoryRegion *region, uint64_t count) {
+    if (stack_empty(region)) {
+        return 0xFF;
+    }
+
+    MemoryBlock *ptr = region->sp;
+
+    hprintf("\n\nBlock: %p\n", region);
+    while (ptr >= ((MemoryBlock *)(region + 1))) {
+        hprintf("Check block %p - 0x%016x : 0x%016x\n", ptr, ptr->base,
+                ptr->size);
+        if (ptr->size > count) {
+            // Block is more than enough, just split it and return
+            uint64_t page = ptr->base;
+
+            hprintf("  Split block and allocate 0x%016x\n", page);
+            ptr->base += 0x1000;
+            ptr->size -= count;
+
+            region->free -= (count << 12);
+            return page;
+        } else if (ptr->size == count) {
+            // Block is exactly enough, pop (or remove if not top) it and return
+            uint64_t page = ptr->base;
+            hprintf("  Remove block and allocate 0x%016x\n", page);
+
+            if (ptr != region->sp) {
+                // it's not the top block, replace this with the region
+                // from the top of the stack...
+                ptr->base = region->sp->base;
+                ptr->size = region->sp->size;
+            }
+
+            // ... now pop the top either way since we've either used it,
+            // or moved it to replace the one we removed.
+            region->sp--;
+
+            region->free -= (count << 12);
+            return page;
+        }
+
+        ptr--;
+    }
+
+    return 0xFF;
+}
+
 uint64_t page_alloc(MemoryRegion *region) {
-    if (region->sp < ((MemoryBlock *)(region + 1))) {
-        // Empty stack
+    if (stack_empty(region)) {
         return 0xFF;
     }
 
@@ -88,10 +145,6 @@ uint64_t page_alloc(MemoryRegion *region) {
         region->sp--;
         return page;
     }
-}
-
-static inline bool stack_empty(MemoryRegion *region) {
-    return region->sp == (((MemoryBlock *)(region + 1)) - 1);
 }
 
 void page_free(MemoryRegion *region, uint64_t page) {
