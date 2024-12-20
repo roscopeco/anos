@@ -8,6 +8,7 @@
 #ifndef __ANOS_KERNEL_SPINLOCK_H
 #define __ANOS_KERNEL_SPINLOCK_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef struct {
