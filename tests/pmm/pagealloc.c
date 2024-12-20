@@ -11,8 +11,8 @@
 static void *region_buffer;
 
 static E820h_MemMap *create_mem_map(int num_entries) {
-    E820h_MemMap *map = malloc(sizeof(E820h_MemMap) +
-                               sizeof(E820h_MemMapEntry) * num_entries);
+    E820h_MemMap *map = munit_malloc(sizeof(E820h_MemMap) +
+                                     sizeof(E820h_MemMapEntry) * num_entries);
     map->num_entries = num_entries;
     return map;
 }
@@ -655,6 +655,264 @@ static MunitResult test_alloc_two_blocks(const MunitParameter params[],
     return MUNIT_OK;
 }
 
+static MunitResult test_alloc_page_m_empty_one(const MunitParameter params[],
+                                               void *param) {
+    E820h_MemMapEntry entry0 = {.type = MEM_MAP_ENTRY_RESERVED,
+                                .base = 0x0000000000000000,
+                                .length = 0x0000000000000100,
+                                .attrs = 0};
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+
+    uint64_t page = page_alloc_m(region, 1);
+
+    munit_assert_uint64(page & 0xFF, ==, 0xFF);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_alloc_page_m_one(const MunitParameter params[],
+                                         void *param) {
+    E820h_MemMapEntry entry0 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000000000,
+                                .length = 0x0000000000001000,
+                                .attrs = 0};
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+
+    // Can allocate the one available page
+    uint64_t page = page_alloc_m(region, 1);
+    munit_assert_uint64(page, ==, 0);
+
+    // No more pages
+    page = page_alloc_m(region, 1);
+    munit_assert_uint64(page & 0xFF, ==, 0xFF);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_alloc_page_m_empty_two(const MunitParameter params[],
+                                               void *param) {
+    E820h_MemMapEntry entry0 = {.type = MEM_MAP_ENTRY_RESERVED,
+                                .base = 0x0000000000000000,
+                                .length = 0x0000000000000100,
+                                .attrs = 0};
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+
+    uint64_t page = page_alloc_m(region, 2);
+
+    munit_assert_uint64(page & 0xFF, ==, 0xFF);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_alloc_page_m_one_from_one(const MunitParameter params[],
+                                                  void *param) {
+    E820h_MemMapEntry entry0 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000000000,
+                                .length = 0x0000000000001000,
+                                .attrs = 0};
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+
+    // Can allocate the one available page
+    uint64_t page = page_alloc_m(region, 1);
+    munit_assert_uint64(page, ==, 0);
+
+    // No more pages
+    page = page_alloc(region);
+    munit_assert_uint64(page & 0xFF, ==, 0xFF);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_alloc_page_m_two_from_one(const MunitParameter params[],
+                                                  void *param) {
+    E820h_MemMapEntry entry0 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000000000,
+                                .length = 0x0000000000001000,
+                                .attrs = 0};
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+
+    // Can't allocate two pages from the one available page
+    uint64_t page = page_alloc_m(region, 2);
+    munit_assert_uint64(page & 0xFF, ==, 0xFF);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_alloc_page_m_two_from_two(const MunitParameter params[],
+                                                  void *param) {
+    E820h_MemMapEntry entry0 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000000000,
+                                .length = 0x0000000000002000,
+                                .attrs = 0};
+    E820h_MemMap *map = create_mem_map(1);
+    map->entries[0] = entry0;
+
+    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+
+    // Can allocate the two available pages
+    uint64_t page = page_alloc_m(region, 2);
+    munit_assert_uint64(page, ==, 0);
+
+    // No more pages
+    page = page_alloc(region);
+    munit_assert_uint64(page & 0xFF, ==, 0xFF);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_alloc_page_m_not_top_split(const MunitParameter params[], void *param) {
+    E820h_MemMapEntry entry0 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000010000,
+                                .length = 0x0000000000001000,
+                                .attrs = 0};
+    E820h_MemMapEntry entry1 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000008000,
+                                .length = 0x0000000000003000,
+                                .attrs = 0};
+    E820h_MemMapEntry entry2 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000100000,
+                                .length = 0x0000000000001000,
+                                .attrs = 0};
+
+    E820h_MemMap *map = create_mem_map(3);
+    map->entries[0] = entry0;
+    map->entries[1] = entry1;
+    map->entries[2] = entry2;
+
+    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+
+    // Can allocate the one available page
+    uint64_t page = page_alloc_m(region, 2);
+    munit_assert_uint64(page, ==, 0x8000);
+
+    // Five pages total, three free
+    munit_assert_uint64(region->size, ==, 0x5000);
+    munit_assert_uint64(region->free, ==, 0x3000);
+
+    // Top entry is based at 1MiB, still 1 page
+    munit_assert_uint64(region->sp->base, ==, 0x100000);
+    munit_assert_uint64(region->sp->size, ==, 0x1);
+
+    // Alloc came from second entry, and split the remainder so one left
+    munit_assert_uint64((region->sp - 1)->base, ==, 0x9000);
+    munit_assert_uint64((region->sp - 1)->size, ==, 0x1);
+
+    // Third entry is still at 0, still one page
+    munit_assert_uint64((region->sp - 2)->base, ==, 0x10000);
+    munit_assert_uint64((region->sp - 2)->size, ==, 0x1);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_alloc_page_m_not_top_remove(const MunitParameter params[], void *param) {
+    E820h_MemMapEntry entry0 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000000000,
+                                .length = 0x0000000000001000,
+                                .attrs = 0};
+    E820h_MemMapEntry entry1 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000008000,
+                                .length = 0x0000000000002000,
+                                .attrs = 0};
+    E820h_MemMapEntry entry2 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000100000,
+                                .length = 0x0000000000001000,
+                                .attrs = 0};
+
+    E820h_MemMap *map = create_mem_map(3);
+    map->entries[0] = entry0;
+    map->entries[1] = entry1;
+    map->entries[2] = entry2;
+
+    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+
+    // Can allocate the one available page
+    uint64_t page = page_alloc_m(region, 2);
+    munit_assert_uint64(page, ==, 0x8000);
+
+    // Four pages total, two free
+    munit_assert_uint64(region->size, ==, 0x4000);
+    munit_assert_uint64(region->free, ==, 0x2000);
+
+    // Top entry is based at 1MiB, still 1 page
+    munit_assert_uint64(region->sp->base, ==, 0x100000);
+    munit_assert_uint64(region->sp->size, ==, 0x1);
+
+    // Second entry is now the one at at 0, still one page
+    // Original second entry was removed from the stack
+    munit_assert_uint64((region->sp - 1)->base, ==, 0);
+    munit_assert_uint64((region->sp - 1)->size, ==, 0x1);
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult test_alloc_page_m_top_remove(const MunitParameter params[],
+                                                void *param) {
+    E820h_MemMapEntry entry0 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000000000,
+                                .length = 0x0000000000001000,
+                                .attrs = 0};
+    E820h_MemMapEntry entry1 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0010000000000000,
+                                .length = 0x0000000000001000,
+                                .attrs = 0};
+    E820h_MemMapEntry entry2 = {.type = MEM_MAP_ENTRY_AVAILABLE,
+                                .base = 0x0000000000100000,
+                                .length = 0x0000000000002000,
+                                .attrs = 0};
+
+    E820h_MemMap *map = create_mem_map(3);
+    map->entries[0] = entry0;
+    map->entries[1] = entry1;
+    map->entries[2] = entry2;
+
+    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+
+    // Can allocate the one available page
+    uint64_t page = page_alloc_m(region, 2);
+    munit_assert_uint64(page, ==, 0x100000);
+
+    // Four pages total, two free
+    munit_assert_uint64(region->size, ==, 0x4000);
+    munit_assert_uint64(region->free, ==, 0x2000);
+
+    // Top entry is now based at 0x0010000000000000, still 1 page
+    // Original top entry was removed from the stack
+    munit_assert_uint64(region->sp->base, ==, 0x0010000000000000);
+    munit_assert_uint64(region->sp->size, ==, 0x1);
+
+    // Second entry is now the one at at 0, still one page
+    munit_assert_uint64((region->sp - 1)->base, ==, 0);
+    munit_assert_uint64((region->sp - 1)->size, ==, 0x1);
+
+    free(map);
+    return MUNIT_OK;
+}
+
 static MunitResult test_free_page(const MunitParameter params[], void *param) {
     E820h_MemMapEntry entry0 = {.type = MEM_MAP_ENTRY_AVAILABLE,
                                 .base = 0x0000000000000000,
@@ -838,77 +1096,93 @@ static void *setup(const MunitParameter params[], void *user_data) {
 static void teardown(void *param) { free(region_buffer); }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/pmm/palloc/init_empty", test_init_empty, setup, teardown,
+        {(char *)"/init_empty", test_init_empty, setup, teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_invalid", test_init_all_invalid, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_reserved", test_init_all_reserved, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_acpi", test_init_all_acpi, setup, teardown,
+        {(char *)"/init_invalid", test_init_all_invalid, setup, teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_acpi_nvs", test_init_all_acpi_nvs, setup,
+        {(char *)"/init_reserved", test_init_all_reserved, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_acpi", test_init_all_acpi, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_acpi_nvs", test_init_all_acpi_nvs, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_unusable", test_init_all_unusable, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_disabled", test_init_all_disabled, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_persistent", test_init_all_persistent, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_unknown", test_init_all_unknown, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_illegal", test_init_all_illegal, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_zero_length", test_init_zero_length, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_too_small", test_init_too_small, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_one_avail", test_init_one_available, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_unaligned_zero", test_init_unaligned_zero, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_unusable", test_init_all_unusable, setup,
+        {(char *)"/init_unaligned_one", test_init_unaligned_one, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_disabled", test_init_all_disabled, setup,
+        {(char *)"/init_some_avail", test_init_some_available, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_1M_at_zero", test_init_1M_at_zero, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_big_region", test_init_large_region, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_two_regions", test_init_two_regions, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_two_big_regions", test_init_two_large_regions, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_persistent", test_init_all_persistent, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_unknown", test_init_all_unknown, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_illegal", test_init_all_illegal, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_zero_length", test_init_zero_length, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_too_small", test_init_too_small, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_one_avail", test_init_one_available, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_unaligned_zero", test_init_unaligned_zero,
+        {(char *)"/init_two_split_regions", test_init_two_noncontig_regions,
          setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_unaligned_one", test_init_unaligned_one,
-         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_some_avail", test_init_some_available, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_1M_at_zero", test_init_1M_at_zero, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_big_region", test_init_large_region, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_two_regions", test_init_two_regions, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_two_big_regions",
-         test_init_two_large_regions, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/pmm/palloc/init_two_split_regions",
-         test_init_two_noncontig_regions, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/init_two_unequal_regions",
-         test_init_two_unequal_regions, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-
-        {(char *)"/pmm/palloc/alloc_page_empty", test_alloc_page_empty, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/alloc_page", test_alloc_page, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/alloc_two_pages", test_alloc_two_pages, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/alloc_from_two_blocks", test_alloc_two_blocks,
+        {(char *)"/init_two_unequal_regions", test_init_two_unequal_regions,
          setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
-        {(char *)"/pmm/palloc/free_page", test_free_page, setup, teardown,
+        {(char *)"/alloc_page_empty", test_alloc_page_empty, setup, teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/free_unaligned", test_free_unaligned_page, setup,
+        {(char *)"/alloc_page", test_alloc_page, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_two_pages", test_alloc_two_pages, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_from_two_blocks", test_alloc_two_blocks, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/free_contig_fwd", test_free_contig_pages_forward,
+
+        {(char *)"/alloc_m_empty_one", test_alloc_page_m_empty_one, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_m_empty_two", test_alloc_page_m_empty_two, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_m_one", test_alloc_page_m_one, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_m_one_from_one", test_alloc_page_m_one_from_one, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_m_two_from_one", test_alloc_page_m_two_from_one, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_m_two_from_two", test_alloc_page_m_two_from_two, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_m_not_top_split", test_alloc_page_m_not_top_split,
          setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/palloc/free_contig_bwd", test_free_contig_pages_backward,
+        {(char *)"/alloc_m_not_top_remove", test_alloc_page_m_not_top_remove,
          setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_m_top_remove", test_alloc_page_m_top_remove, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+
+        {(char *)"/free_page", test_free_page, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/free_unaligned", test_free_unaligned_page, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/free_contig_fwd", test_free_contig_pages_forward, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/free_contig_bwd", test_free_contig_pages_backward, setup,
+         teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"/pmm/stack", test_suite_tests,
+                                      NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);

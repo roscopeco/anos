@@ -1,4 +1,4 @@
-CLEAN_ARTIFACTS+=tests/*.o tests/pmm/*.o tests/vmm/*.o tests/structs/*.o tests/pci/*.o tests/build
+CLEAN_ARTIFACTS+=tests/*.o tests/pmm/*.o tests/vmm/*.o tests/structs/*.o tests/pci/*.o tests/fba/*.o tests/build
 UBSAN_CFLAGS=-fsanitize=undefined -fno-sanitize-recover=all
 TEST_CFLAGS=-g -Ikernel/include -Itests/include -O3 $(UBSAN_CFLAGS)
 HOST_ARCH=$(shell uname -p)
@@ -25,7 +25,10 @@ tests/build/structs:
 tests/build/pci:
 	mkdir -p tests/build/pci
 
-tests/build/%.o: kernel/%.c tests/build tests/build/pmm tests/build/vmm tests/build/structs tests/build/pci
+tests/build/fba:
+	mkdir -p tests/build/fba
+
+tests/build/%.o: kernel/%.c tests/build tests/build/pmm tests/build/vmm tests/build/structs tests/build/pci tests/build/fba
 	$(CC) -DUNIT_TESTS $(TEST_CFLAGS) -c -o $@ $<
 
 tests/build/%.o: kernel/%.asm tests/build tests/build/pmm tests/build/vmm tests/build/structs tests/build/pci
@@ -37,10 +40,13 @@ tests/build/interrupts: tests/munit.o tests/interrupts.o tests/build/interrupts.
 tests/build/pmm/bitmap: tests/munit.o tests/pmm/bitmap.o tests/build/pmm/bitmap.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-tests/build/pmm/pagealloc: tests/munit.o tests/pmm/pagealloc.o tests/build/pmm/pagealloc.o
+tests/build/pmm/pagealloc: tests/munit.o tests/pmm/pagealloc.o tests/build/pmm/pagealloc.o tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-tests/build/vmm/vmmapper: tests/munit.o tests/vmm/vmmapper.o tests/build/vmm/vmmapper.o
+tests/build/vmm/vmmapper: tests/munit.o tests/vmm/vmmapper.o tests/build/vmm/vmmapper.o tests/test_pmm_malloc.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
+tests/build/vmm/vmalloc_linkedlist: tests/munit.o tests/vmm/vmalloc_linkedlist.o tests/build/vmm/vmalloc_linkedlist.o tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 tests/build/debugprint: tests/munit.o tests/debugprint.o tests/build/debugprint.o
@@ -58,16 +64,24 @@ tests/build/gdt: tests/munit.o tests/gdt.o tests/build/gdt.o
 tests/build/pci/bus: tests/munit.o tests/pci/bus.o tests/build/pci/bus.o tests/test_machine.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+tests/build/fba/alloc: tests/munit.o tests/fba/alloc.o tests/build/fba/alloc.o tests/test_pmm_noalloc.o tests/test_vmm.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
+tests/build/spinlock: tests/munit.o tests/spinlock.o tests/build/spinlock.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 ALL_TESTS=tests/build/interrupts 										\
 			tests/build/pmm/bitmap 										\
 			tests/build/pmm/pagealloc									\
 			tests/build/vmm/vmmapper									\
+			tests/build/vmm/vmalloc_linkedlist							\
 			tests/build/debugprint										\
 			tests/build/acpitables										\
 			tests/build/structs/list									\
 			tests/build/gdt												\
-			tests/build/pci/bus
+			tests/build/pci/bus											\
+			tests/build/fba/alloc										\
+			tests/build/spinlock
 
 test: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test || exit 1; done'

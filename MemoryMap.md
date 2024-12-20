@@ -92,13 +92,13 @@ phys location, and I just map it in. Maybe a bad idea, but works for now (on emu
 
 Additionally, the debug page fault handler manages this:
 
-* `0xFFFFFFFF80400000` -> `0xFFFFFFFF81000000` : Kernel "Automap" space, **for testing only**
+* `0xFFFFFFFF80400000` -> `0xFFFFFFFF80FFFFFF` : Kernel "Automap" space, **for testing only**
 
 This space is not represented by page tables at boot, but if there's a page
 fault there the handler will automatically map in a page. 
 **This is just for testing, and is not a feature - it will be removed soon!!**.
 
-Finally, the local APIC is **temporarily** mapped to:
+The local APIC is **temporarily** mapped to:
 
 * `0xFFFF800000000000` -> `0xFFFF800000000400` : Local APIC (for all CPUs)
 
@@ -106,12 +106,35 @@ This, again, won't be staying there, but it works for now.
 
 This is all fun and games, but will almost certainly be a problem later 
 (i.e. the kernel being stuck at <1MiB size and located at the ~1MiB mark in physical 
-RAM - I'm thinking DMA or whatever will probably want that area...)
+RAM).
 
-Once that happens it'll make sense to make things more robust, and maybe 
+In the future it'll make sense to make things more robust, and maybe 
 just load the kernel somewhere above 16MiB physical and map accordingly
 (Kernel space can still map broadly the same - it might be useful to have
 the first 16MiB mapped at the start of kernel space 🤔).
 
 _Maybe_ I'd check we actually have >16MiB first, but are there even any 
 x86_64s that have less RAM than that? 🤷
+
+#### Kernel memory areas
+
+The following areas are reserved for allocation of various forms within 
+the kernel.
+
+##### Fixed-block space
+
+The following space is reserved for the fixed block allocator (and is where
+the slab allocator will map blocks).
+
+* `0xffffffff90000000` -> `0xffffffffcfffffff` : 1GiB FBA space
+
+The fixed-block allocator works on 4KiB page granularity, so supports a 
+maximum of 262144 blocks within this 1GiB space. Of those, the first eight
+are used for metadata (a 32KiB bitmap tracking virtual address allocation
+for this area) meaning there can be a maximum of 262136 blocks mapped into
+this virtual area (the first eight are of course always mapped).
+
+A gigabyte _feels_ like a lot, but we have the address space and I don't
+feel like painting myself into any corners just now...
+
+

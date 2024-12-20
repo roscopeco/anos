@@ -11,6 +11,7 @@
 #include <stdbool.h>
 
 #include "machine.h"
+#include "spinlock.h"
 
 typedef struct {
     uintptr_t phys_addr;
@@ -22,6 +23,7 @@ typedef struct {
 } MemoryBlock;
 
 typedef struct {
+    SpinLock lock;
     uint64_t flags;
     uint64_t size;
     uint64_t free;
@@ -52,6 +54,22 @@ typedef struct {
  */
 MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
                               void *buffer);
+
+/*
+ * Allocate a contiguous block of `count` physical pages.
+ *
+ * Currently, only 4KiB pages are supported.
+ *
+ * Returns a page aligned start address on success.
+ *
+ * If unsuccessful, an unaligned number (with 0xFF in the least-significant
+ * byte) will be returned.
+ *
+ * This will get harder to satisfy as memory gets fragmented (obviously)
+ * but will only generally be used for memory-mapped buffers for devices,
+ * so will likely be used mostly early in kernel start-up...
+ */
+uint64_t page_alloc_m(MemoryRegion *region, uint64_t count);
 
 /*
  * Allocate a single physical page.
