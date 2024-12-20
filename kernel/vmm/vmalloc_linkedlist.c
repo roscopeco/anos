@@ -104,7 +104,7 @@ uint64_t vmm_alloc_block(uint64_t num_pages) {
         return 0;
     }
 
-    uint64_t size = num_pages * PAGE_SIZE;
+    uint64_t size = num_pages * VM_PAGE_SIZE;
     range_t *prev = NULL;
     range_t *curr = free_ranges;
 
@@ -156,11 +156,11 @@ int vmm_free_block(uint64_t address, uint64_t num_pages) {
     if (!is_initialized) {
         return VMM_ERROR_NOT_INITIALIZED;
     }
-    if (!num_pages || (address & (PAGE_SIZE - 1))) {
+    if (!num_pages || (address & (VM_PAGE_SIZE - 1))) {
         return VMM_ERROR_INVALID_PARAMS;
     }
 
-    uint64_t size = num_pages * PAGE_SIZE;
+    uint64_t size = num_pages * VM_PAGE_SIZE;
     range_t *new_range = alloc_range();
     if (!new_range) {
         return VMM_ERROR_NO_SPACE;
