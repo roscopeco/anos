@@ -209,5 +209,5 @@ pre-commit install
 This probably isn't up to date enough to represent where it's at, but
 it should be relatively recent.
 
-<img src="images/Screenshot 2023-09-29 at 23.08.45.png" alt="Hopefully-recent Screenshot">
+<img src="images/Screenshot 2024-12-20 at 22.43.32.png" alt="Hopefully-recent Screenshot">
 
