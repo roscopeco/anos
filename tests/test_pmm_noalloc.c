@@ -6,7 +6,6 @@
  */
 
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "pmm/pagealloc.h"

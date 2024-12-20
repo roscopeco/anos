@@ -8,9 +8,23 @@
  * It'll do the job for now...
  */
 
+#include "spinlock.h"
 #include "vmm/vmalloc.h"
 
 #define NULL (((void *)0))
+
+#define LOCK()                                                                 \
+    do {                                                                       \
+        spinlock_lock(&vmm_lock);                                              \
+    } while (0)
+
+#define UNLOCK_RET(retval)                                                     \
+    do {                                                                       \
+        spinlock_unlock(&vmm_lock);                                            \
+        return (retval);                                                       \
+    } while (0)
+
+static SpinLock vmm_lock;
 
 // A range represents either a free or allocated block of virtual address space
 typedef struct range {
@@ -73,6 +87,8 @@ int vmm_init(void *metadata_start, uint64_t metadata_size,
         return VMM_ERROR_INVALID_PARAMS;
     }
 
+    spinlock_init(&vmm_lock);
+
     // Initialize the range pool
     range_pool = (range_t *)metadata_start;
     range_pool_end = (range_t *)((char *)metadata_start + metadata_size);
@@ -103,6 +119,8 @@ uint64_t vmm_alloc_block(uint64_t num_pages) {
     if (!is_initialized || num_pages == 0) {
         return 0;
     }
+
+    LOCK();
 
     uint64_t size = num_pages * VM_PAGE_SIZE;
     range_t *prev = NULL;
@@ -145,10 +163,10 @@ uint64_t vmm_alloc_block(uint64_t num_pages) {
             best_fit->size -= size;
         }
 
-        return alloc_addr;
+        UNLOCK_RET(alloc_addr);
     }
 
-    return 0; // No suitable range found
+    UNLOCK_RET(0); // No suitable range found
 }
 
 // Free a block of pages
@@ -159,6 +177,8 @@ int vmm_free_block(uint64_t address, uint64_t num_pages) {
     if (!num_pages || (address & (VM_PAGE_SIZE - 1))) {
         return VMM_ERROR_INVALID_PARAMS;
     }
+
+    LOCK();
 
     uint64_t size = num_pages * VM_PAGE_SIZE;
     range_t *new_range = alloc_range();
@@ -204,5 +224,5 @@ int vmm_free_block(uint64_t address, uint64_t num_pages) {
         free_range(to_free);
     }
 
-    return VMM_SUCCESS;
+    UNLOCK_RET(VMM_SUCCESS);
 }

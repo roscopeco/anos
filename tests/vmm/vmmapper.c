@@ -5,11 +5,9 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include <stdio.h>
-
+#include "vmm/vmmapper.h"
 #include "munit.h"
 #include "test_pmm.h"
-#include "vmm/vmmapper.h"
 
 static uint64_t *empty_pml4;
 

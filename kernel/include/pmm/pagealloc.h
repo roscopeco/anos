@@ -11,6 +11,7 @@
 #include <stdbool.h>
 
 #include "machine.h"
+#include "spinlock.h"
 
 typedef struct {
     uintptr_t phys_addr;
@@ -22,6 +23,7 @@ typedef struct {
 } MemoryBlock;
 
 typedef struct {
+    SpinLock lock;
     uint64_t flags;
     uint64_t size;
     uint64_t free;

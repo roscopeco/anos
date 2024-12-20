@@ -6,7 +6,6 @@
  */
 #include "gdt.h"
 #include "munit.h"
-#include <stdio.h>
 
 static const GDTEntry empty_entry = {0};
 

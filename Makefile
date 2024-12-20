@@ -109,9 +109,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/kdrivers/drivers.o									\
 			$(STAGE3_DIR)/kdrivers/local_apic.o									\
 			$(STAGE3_DIR)/pci/bus.o												\
-			$(STAGE3_DIR)/pci/enumerate.o
-			
-			
+			$(STAGE3_DIR)/pci/enumerate.o										\
+			$(STAGE3_DIR)/spinlock.o
 			
 ALL_TARGETS=floppy.img
 
