@@ -7,15 +7,15 @@
 ;
 
 bits 64
+
 global pic_irq_handler, timer_interrupt_handler, unknown_interrupt_handler, spurious_irq_count
 global syscall_69_handler
 
 extern handle_exception_nc, handle_exception_wc, handle_timer_interrupt, handle_unknown_interrupt
 extern handle_syscall_69
 
-%macro pusha_sysv 0
-  push  rax                               ; Save all C-clobbered registers
-  push  rcx
+%macro pusha_sysv_not_rax 0
+  push  rcx                               ; Save all C-clobbered registers, except rax for returns
   push  rdx
   push  rsi
   push  rdi
@@ -25,8 +25,13 @@ extern handle_syscall_69
   push  r11  
 %endmacro
 
-%macro popa_sysv 0
-  pop   r11                               ; Restore registers...
+%macro pusha_sysv 0
+  push  rax                               ; Save all C-clobbered registers
+  pusha_sysv_not_rax
+%endmacro
+
+%macro popa_sysv_not_rax 0
+  pop   r11                               ; Restore registers except rax for returns...
   pop   r10
   pop   r9
   pop   r8
@@ -34,6 +39,10 @@ extern handle_syscall_69
   pop   rsi
   pop   rdx
   pop   rcx
+%endmacro
+
+%macro popa_sysv 0
+  popa_sysv_not_rax                       ; Restore registers...
   pop   rax
 %endmacro
 
@@ -124,13 +133,15 @@ timer_interrupt_handler:
   iretq
 
 syscall_69_handler:
-  pusha_sysv
+  pusha_sysv_not_rax
+  add   rsp,$8
 
   ; TODO stack alignment?
-
+  mov   r9,rax
   call  handle_syscall_69                 ; Just call directly to C handler
 
-  popa_sysv
+  sub   rsp,$8
+  popa_sysv_not_rax
   iretq
 
 ; ISR dispatcher for Unknown (unhandled) IRQs

@@ -113,6 +113,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/pci/bus.o												\
 			$(STAGE3_DIR)/pci/enumerate.o										\
 			$(STAGE3_DIR)/spinlock.o											\
+			$(STAGE3_DIR)/init_syscalls.o										\
 			$(STAGE3_DIR)/syscalls.o											\
 			$(SYSTEM)_linkable.o
 			

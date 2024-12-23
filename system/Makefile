@@ -11,6 +11,12 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 		-O3																		\
 		-g
 
+# The following C defines are recognised by stage3 and enable various things
+#
+#   DEBUG_INT_SYSCALLS		Use int 0x69 instead of syscall instruction
+#
+CDEFS=-DDEBUG_INT_SYSCALLS
+
 # System loads at 0x0000000001000000 (16MiB)
 #
 SYSTEM_ADDR?=0x01000000
@@ -19,6 +25,7 @@ SYSTEM?=system
 SYSTEM_BIN=$(SYSTEM).bin
 
 SYSTEM_OBJS=start.o																\
+			anos.o																\
 			main.o
 
 ALL_TARGETS=$(SYSTEM_BIN)

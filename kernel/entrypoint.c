@@ -22,6 +22,7 @@
 #include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
+#include "syscalls.h"
 #include "vmm/vmmapper.h"
 
 #ifndef VERSTR
@@ -210,7 +211,7 @@ static inline void banner() {
     debugattr(0x07);
 }
 
-static inline void install_interrupts() { idt_install(0x18); }
+static inline void install_interrupts() { idt_install(0x08); }
 
 static inline void init_this_cpu(BIOS_SDTHeader *rsdt) {
     // Init local APIC on this CPU
@@ -236,8 +237,9 @@ static inline void init_kernel_gdt() {
 
     store_gdtr(&gdtr);
 
-    user_code = get_gdt_entry(&gdtr, 1);
-    user_data = get_gdt_entry(&gdtr, 2);
+    // Reverse ordered because SYSRET is fucking weird...
+    user_data = get_gdt_entry(&gdtr, 3);
+    user_code = get_gdt_entry(&gdtr, 4);
 
     init_gdt_entry(
             user_code, 0, 0,
@@ -294,10 +296,10 @@ noreturn void start_system(void) {
     // Switch to user mode
     __asm__ volatile(
             "mov %0, %%rsp\n\t" // Set stack pointer
-            "push $0x13\n\t"    // Push user data segment selector (GDT entry 2)
+            "push $0x1B\n\t"    // Push user data segment selector (GDT entry 3)
             "push %0\n\t"       // Push user stack pointer
             "pushf\n\t"         // Push EFLAGS
-            "push $0x0B\n\t"    // Push user code segment selector (GDT entry 1)
+            "push $0x23\n\t"    // Push user code segment selector (GDT entry 4)
             "push %1\n\t"       // Push user code entry point
             "iretq\n\t"         // "Return" to user mode
             :
@@ -317,6 +319,7 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     physical_region =
             page_alloc_init(memmap, PMM_PHYS_BASE, STATIC_PMM_VREGION);
     install_interrupts();
+    syscall_init();
 
     debugstr("We have ");
     printhex64(physical_region->size, debugchar);

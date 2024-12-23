@@ -5,6 +5,8 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
+#include <stdint.h>
+
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
 #define VERSTR #unknown
@@ -18,13 +20,14 @@ static const char *MSG = VERSION "\n";
 
 volatile int num;
 
-void kprint(const char *msg) {
-    __asm__ volatile("mov %0,%%rdi\n\t"
-                     "int $0x69\n\t"
-                     :
-                     : "r"(msg)
-                     : "memory");
-}
+int kprint_int(const char *msg);
+int kprint_syscall(const char *msg);
+
+#ifdef DEBUG_INT_SYSCALLS
+#define kprint kprint_int
+#else
+#define kprint kprint_syscall
+#endif
 
 int subroutine(int in) { return in * 2; }
 
