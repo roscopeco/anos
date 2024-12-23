@@ -16,8 +16,6 @@
 #include "vmm/vmmapper.h"
 
 void init_local_apic(BIOS_SDTHeader *madt) {
-    debugstr("Init local APICs...\n");
-
     uint32_t *lapic_addr = ((uint32_t *)(madt + 1));
     uint32_t *flags = lapic_addr + 1;
     debugstr("LAPIC address (phys : virt) = ");
