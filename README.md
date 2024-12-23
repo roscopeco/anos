@@ -206,5 +206,12 @@ pre-commit install
 This probably isn't up to date enough to represent where it's at, but
 it should be relatively recent.
 
-<img src="images/Screenshot 2024-12-20 at 22.43.32.png" alt="Hopefully-recent Screenshot">
+* Boot
+* Init LAPICs
+* Enumerate MADT for debugging
+* Enumerate PCI bus (including bridges)
+* Set everything up for usermode startup
+* Loop from usermode, printing periodic dots with syscall
+
+<img src="images/Screenshot 2024-12-23 at 16.32.23.png" alt="Hopefully-recent Screenshot">
 
