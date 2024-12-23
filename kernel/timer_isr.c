@@ -13,7 +13,7 @@
 // TODO Obviously doesn't belong here, just a hack for proof of life...
 #define VRAM_VIRTUAL_HEART 0xffffffff800b809e
 static bool heart_state = false;
-void handle_timer_interrupt() {
+void handle_timer_interrupt(void) {
     uint8_t *vram = (uint8_t *)VRAM_VIRTUAL_HEART;
 
     vram[0] = 0x03; // heart
