@@ -11,3 +11,4 @@ tests/build
 .vscode
 native_tests/pt
 system/system.bin
+**/.DS_Store
