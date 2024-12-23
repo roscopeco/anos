@@ -6,7 +6,8 @@
  */
 
 #include "interrupts.h"
-#include "kdrivers/local_apic.h" // TODO this should be used here...
+#include "kdrivers/local_apic.h" // TODO this shouldn't be used here...
+#include "syscalls.h"
 #include <stdint.h>
 
 // This is a bit messy, but it works and is "good enough" for now 😅
@@ -20,6 +21,7 @@
 extern void pic_irq_handler(void);
 extern void timer_interrupt_handler(void);
 extern void unknown_interrupt_handler(void);
+extern void syscall_69_handler(void);
 
 extern void pic_init(void);
 
@@ -62,8 +64,8 @@ void idt_install(uint16_t kernel_cs) {
     install_trap(31);
 
     // Entries 0x20 - 0x2F are the PIC handlers - when disabled, they should
-    // only ever be spurious...
-    for (int i = 0x20; i < 0x2F; i++) {
+    // only ever be spurious (except NMI I suppose)...
+    for (int i = 0x20; i < 0x30; i++) {
         idt_entry(idt + i, pic_irq_handler, kernel_cs, 0,
                   idt_attr(1, 0, IDT_TYPE_IRQ));
     }
@@ -79,6 +81,10 @@ void idt_install(uint16_t kernel_cs) {
     // Set up the handler for the LAPIC Timer vector...
     idt_entry(idt + LAPIC_TIMER_VECTOR, timer_interrupt_handler, kernel_cs, 0,
               idt_attr(1, 0, IDT_TYPE_IRQ));
+
+    // Set up the handler for the 0x69 syscall...
+    idt_entry(idt + SYSCALL_VECTOR, syscall_69_handler, kernel_cs, 0,
+              idt_attr(1, 3, IDT_TYPE_TRAP));
 
     // Setup the IDTR
     idt_r(&idtr, (uint64_t)idt, (uint16_t)sizeof(IdtEntry) * 256 - 1);

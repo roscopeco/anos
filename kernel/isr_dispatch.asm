@@ -8,7 +8,10 @@
 
 bits 64
 global pic_irq_handler, timer_interrupt_handler, unknown_interrupt_handler, spurious_irq_count
+global syscall_69_handler
+
 extern handle_exception_nc, handle_exception_wc, handle_timer_interrupt, handle_unknown_interrupt
+extern handle_syscall_69
 
 %macro pusha_sysv 0
   push  rax                               ; Save all C-clobbered registers
@@ -113,7 +116,19 @@ pic_irq_handler:
 timer_interrupt_handler:
   pusha_sysv
 
+  ; TODO stack alignment?
+
   call  handle_timer_interrupt            ; Just call directly to C handler
+
+  popa_sysv
+  iretq
+
+syscall_69_handler:
+  pusha_sysv
+
+  ; TODO stack alignment?
+
+  call  handle_syscall_69                 ; Just call directly to C handler
 
   popa_sysv
   iretq
@@ -121,6 +136,8 @@ timer_interrupt_handler:
 ; ISR dispatcher for Unknown (unhandled) IRQs
 unknown_interrupt_handler:
   pusha_sysv
+
+  ; TODO stack alignment?
 
   call  handle_unknown_interrupt          ; Just call directly to C handler
   
