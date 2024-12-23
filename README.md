@@ -1,20 +1,17 @@
 ## anos - An Operating System 💾
 
-> **Note**: This is not yet an operating system. It's not even a toy.
-> I may continue to grow it, or I may not. I'm really just doing
-> it to learn some things I skipped last time I played around with
-> OS dev.
+> **Note**: This is not yet an operating system. It's barely even a toy.
+> I may continue to grow it, or I may not. We'll see.
 
 A toy operating system I'm using as a vehicle for learning more about
-the low level, figuring out things I skipped last time (like long mode)
-and really getting to grips with things I just copy-pasted from other
-people (like paging).
+long mode and experimenting with some ideas for different ways to do 
+things.
 
-This time, I'm copy-pasting nothing. I'm trying to not even _look_ 
-at other people's code - as much as possible I'm just going from 
-official reference materials (like the Intel manuals).
+I'm _trying_ to not even _look_ at other people's code, or patchy and 
+outdated wikis etc - as much as possible I'm just going from official 
+reference materials (like the Intel manuals).
 
-  - Ross Bamford, August 2023
+  - Updated mission statement, December 2024
 
 ### High-level overview
 
@@ -47,9 +44,9 @@ However, since this is being designed as 64-bit from the beginning, there's
 a lot of things I can do that I wouldn't otherwise be able to.
 
 Right now, it's very early days. There's a simple stack-based physical
-memory allocator, a very simple (for testing only) page fault handler,
-and the beginnings of a virtual memory manager (currently, just able
-to map pages for the fault handler).
+memory allocator and enough support for everything (page fault handling,
+IDT, virtual memory management, etc) to be able to get to user mode
+and then back via a simple (`int`-only right now) syscall interface.
 
 The basics of interrupt handling is configured, with the local APIC 
 timer currently providing a "proof-of-life" heartbeat.
