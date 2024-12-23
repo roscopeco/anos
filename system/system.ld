@@ -1,5 +1,5 @@
 /*
- * ANOS kernel (STAGE3)
+ * ANOS system (usermode manager)
  * Link Script
  *
  * (c)2023 Ross Bamford & Contributors
@@ -10,8 +10,8 @@ OUTPUT_FORMAT("elf64-x86-64")
 ENTRY(_start)
 
 MEMORY {
-    CODE    : org = 0xFFFFFFFF80120000,  l = 0x000e0000     /* 896KiB for Stage 3 code */
-    DATA    : org = 0xFFFFFFFF80110000,  l = 0x00010000     /* 64KiB for bss, stack goes below this */
+    CODE    : org = 0x0000000001000000,  l = 0x0040000000     /* 1GiB for System code (just for testing) */
+    DATA    : org = 0x0000000080000000,  l = 0x4000000000     /* 256GiB for bss, stack goes below this */
 }
 
 SECTIONS
@@ -25,22 +25,8 @@ SECTIONS
     . = ALIGN(16);
     *(.rodata*)
     _code_end = .;
-    _data_start = .;
-    . = ALIGN(16);
-    *(.data*)
-    . = ALIGN(16);
-    _data_end = .;
   } > CODE
-
-  .system :
-  {
-    . = ALIGN(4096);
-    _system_bin_start = .;
-    *(.system_bin*)
-    . = ALIGN(4096);
-    _system_bin_end = .;
-  } > CODE
-
+  
   .bss (NOLOAD) :
   {
     _bss_start = .;
@@ -49,6 +35,15 @@ SECTIONS
     . = ALIGN(16);
     _bss_end = .;
   } > DATA AT > CODE
+
+  .data : 
+  {
+    _data_start = .;
+    . = ALIGN(16);
+    *(.data*)
+    . = ALIGN(16);
+    _data_end = .;
+  } > DATA
 
   _end = .;
 }
