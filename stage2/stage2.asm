@@ -280,7 +280,7 @@ GDT:
   dw 0                    ; Base (bits 0-15) - 0
   db 0                    ; Base (bits 16-23) - 0
   db 0b10011010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 1 = Executable, 0 = Nonconforming, 1 = Readable, 0 = Accessed
-  db 0b10101111           ; Flags + Limit: 1 = 4k granularity, 0 = 16-bit, 1 = Long mode, 0 = reserved (for our use)
+  db 0b10100000           ; Flags + Limit: 1 = 4k granularity, 0 = 16-bit, 1 = Long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
 
   ; segment 4 - 64-bit data
