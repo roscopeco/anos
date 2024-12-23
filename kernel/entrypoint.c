@@ -48,6 +48,9 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
+extern void *_system_bin_start;
+extern void *_system_bin_end;
+
 static char *MSG = VERSION "\n";
 
 #ifdef DEBUG_MEMMAP
@@ -254,6 +257,56 @@ static inline void init_kernel_gdt() {
 MemoryRegion *physical_region;
 BIOS_SDTHeader *acpi_root_table;
 
+noreturn void start_system(void) {
+    uint64_t system_start_virt = 0x1000000;
+    uint64_t system_start_phys =
+            (uint64_t)&_system_bin_start & ~(0xFFFFFFFF80000000);
+    uint64_t system_len_bytes =
+            (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
+    uint64_t system_len_pages = system_len_bytes >> 12;
+
+    uint64_t *pml4 = (uint64_t *)0xFFFFFFFF8009c000;
+    uint16_t flags = PRESENT | USER;
+
+    // Map pages for the user code
+    for (int i = 0; i < system_len_pages; i++) {
+        vmm_map_page(pml4, system_start_virt + (i << 12),
+                     system_start_phys + (i << 12), flags);
+    }
+
+    // TODO the way this is set up currently, there's no way to know how much
+    // BSS/Data we need... We'll just map a page for now...
+
+    // Set up a page for the user bss / data
+    uint64_t user_bss = 0x0000000080000000;
+    uint64_t user_bss_phys = page_alloc(physical_region);
+    vmm_map_page(pml4, user_bss, user_bss_phys, flags | WRITE);
+
+    // ... and a page below that for the user stack
+    uint64_t user_stack = user_bss - 0x1000;
+    uint64_t user_stack_phys = page_alloc(physical_region);
+    vmm_map_page(pml4, user_stack, user_stack_phys, flags | WRITE);
+
+    // TODO invalidate tlb?
+
+    debugstr("Starting user-mode supervisor...\n");
+
+    // Switch to user mode
+    __asm__ volatile(
+            "mov %0, %%rsp\n\t" // Set stack pointer
+            "push $0x13\n\t"    // Push user data segment selector (GDT entry 2)
+            "push %0\n\t"       // Push user stack pointer
+            "pushf\n\t"         // Push EFLAGS
+            "push $0x0B\n\t"    // Push user code segment selector (GDT entry 1)
+            "push %1\n\t"       // Push user code entry point
+            "iretq\n\t"         // "Return" to user mode
+            :
+            : "r"(user_stack + 0x1000), "r"((uint64_t)0x0000000001000000)
+            : "memory");
+
+    __builtin_unreachable();
+}
+
 noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     debugterm_init(VRAM_VIRT_BASE);
     banner();
@@ -320,47 +373,16 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     *bad = 0x0BADF00D;
 #endif
 
-#ifdef DEBUG_TEST_USER_MODE_SWITCH
-    debugstr("Going to infinite user-mode loop\n");
-
-    // Set up a page for the user code
-    uint64_t *pml4 = (uint64_t *)0xFFFFFFFF8009c000;
-    uint64_t user_phys_page = page_alloc(physical_region);
-    uint16_t flags = PRESENT | WRITE | USER;
-    vmm_map_page(pml4, 0x1000000, user_phys_page, flags);
-
-    // TODO invalidate tlb?
-
-    // Set up a page for the user stack
-    uint64_t user_stack = 0x1001000;
-    uint64_t user_stack_phys = page_alloc(physical_region);
-    vmm_map_page(pml4, user_stack, user_stack_phys, flags);
-
-    // Set up a small function in user memory. Some say that it loops forever...
-    uint8_t *user_func = (uint8_t *)0x1000000;
-
-#ifdef DEBUG_TEST_USER_MODE_PRIVILEGED_INSTRUCTION_FAULT
-    user_func[0] = 0xFA; // CLI (should result in a GPF)
-#else
-    user_func[0] = 0xEB; // JMP instruction
-    user_func[1] = 0xFE; // ... to the same instruction
-#endif
-    // Switch to user mode
-    __asm__ volatile(
-            "mov %0, %%rsp\n\t" // Set stack pointer
-            "push $0x13\n\t"    // Push user data segment selector (GDT entry 2)
-            "push %0\n\t"       // Push user stack pointer
-            "pushf\n\t"         // Push EFLAGS
-            "push $0x0B\n\t"    // Push user code segment selector (GDT entry 1)
-            "push %1\n\t"       // Push user code entry point
-            "iretq\n\t"         // "Return" to user mode
-            :
-            : "r"(user_stack + 0x1000), "r"(user_func)
-            : "memory");
-#endif
-
     pci_enumerate();
-    debugstr("All is well! Halting for now.\n");
+
+#ifdef DEBUG_NO_START_SYSTEM
+    debugstr("All is well, DEBUG_NO_START_SYSTEM was specified, so halting for "
+             "now.\n");
+#else
+    start_system();
+    debugstr("Somehow ended up back in entrypoint, that's probably not good - "
+             "halting.  ..\n");
+#endif
 
     while (true) {
         __asm__ volatile("hlt\n\t");
