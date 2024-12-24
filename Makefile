@@ -34,10 +34,9 @@ endif
 #
 # These ones enable some specific feature tests
 #
-#	DEBUG_FORCE_HANDLED_PAGE_FAULT
-#	DEBUG_FORCE_UNHANDLED_PAGE_FAULT
-#	DEBUG_TEST_USER_MODE_SWITCH
-#		DEBUG_TEST_USER_MODE_PRIVILEGED_INSTRUCTION_FAULT
+#	DEBUG_FORCE_HANDLED_PAGE_FAULT		Force a handled page-fault at boot
+#	DEBUG_FORCE_UNHANDLED_PAGE_FAULT	Force an unhandled page-fault at boot
+#	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #
 # Additionally:
 #
@@ -50,12 +49,15 @@ SHORT_HASH?=`git rev-parse --short HEAD`
 STAGE1?=stage1
 STAGE2?=stage2
 STAGE3?=kernel
+SYSTEM?=system
 STAGE1_DIR?=$(STAGE1)
 STAGE2_DIR?=$(STAGE2)
 STAGE3_DIR?=$(STAGE3)
+SYSTEM_DIR?=$(SYSTEM)
 STAGE1_BIN=$(STAGE1).bin
 STAGE2_BIN=$(STAGE2).bin
 STAGE3_BIN=$(STAGE3).bin
+SYSTEM_BIN=$(SYSTEM).bin
 
 STAGE3_INC=$(STAGE3)/include
 
@@ -110,7 +112,10 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/kdrivers/local_apic.o									\
 			$(STAGE3_DIR)/pci/bus.o												\
 			$(STAGE3_DIR)/pci/enumerate.o										\
-			$(STAGE3_DIR)/spinlock.o
+			$(STAGE3_DIR)/spinlock.o											\
+			$(STAGE3_DIR)/init_syscalls.o										\
+			$(STAGE3_DIR)/syscalls.o											\
+			$(SYSTEM)_linkable.o
 			
 ALL_TARGETS=floppy.img
 
@@ -125,6 +130,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
+				$(SYSTEM)_linkable.o											\
 		   		$(FLOPPY_IMG)
 
 .PHONY: all build clean qemu bochs test
@@ -135,6 +141,7 @@ build: $(ALL_TARGETS)
 
 clean:
 	rm -rf $(CLEAN_ARTIFACTS)
+	$(MAKE) -C system clean
 
 include tests/include.mk
 
@@ -174,6 +181,13 @@ $(STAGE2_DIR)/$(STAGE2_BIN): $(STAGE2_DIR)/$(STAGE2).elf $(STAGE2_DIR)/$(STAGE2)
 	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
 
+# ############# System  ##############
+$(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile
+	$(MAKE) -C $(SYSTEM_DIR)
+
+$(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
+	$(XOBJCOPY) -I binary --rename-section .data=.system_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+
 # ############# Stage 3 ##############
 $(STAGE3_DIR)/$(STAGE3).elf: $(STAGE3_OBJS)
 	$(XLD) -T $(STAGE3_DIR)/$(STAGE3).ld -o $@ $^
@@ -193,7 +207,7 @@ $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
 
-QEMU_OPTS=-smp cpus=2 -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
+QEMU_OPTS=-smp cpus=2 -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -monitor stdio
 QEMU_DEBUG_OPTS=$(QEMU_OPTS) -gdb tcp::9666 -S
 
 qemu: $(FLOPPY_IMG)

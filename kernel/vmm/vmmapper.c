@@ -51,6 +51,10 @@ static inline uint64_t *ensure_table_entry(uint64_t *table, uint16_t index,
             page_v[i] = 0;
         }
         table[index] = page | flags;
+    } else {
+        // Table already mapped, but flags might not be correct, so let's merge
+        // TODO I'm not certain this is a good idea but it'll work for now...
+        table[index] = entry | flags;
     }
 
     return ENTRY_TO_V(table[index]);

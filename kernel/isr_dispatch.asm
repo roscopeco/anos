@@ -7,12 +7,15 @@
 ;
 
 bits 64
-global pic_irq_handler, timer_interrupt_handler, unknown_interrupt_handler, spurious_irq_count
-extern handle_exception_nc, handle_exception_wc, handle_timer_interrupt, handle_unknown_interrupt
 
-%macro pusha_sysv 0
-  push  rax                               ; Save all C-clobbered registers
-  push  rcx
+global pic_irq_handler, timer_interrupt_handler, unknown_interrupt_handler, spurious_irq_count
+global syscall_69_handler
+
+extern handle_exception_nc, handle_exception_wc, handle_timer_interrupt, handle_unknown_interrupt
+extern handle_syscall_69
+
+%macro pusha_sysv_not_rax 0
+  push  rcx                               ; Save all C-clobbered registers, except rax for returns
   push  rdx
   push  rsi
   push  rdi
@@ -22,8 +25,13 @@ extern handle_exception_nc, handle_exception_wc, handle_timer_interrupt, handle_
   push  r11  
 %endmacro
 
-%macro popa_sysv 0
-  pop   r11                               ; Restore registers...
+%macro pusha_sysv 0
+  push  rax                               ; Save all C-clobbered registers
+  pusha_sysv_not_rax
+%endmacro
+
+%macro popa_sysv_not_rax 0
+  pop   r11                               ; Restore registers except rax for returns...
   pop   r10
   pop   r9
   pop   r8
@@ -31,6 +39,10 @@ extern handle_exception_nc, handle_exception_wc, handle_timer_interrupt, handle_
   pop   rsi
   pop   rdx
   pop   rcx
+%endmacro
+
+%macro popa_sysv 0
+  popa_sysv_not_rax                       ; Restore registers...
   pop   rax
 %endmacro
 
@@ -113,14 +125,29 @@ pic_irq_handler:
 timer_interrupt_handler:
   pusha_sysv
 
+  ; TODO stack alignment?
+
   call  handle_timer_interrupt            ; Just call directly to C handler
 
   popa_sysv
   iretq
 
+syscall_69_handler:
+  pusha_sysv_not_rax
+  add   rsp,$8
+
+  mov   rcx,r10
+  call  handle_syscall_69                 ; Just call directly to C handler
+
+  sub   rsp,$8
+  popa_sysv_not_rax
+  iretq
+
 ; ISR dispatcher for Unknown (unhandled) IRQs
 unknown_interrupt_handler:
   pusha_sysv
+
+  ; TODO stack alignment?
 
   call  handle_unknown_interrupt          ; Just call directly to C handler
   

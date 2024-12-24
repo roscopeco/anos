@@ -85,7 +85,7 @@ _start:
   mov   cr0,eax                           ; And put back into cr0
   
 .enter_unreal:
-  mov   bx,0x10                           ; Loading segment 2 (32-bit data)...
+  mov   bx,0x20                           ; Loading segment 4 (32-bit data)...
   mov   ds,bx                             ; ... into DS
   mov   es,bx
   
@@ -116,7 +116,7 @@ _start:
   or    al,1                              ; Set PR bit (enable protected mode)
   mov   cr0,eax                           ; And put back into cr0
 
-  jmp   0x08:main32                       ; Far jump to main32, use GDT selector at offset 0x08.
+  jmp   0x18:main32                       ; Far jump to main32, use GDT selector at offset 0x18 (32-bit code).
 
 .too_bad:
   call  too_old
@@ -133,7 +133,7 @@ bits 32
 
 ; Entry point into protected mode proper, for setting up long mode
 main32:
-  mov   ax,0x10                           ; Set ax to 0x10 - offset of segment 2, the 32-bit data segment...
+  mov   ax,0x20                           ; Set ax to 0x20 - offset of segment 4, the 32-bit data segment...
   mov   ds,ax                             ; and set DS to that..
   mov   es,ax                             ; and ES too...
   mov   ss,ax                             ; as well as SS.
@@ -163,7 +163,7 @@ go_long:
   or    eax,0x80000000                    ; (we're already in protected mode)
   mov   cr0,eax
 
-  jmp   0x18:main64                       ; Go go go
+  jmp   0x08:main64                       ; Go go go
 
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -171,7 +171,7 @@ go_long:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 bits 64
 main64:
-  mov   ax,0x20                           ; Set ax to 0x20 - offset of segment 4, the 64-bit data segment...
+  mov   ax,0x10                           ; Set ax to 0x10 - offset of segment 2, the 64-bit data segment...
   mov   ds,ax                             ; and set DS to that..
   mov   es,ax                             ; and ES too...
   mov   fs,ax                             ; and FS too...
@@ -259,36 +259,36 @@ GDT:
   ; segment 0 - null
   dq 0
 
-  ; segment 1 - 32-bit code
-  dw 0xFFFF               ; Limit 4GB
-  dw 0                    ; Base (bits 0-15) - 0
-  db 0                    ; Base (bits 16-23) - 0
-  db 0b10011010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 1 = Executable, 0 = Nonconforming, 1 = Readable, 0 = Accessed
-  db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
-  db 0                    ; Base (bits 23-31) - 0
-
-  ; segment 2 - 32-bit data
-  dw 0xFFFF               ; Limit 4GB
-  dw 0                    ; Base (bits 0-15) - 0
-  db 0                    ; Base (bits 16-23) - 0
-  db 0b10010010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 0 = Non-Executable, 0 = Grows up, 1 = Writeable, 0 = Accessed
-  db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
-  db 0                    ; Base (bits 23-31) - 0
-
-  ; segment 3 - 64-bit code
+  ; segment 1 - 64-bit code
   dw 0                    ; limit ignored for long mode
   dw 0                    ; Base (bits 0-15) - 0
   db 0                    ; Base (bits 16-23) - 0
   db 0b10011010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 1 = Executable, 0 = Nonconforming, 1 = Readable, 0 = Accessed
-  db 0b10101111           ; Flags + Limit: 1 = 4k granularity, 0 = 16-bit, 1 = Long mode, 0 = reserved (for our use)
+  db 0b10100000           ; Flags + Limit: 1 = 4k granularity, 0 = 16-bit, 1 = Long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
 
-  ; segment 4 - 64-bit data
+  ; segment 2 - 64-bit data
   dw 0                    ; limit (ignored in 64-bit mode)
   dw 0                    ; Base (bits 0-15) - 0
   db 0                    ; Base (bits 16-23) - 0
   db 0b10010010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 0 = Non-Executable, 0 = Grows up, 1 = Writeable, 0 = Accessed
   db 0b00100000           ; Flags + Limit: 0 = 1-byte granularity, 0 = 16-bit, 1 = Long mode, 0 = reserved (for our use)
+  db 0                    ; Base (bits 23-31) - 0
+
+  ; segment 3 - 32-bit code
+  dw 0xFFFF               ; Limit 4GB
+  dw 0                    ; Base (bits 0-15) - 0
+  db 0                    ; Base (bits 16-23) - 0
+  db 0b10011010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 1 = Executable, 0 = Nonconforming, 1 = Readable, 0 = Accessed
+  db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
+  db 0                    ; Base (bits 23-31) - 0
+
+  ; segment 4 - 32-bit data
+  dw 0xFFFF               ; Limit 4GB
+  dw 0                    ; Base (bits 0-15) - 0
+  db 0                    ; Base (bits 16-23) - 0
+  db 0b10010010           ; Access: 1 = Present, 00 = Ring 0, 1 = Type (non-system), 0 = Non-Executable, 0 = Grows up, 1 = Writeable, 0 = Accessed
+  db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
 
   ; segment 5 - TSS - Base is calculated in code...
