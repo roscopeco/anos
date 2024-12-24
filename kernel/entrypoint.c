@@ -352,6 +352,7 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     debug_madt(acpi_root_table);
     init_this_cpu(acpi_root_table);
     init_kernel_drivers(acpi_root_table);
+    pci_enumerate();
 
 #ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT
     debugstr("\nForcing a (handled) page fault with write to "
@@ -376,7 +377,11 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     *bad = 0x0BADF00D;
 #endif
 
-    pci_enumerate();
+#ifdef DEBUG_TEST_TASKS
+    void debug_test_tasks(void);
+    debugstr("Running endless task test...\n");
+    debug_test_tasks(); // this won't return...
+#endif
 
 #ifdef DEBUG_NO_START_SYSTEM
     debugstr("All is well, DEBUG_NO_START_SYSTEM was specified, so halting for "

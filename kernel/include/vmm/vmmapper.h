@@ -64,8 +64,7 @@
 /*
  * Map the given page-aligned physical address into virtual memory.
  *
- * This always maps under the static PML4 at the address given above.
- * It will create PDPT/PD/PT entries and associated tables as needed,
+ * This will create PDPT/PD/PT entries and associated tables as needed,
  * which means it needs to allocate physical pages - it uses the PMM
  * (obviously) and thus it **can** pagefault.
  */
