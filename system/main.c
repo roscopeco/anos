@@ -20,8 +20,10 @@ static const char *MSG = VERSION "\n";
 
 volatile int num;
 
-int testcall_int(void);
-int testcall_syscall(void);
+int testcall_int(uint64_t arg0, uint64_t arg1, uint64_t arg2, uint64_t arg3,
+                 uint64_t arg4);
+int testcall_syscall(uint64_t arg0, uint64_t arg1, uint64_t arg2, uint64_t arg3,
+                     uint64_t arg4);
 
 int kprint_int(const char *msg);
 int kprint_syscall(const char *msg);
@@ -45,13 +47,13 @@ int main(int argc, char **argv) {
 
     uint64_t ret;
 
-    if ((ret = testcall_int()) == 42) {
+    if ((ret = testcall_int(1, 2, 3, 4, 5)) == 42) {
         kprint("GOOD\n");
     } else {
         kprint("BAD\n");
     }
 
-    if ((ret = testcall_syscall()) == 42) {
+    if ((ret = testcall_syscall(1, 2, 3, 4, 5)) == 42) {
         kprint("GOOD\n");
     } else {
         kprint("BAD\n");

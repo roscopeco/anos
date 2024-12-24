@@ -21,12 +21,8 @@ global testcall_int, testcall_syscall, kprint_int, kprint_syscall
 ;   rcx - trashed
 ;
 testcall_int:
-    xor rax,rax
-    mov rdi, $1
-    mov rsi, $2
-    mov rdx, $3
-    mov r10, $4
-    mov r8, $5
+    xor r9, r9              ; Zero syscall number in r9
+    mov r10, rcx            ; Fourth arg in SysV is rcx, but r10 in syscalls
     int 0x69
     ret
 
@@ -45,12 +41,8 @@ testcall_int:
 ;   rcx - trashed
 ;   
 testcall_syscall:
-    xor rax,rax
-    mov rdi, $1
-    mov rsi, $2
-    mov rdx, $3
-    mov r10, $4
-    mov r8, $5
+    xor r9, r9              ; Zero syscall number in r9
+    mov r10, rcx            ; Fourth arg in SysV is rcx, but r10 in syscalls
     syscall
     ret
 
@@ -64,7 +56,7 @@ testcall_syscall:
 ;   rcx - trashed
 ;   
 kprint_syscall:
-    mov rax,$1
+    mov r9,$1
     syscall
     ret
 
@@ -76,7 +68,7 @@ kprint_syscall:
 ;   rax - result
 ;   
 kprint_int:
-    mov rax, $1
+    mov r9, $1
     int 0x69
     ret
 
