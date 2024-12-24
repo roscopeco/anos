@@ -20,6 +20,9 @@ static const char *MSG = VERSION "\n";
 
 volatile int num;
 
+int testcall_int(void);
+int testcall_syscall(void);
+
 int kprint_int(const char *msg);
 int kprint_syscall(const char *msg);
 
@@ -39,6 +42,20 @@ static inline void banner() {
 
 int main(int argc, char **argv) {
     banner();
+
+    uint64_t ret;
+
+    if ((ret = testcall_int()) == 42) {
+        kprint("GOOD\n");
+    } else {
+        kprint("BAD\n");
+    }
+
+    if ((ret = testcall_syscall()) == 42) {
+        kprint("GOOD\n");
+    } else {
+        kprint("BAD\n");
+    }
 
     num = 1;
     int count = 0;

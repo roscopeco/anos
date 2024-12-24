@@ -8,11 +8,17 @@
 #ifndef __ANOS_KERNEL_SYSCALLS_H
 #define __ANOS_KERNEL_SYSCALLS_H
 
+#include <stdint.h>
+
 // This is the vector for slow syscalls (via `int`)
 #define SYSCALL_VECTOR 0x69
 
-#define SYSCALL_OK 0x00
-#define SYSCALL_BAD_NUMBER 0x01
+typedef int64_t SyscallArg;
+
+typedef enum {
+    SYSCALL_OK = 0,
+    SYSCALL_BAD_NUMBER = -1,
+} SyscallResult;
 
 // Set things up for fast syscalls (via `sysenter`)
 void syscall_init(void);

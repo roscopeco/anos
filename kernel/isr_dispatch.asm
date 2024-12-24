@@ -136,8 +136,8 @@ syscall_69_handler:
   pusha_sysv_not_rax
   add   rsp,$8
 
-  ; TODO stack alignment?
   mov   r9,rax
+  mov   rcx,r10
   call  handle_syscall_69                 ; Just call directly to C handler
 
   sub   rsp,$8

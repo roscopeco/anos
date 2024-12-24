@@ -86,6 +86,7 @@ syscall_enter:
     push r14
     push r15
     
+    mov rcx, r10    ; 4th arg from r10
     mov r9, rax     ; Syscall num as 6th arg (r9)
 
     call handle_syscall_69
