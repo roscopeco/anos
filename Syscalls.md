@@ -11,29 +11,6 @@ These are functionally equivalent, but the former is faster and so should
 be preferred by user code wherever possible (which _should_ be basically
 everywhere =])
 
-#### Syscall Argument Passing
-
-### Kernel Interface Spec
-
-#### Dispatch
-
-Syscalls are dispatched in two places, one for `syscall` instructions
-(`syscall_enter` in `kernel/init_syscalls.asm`) and the other for
-`int 0x69` software interrupts (`syscall_69_handler` in `kernel/isr_dispatch.asm`).
-Both of these dispatch to the increasingly-inaptly-named `handle_syscall_69` 
-in `kernel/syscalls.c`, with the dispatchers responsible for smoothing
-out differences between the `syscall` and interrupt interfaces and
-presenting a standard call sequence to the handler itself:
-
-```C
-SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
-                                SyscallArg arg2, SyscallArg arg3,
-                                SyscallArg arg4, SyscallArg syscall_num);
-```
-
-where `SyscallArg` and `SyscallResult` are both 64-bit integer types (nominally 
-signed, but actual intepretation is up to the individual syscall).
-
 #### Calling Convention
 
 Both `syscall` and `int` interfaces have the same calling convention:
@@ -72,7 +49,29 @@ testcall:
 
 for the `int 0x69` one. 
 
-If this was called from C with the prototype:
+### Kernel Interface Spec
+
+#### Dispatch
+
+Syscalls are dispatched in two places, one for `syscall` instructions
+(`syscall_enter` in `kernel/init_syscalls.asm`) and the other for
+`int 0x69` software interrupts (`syscall_69_handler` in `kernel/isr_dispatch.asm`).
+Both of these dispatch to the increasingly-inaptly-named `handle_syscall_69` 
+in `kernel/syscalls.c`, with the dispatchers responsible for smoothing
+out differences between the `syscall` and interrupt interfaces and
+presenting a standard call sequence to the handler itself:
+
+```C
+SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
+                                SyscallArg arg2, SyscallArg arg3,
+                                SyscallArg arg4, SyscallArg syscall_num);
+```
+
+where `SyscallArg` and `SyscallResult` are both 64-bit integer types (nominally 
+signed, but actual intepretation is up to the individual syscall).
+
+Using the examples in the `Syscall Argument Passing` section, above, if called 
+from C with the prototype:
 
 ```C
 int64_t testcall(int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3, int64_t arg4);
