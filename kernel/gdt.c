@@ -1,3 +1,10 @@
+/*
+ * stage3 - GDT manipulation
+ * anos - An Operating System
+ *
+ * Copyright (c) 2024 Ross Bamford
+ */
+
 #include <stdint.h>
 
 #include "gdt.h"
