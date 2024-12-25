@@ -3,6 +3,9 @@
  * anos - An Operating System
  *
  * Copyright (c) 2024 Ross Bamford
+ *
+ * These tests are unfortunately quite brittle, since they
+ * do a lot of implementation testing...
  */
 
 #include <stdint.h>
@@ -21,6 +24,8 @@
 // now"...
 uintptr_t test_fba_check_begin();
 uintptr_t test_fba_check_size();
+uint64_t *test_fba_bitmap();
+uint64_t *test_fba_bitmap_end();
 
 static void *test_setup(const MunitParameter params[], void *user_data) {
     void *page_area_ptr;
@@ -114,6 +119,16 @@ static MunitResult test_fba_init_32768_ok(const MunitParameter params[],
     munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
+    // Bitmap and bitmap end are set correctly
+    munit_assert_ptr_equal(test_fba_bitmap(), (uint64_t *)test_page_area);
+    munit_assert_ptr_equal(test_fba_bitmap_end(),
+                           (uint64_t *)test_page_area +
+                                   0x200 /* 512 longs in a page... */);
+
+    // Page contains expected bitmap, with first block allocated for bitmap
+    // itself
+    munit_assert_uint64(*((uint64_t *)test_page_area), ==, 0x0000000000000001);
+
     return MUNIT_OK;
 }
 
@@ -142,20 +157,129 @@ static MunitResult test_fba_init_65536_ok(const MunitParameter params[],
     munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
+    // Bitmap and bitmap end are set correctly
+    munit_assert_ptr_equal(test_fba_bitmap(), (uint64_t *)test_page_area);
+    munit_assert_ptr_equal(test_fba_bitmap_end(),
+                           (uint64_t *)test_page_area +
+                                   0x400 /* 1024 longs in 2 pages... */);
+
+    // Page contains expected bitmap, with first two blocks allocated for bitmap
+    // itself
+    munit_assert_uint64(*((uint64_t *)test_page_area), ==, 0x0000000000000003);
+
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_fba_alloc_block_nospace_zero(const MunitParameter params[],
+                                  void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 0);
+
+    munit_assert_true(result);
+
+    munit_assert_ptr_null(fba_alloc_block());
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_fba_alloc_block_one(const MunitParameter params[],
+                                            void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+
+    munit_assert_true(result);
+
+    munit_assert_ptr_equal(fba_alloc_block(),
+                           (uint64_t *)((uint64_t)test_page_area + 0x1000));
+
+    // Two pages allocated (one for bitmap, one for the block itself)
+    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 2);
+    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 2);
+
+    // Last page was mapped into the correct place (second page in the area)...
+    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+                        TEST_PMM_NOALLOC_START_ADDRESS + 0x1000);
+    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+                        ((uint64_t)test_page_area) + 0x1000);
+    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+                        WRITE | PRESENT);
+    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+                        (uint64_t)TEST_PML4_ADDR);
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_fba_alloc_block_two(const MunitParameter params[],
+                                            void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+
+    munit_assert_true(result);
+
+    // Can allocate two pages sequentially
+    munit_assert_ptr_equal(fba_alloc_block(),
+                           (uint64_t *)((uint64_t)test_page_area + 0x1000));
+    munit_assert_ptr_equal(fba_alloc_block(),
+                           (uint64_t *)((uint64_t)test_page_area + 0x2000));
+
+    // Three pages allocated (one for bitmap, two for the blocks themselves)
+    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 3);
+    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 3);
+
+    // Last page was mapped into the correct place (third page in the area)...
+    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+                        TEST_PMM_NOALLOC_START_ADDRESS + 0x2000);
+    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+                        ((uint64_t)test_page_area) + 0x2000);
+    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+                        WRITE | PRESENT);
+    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+                        (uint64_t)TEST_PML4_ADDR);
+
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_fba_alloc_block_exhaustion(const MunitParameter params[],
+                                void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+
+    munit_assert_true(result);
+
+    // We can allocate 32767 blocks...
+    for (int i = 0; i < 32767; i++) {
+        munit_assert_ptr_equal(
+                fba_alloc_block(),
+                (uint64_t *)((uint64_t)test_page_area +
+                             /*bitmap page = */ 0x1000 +
+                             (/*already allocated pages =*/i * 0x1000)));
+    }
+
+    // but 32768 is a bridge too far...
+    munit_assert_ptr_null(fba_alloc_block());
+
     return MUNIT_OK;
 }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/init_zero", test_fba_init_zero, NULL, NULL,
+        {(char *)"/init/zero", test_fba_init_zero, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/init_unaligned_begin", test_fba_init_unaligned_begin, NULL,
+        {(char *)"/init/unaligned_begin", test_fba_init_unaligned_begin, NULL,
          NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/init_size_not_multiple", test_fba_init_size_not_multiple,
+        {(char *)"/init/size_not_multiple", test_fba_init_size_not_multiple,
          NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/init_32768_ok", test_fba_init_32768_ok, test_setup,
+        {(char *)"/init/32768_ok", test_fba_init_32768_ok, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/init_65536_ok", test_fba_init_65536_ok, test_setup,
+        {(char *)"/init/65536_ok", test_fba_init_65536_ok, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+
+        {(char *)"/alloc/block_nospace_zero", test_fba_alloc_block_nospace_zero,
+         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/block_one", test_fba_alloc_block_one, test_setup,
+         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/block_two", test_fba_alloc_block_two, test_setup,
+         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/block_exhaustion", test_fba_alloc_block_exhaustion,
+         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
