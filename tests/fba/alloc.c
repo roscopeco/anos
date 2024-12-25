@@ -240,8 +240,9 @@ static MunitResult test_fba_alloc_block_two(const MunitParameter params[],
 static MunitResult
 test_fba_alloc_block_exhaustion(const MunitParameter params[],
                                 void *test_page_area) {
-    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
 
+    // Given we have 32768 total blocks (of which 1 will be used for the bitmap)
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
     munit_assert_true(result);
 
     // We can allocate 32767 blocks...
@@ -255,6 +256,102 @@ test_fba_alloc_block_exhaustion(const MunitParameter params[],
 
     // but 32768 is a bridge too far...
     munit_assert_ptr_null(fba_alloc_block());
+
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_fba_alloc_blocks_nospace_zero(const MunitParameter params[],
+                                   void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 0);
+
+    munit_assert_true(result);
+
+    munit_assert_ptr_null(fba_alloc_blocks(1));
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_fba_alloc_blocks_one(const MunitParameter params[],
+                                             void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+
+    munit_assert_true(result);
+
+    munit_assert_ptr_equal(fba_alloc_blocks(1),
+                           (uint64_t *)((uint64_t)test_page_area + 0x1000));
+
+    // Two pages allocated (one for bitmap, one for the block itself)
+    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 2);
+    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 2);
+
+    // Last page was mapped into the correct place (second page in the area)...
+    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+                        TEST_PMM_NOALLOC_START_ADDRESS + 0x1000);
+    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+                        ((uint64_t)test_page_area) + 0x1000);
+    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+                        WRITE | PRESENT);
+    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+                        (uint64_t)TEST_PML4_ADDR);
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_fba_alloc_blocks_two(const MunitParameter params[],
+                                             void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+
+    munit_assert_true(result);
+
+    // Can allocate two pages sequentially
+    munit_assert_ptr_equal(fba_alloc_blocks(2),
+                           (uint64_t *)((uint64_t)test_page_area + 0x1000));
+
+    // Three pages allocated (one for bitmap, two for the blocks themselves)
+    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 3);
+    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 3);
+
+    // Last page was mapped into the correct place (third page in the area)...
+    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+                        TEST_PMM_NOALLOC_START_ADDRESS + 0x2000);
+    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+                        ((uint64_t)test_page_area) + 0x2000);
+    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+                        WRITE | PRESENT);
+    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+                        (uint64_t)TEST_PML4_ADDR);
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_fba_alloc_blocks_max(const MunitParameter params[],
+                                             void *test_page_area) {
+
+    // Given we have 32768 total blocks (of which 1 will be used for the bitmap)
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+    munit_assert_true(result);
+
+    // Can allocate 32768 pages sequentially
+    munit_assert_ptr_equal(fba_alloc_blocks(32767),
+                           (uint64_t *)((uint64_t)test_page_area + 0x1000));
+
+    // 32768 pages allocated (1 for bitmap, 32767 for the blocks themselves)
+    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 32768);
+    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 32768);
+
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_fba_alloc_blocks_exhaustion(const MunitParameter params[],
+                                 void *test_page_area) {
+
+    // Given we have 32768 total blocks (of which 1 will be used for the bitmap)
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+    munit_assert_true(result);
+
+    munit_assert_ptr_null(fba_alloc_blocks(32768));
 
     return MUNIT_OK;
 }
@@ -278,6 +375,18 @@ static MunitTest test_suite_tests[] = {
         {(char *)"/alloc/block_two", test_fba_alloc_block_two, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/alloc/block_exhaustion", test_fba_alloc_block_exhaustion,
+         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+
+        {(char *)"/alloc/blocks_nospace_zero",
+         test_fba_alloc_blocks_nospace_zero, test_setup, test_teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/blocks_one", test_fba_alloc_blocks_one, test_setup,
+         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/blocks_two", test_fba_alloc_blocks_two, test_setup,
+         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/blocks_max", test_fba_alloc_blocks_max, test_setup,
+         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/blocks_exhaustion", test_fba_alloc_blocks_exhaustion,
          test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
