@@ -263,7 +263,7 @@ test_pci_address_reg_out_of_bounds_buses(const MunitParameter params[],
     result = pci_address_reg(-1, 0, 0, 0);
     munit_assert_uint32(PCI_ADDR_BUS(result), !=, -1);
 
-    result = pci_address_reg(256, 0, 0, 0);
+    result = pci_address_reg((uint8_t)256, 0, 0, 0);
     munit_assert_uint32(PCI_ADDR_BUS(result), !=, 256);
 
     return MUNIT_OK;
