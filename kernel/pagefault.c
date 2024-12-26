@@ -42,6 +42,8 @@ extern MemoryRegion *physical_region;
 
 static inline void debug_page_fault(uint64_t code, uintptr_t fault_addr,
                                     uintptr_t origin_addr) {
+
+#ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT
     if (fault_addr > 0xFFFFFFFF80400000 && fault_addr < 0xFFFFFFFF81000000) {
         C_DEBUGATTR(0x0E);
         C_DEBUGSTR("## Page fault in kernel vmspace; Will alloc & map a "
@@ -62,6 +64,7 @@ static inline void debug_page_fault(uint64_t code, uintptr_t fault_addr,
 
         return;
     }
+#endif
 
     debugattr(0x4C);
     debugstr("PANIC");
