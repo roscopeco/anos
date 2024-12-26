@@ -356,6 +356,24 @@ test_fba_alloc_blocks_exhaustion(const MunitParameter params[],
     return MUNIT_OK;
 }
 
+static MunitResult test_fba_free_block_one(const MunitParameter params[],
+                                           void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+
+    munit_assert_true(result);
+
+    void *alloc = fba_alloc_block();
+
+    munit_assert_ptr_equal(alloc,
+                           (uint64_t *)((uint64_t)test_page_area + 0x1000));
+
+    // Two pages allocated (one for bitmap, one for the block itself)
+    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 2);
+    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 2);
+
+    return MUNIT_OK;
+}
+
 static MunitTest test_suite_tests[] = {
         {(char *)"/init/zero", test_fba_init_zero, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},

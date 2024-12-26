@@ -9,6 +9,7 @@
 #define __ANOS_KERNEL_VM_MAPPER_H
 
 #include "vmm/vmconfig.h"
+#include <stdbool.h>
 #include <stdint.h>
 
 /*
@@ -67,8 +68,10 @@
  * This will create PDPT/PD/PT entries and associated tables as needed,
  * which means it needs to allocate physical pages - it uses the PMM
  * (obviously) and thus it **can** pagefault.
+ *
+ * This function invalidates the TLB automatically.
  */
-void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
+bool vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
                   uint16_t flags);
 
 /*
@@ -77,11 +80,27 @@ void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
  * Simple wrapper around `map_page` - see documentation for that function
  * for specifics.
  */
-void vmm_map_page_containing(uint64_t *pml4, uintptr_t virt_addr,
+bool vmm_map_page_containing(uint64_t *pml4, uintptr_t virt_addr,
                              uint64_t phys_addr, uint16_t flags);
 
 /*
+ * Unmap the given virtual page.
+ *
+ * This is a "hard" unmap - it will zero out the PTE (rather than, say,
+ * setting the page not present) and invalidate the TLB automatically.
+ *
+ * This function does **not** free any physical memory or otherwise
+ * compact the page tables, as doing this on every unmap would be
+ * expensive and unnecessary.
+ *
+ * Returns the physical address that was previously mapped, or
+ * 0 for none.
+ */
+uintptr_t vmm_unmap_page(uint64_t *pml4, uintptr_t virt_addr);
+
+/*
  * Invalidate the TLB for the page containing the given virtual address.
+ *
  * The mapping functions will do this automatically, so it shouldn't be
  * needed most of the time.
  */

@@ -368,11 +368,30 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
 #endif
 
 #ifdef DEBUG_FORCE_UNHANDLED_PAGE_FAULT
-    // Force another page fault, to a non-handled address. Should have the WRITE
-    // bit set in the error code...
-    debugstr("Forcing another, this time unhandled, with write to 0x1200000\n");
-    bad = (uint32_t *)0x1200000;
-    *bad = 0x0BADF00D;
+    // Map a page, write to it, read it back, then unmap and attempt to read
+    // again. Should force an unhandled page fault.
+    debugstr("Forcing unhandled page fault and testing vmm_map / vmm_unmap at "
+             "the same time...\n");
+    volatile uint64_t *volatile ptr = (uint64_t *)0x400000000;
+    uint64_t tpage = page_alloc(physical_region);
+    vmm_map_page(STATIC_PML4, 0x400000000, tpage, WRITE | PRESENT);
+
+    *ptr = 0x12345678;
+
+    debugstr("Mapped & set: now ");
+    printhex64(*ptr, debugchar);
+    debugstr("\n");
+
+    uintptr_t old = vmm_unmap_page(STATIC_PML4, 0x400000000);
+    debugstr("Unmapped - phys was ");
+    printhex64(old, debugchar);
+    debugstr("; should equal ");
+    printhex64(tpage, debugchar);
+    debugstr("\n");
+
+    debugstr("Attempting read - should panic here...\n");
+    printhex64(*ptr, debugchar);
+    debugstr("\n");
 #endif
 
 #ifdef DEBUG_TEST_TASKS

@@ -48,7 +48,7 @@ tests/build/structs/bitmap: tests/munit.o tests/structs/bitmap.o
 tests/build/pmm/pagealloc: tests/munit.o tests/pmm/pagealloc.o tests/build/pmm/pagealloc.o tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-tests/build/vmm/vmmapper: tests/munit.o tests/vmm/vmmapper.o tests/build/vmm/vmmapper.o tests/test_pmm_malloc.o
+tests/build/vmm/vmmapper: tests/munit.o tests/vmm/vmmapper.o tests/build/vmm/vmmapper.o tests/test_pmm_malloc.o tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 tests/build/vmm/vmalloc_linkedlist: tests/munit.o tests/vmm/vmalloc_linkedlist.o tests/build/vmm/vmalloc_linkedlist.o tests/build/spinlock.o

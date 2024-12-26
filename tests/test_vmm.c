@@ -5,6 +5,7 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -29,7 +30,7 @@ uint64_t test_vmm_get_last_page_map_pml4() { return last_page_map_pml4; }
 
 uint32_t test_vmm_get_total_page_maps() { return total_page_maps; }
 
-void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
+bool vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
                   uint16_t flags) {
     last_page_map_paddr = page;
     last_page_map_vaddr = (uint64_t)virt_addr;
@@ -37,4 +38,6 @@ void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
     last_page_map_pml4 = (uint64_t)pml4;
 
     total_page_maps++;
+
+    return true;
 }
