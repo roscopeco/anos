@@ -33,6 +33,7 @@
 #endif
 
 extern MemoryRegion *physical_region;
+static SpinLock vmm_map_lock;
 
 static inline uint64_t *ensure_table_entry(uint64_t *table, uint16_t index,
                                            uint16_t flags) {
@@ -62,6 +63,9 @@ static inline uint64_t *ensure_table_entry(uint64_t *table, uint16_t index,
 
 void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
                   uint16_t flags) {
+
+    spinlock_lock(&vmm_map_lock);
+
     C_DEBUGSTR("PML4 @ ");
     C_PRINTHEX64((uint64_t)pml4, debugchar);
     C_DEBUGSTR(" [Entry ");
@@ -109,11 +113,16 @@ void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
 #endif
 
     pt[PTENTRY(virt_addr)] = page | flags;
+    vmm_invalidate_page(virt_addr);
 
-    return;
+    spinlock_unlock(&vmm_map_lock);
 }
 
 void vmm_map_page_containing(uint64_t *pml4, uintptr_t virt_addr,
                              uint64_t phys_addr, uint16_t flags) {
     vmm_map_page(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
+}
+
+void vmm_invalidate_page(uintptr_t virt_addr) {
+    __asm__ volatile("invlpg %0\n\t" : : "m"(virt_addr));
 }

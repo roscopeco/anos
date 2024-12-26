@@ -80,4 +80,11 @@ void vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
 void vmm_map_page_containing(uint64_t *pml4, uintptr_t virt_addr,
                              uint64_t phys_addr, uint16_t flags);
 
+/*
+ * Invalidate the TLB for the page containing the given virtual address.
+ * The mapping functions will do this automatically, so it shouldn't be
+ * needed most of the time.
+ */
+void vmm_invalidate_page(uintptr_t virt_addr);
+
 #endif //__ANOS_KERNEL_VM_MAPPER_H

@@ -117,8 +117,6 @@ static inline void *do_alloc(uintptr_t block_address) {
 
     vmm_map_page(_pml4, block_address, phys, PRESENT | WRITE);
 
-    // TODO invalidate TLB...
-
     return (void *)block_address;
 }
 

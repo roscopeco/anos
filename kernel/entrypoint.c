@@ -289,8 +289,6 @@ noreturn void start_system(void) {
     uint64_t user_stack_phys = page_alloc(physical_region);
     vmm_map_page(pml4, user_stack, user_stack_phys, flags | WRITE);
 
-    // TODO invalidate tlb?
-
     debugstr("Starting user-mode supervisor...\n");
 
     // Switch to user mode
