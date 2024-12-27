@@ -186,7 +186,7 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
     return vmm_map_page_in(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }
 
-uintptr_t vmm_unmap_page(uint64_t *pml4, uintptr_t virt_addr) {
+uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     SPIN_LOCK();
 
     C_DEBUGSTR("Unmap virtual ");
@@ -264,6 +264,10 @@ uintptr_t vmm_unmap_page(uint64_t *pml4, uintptr_t virt_addr) {
     vmm_invalidate_page(virt_addr);
 
     SPIN_UNLOCK_RET(phys);
+}
+
+uintptr_t vmm_unmap_page(uintptr_t virt_addr) {
+    return vmm_unmap_page_in((uint64_t *)vmm_recursive_find_pml4(), virt_addr);
 }
 
 void vmm_invalidate_page(uintptr_t virt_addr) {

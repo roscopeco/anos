@@ -317,16 +317,17 @@ void fba_free(void *block) {
 
     if (bitmap_check(_fba_bitmap + quad_index, bit_index)) {
         bitmap_clear(_fba_bitmap + quad_index, bit_index);
-        uintptr_t phys = vmm_unmap_page(_pml4, block_address);
+        uintptr_t phys = vmm_unmap_page_in(_pml4, block_address);
 
         if (!phys) {
 #ifdef UNIT_TESTS
-            tprintf("WARN: fba_free: vmm_unmap_page failed for block address "
+            tprintf("WARN: fba_free: vmm_unmap_page_in failed for block "
+                    "address "
                     "0x%016x\n",
                     block_address);
 #else
-            debugstr(
-                    "WARN: fba_free: vmm_unmap_page failed for block address ");
+            debugstr("WARN: fba_free: vmm_unmap_page_in failed for block "
+                     "address ");
             printhex64(block_address, debugchar);
             debugstr(" [PML4: ");
             printhex64((uint64_t)_pml4, debugchar);

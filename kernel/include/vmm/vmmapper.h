@@ -83,7 +83,7 @@ bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags);
 
 /*
  * Map the page containing the given physical address into virtual memory
- * with the current page tables..
+ * with the current page tables.
  *
  * Simple wrapper around `map_page` - see documentation for that function
  * for specifics.
@@ -102,7 +102,8 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
                                 uint64_t phys_addr, uint16_t flags);
 
 /*
- * Unmap the given virtual page.
+ * Unmap the given virtual page from virtual memory with the current 
+ * page tables...
  *
  * This is a "hard" unmap - it will zero out the PTE (rather than, say,
  * setting the page not present) and invalidate the TLB automatically.
@@ -114,7 +115,23 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
  * Returns the physical address that was previously mapped, or
  * 0 for none.
  */
-uintptr_t vmm_unmap_page(uint64_t *pml4, uintptr_t virt_addr);
+uintptr_t vmm_unmap_page(uintptr_t virt_addr);
+
+/*
+ * Unmap the given virtual page from virtual memory with the current 
+ * page tables...
+ *
+ * This is a "hard" unmap - it will zero out the PTE (rather than, say,
+ * setting the page not present) and invalidate the TLB automatically.
+ *
+ * This function does **not** free any physical memory or otherwise
+ * compact the page tables, as doing this on every unmap would be
+ * expensive and unnecessary.
+ *
+ * Returns the physical address that was previously mapped, or
+ * 0 for none.
+ */
+uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr);
 
 /*
  * Invalidate the TLB for the page containing the given virtual address.

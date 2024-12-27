@@ -222,7 +222,7 @@ test_map_page_containing_within(const MunitParameter params[], void *param) {
 
 static MunitResult test_unmap_page_empty_pml4_0(const MunitParameter params[],
                                                 void *param) {
-    vmm_unmap_page(empty_pml4, 0x0);
+    vmm_unmap_page_in(empty_pml4, 0x0);
 
     munit_assert_uint64(empty_pml4[0], ==, 0);
 
@@ -231,7 +231,7 @@ static MunitResult test_unmap_page_empty_pml4_0(const MunitParameter params[],
 
 static MunitResult test_unmap_page_empty_pml4_2M(const MunitParameter params[],
                                                  void *param) {
-    vmm_unmap_page(empty_pml4, 0x200000);
+    vmm_unmap_page_in(empty_pml4, 0x200000);
 
     munit_assert_uint64(empty_pml4[0], ==, 0);
 
@@ -247,7 +247,7 @@ test_unmap_page_complete_pml4_0(const MunitParameter params[], void *param) {
     // Correct page was mapped
     munit_assert_uint64(complete_pt[0], ==, 0x1000);
 
-    uintptr_t unmapped_phys = vmm_unmap_page(complete_pml4, 0x0);
+    uintptr_t unmapped_phys = vmm_unmap_page_in(complete_pml4, 0x0);
 
     // Higher-level tables are untouched
     munit_assert_uint64(complete_pml4[0], ==,
@@ -277,7 +277,7 @@ test_unmap_page_complete_pml4_2M(const MunitParameter params[], void *param) {
     // Correct page was mapped
     munit_assert_uint64(pt[0], ==, 0x1000);
 
-    uintptr_t unmapped_phys = vmm_unmap_page(complete_pml4, 0x200000);
+    uintptr_t unmapped_phys = vmm_unmap_page_in(complete_pml4, 0x200000);
 
     // Higher-level tables are untouched
     munit_assert_uint64(complete_pml4[0], ==, (uint64_t)pdpt | PRESENT);

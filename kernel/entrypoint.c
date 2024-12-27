@@ -23,6 +23,7 @@
 #include "pmm/pagealloc.h"
 #include "printhex.h"
 #include "syscalls.h"
+#include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
 
 #ifndef VERSTR
@@ -373,7 +374,7 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
              "the same time...\n");
     volatile uint64_t *volatile ptr = (uint64_t *)0x400000000;
     uint64_t tpage = page_alloc(physical_region);
-    vmm_map_page(STATIC_PML4, 0x400000000, tpage, WRITE | PRESENT);
+    vmm_map_page(0x400000000, tpage, WRITE | PRESENT);
 
     *ptr = 0x12345678;
 
@@ -381,7 +382,7 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     printhex64(*ptr, debugchar);
     debugstr("\n");
 
-    uintptr_t old = vmm_unmap_page(STATIC_PML4, 0x400000000);
+    uintptr_t old = vmm_unmap_page(0x400000000);
     debugstr("Unmapped - phys was ");
     printhex64(old, debugchar);
     debugstr("; should equal ");

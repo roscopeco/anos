@@ -61,11 +61,15 @@ bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags) {
                            page, flags);
 }
 
-uintptr_t vmm_unmap_page(uint64_t *pml4, uintptr_t virt_addr) {
+uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     last_page_unmap_pml4 = (uintptr_t)pml4;
     last_page_unmap_virt = virt_addr;
 
     total_page_unmaps++;
 
     return last_page_map_paddr;
+}
+
+uintptr_t vmm_unmap_page(uintptr_t virt_addr) {
+    return vmm_unmap_page_in((uint64_t *)vmm_recursive_find_pml4(), virt_addr);
 }
