@@ -19,6 +19,7 @@ MemoryRegion physical_region;
 static uint64_t *pages[MAX_PAGES];
 static uint8_t page_ptr = 0;
 static uint32_t total_page_allocs = 0;
+static uint32_t total_page_frees = 0;
 
 uint32_t test_pmm_get_total_page_allocs() { return total_page_allocs; }
 
@@ -39,4 +40,10 @@ uint64_t page_alloc(MemoryRegion *region) {
     total_page_allocs++;
     posix_memalign((void **)&pages[page_ptr], 0x1000, 0x1000);
     return (uint64_t)pages[page_ptr++];
+}
+
+void page_free(MemoryRegion *region, uint64_t page) {
+    total_page_frees++;
+
+    // don't bother freeing for now...
 }

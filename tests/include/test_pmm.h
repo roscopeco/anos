@@ -13,7 +13,9 @@
 
 #define TEST_PMM_NOALLOC_START_ADDRESS ((0x1000))
 
-uint32_t test_pmm_get_total_page_allocs();
 void test_pmm_reset();
+
+uint32_t test_pmm_get_total_page_allocs();
+uint32_t test_pmm_get_total_page_frees();
 
 #endif //__ANOS_TESTS_TEST_PMM_H

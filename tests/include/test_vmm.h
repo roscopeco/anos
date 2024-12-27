@@ -12,11 +12,15 @@
 #include <stdint.h>
 
 uint32_t test_vmm_get_total_page_maps();
+uint32_t test_vmm_get_total_page_unmaps();
 
 uint64_t test_vmm_get_last_page_map_pml4();
 uint64_t test_vmm_get_last_page_map_paddr();
 uint64_t test_vmm_get_last_page_map_vaddr();
 uint64_t test_vmm_get_last_page_map_flags();
+
+uintptr_t test_vmm_get_last_page_unmap_pml4();
+uintptr_t test_vmm_get_last_page_unmap_virt();
 
 void test_vmm_reset();
 

@@ -29,9 +29,9 @@
  * list implementation itself 😊).
  */
 typedef struct _ListNode {
+    struct _ListNode *next;
     uint64_t size;
     uint64_t type;
-    struct _ListNode *next;
 } ListNode;
 
 /*

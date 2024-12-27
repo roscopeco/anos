@@ -5,7 +5,7 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include "pmm/bitmap.h"
+#include "structs/bitmap.h"
 #include "munit.h"
 
 #define BITMAP_SIZE 4
@@ -331,60 +331,76 @@ static MunitResult test_flip_bit_boundary(const MunitParameter params[],
     return MUNIT_OK;
 }
 
+static MunitResult test_check_bit(const MunitParameter params[], void *param) {
+    test_bitmap[0] = 0x0000000000000003;
+    test_bitmap[1] = 0x8000000000000000;
+
+    munit_assert_true(bitmap_check(test_bitmap, 0));
+    munit_assert_true(bitmap_check(test_bitmap, 1));
+
+    for (int i = 2; i < 127; i++) {
+        munit_assert_false(bitmap_check(test_bitmap, i));
+    }
+
+    munit_assert_true(bitmap_check(test_bitmap, 127));
+
+    return MUNIT_OK;
+}
+
 static MunitTest test_suite_tests[] = {
-        {(char *)"/pmm/bitmap/set_bit_zero", test_set_bit_zero, setup, NULL,
+        {(char *)"/set_bit_zero", test_set_bit_zero, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/set_bit_zero_already", test_set_bit_zero_already,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/set_bit_one", test_set_bit_one, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/set_bit_one_already",
-         test_set_bit_one_zero_already, setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/pmm/bitmap/set_two_bits", test_set_two_bits, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/set_1b_2nd_word", test_set_one_bit_second_word,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/set_bit_boundary", test_set_bit_boundary, setup,
+        {(char *)"/set_bit_zero_already", test_set_bit_zero_already, setup,
          NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/set_bit_one", test_set_bit_one, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/set_bit_one_already", test_set_bit_one_zero_already, setup,
+         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/set_two_bits", test_set_two_bits, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/set_1b_2nd_word", test_set_one_bit_second_word, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/set_bit_boundary", test_set_bit_boundary, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
 
-        {(char *)"/pmm/bitmap/clr_bit_zero", test_clear_bit_zero, setup, NULL,
+        {(char *)"/clr_bit_zero", test_clear_bit_zero, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/clr_bit_zero_already",
-         test_clear_bit_zero_already, setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/pmm/bitmap/clr_bit_one", test_clear_bit_one, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/clr_bit_one_already",
-         test_clear_bit_one_zero_already, setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/pmm/bitmap/clr_two_bits", test_clear_two_bits, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/clr_1b_2nd_word", test_clear_one_bit_second_word,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/clr_bit_boundary", test_clear_bit_boundary, setup,
+        {(char *)"/clr_bit_zero_already", test_clear_bit_zero_already, setup,
          NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/clr_bit_one", test_clear_bit_one, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/clr_bit_one_already", test_clear_bit_one_zero_already, setup,
+         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/clr_two_bits", test_clear_two_bits, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/clr_1b_2nd_word", test_clear_one_bit_second_word, setup,
+         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/clr_bit_boundary", test_clear_bit_boundary, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
 
-        {(char *)"/pmm/bitmap/flp_bit_zero", test_flip_bit_zero, setup, NULL,
+        {(char *)"/flp_bit_zero", test_flip_bit_zero, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/flp_bit_zero_already", test_flip_bit_zero_already,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/flp_bit_one", test_flip_bit_one, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/flp_bit_one_already",
-         test_flip_bit_one_zero_already, setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/pmm/bitmap/flp_two_bits", test_flip_two_bits, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/flp_1b_2nd_word", test_flip_one_bit_second_word,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/pmm/bitmap/flp_bit_boundary", test_flip_bit_boundary, setup,
+        {(char *)"/flp_bit_zero_already", test_flip_bit_zero_already, setup,
          NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/flp_bit_one", test_flip_bit_one, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/flp_bit_one_already", test_flip_bit_one_zero_already, setup,
+         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/flp_two_bits", test_flip_two_bits, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/flp_1b_2nd_word", test_flip_one_bit_second_word, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/flp_bit_boundary", test_flip_bit_boundary, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+
+        {(char *)"/check_bit", test_check_bit, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1,
+static const MunitSuite test_suite = {(char *)"/structs/bitmap",
+                                      test_suite_tests, NULL, 1,
                                       MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
