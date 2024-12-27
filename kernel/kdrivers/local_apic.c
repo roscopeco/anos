@@ -20,7 +20,7 @@ void init_local_apic(BIOS_SDTHeader *madt) {
     uint32_t *flags = lapic_addr + 1;
     debugstr("LAPIC address (phys : virt) = ");
     printhex32(*lapic_addr, debugchar);
-    debugstr(" : 0xFFFF800000000000 [");
+    debugstr(" : 0xffffffa000000000 [");
     printhex32(*flags, debugchar);
     debugstr("]\n");
 

@@ -73,13 +73,28 @@ identity-mapped space), up until it jumps directly to the kernel at it's
 Once stage 2 has exited and we're in the kernel proper, the identity mapping of low RAM 
 is dropped (the first 2MB physical mapping into the top 2GiB is retained).
 
+We reserve the first available 127TB of kernel space for the virtual mapping area. 
+This area covers 255 PML4 entries from 256 to 510, leaving the last entry (512GB) free for 
+the rest of kernel space. This area _could_ be used for a recursive mapping (with a 
+randomized recursive entry if I felt like it) but ultimately I'll probably just
+do like Linux used to (on 32-bit) and have huge-page mappings for all of physical RAM
+in this region, which will simplify quite a few things...
+
 We also create the mapping for the 128GiB reserved address space for the PMM structures
 at this point, leaving us with:
 
+* `0x0000000000000000` -> `0x00007fffffffffff` : User space
+* `0x0000800000000000` -> `0xffff7fffffffffff` : [_Non-canonical memory hole_]
+* `0xffff800000000000` -> `0xffffff7fffffffff` : Virtual Mapping area (127TiB)
 * `0xffffff8000000000` -> `0xffffff9fffffefff` : PMM structures area (only the first page is actually present).
-* `0xffffff9ffffff000` -> `0xffffffa000000000` : PMM structures guard page (Reserved, never mapped)
-* `0xffffffff80000000` -> `0xffffffff80200000` : First 2MiB of top (or negative) 2GiB mapped to first 2MiB phys
-* `0xffffffff80200000` -> `0xffffffff803fffff` : Second 2MiB of top (or negative) 2GiB mapped to second 2MiB phys*
+* `0xffffff9ffffff000` -> `0xffffff9fffffffff` : PMM structures guard page (Reserved, never mapped)
+* `0xffffffa000000000` -> `0xffffffa0000003ff` : Local APIC (for all CPUs)
+* `0xffffffa000000400` -> `0xffffffff7fffffff` : [_Currently unused, ~381GiB_]
+* `0xffffffff80000000` -> `0xffffffff803fffff` : First 4MiB of top (or negative) 2GiB mapped to first 4MiB phys (kernel code etc is here!)
+* `0xffffffff80400000` -> `0xffffffff80ffffff` : 1MiB Kernel "Automap" space, **for testing only**
+* `0xffffffff81000000` -> `0xffffffff81007fff` : (Temporary) Reserved space for ACPI tables
+* `0xffffffff81008000` -> `0xffffffffbfffffff` : [_Currently unused, ~1007MiB_]
+* `0xffffffffc0000000` -> `0xffffffffffffffff` : 1GiB FBA space
 
 ACPI tables are mapped into a small (8-page currently) reserved space, which is _probably_
 going to be just temporary (just during bootstrap) - not sure there's much point in keeping
@@ -100,7 +115,7 @@ fault there the handler will automatically map in a page.
 
 The local APIC is **temporarily** mapped to:
 
-* `0xFFFF800000000000` -> `0xFFFF800000000400` : Local APIC (for all CPUs)
+* `0xffffffa000000000` -> `0xffffffa0000003ff` : Local APIC (for all CPUs)
 
 This, again, won't be staying there, but it works for now.
 
@@ -126,7 +141,7 @@ the kernel.
 The following space is reserved for the fixed block allocator (and is where
 the slab allocator will map blocks).
 
-* `0xffffffff90000000` -> `0xffffffffcfffffff` : 1GiB FBA space
+* `0xffffffffc0000000` -> `0xffffffffffffffff` : 1GiB FBA space
 
 The fixed-block allocator works on 4KiB page granularity, so supports a 
 maximum of 262144 blocks within this 1GiB space. Of those, the first eight
