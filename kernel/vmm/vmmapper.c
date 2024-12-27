@@ -87,8 +87,7 @@ static inline uint64_t *ensure_table_entry(uint64_t *table, uint16_t index,
     return ENTRY_TO_V(table[index]);
 }
 
-
-inline void vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
+inline bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
                             uint16_t flags) {
 
     SPIN_LOCK();
@@ -170,6 +169,21 @@ inline void vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
     vmm_invalidate_page(virt_addr);
 
     SPIN_UNLOCK_RET(true);
+}
+
+bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags) {
+    return vmm_map_page_in((uint64_t *)vmm_recursive_find_pml4(), virt_addr,
+                           page, flags);
+}
+
+bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
+                             uint16_t flags) {
+    return vmm_map_page(virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
+}
+
+bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
+                                uint64_t phys_addr, uint16_t flags) {
+    return vmm_map_page_in(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }
 
 uintptr_t vmm_unmap_page(uint64_t *pml4, uintptr_t virt_addr) {
@@ -261,3 +275,4 @@ void vmm_invalidate_page(uintptr_t virt_addr) {
 #endif
     __asm__ volatile("invlpg (%0)\n\t" : : "r"(virt_addr) : "memory");
 #endif
+}

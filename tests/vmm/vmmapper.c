@@ -198,7 +198,8 @@ static MunitResult
 test_map_page_containing_already(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt[0], !=, 0x1000);
 
-    vmm_map_page_containing_in(complete_pt, 0x0, 0x1000, 0);
+    bool result = vmm_map_page_containing_in(complete_pml4, 0x0, 0x1000, 0);
+    munit_assert_true(result);
 
     // Correct page was mapped
     munit_assert_uint64(complete_pt[0], ==, 0x1000);
@@ -210,7 +211,8 @@ static MunitResult
 test_map_page_containing_within(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt[0], !=, 0x1000);
 
-    vmm_map_page_containing_in(complete_pt, 0x0, 0x1234, 0);
+    bool result = vmm_map_page_containing_in(complete_pml4, 0x0, 0x1234, 0);
+    munit_assert_true(result);
 
     // Correct page was mapped
     munit_assert_uint64(complete_pt[0], ==, 0x1000);
@@ -240,7 +242,7 @@ static MunitResult
 test_unmap_page_complete_pml4_0(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt[0], !=, 0x1000);
 
-    vmm_map_page(complete_pml4, 0x0, 0x1000, 0);
+    vmm_map_page_in(complete_pml4, 0x0, 0x1000, 0);
 
     // Correct page was mapped
     munit_assert_uint64(complete_pt[0], ==, 0x1000);
@@ -266,7 +268,7 @@ static MunitResult
 test_unmap_page_complete_pml4_2M(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt[0], !=, 0x1000);
 
-    vmm_map_page(complete_pml4, 0x200000, 0x1000, 0);
+    vmm_map_page_in(complete_pml4, 0x200000, 0x1000, 0);
 
     uint64_t *pdpt = (uint64_t *)(complete_pml4[0] & 0xFFFFFFFFFFFFF000);
     uint64_t *pd = (uint64_t *)(pdpt[0] & 0xFFFFFFFFFFFFF000);

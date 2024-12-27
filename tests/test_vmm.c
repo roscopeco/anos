@@ -44,7 +44,7 @@ uintptr_t test_vmm_get_last_page_unmap_pml4() { return last_page_unmap_pml4; }
 
 uintptr_t test_vmm_get_last_page_unmap_virt() { return last_page_unmap_virt; }
 
-void vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
+bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
                      uint16_t flags) {
     last_page_map_paddr = page;
     last_page_map_vaddr = (uint64_t)virt_addr;
@@ -56,9 +56,9 @@ void vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
     return true;
 }
 
-void vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags) {
-    vmm_map_page_in((uint64_t *)vmm_recursive_find_pml4(), virt_addr, page,
-                    flags);
+bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags) {
+    return vmm_map_page_in((uint64_t *)vmm_recursive_find_pml4(), virt_addr,
+                           page, flags);
 }
 
 uintptr_t vmm_unmap_page(uint64_t *pml4, uintptr_t virt_addr) {
