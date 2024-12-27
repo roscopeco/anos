@@ -41,9 +41,14 @@
 // at various levels. These are all precomputed and should just end up as constants...
 //
 #define RECURSIVE_L1 ((((uintptr_t)RECURSIVE_ENTRY) << L1_LSHIFT))
-#define RECURSIVE_L2 ((RECURSIVE_L1 | (((uintptr_t)RECURSIVE_ENTRY) << L2_LSHIFT)))
-#define RECURSIVE_L3 ((RECURSIVE_L1 | RECURSIVE_L2 | (((uintptr_t)RECURSIVE_ENTRY) << L3_LSHIFT)))
-#define RECURSIVE_L4 ((RECURSIVE_L1 | RECURSIVE_L2 | RECURSIVE_L3 | (((uintptr_t)RECURSIVE_ENTRY) << L4_LSHIFT)))
+#define RECURSIVE_L2                                                           \
+    ((RECURSIVE_L1 | (((uintptr_t)RECURSIVE_ENTRY) << L2_LSHIFT)))
+#define RECURSIVE_L3                                                           \
+    ((RECURSIVE_L1 | RECURSIVE_L2 |                                            \
+      (((uintptr_t)RECURSIVE_ENTRY) << L3_LSHIFT)))
+#define RECURSIVE_L4                                                           \
+    ((RECURSIVE_L1 | RECURSIVE_L2 | RECURSIVE_L3 |                             \
+      (((uintptr_t)RECURSIVE_ENTRY) << L4_LSHIFT)))
 
 typedef struct {
     uint64_t entries[512];
@@ -99,35 +104,48 @@ typedef struct {
  * entry, and I plan to map alternative process spaces into the third-from-top (index 509)
  * if/when that becomes a thing, so this isn't a problem for now...
  */
-static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2, uint16_t l3, uint16_t l4, uint16_t offset) {
-    return BASE_ADDRESS | (((uintptr_t)l1 & LVL_MASK) << L1_LSHIFT) | (((uintptr_t)l2 & LVL_MASK) << L2_LSHIFT) | (((uintptr_t)l3 & LVL_MASK) << L3_LSHIFT) |
-           (((uintptr_t)l4 & LVL_MASK) << L4_LSHIFT) | ((uintptr_t)offset & OFS_MASK);
+static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2,
+                                                    uint16_t l3, uint16_t l4,
+                                                    uint16_t offset) {
+    return BASE_ADDRESS | (((uintptr_t)l1 & LVL_MASK) << L1_LSHIFT) |
+           (((uintptr_t)l2 & LVL_MASK) << L2_LSHIFT) |
+           (((uintptr_t)l3 & LVL_MASK) << L3_LSHIFT) |
+           (((uintptr_t)l4 & LVL_MASK) << L4_LSHIFT) |
+           ((uintptr_t)offset & OFS_MASK);
 }
 
 /*
  * Find the PML4 using the _current process'_ recursive mapping (specified by `RECURSIVE_ENTRY`).
  */
-static inline PageTable *vmm_recursive_find_pml4() { return (PageTable *)(BASE_ADDRESS | RECURSIVE_L4); }
+static inline PageTable *vmm_recursive_find_pml4() {
+    return (PageTable *)(BASE_ADDRESS | RECURSIVE_L4);
+}
 
 /*
  * Find a given PDPT using the _current process'_ recursive mapping (specified by `RECURSIVE_ENTRY`).
  */
 static inline PageTable *vmm_recursive_find_pdpt(uint16_t pml4_entry) {
-    return (PageTable *)vmm_recursive_table_address(RECURSIVE_ENTRY, RECURSIVE_ENTRY, RECURSIVE_ENTRY, pml4_entry, 0);
+    return (PageTable *)vmm_recursive_table_address(
+            RECURSIVE_ENTRY, RECURSIVE_ENTRY, RECURSIVE_ENTRY, pml4_entry, 0);
 }
 
 /*
  * Find a given PD using the _current process_ recursive mapping (specified by `RECURSIVE_ENTRY`).
  */
-static inline PageTable *vmm_recursive_find_pd(uint16_t pml4_entry, uint16_t pdpt_entry) {
-    return (PageTable *)vmm_recursive_table_address(RECURSIVE_ENTRY, RECURSIVE_ENTRY, pml4_entry, pdpt_entry, 0);
+static inline PageTable *vmm_recursive_find_pd(uint16_t pml4_entry,
+                                               uint16_t pdpt_entry) {
+    return (PageTable *)vmm_recursive_table_address(
+            RECURSIVE_ENTRY, RECURSIVE_ENTRY, pml4_entry, pdpt_entry, 0);
 }
 
 /*
  * Find the PT using the _current process_ recursive mapping (specified by `RECURSIVE_ENTRY`).
  */
-static inline PageTable *vmm_recursive_find_pt(uint16_t pml4_entry, uint16_t pdpt_entry, uint16_t pd_entry) {
-    return (PageTable *)vmm_recursive_table_address(RECURSIVE_ENTRY, pml4_entry, pdpt_entry, pd_entry, 0);
+static inline PageTable *vmm_recursive_find_pt(uint16_t pml4_entry,
+                                               uint16_t pdpt_entry,
+                                               uint16_t pd_entry) {
+    return (PageTable *)vmm_recursive_table_address(RECURSIVE_ENTRY, pml4_entry,
+                                                    pdpt_entry, pd_entry, 0);
 }
 
 /*
@@ -141,14 +159,17 @@ static inline uint64_t *vmm_virt_to_pte(uintptr_t virt_addr) {
     // ... becomes ...
     // 0xffff800040403020 :: 0b1111111111111111 100000000 000000001 000000010 000000011 000000100000
 
-    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L1 | ((virt_addr & TABLE_BIT_MASK) >> L1_RSHIFT));
+    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L1 |
+                        ((virt_addr & TABLE_BIT_MASK) >> L1_RSHIFT));
 }
 
 /*
  * Find the PT mapping the given virtual address using the _current process_ recursive mapping
  * (specified by `RECURSIVE_ENTRY`).
  */
-static inline PageTable *vmm_virt_to_pt(uintptr_t virt_addr) { return (PageTable *)((uintptr_t)vmm_virt_to_pte(virt_addr) & OFFSET_MASK); }
+static inline PageTable *vmm_virt_to_pt(uintptr_t virt_addr) {
+    return (PageTable *)((uintptr_t)vmm_virt_to_pte(virt_addr) & OFFSET_MASK);
+}
 
 /*
  * Find the PDE mapping the given virtual address using the _current process_ recursive mapping
@@ -161,14 +182,17 @@ static inline uint64_t *vmm_virt_to_pde(uintptr_t virt_addr) {
     // ... becomes ...
     // 0xffffffffc0202018 :: 0b1111111111111111 111111111 111111111 000000001 000000010 000000011000
 
-    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L2 | ((virt_addr & TABLE_BIT_MASK) >> L2_RSHIFT));
+    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L2 |
+                        ((virt_addr & TABLE_BIT_MASK) >> L2_RSHIFT));
 }
 
 /*
  * Find the PD mapping the given virtual address using the _current process_ recursive mapping
  * (specified by `RECURSIVE_ENTRY`).
  */
-static inline PageTable *vmm_virt_to_pd(uintptr_t virt_addr) { return (PageTable *)((uintptr_t)vmm_virt_to_pde(virt_addr) & OFFSET_MASK); }
+static inline PageTable *vmm_virt_to_pd(uintptr_t virt_addr) {
+    return (PageTable *)((uintptr_t)vmm_virt_to_pde(virt_addr) & OFFSET_MASK);
+}
 
 /*
  * Find the PDPTE mapping the given virtual address using the _current process_ recursive mapping
@@ -181,14 +205,17 @@ static inline uint64_t *vmm_virt_to_pdpte(uintptr_t virt_addr) {
     // ... becomes ...
     // 0xffffffffffe01010 :: 0b1111111111111111 111111111 111111111 111111111 000000001 000000010000
 
-    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L3 | ((virt_addr & TABLE_BIT_MASK) >> L3_RSHIFT));
+    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L3 |
+                        ((virt_addr & TABLE_BIT_MASK) >> L3_RSHIFT));
 }
 
 /*
  * Find the PDPT mapping the given virtual address using the _current process_ recursive mapping
  * (specified by `RECURSIVE_ENTRY`).
  */
-static inline PageTable *vmm_virt_to_pdpt(uintptr_t virt_addr) { return (PageTable *)((uintptr_t)vmm_virt_to_pdpte(virt_addr) & OFFSET_MASK); }
+static inline PageTable *vmm_virt_to_pdpt(uintptr_t virt_addr) {
+    return (PageTable *)((uintptr_t)vmm_virt_to_pdpte(virt_addr) & OFFSET_MASK);
+}
 
 /*
  * Find the PML4E mapping the given virtual address using the _current process_ recursive mapping
@@ -201,7 +228,8 @@ static inline uint64_t *vmm_virt_to_pml4e(uintptr_t virt_addr) {
     // ... becomes ...
     // 0xfffffffffffff008 :: 0b1111111111111111 111111111 111111111 111111111 111111111 000000001000
 
-    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L4 | ((virt_addr & TABLE_BIT_MASK) >> L4_RSHIFT));
+    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L4 |
+                        ((virt_addr & TABLE_BIT_MASK) >> L4_RSHIFT));
 }
 
 /*
@@ -210,6 +238,8 @@ static inline uint64_t *vmm_virt_to_pml4e(uintptr_t virt_addr) {
  *
  * This is provided for completeness really, it will return the same fixed address everywhere.
  */
-static inline PageTable *vmm_virt_to_pml4(uintptr_t virt_addr) { return (PageTable *)((uintptr_t)vmm_virt_to_pml4e(virt_addr) & OFFSET_MASK); }
+static inline PageTable *vmm_virt_to_pml4(uintptr_t virt_addr) {
+    return (PageTable *)((uintptr_t)vmm_virt_to_pml4e(virt_addr) & OFFSET_MASK);
+}
 
 #endif //__ANOS_KERNEL_VM_RECURSIVE_H
