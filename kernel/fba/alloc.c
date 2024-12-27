@@ -55,7 +55,7 @@ uint64_t *test_fba_bitmap_end() { return _fba_bitmap_end; }
 
 extern MemoryRegion *physical_region;
 
-bool fba_init(uint64_t *pml4, uintptr_t fba_begin, uint64_t fba_size_blocks) {
+bool fba_init(uintptr_t fba_begin, uint64_t fba_size_blocks) {
     if ((fba_begin & 0xfff) != 0) { // begin must be page aligned
         return false;
     }
@@ -85,7 +85,7 @@ bool fba_init(uint64_t *pml4, uintptr_t fba_begin, uint64_t fba_size_blocks) {
             return false;
         }
 
-        vmm_map_page(pml4, virt, phys, PRESENT | WRITE);
+        vmm_map_page(virt, phys, PRESENT | WRITE);
     }
 
     _fba_begin = fba_begin;

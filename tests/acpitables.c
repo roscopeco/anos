@@ -57,5 +57,5 @@ int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);
 }
 
-void vmm_map_page_containing(uint64_t *pml4, uintptr_t virt_addr,
-                             uint64_t phys_addr, uint16_t flags) {}
+void vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
+                             uint16_t flags) {}

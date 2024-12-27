@@ -57,7 +57,7 @@ tests/build/vmm/vmalloc_linkedlist: tests/munit.o tests/vmm/vmalloc_linkedlist.o
 tests/build/debugprint: tests/munit.o tests/debugprint.o tests/build/debugprint.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-tests/build/acpitables: tests/munit.o tests/acpitables.o tests/build/acpitables.o
+tests/build/acpitables: tests/munit.o tests/acpitables.o tests/build/acpitables.o tests/test_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 tests/build/structs/list: tests/munit.o tests/structs/list.o tests/build/structs/list.o

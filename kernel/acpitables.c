@@ -92,7 +92,7 @@ static uint64_t get_mapping_for(uint64_t phys) {
 
         uint64_t vaddr = next_vaddr;
         next_vaddr += 0x1000;
-        vmm_map_page_containing(STATIC_PML4, vaddr, phys, PRESENT);
+        vmm_map_page_containing(vaddr, phys, PRESENT);
 
 #ifdef DEBUG_ACPI
 #ifdef VERY_NOISY_ACPI

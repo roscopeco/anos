@@ -38,6 +38,8 @@
 
 #include <stdint.h>
 
+#include "vmm/recursive.h"
+
 #define PRESENT (1 << 0)
 #define WRITE (1 << 1)
 
@@ -89,6 +91,9 @@ void pagetables_init() {
 
     // Hook this into the PDPT
     pdpt[0] = 0x9a000 | PRESENT | WRITE;
+
+    // Set up recursive page table
+    pml4[RECURSIVE_ENTRY] = 0x9c000 | PRESENT | WRITE;
 
     // Just load cr3 to dump the TLB...
     __asm__ volatile("mov %cr3, %rax\n\t"

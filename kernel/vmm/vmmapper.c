@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "pmm/pagealloc.h"
+#include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
 
 #ifdef DEBUG_VMM
@@ -86,8 +87,9 @@ static inline uint64_t *ensure_table_entry(uint64_t *table, uint16_t index,
     return ENTRY_TO_V(table[index]);
 }
 
-bool vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
-                  uint16_t flags) {
+
+inline void vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
+                            uint16_t flags) {
 
     SPIN_LOCK();
 
@@ -168,11 +170,6 @@ bool vmm_map_page(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
     vmm_invalidate_page(virt_addr);
 
     SPIN_UNLOCK_RET(true);
-}
-
-bool vmm_map_page_containing(uint64_t *pml4, uintptr_t virt_addr,
-                             uint64_t phys_addr, uint16_t flags) {
-    return vmm_map_page(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }
 
 uintptr_t vmm_unmap_page(uint64_t *pml4, uintptr_t virt_addr) {
@@ -264,4 +261,3 @@ void vmm_invalidate_page(uintptr_t virt_addr) {
 #endif
     __asm__ volatile("invlpg (%0)\n\t" : : "r"(virt_addr) : "memory");
 #endif
-}

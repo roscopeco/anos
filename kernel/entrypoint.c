@@ -267,12 +267,11 @@ noreturn void start_system(void) {
             (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
     uint64_t system_len_pages = system_len_bytes >> 12;
 
-    uint64_t *pml4 = (uint64_t *)0xFFFFFFFF8009c000;
     uint16_t flags = PRESENT | USER;
 
     // Map pages for the user code
     for (int i = 0; i < system_len_pages; i++) {
-        vmm_map_page(pml4, system_start_virt + (i << 12),
+        vmm_map_page(system_start_virt + (i << 12),
                      system_start_phys + (i << 12), flags);
     }
 
@@ -282,12 +281,12 @@ noreturn void start_system(void) {
     // Set up a page for the user bss / data
     uint64_t user_bss = 0x0000000080000000;
     uint64_t user_bss_phys = page_alloc(physical_region);
-    vmm_map_page(pml4, user_bss, user_bss_phys, flags | WRITE);
+    vmm_map_page(user_bss, user_bss_phys, flags | WRITE);
 
     // ... and a page below that for the user stack
     uint64_t user_stack = user_bss - 0x1000;
     uint64_t user_stack_phys = page_alloc(physical_region);
-    vmm_map_page(pml4, user_stack, user_stack_phys, flags | WRITE);
+    vmm_map_page(user_stack, user_stack_phys, flags | WRITE);
 
     debugstr("Starting user-mode supervisor...\n");
 

@@ -20,7 +20,7 @@
 #define KERNEL_FBA_SIZE ((0x40000000))
 #define KERNEL_FBA_END ((KERNEL_FBA_BEGIN + KERNEL_FBA_SIZE - 1))
 
-bool fba_init(uint64_t *pml4, uintptr_t fba_begin, uint64_t fba_size_blocks);
+bool fba_init(uintptr_t fba_begin, uint64_t fba_size_blocks);
 
 void *fba_alloc_blocks(uint32_t count);
 void *fba_alloc_block();
