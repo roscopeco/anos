@@ -7,7 +7,7 @@
  * The fixed-block allocator manages allocation and
  * deallocation of physical memory and virtual address
  * space to map page-size (4KiB) blocks into the
- * kernel's 1GiB FBA space at 0xffffffff90000000.
+ * kernel's 1GiB FBA space at 0xffffffffc0000000.
  */
 
 #ifndef __ANOS_KERNEL_PMM_FBA_ALLOC_H
@@ -16,7 +16,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define KERNEL_FBA_BEGIN ((0xffffffff90000000))
+#define KERNEL_FBA_BEGIN ((0xffffffffc0000000))
 #define KERNEL_FBA_SIZE ((0x40000000))
 #define KERNEL_FBA_END ((KERNEL_FBA_BEGIN + KERNEL_FBA_SIZE - 1))
 

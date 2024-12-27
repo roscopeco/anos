@@ -16,8 +16,8 @@
 
 #include <stdint.h>
 
-#define KERNEL_HARDWARE_VADDR_BASE 0xFFFF800000000000
-#define KERNEL_DRIVER_VADDR_BASE 0xFFFFFFFF81008000
+#define KERNEL_HARDWARE_VADDR_BASE 0xffffffa000000000
+#define KERNEL_DRIVER_VADDR_BASE 0xffffffff81008000
 
 typedef uint64_t (*KDriverEntrypoint)(void *arg);
 
