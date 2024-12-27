@@ -297,4 +297,45 @@ void *fba_alloc_block() {
     SPIN_UNLOCK_RET(do_alloc(block_address));
 }
 
-void fba_free(void *block) {}
+void fba_free(void *block) {
+    if (block == NULL) {
+        return;
+    }
+
+    uintptr_t block_address = (uintptr_t)block;
+    if (block_address < _fba_begin ||
+        block_address >= _fba_begin + (_fba_size_blocks * VM_PAGE_SIZE)) {
+        // Address is out of range
+        return;
+    }
+
+    spinlock_lock(&fba_lock);
+
+    uint64_t block_index = (block_address - _fba_begin) / VM_PAGE_SIZE;
+    uint64_t quad_index = block_index / 64;
+    uint64_t bit_index = block_index % 64;
+
+    if (bitmap_check(_fba_bitmap + quad_index, bit_index)) {
+        bitmap_clear(_fba_bitmap + quad_index, bit_index);
+        uintptr_t phys = vmm_unmap_page(_pml4, block_address);
+
+        if (!phys) {
+#ifdef UNIT_TESTS
+            tprintf("WARN: fba_free: vmm_unmap_page failed for block address "
+                    "0x%016x\n",
+                    block_address);
+#else
+            debugstr(
+                    "WARN: fba_free: vmm_unmap_page failed for block address ");
+            printhex64(block_address, debugchar);
+            debugstr(" [PML4: ");
+            printhex64((uint64_t)_pml4, debugchar);
+            debugstr("]\n");
+#endif
+        } else {
+            page_free(physical_region, phys);
+        }
+    }
+
+    spinlock_unlock(&fba_lock);
+}

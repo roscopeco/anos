@@ -16,12 +16,15 @@
 MemoryRegion physical_region;
 
 static uint32_t total_page_allocs = 0;
+static uint32_t total_page_frees = 0;
 static uint64_t next_page_addr = 0x1000;
 
 uint32_t test_pmm_get_total_page_allocs() { return total_page_allocs; }
+uint32_t test_pmm_get_total_page_frees() { return total_page_frees; }
 
 void test_pmm_reset() {
     total_page_allocs = 0;
+    total_page_frees = 0;
     next_page_addr = 0x1000;
 }
 
@@ -31,3 +34,5 @@ uint64_t page_alloc(MemoryRegion *region) {
     next_page_addr += 0x1000;
     return result;
 }
+
+void page_free(MemoryRegion *region, uint64_t page) { total_page_frees++; }

@@ -13,6 +13,7 @@
 
 #include "fba/alloc.h"
 #include "munit.h"
+#include "structs/bitmap.h"
 #include "test_pmm.h"
 #include "test_vmm.h"
 #include "vmm/vmmapper.h"
@@ -356,20 +357,86 @@ test_fba_alloc_blocks_exhaustion(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_fba_free_block_one(const MunitParameter params[],
-                                           void *test_page_area) {
+static MunitResult test_fba_free_single_block(const MunitParameter params[],
+                                              void *test_page_area) {
     bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
-
     munit_assert_true(result);
 
     void *alloc = fba_alloc_block();
-
     munit_assert_ptr_equal(alloc,
                            (uint64_t *)((uint64_t)test_page_area + 0x1000));
 
-    // Two pages allocated (one for bitmap, one for the block itself)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 2);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 2);
+    fba_free(alloc);
+
+    // Verify that the block is marked as free
+    munit_assert_false(bitmap_check(test_fba_bitmap(), 1));
+
+    // Verify that the page is unmapped
+    munit_assert_uint32(test_vmm_get_total_page_unmaps(), ==, 1);
+
+    // Verify that the physical page was freed
+    munit_assert_uint32(test_pmm_get_total_page_frees(), ==, 1);
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_fba_free_multiple_blocks(const MunitParameter params[],
+                                                 void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+    munit_assert_true(result);
+
+    void *alloc1 = fba_alloc_block();
+    void *alloc2 = fba_alloc_block();
+    munit_assert_ptr_equal(alloc1,
+                           (uint64_t *)((uint64_t)test_page_area + 0x1000));
+    munit_assert_ptr_equal(alloc2,
+                           (uint64_t *)((uint64_t)test_page_area + 0x2000));
+
+    fba_free(alloc1);
+    fba_free(alloc2);
+
+    // Verify that the blocks are marked as free
+    munit_assert_false(bitmap_check(test_fba_bitmap(), 1));
+    munit_assert_false(bitmap_check(test_fba_bitmap(), 2));
+
+    // Verify that the pages are unmapped
+    munit_assert_uint32(test_vmm_get_total_page_unmaps(), ==, 2);
+
+    // Verify that the physical pages were freed
+    munit_assert_uint32(test_pmm_get_total_page_frees(), ==, 2);
+
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_fba_free_unallocated_block(const MunitParameter params[],
+                                void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+    munit_assert_true(result);
+
+    // Attempt to free a block that was not allocated
+    fba_free((void *)((uint64_t)test_page_area + 0x1000));
+
+    // Verify that the state remains unchanged
+    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 1);
+    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 1);
+    munit_assert_uint32(test_vmm_get_total_page_unmaps(), ==, 0);
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_fba_free_invalid_address(const MunitParameter params[],
+                                                 void *test_page_area) {
+    bool result = fba_init(TEST_PML4_ADDR, (uintptr_t)test_page_area, 32768);
+    munit_assert_true(result);
+
+    // Attempt to free a block with an address outside the allocated range
+    fba_free((void *)((uint64_t)test_page_area + 0x10000));
+
+    // Verify that the state remains unchanged
+    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 1);
+    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 1);
+    munit_assert_uint32(test_vmm_get_total_page_unmaps(), ==, 0);
 
     return MUNIT_OK;
 }
@@ -405,6 +472,15 @@ static MunitTest test_suite_tests[] = {
         {(char *)"/alloc/blocks_max", test_fba_alloc_blocks_max, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/alloc/blocks_exhaustion", test_fba_alloc_blocks_exhaustion,
+         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+
+        {(char *)"/free/single_block", test_fba_free_single_block, test_setup,
+         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/free/multiple_blocks", test_fba_free_multiple_blocks,
+         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/free/unallocated_block", test_fba_free_unallocated_block,
+         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/free/invalid_address", test_fba_free_invalid_address,
          test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
