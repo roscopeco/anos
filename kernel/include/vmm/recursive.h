@@ -11,44 +11,53 @@
 #include <stdint.h>
 
 // Base address for tables (high bits always set, tables will always be in kernel space...)
-#define BASE_ADDRESS (((uintptr_t)0xffff000000000000))
+static const uintptr_t BASE_ADDRESS = 0xffff000000000000;
 
 // Mask to extract just the table selector bits from a virtual address
-#define TABLE_BIT_MASK ((0x0000fffffffff000))
+static const uintptr_t TABLE_BIT_MASK = 0x0000fffffffff000;
 
 // Mask to remove the offset (bottom 12 bits) from an address
-#define OFFSET_MASK ((0xfffffffffffff000))
+static const uintptr_t OFFSET_MASK = 0xfffffffffffff000;
 
-#define L1_LSHIFT ((39)) // Amount to shift a L1 index left when building
-#define L2_LSHIFT ((30)) // Amount to shift a L2 index left when building
-#define L3_LSHIFT ((21)) // Amount to shift a L3 index left when building
-#define L4_LSHIFT ((12)) // Amount to shift a L4 index left when building
+// Amount to shift a L1 index left when building
+static const uintptr_t L1_LSHIFT = 39;
 
-#define L1_RSHIFT ((9))  // Amount to shift a vaddr right when extracting L1
-#define L2_RSHIFT ((18)) // Amount to shift a vaddr right when extracting L2
-#define L3_RSHIFT ((27)) // Amount to shift a vaddr right when extracting L3
-#define L4_RSHIFT ((36)) // Amount to shift a vaddr right when extracting L4
+// Amount to shift a L2 index left when building
+static const uintptr_t L2_LSHIFT = 30;
+
+// Amount to shift a L3 index left when building
+static const uintptr_t L3_LSHIFT = 21;
+
+// Amount to shift a L4 index left when building
+static const uintptr_t L4_LSHIFT = 12;
+
+// Amount to shift a vaddr right when extracting L1
+static const uintptr_t L1_RSHIFT = 9;
+
+// Amount to shift a vaddr right when extracting L2
+static const uintptr_t L2_RSHIFT = 18;
+
+// Amount to shift a vaddr right when extracting L3
+static const uintptr_t L3_RSHIFT = 27;
+
+// Amount to shift a vaddr right when extracting L4
+static const uintptr_t L4_RSHIFT = 36;
 
 // Index of recursive mapping entry in PML4
 // `0xffff800000000000`-> `0xffff807fffffffff` : 512GB Recursive mapping area when @ PML4[256]
-#define RECURSIVE_ENTRY ((256))
+static const uintptr_t RECURSIVE_ENTRY = 256;
 
 // Internal stuff...
-#define LVL_MASK ((0x1ff)) // Mask to apply to a table index
-#define OFS_MASK ((0xfff)) // Mask to apply to a page offset
+static const uintptr_t LVL_MASK = 0x1ff; // Mask to apply to a table index
+static const uintptr_t OFS_MASK = 0xfff; // Mask to apply to a page offset
 
 // Fixed parts of addresses used when building table access addresses for virtual addresses
 // at various levels. These are all precomputed and should just end up as constants...
 //
-#define RECURSIVE_L1 ((((uintptr_t)RECURSIVE_ENTRY) << L1_LSHIFT))
-#define RECURSIVE_L2                                                           \
-    ((RECURSIVE_L1 | (((uintptr_t)RECURSIVE_ENTRY) << L2_LSHIFT)))
-#define RECURSIVE_L3                                                           \
-    ((RECURSIVE_L1 | RECURSIVE_L2 |                                            \
-      (((uintptr_t)RECURSIVE_ENTRY) << L3_LSHIFT)))
-#define RECURSIVE_L4                                                           \
-    ((RECURSIVE_L1 | RECURSIVE_L2 | RECURSIVE_L3 |                             \
-      (((uintptr_t)RECURSIVE_ENTRY) << L4_LSHIFT)))
+static const uintptr_t RECURSIVE_L1 = RECURSIVE_ENTRY << L1_LSHIFT;
+static const uintptr_t RECURSIVE_L2 = RECURSIVE_ENTRY << L2_LSHIFT;
+static const uintptr_t RECURSIVE_L3 = RECURSIVE_ENTRY << L3_LSHIFT;
+static const uintptr_t RECURSIVE_L4 = RECURSIVE_ENTRY << L4_LSHIFT;
 
 typedef struct {
     uint64_t entries[512];
@@ -118,7 +127,8 @@ static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2,
  * Find the PML4 using the _current process'_ recursive mapping (specified by `RECURSIVE_ENTRY`).
  */
 static inline PageTable *vmm_recursive_find_pml4() {
-    return (PageTable *)(BASE_ADDRESS | RECURSIVE_L4);
+    return (PageTable *)(BASE_ADDRESS | RECURSIVE_L1 | RECURSIVE_L2 |
+                         RECURSIVE_L3 | RECURSIVE_L4);
 }
 
 /*
@@ -182,7 +192,7 @@ static inline uint64_t *vmm_virt_to_pde(uintptr_t virt_addr) {
     // ... becomes ...
     // 0xffffffffc0202018 :: 0b1111111111111111 111111111 111111111 000000001 000000010 000000011000
 
-    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L2 |
+    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L1 | RECURSIVE_L2 |
                         ((virt_addr & TABLE_BIT_MASK) >> L2_RSHIFT));
 }
 
@@ -205,7 +215,8 @@ static inline uint64_t *vmm_virt_to_pdpte(uintptr_t virt_addr) {
     // ... becomes ...
     // 0xffffffffffe01010 :: 0b1111111111111111 111111111 111111111 111111111 000000001 000000010000
 
-    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L3 |
+    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L1 | RECURSIVE_L2 |
+                        RECURSIVE_L3 |
                         ((virt_addr & TABLE_BIT_MASK) >> L3_RSHIFT));
 }
 
@@ -228,7 +239,8 @@ static inline uint64_t *vmm_virt_to_pml4e(uintptr_t virt_addr) {
     // ... becomes ...
     // 0xfffffffffffff008 :: 0b1111111111111111 111111111 111111111 111111111 111111111 000000001000
 
-    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L4 |
+    return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L1 | RECURSIVE_L2 |
+                        RECURSIVE_L3 | RECURSIVE_L4 |
                         ((virt_addr & TABLE_BIT_MASK) >> L4_RSHIFT));
 }
 
