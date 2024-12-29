@@ -56,7 +56,7 @@ init_page_tables:
 
   ; Zero out the page table memory
   mov   eax,0                             ; Value is zero
-  mov   ecx,0x1000                        ; Count is number of dwords
+  mov   ecx,0x4000                        ; Count is number of dwords
   mov   edi,PM4_START                     ; Start at table start
   rep   stosd                             ; Zero
 
