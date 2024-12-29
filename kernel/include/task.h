@@ -8,6 +8,7 @@
 #ifndef __ANOS_KERNEL_TASK_H
 #define __ANOS_KERNEL_TASK_H
 
+#include "structs/list.h"
 #include <stdint.h>
 
 /*
@@ -15,6 +16,7 @@
  * Make sure it only grows, and stays packed...
  */
 typedef struct {
+    ListNode this; // 24 bytes
     uintptr_t tid;
     uintptr_t sp;
 } Task;

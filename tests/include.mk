@@ -57,7 +57,7 @@ tests/build/vmm/vmalloc_linkedlist: tests/munit.o tests/vmm/vmalloc_linkedlist.o
 tests/build/debugprint: tests/munit.o tests/debugprint.o tests/build/debugprint.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-tests/build/acpitables: tests/munit.o tests/acpitables.o tests/build/acpitables.o
+tests/build/acpitables: tests/munit.o tests/acpitables.o tests/build/acpitables.o tests/test_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 tests/build/structs/list: tests/munit.o tests/structs/list.o tests/build/structs/list.o
@@ -78,6 +78,8 @@ tests/build/spinlock: tests/munit.o tests/spinlock.o tests/build/spinlock.o
 tests/build/slab/alloc: tests/munit.o tests/slab/alloc.o tests/build/slab/alloc.o tests/test_pmm_noalloc.o tests/test_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+tests/build/vmm/recursive: tests/munit.o tests/vmm/recursive.o $(TEST_BUILD_DIRS)
+	$(CC) $(TEST_CFLAGS) -o $@ tests/munit.o tests/vmm/recursive.o
 
 ALL_TESTS=tests/build/interrupts 										\
 			tests/build/structs/bitmap									\
@@ -91,7 +93,8 @@ ALL_TESTS=tests/build/interrupts 										\
 			tests/build/pci/bus											\
 			tests/build/fba/alloc										\
 			tests/build/spinlock										\
-			tests/build/slab/alloc
+			tests/build/slab/alloc										\
+			tests/build/vmm/recursive
 
 test: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test || exit 1; done'

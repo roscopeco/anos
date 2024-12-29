@@ -24,8 +24,7 @@ void init_local_apic(BIOS_SDTHeader *madt) {
     printhex32(*flags, debugchar);
     debugstr("]\n");
 
-    vmm_map_page(STATIC_PML4, KERNEL_HARDWARE_VADDR_BASE, *lapic_addr,
-                 PRESENT | WRITE);
+    vmm_map_page(KERNEL_HARDWARE_VADDR_BASE, *lapic_addr, PRESENT | WRITE);
 
     uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
 

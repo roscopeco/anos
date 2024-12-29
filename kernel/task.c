@@ -64,10 +64,8 @@ noreturn void debug_test_tasks() {
     uint64_t *task1_stack = (uint64_t *)0x10000;
     uint64_t *task2_stack = (uint64_t *)0x20000;
 
-    vmm_map_page(STATIC_PML4, (uint64_t)task1_stack, p_task1_stack,
-                 WRITE | PRESENT);
-    vmm_map_page(STATIC_PML4, (uint64_t)task2_stack, p_task2_stack,
-                 WRITE | PRESENT);
+    vmm_map_page((uint64_t)task1_stack, p_task1_stack, WRITE | PRESENT);
+    vmm_map_page((uint64_t)task2_stack, p_task2_stack, WRITE | PRESENT);
 
     task1_stack[0] = 0x10;    // tid 0x10
     task1_stack[1] = 0x10f78; // top of stack - 136 bytes already allocated
