@@ -75,7 +75,7 @@ tests/build/fba/alloc: tests/munit.o tests/fba/alloc.o tests/build/fba/alloc.o t
 tests/build/spinlock: tests/munit.o tests/spinlock.o tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-tests/build/slab/alloc: tests/munit.o tests/slab/alloc.o tests/build/slab/alloc.o tests/test_pmm_noalloc.o tests/test_vmm.o
+tests/build/slab/alloc: tests/munit.o tests/slab/alloc.o tests/build/slab/alloc.o tests/build/fba/alloc.o tests/build/spinlock.o tests/build/structs/list.o tests/test_pmm_noalloc.o tests/test_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 tests/build/vmm/recursive: tests/munit.o tests/vmm/recursive.o $(TEST_BUILD_DIRS)

@@ -17,8 +17,13 @@
 #define __ANOS_KERNEL_SLAB_ALLOC_H
 
 #include "structs/list.h"
+#include "vmm/vmconfig.h"
 #include <stdbool.h>
 #include <stdint.h>
+
+static const uint64_t BYTES_PER_SLAB = 16384; // 16KiB Slabs
+static const uint8_t SLAB_BLOCK_SIZE = 64;    // 64-byte blocks
+static const uint64_t BLOCKS_PER_SLAB = BYTES_PER_SLAB / SLAB_BLOCK_SIZE;
 
 typedef struct Slab {
     ListNode this;
@@ -37,7 +42,7 @@ static inline Slab *slab_base(void *block_addr) {
 bool slab_alloc_init();
 
 void *slab_alloc_block();
-void *slab_alloc_blocks();
+void *slab_alloc_blocks(int count);
 
 void slab_free_block(void *block);
 void slab_free_blocks(void *first_block);
