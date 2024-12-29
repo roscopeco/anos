@@ -122,39 +122,63 @@ static inline void *do_alloc(uintptr_t block_address) {
 
 // This is kinda messy, but should be _reasonably_ performant.
 // TODO Once SIMD etc is supported it could be optimised much more...
+//
+// align_page_count must be a power of 2 and <= 64
+//
 static inline uint64_t find_unset_run(const uint64_t *bitmap,
-                                      uint64_t num_quads, uint64_t n) {
-    if (n == 0)
-        return 0;
-    if (num_quads == 0)
+                                      uint64_t num_quads,
+                                      uint8_t align_page_count, uint64_t n) {
+    if (n == 0 || num_quads == 0)
         return 0;
 
+    // Create alignment mask (align_page_count is power of 2)
+    uint64_t align_mask = align_page_count - 1;
+
     uint64_t consec_zeroes = 0;
-    uint64_t start_bit = 0; // Track where current run started
+    uint64_t start_bit = 0;
 
     // Handle special case where n <= 64 more efficiently
     if (n <= 64) {
-        uint64_t consec_zeroes = 0;
-
         for (uint64_t word_idx = 0; word_idx < num_quads; word_idx++) {
             uint64_t word = bitmap[word_idx];
-
             if (word == 0) {
                 // Whole word is zero
+                if (consec_zeroes == 0) {
+                    // Check alignment of potential start
+                    uint64_t current_bit = word_idx * 64;
+                    uint64_t aligned_start =
+                            (current_bit + align_mask) & ~align_mask;
+                    if (aligned_start != current_bit) {
+                        // Skip to next aligned position
+                        consec_zeroes = 0;
+                        continue;
+                    }
+                    start_bit = current_bit;
+                }
                 consec_zeroes += 64;
                 if (consec_zeroes >= n) {
-                    return (word_idx * 64) - (consec_zeroes - n);
+                    return start_bit;
                 }
             } else if (word == (uint64_t)(0xffffffffffffffff)) {
-                // Whole word is ones - reset counter
                 consec_zeroes = 0;
             } else {
                 // Mixed word - check each bit
                 for (int bit_idx = 0; bit_idx < 64; bit_idx++) {
+                    uint64_t current_bit = word_idx * 64 + bit_idx;
                     if (!(word & ((uint64_t)(1) << bit_idx))) {
+                        if (consec_zeroes == 0) {
+                            // Check alignment
+                            uint64_t aligned_start =
+                                    (current_bit + align_mask) & ~align_mask;
+                            if (aligned_start != current_bit) {
+                                // Skip to next aligned position
+                                continue;
+                            }
+                            start_bit = current_bit;
+                        }
                         consec_zeroes++;
                         if (consec_zeroes == n) {
-                            return (word_idx * 64 + bit_idx) - (n - 1);
+                            return start_bit;
                         }
                     } else {
                         consec_zeroes = 0;
@@ -162,61 +186,78 @@ static inline uint64_t find_unset_run(const uint64_t *bitmap,
                 }
             }
         }
-        return num_quads << 6; // No run found, return bit count
+        return num_quads << 6;
     }
 
-    // For n > 64, first find a word that could start a run
+    // For n > 64
     for (uint64_t word_idx = 0; word_idx < num_quads; word_idx++) {
         uint64_t word = bitmap[word_idx];
-
         if (word == 0) {
-            // Whole word is zeros
             if (consec_zeroes == 0) {
-                // Start of a new run
-                start_bit = word_idx * 64;
+                // Check alignment of potential start
+                uint64_t current_bit = word_idx * 64;
+                uint64_t aligned_start =
+                        (current_bit + align_mask) & ~align_mask;
+                if (aligned_start != current_bit) {
+                    // Skip to next aligned position
+                    continue;
+                }
+                start_bit = current_bit;
             }
             consec_zeroes += 64;
-
             if (consec_zeroes >= n) {
                 return start_bit;
             }
         } else if (word == (uint64_t)(0xffffffffffffffff)) {
-            // Whole word is ones - reset counter
             consec_zeroes = 0;
         } else {
-            // Mixed word - check each bit
             for (int bit_idx = 0; bit_idx < 64; bit_idx++) {
                 uint64_t current_bit = word_idx * 64 + bit_idx;
-
                 if (!(word & ((uint64_t)(1) << bit_idx))) {
-                    // Found an unset bit
                     if (consec_zeroes == 0) {
-                        // Start of a new run
+                        // Check alignment
+                        uint64_t aligned_start =
+                                (current_bit + align_mask) & ~align_mask;
+                        if (aligned_start != current_bit) {
+                            continue;
+                        }
                         start_bit = current_bit;
                     }
                     consec_zeroes++;
-
                     if (consec_zeroes == n) {
                         return start_bit;
                     }
                 } else {
-                    // Hit a set bit - reset counter
                     consec_zeroes = 0;
                 }
             }
         }
     }
-
-    return num_quads << 6; // No run found, return total bit count
+    return num_quads << 6;
 }
 
 void *fba_alloc_blocks(uint32_t count) {
+    return fba_alloc_blocks_aligned(count, 1);
+}
+
+void *fba_alloc_blocks_aligned(uint32_t count, uint8_t page_align) {
     tprintf("bmp     = %p\n", _fba_bitmap);
     tprintf("bmp_end = %p\n", _fba_bitmap_end);
 
+    if (count == 0) {
+        return NULL;
+    }
+
+    if (page_align == 0 || page_align > 64 ||
+        (page_align & (page_align - 1)) != 0) {
+        // Align must be a power of two, 0 < page_align < 64
+        return NULL;
+    }
+
     SPIN_LOCK();
     uint64_t *bmp = _fba_bitmap;
-    uint64_t bit = find_unset_run(bmp, _fba_bitmap_size_quads, count);
+    uint64_t bit =
+            find_unset_run(bmp, _fba_bitmap_size_quads, page_align, count);
 
     if (bit == _fba_bitmap_size_bits) {
         tprintf("Unable to satisfy request for %d blocks\n", count);
