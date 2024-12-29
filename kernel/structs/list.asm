@@ -100,7 +100,7 @@ FUNC(list_delete_after):
   mov   qword [rax+NODE_NEXT], 0          ; And clear next in the deleted node
   ret
 
-.done
+.done:
   ret 
   
 
