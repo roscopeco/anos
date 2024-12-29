@@ -97,6 +97,7 @@ void *slab_alloc_block() {
         free_block = first_set_bit_64(~(target->bitmap3)) + 192;
     } else {
         // TODO warn about this, full block in partial list...
+        // (or maybe just panic, since we're going to be in an indeterminite state now anyway...)
         SPIN_UNLOCK_RET(NULL);
     }
 
@@ -115,8 +116,62 @@ void *slab_alloc_block() {
     SPIN_UNLOCK_RET((void *)(target + free_block));
 }
 
-void *slab_alloc_blocks(int count) { return NULL; }
+void slab_free_block(void *block) {
+    Slab *slab = slab_base(block);
 
-void slab_free_block(void *block) {}
+    if (!slab) {
+        // Not in FBA, so not a slab.
+        // TODO warn or something, this should always be a bug...
+        return;
+    }
 
-void slab_free_blocks(void *first_block) {}
+    uint64_t block_num = ((Slab *)block) - slab;
+
+    if (block_num == 0) {
+        // we can't free the bitmap!
+        return;
+    }
+
+    spinlock_lock(&slab_lock);
+
+    if (slab->bitmap0 == 0xffffffffffffffff &&
+        slab->bitmap1 == 0xffffffffffffffff &&
+        slab->bitmap2 == 0xffffffffffffffff &&
+        slab->bitmap3 == 0xffffffffffffffff) {
+
+        // This slab is in the full list, we need to find it and remove it
+        // TODO this is stupid inefficient in the worst case if the lists get big...
+
+        if (full == (ListNode *)slab) {
+            // simple case - just popping head and add to partial list
+            full = slab->this.next;
+            slab->this.next = partial;
+            partial = (ListNode *)slab;
+        } else {
+            // this is the inefficient bit... I don't especially want to
+            // go doubly-linked though...
+            ListNode *prev = NULL;
+            ListNode *test = full;
+
+            while (test) {
+                if (test->next == (ListNode *)slab) {
+                    prev = test;
+                    break;
+                }
+                test = test->next;
+            }
+
+            if (prev) {
+                prev->next = test->next;
+                test->next = partial;
+                partial = test;
+            } else {
+                // TODO warn about this, full slab wasn't in the full list!
+                // (or maybe just panic, since we're going to be in an indeterminite state now anyway...)
+            }
+        }
+    }
+
+    bitmap_clear(&slab->bitmap0, block_num);
+    spinlock_unlock(&slab_lock);
+}

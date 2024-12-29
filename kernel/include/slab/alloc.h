@@ -22,7 +22,8 @@
 #include <stdint.h>
 
 static const uint64_t BYTES_PER_SLAB = 16384; // 16KiB Slabs
-static const uint8_t SLAB_BLOCK_SIZE = 64;    // 64-byte blocks
+static const uint64_t SLAB_BASE_MASK = ~(BYTES_PER_SLAB - 1);
+static const uint8_t SLAB_BLOCK_SIZE = 64; // 64-byte blocks
 static const uint64_t BLOCKS_PER_SLAB = BYTES_PER_SLAB / SLAB_BLOCK_SIZE;
 
 typedef struct Slab {
@@ -36,15 +37,13 @@ typedef struct Slab {
 
 static inline Slab *slab_base(void *block_addr) {
     // TODO check block_addr is in the FBA area!
-    return (Slab *)(((uintptr_t)block_addr) & ~(0x3fff));
+    return (Slab *)(((uintptr_t)block_addr) & SLAB_BASE_MASK);
 }
 
 bool slab_alloc_init();
 
 void *slab_alloc_block();
-void *slab_alloc_blocks(int count);
 
 void slab_free_block(void *block);
-void slab_free_blocks(void *first_block);
 
 #endif //__ANOS_KERNEL_SLAB_ALLOC_H
