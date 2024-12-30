@@ -69,7 +69,6 @@ test_slab_alloc_block_from_empty(const MunitParameter params[],
     // ... List linkage correct
     munit_assert_ptr(slab->this.next, ==, NULL);
     munit_assert_uint64(slab->this.type, ==, KTYPE_SLAB_HEADER);
-    munit_assert_uint64(slab->this.size, ==, 64);
 
     // ... Bitmaps correct - first two blocks allocated, rest are free
     munit_assert_uint64(slab->bitmap0, ==, 0x0000000000000003);
@@ -107,7 +106,6 @@ static MunitResult test_slab_alloc_block_x63(const MunitParameter params[],
     // ... List linkage correct
     munit_assert_ptr(slab->this.next, ==, NULL);
     munit_assert_uint64(slab->this.type, ==, KTYPE_SLAB_HEADER);
-    munit_assert_uint64(slab->this.size, ==, 64);
 
     // ... Bitmaps correct - first 64 blocks allocated (1 slab header, 63 data), rest are free
     munit_assert_uint64(slab->bitmap0, ==, 0xffffffffffffffff);
@@ -145,7 +143,6 @@ static MunitResult test_slab_alloc_block_x64(const MunitParameter params[],
     // ... List linkage correct
     munit_assert_ptr(slab->this.next, ==, NULL);
     munit_assert_uint64(slab->this.type, ==, KTYPE_SLAB_HEADER);
-    munit_assert_uint64(slab->this.size, ==, 64);
 
     // ... Bitmaps correct - first 65 blocks allocated (1 slab header, 63 data), rest are free
     munit_assert_uint64(slab->bitmap0, ==, 0xffffffffffffffff);
@@ -183,7 +180,6 @@ static MunitResult test_slab_alloc_block_x255(const MunitParameter params[],
     // ... List linkage correct
     munit_assert_ptr(slab->this.next, ==, NULL);
     munit_assert_uint64(slab->this.type, ==, KTYPE_SLAB_HEADER);
-    munit_assert_uint64(slab->this.size, ==, 64);
 
     // ... Bitmaps correct - slab is full
     munit_assert_uint64(slab->bitmap0, ==, 0xffffffffffffffff);
@@ -226,7 +222,6 @@ static MunitResult test_slab_alloc_block_x256(const MunitParameter params[],
     //      should be no next, this slab is now full and at end of list...
     munit_assert_ptr(first_slab->this.next, ==, NULL);
     munit_assert_uint64(first_slab->this.type, ==, KTYPE_SLAB_HEADER);
-    munit_assert_uint64(first_slab->this.size, ==, 64);
 
     // ... Bitmaps correct - slab is full
     munit_assert_uint64(first_slab->bitmap0, ==, 0xffffffffffffffff);
@@ -240,7 +235,6 @@ static MunitResult test_slab_alloc_block_x256(const MunitParameter params[],
     //      should be no next, this slab is partial...
     munit_assert_ptr(second_slab->this.next, ==, NULL);
     munit_assert_uint64(second_slab->this.type, ==, KTYPE_SLAB_HEADER);
-    munit_assert_uint64(second_slab->this.size, ==, 64);
 
     // ... Bitmaps correct - first 2 blocks allocated (1 slab header, 1 data), rest are free
     munit_assert_uint64(second_slab->bitmap0, ==, 0x0000000000000003);
@@ -293,7 +287,6 @@ static MunitResult test_slab_alloc_block_x512(const MunitParameter params[],
     //      but this should be at the end so no next!
     munit_assert_ptr(first_slab->this.next, ==, NULL);
     munit_assert_uint64(first_slab->this.type, ==, KTYPE_SLAB_HEADER);
-    munit_assert_uint64(first_slab->this.size, ==, 64);
 
     // ... Bitmaps correct - slab is full
     munit_assert_uint64(first_slab->bitmap0, ==, 0xffffffffffffffff);
@@ -306,7 +299,6 @@ static MunitResult test_slab_alloc_block_x512(const MunitParameter params[],
     //      first_slab should be next in the full list...
     munit_assert_ptr(second_slab->this.next, ==, first_slab);
     munit_assert_uint64(second_slab->this.type, ==, KTYPE_SLAB_HEADER);
-    munit_assert_uint64(second_slab->this.size, ==, 64);
 
     // ... Bitmaps correct - slab is full
     munit_assert_uint64(second_slab->bitmap0, ==, 0xffffffffffffffff);
@@ -319,7 +311,6 @@ static MunitResult test_slab_alloc_block_x512(const MunitParameter params[],
     munit_assert_ptr(third_slab->this.next, ==,
                      NULL); // should be no next, this slab is partial...
     munit_assert_uint64(third_slab->this.type, ==, KTYPE_SLAB_HEADER);
-    munit_assert_uint64(third_slab->this.size, ==, 64);
 
     // ... Bitmaps correct - first 3 blocks allocated (1 slab header, 2 data), rest are free
     munit_assert_uint64(third_slab->bitmap0, ==, 0x0000000000000007);

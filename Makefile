@@ -103,9 +103,12 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/isr_dispatch.o										\
 			$(STAGE3_DIR)/init_interrupts.o										\
 			$(STAGE3_DIR)/pagefault.o											\
+			$(STAGE3_DIR)/structs/list.o										\
 			$(STAGE3_DIR)/init_pagetables.o										\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/vmm/vmmapper.o										\
+			$(STAGE3_DIR)/fba/alloc.o											\
+			$(STAGE3_DIR)/slab/alloc.o											\
 			$(STAGE3_DIR)/acpitables.o											\
 			$(STAGE3_DIR)/gdt.o													\
 			$(STAGE3_DIR)/general_protection_fault.o							\

@@ -28,7 +28,8 @@ static const uint64_t BLOCKS_PER_SLAB = BYTES_PER_SLAB / SLAB_BLOCK_SIZE;
 
 typedef struct Slab {
     ListNode this;
-    uint64_t reserved;
+    uint64_t reserved1;
+    uint64_t reserved2;
     uint64_t bitmap0;
     uint64_t bitmap1;
     uint64_t bitmap2;
