@@ -73,7 +73,6 @@ void *slab_alloc_block() {
         // zero out header
         target->this.next = NULL;
         target->this.type = KTYPE_SLAB_HEADER;
-        target->this.size = sizeof(Slab);
         target->bitmap0 = 1; // first block always allocated
         target->bitmap1 = 0;
         target->bitmap2 = 0;

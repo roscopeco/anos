@@ -13,16 +13,21 @@
 
 #include "acpitables.h"
 #include "debugprint.h"
+#include "fba/alloc.h"
 #include "gdt.h"
 #include "init_pagetables.h"
 #include "interrupts.h"
 #include "kdrivers/drivers.h"
 #include "kdrivers/local_apic.h"
+#include "ktypes.h"
 #include "machine.h"
 #include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
+#include "process.h"
+#include "slab/alloc.h"
 #include "syscalls.h"
+#include "task.h"
 #include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
 
@@ -52,6 +57,9 @@
 
 extern void *_system_bin_start;
 extern void *_system_bin_end;
+
+static Process *system_process;
+static Task *system_task;
 
 static char *MSG = VERSION "\n";
 
@@ -289,6 +297,23 @@ noreturn void start_system(void) {
     uint64_t user_stack_phys = page_alloc(physical_region);
     vmm_map_page(user_stack, user_stack_phys, flags | WRITE);
 
+    // ... the FBA can give us a kernel stack...
+    void *kernel_stack = fba_alloc_blocks(4); // 16KiB
+
+    // create a process and task for system
+    system_process = fba_alloc_block();
+    system_task = fba_alloc_block();
+
+    system_task->this.next = NULL;
+    system_task->this.type = KTYPE_TASK;
+    system_task->owner = system_process;
+    system_task->sp = user_stack;
+    system_task->ssp = kernel_stack;
+
+    system_process->this.next = NULL;
+    system_process->this.type = KTYPE_PROCESS;
+    system_process->pid = 1;
+
     debugstr("Starting user-mode supervisor...\n");
 
     // Switch to user mode
@@ -307,6 +332,19 @@ noreturn void start_system(void) {
     __builtin_unreachable();
 }
 
+static void panic(char *msg) {
+    debugattr(0x4C);
+    debugstr("PANIC");
+    debugattr(0x0C);
+
+    debugstr("         : ");
+    debugstr(msg);
+    debugstr(" - ");
+
+    debugstr("\nHalting...");
+    halt_and_catch_fire();
+}
+
 noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     debugterm_init(VRAM_VIRT_BASE);
     banner();
@@ -316,6 +354,16 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     pagetables_init();
     physical_region =
             page_alloc_init(memmap, PMM_PHYS_BASE, STATIC_PMM_VREGION);
+
+    if (!fba_init((uint64_t *)vmm_recursive_find_pml4(), KERNEL_FBA_BEGIN,
+                  KERNEL_FBA_SIZE_BLOCKS)) {
+        panic("FBA init failed");
+    }
+
+    if (!slab_alloc_init()) {
+        panic("Slab init failed");
+    }
+
     install_interrupts();
     syscall_init();
 

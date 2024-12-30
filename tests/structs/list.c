@@ -11,13 +11,8 @@
 #include "munit.h"
 #include "structs/list.h"
 
-#define NEW_NODE_SIZE sizeof(ListNode)
 #define NEW_NODE_TYPE 42
-
-#define SECOND_NODE_SIZE sizeof(ListNode)
 #define SECOND_NODE_TYPE 99
-
-#define THIRD_NODE_SIZE sizeof(ListNode)
 #define THIRD_NODE_TYPE 141
 
 static ListNode new_node;
@@ -332,15 +327,12 @@ static MunitResult test_find_match_last(const MunitParameter params[],
 }
 
 static void *setup(const MunitParameter params[], void *user_data) {
-    new_node.size = NEW_NODE_SIZE;
     new_node.type = NEW_NODE_TYPE;
     new_node.next = NULL;
 
-    second_node.size = SECOND_NODE_SIZE;
     second_node.type = SECOND_NODE_TYPE;
     second_node.next = NULL;
 
-    third_node.size = THIRD_NODE_SIZE;
     third_node.type = THIRD_NODE_TYPE;
     third_node.next = NULL;
 
