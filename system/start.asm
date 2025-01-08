@@ -20,15 +20,15 @@ _start:
   mov   rcx,_bss_end                        ; Get end of .bss section (VMA)
   mov   rax,_bss_start                      ; Get start of .bss section (VMA)
   sub   rcx,rax                             ; Compute length of .bss (bytes) in RCX
-  shr   rcx,0x2                             ; Divide by 4 (we're zeroing dwords)
+  shr   rcx,0x3                             ; Divide by 8 (we're zeroing qwords)
 
   test  rcx,rcx                             ; Do we have zero-size .bss?
   jz    .done                               ; We're done if so...
 
   mov   rbx,_bss_start                      ; bss start (VMA) into rbx
 .zero_bss_loop:
-  mov   dword [rbx],0x0                     ; Clear one dword
-  add   rbx,0x4                             ; Increment write pointer
+  mov   qword [rbx],0x0                     ; Clear one qword
+  add   rbx,0x8                             ; Increment write pointer
   dec   rcx                                 ; Decrement loop counter
   jnz   .zero_bss_loop                      ; Loop until CX is zero
 
