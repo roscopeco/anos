@@ -21,7 +21,7 @@ SHORT_HASH?=`git rev-parse --short HEAD`
 LIBBASE?=libanos
 LIB_ARCHIVE=$(LIBBASE).a
 
-LIB_ARCHIVE_OBJS=anos.o
+LIB_ARCHIVE_OBJS=anos.o printf.o printf_putchar.o version.o
 
 ALL_TARGETS=$(LIB_ARCHIVE)
 

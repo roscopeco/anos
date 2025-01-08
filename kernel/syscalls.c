@@ -1,6 +1,9 @@
 /*
  * stage3 - Syscall implementations
  * anos - An Operating System
+ * 
+ * NOTE: The calls defined herein are currently only for test/debug.
+ * They are poorly designed and **won't** be sticking around.
  *
  * Copyright (c) 2024 Ross Bamford
  */
@@ -30,9 +33,15 @@ static SyscallResult handle_testcall(SyscallArg arg0, SyscallArg arg1,
 }
 
 static SyscallResult handle_debugprint(char *message) {
-    if (((uint64_t)message & 0xf000000000000000) == 0) {
+    if (((uint64_t)message & 0xffffffff00000000) == 0) {
         debugstr(message);
     }
+
+    return SYSCALL_OK;
+}
+
+static SyscallResult handle_debugchar(char chr) {
+    debugchar(chr);
 
     return SYSCALL_OK;
 }
@@ -45,6 +54,8 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
         return handle_testcall(arg0, arg1, arg2, arg3, arg4);
     case 1:
         return handle_debugprint((char *)arg0);
+    case 2:
+        return handle_debugchar((char)arg0);
     default:
         return SYSCALL_BAD_NUMBER;
     }

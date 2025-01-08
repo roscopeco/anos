@@ -8,4 +8,6 @@
 #ifndef __ANOS_ANOS_H
 #define __ANOS_ANOS_H
 
+const char *libanos_version();
+
 #endif //__ANOS_ANOS_H

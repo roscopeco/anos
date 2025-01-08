@@ -8,6 +8,7 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=large															\
+		-g																		\
 		-O3																		\
 
 # The following C defines are recognised by system and enable various things

@@ -5,6 +5,7 @@
 ;
 
 global testcall_int, testcall_syscall, kprint_int, kprint_syscall
+global kputchar_syscall, kputchar_int
 
 
 ; args:
@@ -56,7 +57,7 @@ testcall_syscall:
 ;   rcx - trashed
 ;   
 kprint_syscall:
-    mov r9,$1
+    mov r9, $1
     syscall
     ret
 
@@ -73,4 +74,26 @@ kprint_int:
     ret
 
 
+; args:
+;   rdi - character (low byte)
+;
+; mods:
+;   rax - result
+;   
+kputchar_syscall:
+    mov r9, $2
+    syscall
+    ret
+
+
+; args:
+;   rdi - character (low byte)
+;
+; mods:
+;   rax - result
+;   
+kputchar_int:
+    mov r9, $2
+    int 0x69
+    ret
 

@@ -5,7 +5,9 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
+#include "anos.h"
 #include "anos/anos_syscalls.h"
+#include "anos/printf.h"
 #include <stdint.h>
 
 #ifndef VERSTR
@@ -17,22 +19,13 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
-static const char *MSG = VERSION "\n";
-
 volatile int num;
-
-#ifdef DEBUG_INT_SYSCALLS
-#define kprint kprint_int
-#else
-#define kprint kprint_syscall
-#endif
 
 int subroutine(int in) { return in * 2; }
 
 static inline void banner() {
-    kprint("\n\nSYSTEM User-mode Supervisor #");
-    kprint(MSG);
-    kprint("\n");
+    printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION,
+           libanos_version());
 }
 
 int main(int argc, char **argv) {
@@ -59,7 +52,7 @@ int main(int argc, char **argv) {
         num = subroutine(num);
 
         if (count++ % 100000000 == 0) {
-            kprint(".");
+            kputchar('.');
         }
     }
 }
