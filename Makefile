@@ -52,14 +52,20 @@ STAGE1?=stage1
 STAGE2?=stage2
 STAGE3?=kernel
 SYSTEM?=system
+LIBANOS?=libanos
 STAGE1_DIR?=$(STAGE1)
 STAGE2_DIR?=$(STAGE2)
 STAGE3_DIR?=$(STAGE3)
 SYSTEM_DIR?=$(SYSTEM)
+LIBANOS_DIR?=$(LIBANOS)
 STAGE1_BIN=$(STAGE1).bin
 STAGE2_BIN=$(STAGE2).bin
 STAGE3_BIN=$(STAGE3).bin
 SYSTEM_BIN=$(SYSTEM).bin
+LIBANOS_ARCHIVE=$(LIBANOS).a
+
+export LIBANOS_DIR
+export LIBANOS_ARCHIVE
 
 STAGE3_INC=$(STAGE3)/include
 
@@ -188,8 +194,12 @@ $(STAGE2_DIR)/$(STAGE2_BIN): $(STAGE2_DIR)/$(STAGE2).elf $(STAGE2_DIR)/$(STAGE2)
 	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
 
+# ############# Libanos ##############
+$(LIBANOS_DIR)/$(LIBANOS_ARCHIVE): $(LIBANOS_DIR)/Makefile
+	$(MAKE) -C $(LIBANOS_DIR)
+
 # ############# System  ##############
-$(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile
+$(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile $(LIBANOS_DIR)/$(LIBANOS_ARCHIVE)
 	$(MAKE) -C $(SYSTEM_DIR)
 
 $(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)

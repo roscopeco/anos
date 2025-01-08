@@ -5,6 +5,7 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
+#include "anos/anos_syscalls.h"
 #include <stdint.h>
 
 #ifndef VERSTR
@@ -19,14 +20,6 @@
 static const char *MSG = VERSION "\n";
 
 volatile int num;
-
-int testcall_int(uint64_t arg0, uint64_t arg1, uint64_t arg2, uint64_t arg3,
-                 uint64_t arg4);
-int testcall_syscall(uint64_t arg0, uint64_t arg1, uint64_t arg2, uint64_t arg3,
-                     uint64_t arg4);
-
-int kprint_int(const char *msg);
-int kprint_syscall(const char *msg);
 
 #ifdef DEBUG_INT_SYSCALLS
 #define kprint kprint_int
