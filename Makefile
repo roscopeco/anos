@@ -141,6 +141,8 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/pmm/*.o $(STAGE3_DIR)/vmm/*.o				 		\
 				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
+				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
+				$(STAGE3_DIR)/structs/*.o										\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
@@ -154,6 +156,7 @@ build: $(ALL_TARGETS)
 
 clean:
 	rm -rf $(CLEAN_ARTIFACTS)
+	$(MAKE) -C libanos clean
 	$(MAKE) -C system clean
 
 include tests/include.mk
