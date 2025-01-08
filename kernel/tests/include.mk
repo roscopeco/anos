@@ -7,7 +7,9 @@ ifeq ($(HOST_ARCH),arm)
 TEST_CFLAGS+=-arch x86_64
 endif
 
-TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm kernel/tests/build/structs kernel/tests/build/pci kernel/tests/build/fba kernel/tests/build/slab
+TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm	\
+				kernel/tests/build/structs kernel/tests/build/pci 					\
+				kernel/tests/build/fba kernel/tests/build/slab
 
 kernel/tests/build:
 	mkdir -p kernel/tests/build
@@ -84,15 +86,15 @@ kernel/tests/build/vmm/recursive: kernel/tests/munit.o kernel/tests/vmm/recursiv
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
-			kernel/tests/build/vmm/vmmapper									\
+			kernel/tests/build/vmm/vmmapper										\
 			kernel/tests/build/vmm/vmalloc_linkedlist							\
 			kernel/tests/build/debugprint										\
 			kernel/tests/build/acpitables										\
-			kernel/tests/build/structs/list									\
+			kernel/tests/build/structs/list										\
 			kernel/tests/build/gdt												\
 			kernel/tests/build/pci/bus											\
 			kernel/tests/build/fba/alloc										\
-			kernel/tests/build/spinlock										\
+			kernel/tests/build/spinlock											\
 			kernel/tests/build/slab/alloc										\
 			kernel/tests/build/vmm/recursive
 
