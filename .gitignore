@@ -4,6 +4,7 @@ kernel.bin
 floppy.img
 native_tests/fat
 native_tests/printhex
+**/*.a
 **/*.o
 **/*.elf
 **/*.dis
