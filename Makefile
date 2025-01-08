@@ -159,7 +159,7 @@ clean:
 	$(MAKE) -C libanos clean
 	$(MAKE) -C system clean
 
-include tests/include.mk
+include kernel/tests/include.mk
 
 %.o: %.asm
 	$(ASM) 																		\

@@ -8,7 +8,7 @@ native_tests/printhex
 **/*.o
 **/*.elf
 **/*.dis
-tests/build
+kernel/tests/build
 .vscode
 native_tests/pt
 system/system.bin
