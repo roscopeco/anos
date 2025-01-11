@@ -4,10 +4,11 @@ kernel.bin
 floppy.img
 native_tests/fat
 native_tests/printhex
+**/*.a
 **/*.o
 **/*.elf
 **/*.dis
-tests/build
+kernel/tests/build
 .vscode
 native_tests/pt
 system/system.bin

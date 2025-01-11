@@ -52,14 +52,20 @@ STAGE1?=stage1
 STAGE2?=stage2
 STAGE3?=kernel
 SYSTEM?=system
+LIBANOS?=libanos
 STAGE1_DIR?=$(STAGE1)
 STAGE2_DIR?=$(STAGE2)
 STAGE3_DIR?=$(STAGE3)
 SYSTEM_DIR?=$(SYSTEM)
+LIBANOS_DIR?=$(LIBANOS)
 STAGE1_BIN=$(STAGE1).bin
 STAGE2_BIN=$(STAGE2).bin
 STAGE3_BIN=$(STAGE3).bin
 SYSTEM_BIN=$(SYSTEM).bin
+LIBANOS_ARCHIVE=$(LIBANOS).a
+
+export LIBANOS_DIR
+export LIBANOS_ARCHIVE
 
 STAGE3_INC=$(STAGE3)/include
 
@@ -135,6 +141,8 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/pmm/*.o $(STAGE3_DIR)/vmm/*.o				 		\
 				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
+				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
+				$(STAGE3_DIR)/structs/*.o										\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
@@ -148,9 +156,10 @@ build: $(ALL_TARGETS)
 
 clean:
 	rm -rf $(CLEAN_ARTIFACTS)
+	$(MAKE) -C libanos clean
 	$(MAKE) -C system clean
 
-include tests/include.mk
+include kernel/tests/include.mk
 
 %.o: %.asm
 	$(ASM) 																		\
@@ -188,8 +197,12 @@ $(STAGE2_DIR)/$(STAGE2_BIN): $(STAGE2_DIR)/$(STAGE2).elf $(STAGE2_DIR)/$(STAGE2)
 	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
 
+# ############# Libanos ##############
+$(LIBANOS_DIR)/$(LIBANOS_ARCHIVE): $(LIBANOS_DIR)/Makefile
+	$(MAKE) -C $(LIBANOS_DIR)
+
 # ############# System  ##############
-$(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile
+$(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile $(LIBANOS_DIR)/$(LIBANOS_ARCHIVE)
 	$(MAKE) -C $(SYSTEM_DIR)
 
 $(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
