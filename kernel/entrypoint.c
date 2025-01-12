@@ -277,33 +277,6 @@ static inline void *get_tss() {
 MemoryRegion *physical_region;
 BIOS_SDTHeader *acpi_root_table;
 
-// Don't call this directly - it gets called via return as part of initial
-// task / sched spin-up...
-// static noreturn void system_entrypoint() {
-//     // We can just get away with enabling here, no need to save/restore flags
-//     // because we still know we're currently the only thread...
-//     __asm__ volatile("sti");
-
-//     debugstr("Starting user-mode supervisor...\n");
-
-//     Task *current = task_current();
-
-//     // Switch to user mode
-//     __asm__ volatile(
-//             "mov %0, %%rsp\n\t" // Set stack pointer
-//             "push $0x1B\n\t"    // Push user data segment selector (GDT entry 3)
-//             "push %0\n\t"       // Push user stack pointer
-//             "pushf\n\t"         // Push EFLAGS
-//             "push $0x23\n\t"    // Push user code segment selector (GDT entry 4)
-//             "push %1\n\t"       // Push user code entry point
-//             "iretq\n\t"         // "Return" to user mode
-//             :
-//             : "r"(current->sp), "r"((uint64_t)0x0000000001000000)
-//             : "memory");
-
-//     __builtin_unreachable();
-// }
-
 noreturn void start_system(void) {
     uint64_t system_start_virt = 0x1000000;
     uint64_t system_start_phys =

@@ -48,8 +48,10 @@ noreturn void halt_and_catch_fire(void);
 void outl(uint16_t port, uint32_t value);
 uint32_t inl(uint16_t port);
 
-void restore_interrupts(uint64_t cookie);
-uint64_t disable_interrupts();
+void disable_interrupts();
+void enable_interrupts();
+uint64_t save_disable_interrupts();
+void restore_saved_interrupts(uint64_t flags);
 
 /*
  * These are used by the new thread entrypoint code.

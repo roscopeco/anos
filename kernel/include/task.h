@@ -20,7 +20,7 @@
 typedef struct {
     ListNode this;  // 16 bytes
     uintptr_t tid;  // 24
-    uintptr_t esp0; // 32
+    uintptr_t rsp0; // 32
     uintptr_t ssp;  // 40
     Process *owner; // 48
     uintptr_t

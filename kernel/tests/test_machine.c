@@ -122,27 +122,18 @@ uint32_t inl(uint16_t port) {
     return test_machine_read_inl_buffer(port);
 }
 
-void restore_interrupts(uint64_t cookie) {
+void enable_interrupts() {
     if (intr_disable_level > 0) {
         --intr_disable_level;
     }
-
-    if (cookie != TEST_IRQ_DISABLE_COOKIE) {
-        fprintf(stderr,
-                "WARN: test_machine restore_interrupts with unexpected cookie "
-                "0x%016llx\n",
-                cookie);
-    }
 }
 
-uint64_t disable_interrupts() {
+void disable_interrupts() {
     ++intr_disable_level;
 
     if (intr_disable_level > max_intr_disable_level) {
         max_intr_disable_level = intr_disable_level;
     }
-
-    return TEST_IRQ_DISABLE_COOKIE;
 }
 
 uint32_t test_machine_intr_disable_level() { return intr_disable_level; }

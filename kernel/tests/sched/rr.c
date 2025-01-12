@@ -68,19 +68,24 @@ static MunitResult test_sched_init_with_ssp(const MunitParameter params[],
 
     munit_assert_uint64(task->tid, ==, 1);
     munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
-    munit_assert_uint64(task->sp, ==, 0);
 
-    // -128 because reg space was reserved, and func was pushed
+    // Top of kernel stack
+    munit_assert_uint64(task->rsp0, ==, sys_stack);
+
+    // Top of kernel stack -128 because reg space was reserved,
+    // and func was pushed
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);
 
     // func is zero, so zero was pushed...
     munit_assert_uint64(*(uint64_t *)task->ssp, ==, 0);
 
     munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
-    munit_assert_ptr(task->this.next, ==, task);
+    munit_assert_ptr(task->this.next, ==, NULL);
 
     return MUNIT_OK;
 }
+
+void user_thread_entrypoint(void);
 
 static MunitResult test_sched_init_with_all(const MunitParameter params[],
                                             void *page_area_ptr) {
@@ -108,16 +113,23 @@ static MunitResult test_sched_init_with_all(const MunitParameter params[],
 
     munit_assert_uint64(task->tid, ==, 1);
     munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
-    munit_assert_uint64(task->sp, ==, TEST_SYS_SP);
+    munit_assert_uint64(task->rsp0, ==, sys_stack);
 
     // -128 because reg space was reserved, and func was pushed
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);
 
     // func addr is "valid" and was pushed after reserved register space...
-    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==, TEST_SYS_FUNC);
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==,
+                        (uint64_t)user_thread_entrypoint);
+
+    // r15 register slot on stack has user function entrypoint
+    munit_assert_uint64(*(uint64_t *)(task->ssp), ==, TEST_SYS_FUNC);
+
+    // r14 register slot on stack has user SP
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 8), ==, TEST_SYS_SP);
 
     munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
-    munit_assert_ptr(task->this.next, ==, task);
+    munit_assert_ptr(task->this.next, ==, NULL);
 
     return MUNIT_OK;
 }

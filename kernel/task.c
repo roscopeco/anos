@@ -75,7 +75,7 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t func) {
     Task *task = slab_alloc_block();
 
     task->tid = next_tid++;
-    task->esp0 = task->ssp = ((uintptr_t)fba_alloc_block()) +
+    task->rsp0 = task->ssp = ((uintptr_t)fba_alloc_block()) +
                              0x1000; // 4KiB kernel stack should be enough...?
 
     // push address of entrypoint func as first place this task will "return" to...

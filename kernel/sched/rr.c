@@ -51,6 +51,8 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func) {
 
     Task *new_task = slab_alloc_block();
 
+    new_task->rsp0 = sys_ssp;
+
     // push address of init func as first place this task will return to...
     sys_ssp -= 8;
     *((uint64_t *)sys_ssp) = (uint64_t)user_thread_entrypoint;
@@ -66,9 +68,9 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func) {
     sys_ssp -= 8;
     *((uint64_t *)sys_ssp) = start_func;
 
+    new_task->ssp = sys_ssp;
     new_task->owner = new_process;
     new_task->pml4 = new_process->pml4;
-    new_task->esp0 = new_task->ssp = sys_ssp;
     new_task->tid = 1;
     new_task->reserved2 = DEFAULT_TIMESLICE;
 

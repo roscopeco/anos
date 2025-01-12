@@ -29,16 +29,11 @@ uint32_t inl(uint16_t port) {
     return ret;
 }
 
-void restore_interrupts(uint64_t flags) {
-    __asm__ volatile("pushq %0\n\t" // Push flags onto stack
-                     "popfq"        // Pop into RFLAGS
-                     :              // No outputs
-                     : "r"(flags)   // Input: flags to restore
-                     : "memory"     // Memory clobber
-    );
-}
+void disable_interrupts() { __asm__ volatile("cli\n"); }
 
-uint64_t disable_interrupts() {
+void enable_interrupts() { __asm__ volatile("sti\n"); }
+
+uint64_t save_disable_interrupts() {
 
     uint64_t flags;
 
@@ -52,4 +47,13 @@ uint64_t disable_interrupts() {
     );
 
     return flags;
+}
+
+void restore_saved_interrupts(uint64_t flags) {
+    __asm__ volatile("pushq %0\n\t" // Push flags onto stack
+                     "popfq"        // Pop into RFLAGS
+                     :              // No outputs
+                     : "r"(flags)   // Input: flags to restore
+                     : "memory"     // Memory clobber
+    );
 }

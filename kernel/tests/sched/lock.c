@@ -12,9 +12,7 @@
 
 static MunitResult test_sched_lock_unlocked(const MunitParameter params[],
                                             void *param) {
-    uint64_t cookie = sched_lock();
-
-    munit_assert_uint64(cookie, ==, TEST_IRQ_DISABLE_COOKIE);
+    sched_lock();
 
     munit_assert_uint32(test_spinlock_get_lock_count(), ==, 1);
     munit_assert_uint32(test_spinlock_get_unlock_count(), ==, 0);
@@ -26,16 +24,15 @@ static MunitResult test_sched_lock_unlocked(const MunitParameter params[],
 
 static MunitResult test_sched_lock_locked(const MunitParameter params[],
                                           void *param) {
-    uint64_t cookie = sched_lock();
-
-    munit_assert_uint64(cookie, ==, TEST_IRQ_DISABLE_COOKIE);
+    sched_lock();
 
     munit_assert_uint32(test_spinlock_get_lock_count(), ==, 1);
     munit_assert_uint32(test_spinlock_get_unlock_count(), ==, 0);
 
     sched_lock();
 
-    munit_assert_uint32(test_spinlock_get_lock_count(), ==, 2);
+    // still only one lock, it's non-reentrant!
+    munit_assert_uint32(test_spinlock_get_lock_count(), ==, 1);
     munit_assert_uint32(test_spinlock_get_unlock_count(), ==, 0);
 
     munit_assert_uint32(test_machine_intr_disable_level(), ==, 2);
@@ -45,9 +42,9 @@ static MunitResult test_sched_lock_locked(const MunitParameter params[],
 
 static MunitResult test_sched_unlock_locked(const MunitParameter params[],
                                             void *param) {
-    uint64_t cookie = sched_lock();
+    sched_lock();
 
-    sched_unlock(cookie);
+    sched_unlock();
 
     munit_assert_uint32(test_spinlock_get_lock_count(), ==, 1);
     munit_assert_uint32(test_spinlock_get_unlock_count(), ==, 1);
@@ -60,7 +57,7 @@ static MunitResult test_sched_unlock_locked(const MunitParameter params[],
 
 static MunitResult test_sched_unlock_unlocked(const MunitParameter params[],
                                               void *param) {
-    sched_unlock(TEST_IRQ_DISABLE_COOKIE);
+    sched_unlock();
 
     munit_assert_uint32(test_spinlock_get_lock_count(), ==, 0);
     munit_assert_uint32(test_spinlock_get_unlock_count(), ==, 1);
