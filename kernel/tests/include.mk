@@ -9,7 +9,8 @@ endif
 
 TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm	\
 				kernel/tests/build/structs kernel/tests/build/pci 					\
-				kernel/tests/build/fba kernel/tests/build/slab
+				kernel/tests/build/fba kernel/tests/build/slab 						\
+				kernel/tests/build/sched
 
 kernel/tests/build:
 	mkdir -p kernel/tests/build
@@ -31,6 +32,9 @@ kernel/tests/build/fba:
 
 kernel/tests/build/slab:
 	mkdir -p kernel/tests/build/slab
+
+kernel/tests/build/sched:
+	mkdir -p kernel/tests/build/sched
 
 kernel/tests/build/%.o: kernel/%.c $(TEST_BUILD_DIRS)
 	$(CC) -DUNIT_TESTS $(TEST_CFLAGS) -c -o $@ $<
@@ -83,6 +87,9 @@ kernel/tests/build/slab/alloc: kernel/tests/munit.o kernel/tests/slab/alloc.o ke
 kernel/tests/build/vmm/recursive: kernel/tests/munit.o kernel/tests/vmm/recursive.o $(TEST_BUILD_DIRS)
 	$(CC) $(TEST_CFLAGS) -o $@ kernel/tests/munit.o kernel/tests/vmm/recursive.o
 
+kernel/tests/build/sched/rr: kernel/tests/munit.o kernel/tests/sched/rr.o kernel/tests/build/sched/rr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/test_pmm_noalloc.o kernel/tests/test_vmm.o kernel/tests/test_task.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
@@ -96,7 +103,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/fba/alloc										\
 			kernel/tests/build/spinlock											\
 			kernel/tests/build/slab/alloc										\
-			kernel/tests/build/vmm/recursive
+			kernel/tests/build/vmm/recursive									\
+			kernel/tests/build/sched/rr
 
 test: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test || exit 1; done'

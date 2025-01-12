@@ -37,7 +37,7 @@ endif
 #
 #	DEBUG_FORCE_HANDLED_PAGE_FAULT		Force a handled page-fault at boot
 #	DEBUG_FORCE_UNHANDLED_PAGE_FAULT	Force an unhandled page-fault at boot
-#   DEBUG_TEST_TASKS					Run a noreturn func that just tests the basic task switch
+#   DEBUG_TASK_SWITCH					Dump debug info when switching tasks
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #
 # Additionally:
@@ -111,6 +111,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/pagefault.o											\
 			$(STAGE3_DIR)/structs/list.o										\
 			$(STAGE3_DIR)/init_pagetables.o										\
+			$(STAGE3_DIR)/pmm/sys_asm.o											\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/vmm/vmmapper.o										\
 			$(STAGE3_DIR)/fba/alloc.o											\
@@ -128,6 +129,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/syscalls.o											\
 			$(STAGE3_DIR)/task.o												\
 			$(STAGE3_DIR)/task_switch.o											\
+			$(STAGE3_DIR)/sched/rr.o											\
 			$(SYSTEM)_linkable.o
 			
 ALL_TARGETS=floppy.img

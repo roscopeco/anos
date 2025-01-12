@@ -28,6 +28,16 @@ static inline void banner() {
            libanos_version());
 }
 
+static void thread2() {
+    int count = 0;
+
+    while (1) {
+        if (count++ % 100000000 == 0) {
+            kputchar('B');
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     banner();
 
@@ -47,6 +57,14 @@ int main(int argc, char **argv) {
 
     num = 1;
     int count = 0;
+
+    int thread = anos_create_thread(thread2);
+
+    if (thread == 0) {
+        printf("Thread creation failed!\n");
+    } else {
+        printf("Thread created: 0x%016x\n", thread);
+    }
 
     while (1) {
         num = subroutine(num);

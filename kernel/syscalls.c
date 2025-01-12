@@ -14,6 +14,8 @@
 
 #include <stdint.h>
 
+typedef void (*ThreadFunc)(void);
+
 static SyscallResult handle_testcall(SyscallArg arg0, SyscallArg arg1,
                                      SyscallArg arg2, SyscallArg arg3,
                                      SyscallArg arg4) {
@@ -46,6 +48,10 @@ static SyscallResult handle_debugchar(char chr) {
     return SYSCALL_OK;
 }
 
+static SyscallResult handle_create_thread(ThreadFunc func) {
+    return SYSCALL_OK;
+}
+
 SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
                                 SyscallArg arg2, SyscallArg arg3,
                                 SyscallArg arg4, SyscallArg syscall_num) {
@@ -56,6 +62,8 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
         return handle_debugprint((char *)arg0);
     case 2:
         return handle_debugchar((char)arg0);
+    case 3:
+        return handle_create_thread((ThreadFunc)arg0);
     default:
         return SYSCALL_BAD_NUMBER;
     }

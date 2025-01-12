@@ -12,8 +12,10 @@
 #include <stdint.h>
 
 typedef struct {
-    ListNode this;
-    uint64_t pid;
+    uint64_t reserved0[2]; // 16 bytes
+    uint64_t pid;          // 24
+    uintptr_t pml4;        // 32
+    uint64_t reserved[4];  // 64
 } Process;
 
 #endif

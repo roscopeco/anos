@@ -4,8 +4,9 @@
 ; Copyright (c) 2024 Ross Bamford
 ;
 
-global testcall_int, testcall_syscall, kprint_int, kprint_syscall
-global kputchar_syscall, kputchar_int
+global testcall_int, testcall_syscall
+global kputchar_syscall, kputchar_int, kprint_int, kprint_syscall
+global anos_create_thread_syscall, anos_create_thread_int
 
 
 ; args:
@@ -94,6 +95,30 @@ kputchar_syscall:
 ;   
 kputchar_int:
     mov r9, $2
+    int 0x69
+    ret
+
+
+; args:
+;   rdi - function pointer
+;
+; mods:
+;   rax - result
+;   
+anos_create_thread_syscall:
+    mov r9, $3
+    syscall
+    ret
+
+
+; args:
+;   rdi - function pointer
+;
+; mods:
+;   rax - result
+;   
+anos_create_thread_int:
+    mov r9, $3
     int 0x69
     ret
 
