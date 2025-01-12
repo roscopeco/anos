@@ -51,4 +51,14 @@ uint32_t inl(uint16_t port);
 void restore_interrupts(uint64_t cookie);
 uint64_t disable_interrupts();
 
+/*
+ * These are used by the new thread entrypoint code.
+ *
+ * They just returns whatever is currently in r15 (entrypoint)
+ * or r14 (user stack) which is where the new thread setup puts 
+ * the right values for the new thread...
+ */
+uintptr_t get_new_thread_entrypoint();
+uintptr_t get_new_thread_userstack();
+
 #endif //__ANOS_KERNEL_MACHINE_H

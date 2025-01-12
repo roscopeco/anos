@@ -14,4 +14,10 @@
 
 static ListNode *switch_chain;
 
-void task_switch(Task *next) { switch_chain = list_add(switch_chain, next); }
+void task_switch(Task *next) {
+    ListNode *added = list_add(switch_chain, next);
+
+    if (switch_chain == NULL) {
+        switch_chain = added;
+    }
+}

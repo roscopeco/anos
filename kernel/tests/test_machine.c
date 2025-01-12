@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <stdnoreturn.h>
 
+#include "test_machine.h"
+
 #define BUFFER_SIZE 1024
 #define BUFFER_MASK ((BUFFER_SIZE - 1))
 
@@ -26,6 +28,9 @@ static uint32_t in_buffer_write_ptr[65536];
 static uint32_t out_buffer_read_ptr[65536];
 static uint32_t out_buffer_write_ptr[65536];
 
+static uint32_t intr_disable_level;
+static uint32_t max_intr_disable_level;
+
 void test_machine_reset(void) {
     for (int i = 0; i < 65536; i++) {
         in_buffer_read_ptr[i] = 0;
@@ -33,6 +38,9 @@ void test_machine_reset(void) {
         out_buffer_read_ptr[i] = 0;
         out_buffer_write_ptr[i] = 0;
     }
+
+    intr_disable_level = 0;
+    max_intr_disable_level = 0;
 }
 
 inline bool test_machine_outl_avail(uint16_t port) {
@@ -112,4 +120,33 @@ uint32_t inl(uint16_t port) {
     }
 
     return test_machine_read_inl_buffer(port);
+}
+
+void restore_interrupts(uint64_t cookie) {
+    if (intr_disable_level > 0) {
+        --intr_disable_level;
+    }
+
+    if (cookie != TEST_IRQ_DISABLE_COOKIE) {
+        fprintf(stderr,
+                "WARN: test_machine restore_interrupts with unexpected cookie "
+                "0x%016llx\n",
+                cookie);
+    }
+}
+
+uint64_t disable_interrupts() {
+    ++intr_disable_level;
+
+    if (intr_disable_level > max_intr_disable_level) {
+        max_intr_disable_level = intr_disable_level;
+    }
+
+    return TEST_IRQ_DISABLE_COOKIE;
+}
+
+uint32_t test_machine_intr_disable_level() { return intr_disable_level; }
+
+uint32_t test_machine_max_intr_disable_level() {
+    return max_intr_disable_level;
 }

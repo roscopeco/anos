@@ -34,7 +34,7 @@ int kprint_syscall(const char *msg);
 int kputchar_int(char chr);
 int kputchar_syscall(char chr);
 
-int anos_create_thread_int(ThreadFunc func);
-int anos_create_thread_syscall(ThreadFunc func);
+int anos_create_thread_int(ThreadFunc func, uintptr_t stack_pointer);
+int anos_create_thread_syscall(ThreadFunc func, uintptr_t stack_pointer);
 
 #endif //__ANOS_ANOS_SYSCALLS_H

@@ -103,6 +103,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/debugprint.o											\
 			$(STAGE3_DIR)/printhex.o											\
 			$(STAGE3_DIR)/machine.o												\
+			$(STAGE3_DIR)/machine_asm.o											\
 			$(STAGE3_DIR)/pic.o													\
 			$(STAGE3_DIR)/interrupts.o											\
 			$(STAGE3_DIR)/isr_handlers.o										\
@@ -129,6 +130,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/syscalls.o											\
 			$(STAGE3_DIR)/task.o												\
 			$(STAGE3_DIR)/task_switch.o											\
+			$(STAGE3_DIR)/task_user_entrypoint.o								\
+			$(STAGE3_DIR)/sched/lock.o											\
 			$(STAGE3_DIR)/sched/rr.o											\
 			$(SYSTEM)_linkable.o
 			

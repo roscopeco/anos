@@ -23,6 +23,8 @@ volatile int num;
 
 int subroutine(int in) { return in * 2; }
 
+static uint8_t t2_stack[4096];
+
 static inline void banner() {
     printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION,
            libanos_version());
@@ -58,7 +60,7 @@ int main(int argc, char **argv) {
     num = 1;
     int count = 0;
 
-    int thread = anos_create_thread(thread2);
+    int thread = anos_create_thread(thread2, ((uintptr_t)t2_stack) + 0x1000);
 
     if (thread == 0) {
         printf("Thread creation failed!\n");

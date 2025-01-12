@@ -10,7 +10,10 @@
 
 #include "syscalls.h"
 #include "debugprint.h"
+#include "fba/alloc.h"
 #include "printhex.h"
+#include "sched.h"
+#include "task.h"
 
 #include <stdint.h>
 
@@ -48,8 +51,13 @@ static SyscallResult handle_debugchar(char chr) {
     return SYSCALL_OK;
 }
 
-static SyscallResult handle_create_thread(ThreadFunc func) {
-    return SYSCALL_OK;
+static SyscallResult handle_create_thread(ThreadFunc func,
+                                          uintptr_t user_stack) {
+    Task *task =
+            task_create_new(task_current()->owner, user_stack, (uintptr_t)func);
+    sched_unblock(task);
+
+    return task->tid;
 }
 
 SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
@@ -63,7 +71,7 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
     case 2:
         return handle_debugchar((char)arg0);
     case 3:
-        return handle_create_thread((ThreadFunc)arg0);
+        return handle_create_thread((ThreadFunc)arg0, (uintptr_t)arg1);
     default:
         return SYSCALL_BAD_NUMBER;
     }

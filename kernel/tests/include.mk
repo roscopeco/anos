@@ -90,6 +90,9 @@ kernel/tests/build/vmm/recursive: kernel/tests/munit.o kernel/tests/vmm/recursiv
 kernel/tests/build/sched/rr: kernel/tests/munit.o kernel/tests/sched/rr.o kernel/tests/build/sched/rr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/test_pmm_noalloc.o kernel/tests/test_vmm.o kernel/tests/test_task.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/sched/lock: kernel/tests/munit.o kernel/tests/sched/lock.o kernel/tests/build/sched/lock.o kernel/tests/test_spinlock.o kernel/tests/test_machine.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
@@ -104,6 +107,7 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/spinlock											\
 			kernel/tests/build/slab/alloc										\
 			kernel/tests/build/vmm/recursive									\
+			kernel/tests/build/sched/lock										\
 			kernel/tests/build/sched/rr
 
 test: $(ALL_TESTS)
