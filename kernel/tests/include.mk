@@ -1,4 +1,7 @@
-CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o kernel/tests/structs/*.o kernel/tests/pci/*.o kernel/tests/fba/*.o kernel/tests/slab/*.o kernel/tests/build
+CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
+				kernel/tests/structs/*.o kernel/tests/pci/*.o kernel/tests/fba/*.o 	\
+				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/build
+				
 UBSAN_CFLAGS=-fsanitize=undefined -fno-sanitize-recover=all
 TEST_CFLAGS=-g -Ikernel/include -Ikernel/tests/include -O3 $(UBSAN_CFLAGS)
 HOST_ARCH=$(shell uname -p)
