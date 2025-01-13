@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     if (thread == 0) {
         printf("Thread creation failed!\n");
     } else {
-        printf("Thread created: 0x%016x\n", thread);
+        printf("Thread created: 0x%02x\n", thread);
     }
 
     while (1) {
