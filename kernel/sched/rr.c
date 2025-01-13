@@ -57,14 +57,14 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func) {
     sys_ssp -= 8;
     *((uint64_t *)sys_ssp) = (uint64_t)user_thread_entrypoint;
 
-    // space for initial registers except r14, r15, values don't care...
+    // space for initial registers except rsi, rdi, values don't care...
     sys_ssp -= 104;
 
-    // push address of thread user stack, this will get popped into r14...
+    // push address of thread user stack, this will get popped into rsi...
     sys_ssp -= 8;
     *((uint64_t *)sys_ssp) = sys_sp;
 
-    // push address of thread func, this will get popped into r15...
+    // push address of thread func, this will get popped into rdi...
     sys_ssp -= 8;
     *((uint64_t *)sys_ssp) = start_func;
 
@@ -119,7 +119,7 @@ void sched_schedule() {
 
     tdebug("Switch to ");
     tdbgx64((uintptr_t)next);
-    tdebug(" [PID = ");
+    tdebug(" [TID = ");
     tdbgx64((uint64_t)next->tid);
     tdebug("]\n");
 

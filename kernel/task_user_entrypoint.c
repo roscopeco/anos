@@ -8,13 +8,13 @@
  *
  * When a new user thread is created, the address of this is pushed to the
  * stack as the place `task_switch` should return to. It does the bare
- * minimum needed to get the new thread out of kernel space and back
- * into user mode.
+ * minimum needed to get the thread out of kernel space and into user mode.
  * 
  * The `task_create_new` function sets the stack up such that the address
- * of the actual thread function is in r15 when we enter here, so we need
- * a little bit of assembly to grab that, and then we can set up an iretq
- * to get us back into user mode...
+ * of the actual thread function is in rdi when we enter here and the
+ * address of the stack is in rsi, so per the SysV ABI they are the arguments
+ * to this function. With them, we can set up an iretq to get us into user 
+ * mode...
  */
 #include <stdint.h>
 #include <stdnoreturn.h>
@@ -29,31 +29,42 @@
 #ifdef VERY_NOISY_TASK_SWITCH
 #define vdebug(...) debugstr(__VA_ARGS__)
 #define vdbgx64(arg) printhex64(arg, debugchar)
+#define vdbgx32(arg) printhex32(arg, debugchar)
+#define vdbgx16(arg) printhex16(arg, debugchar)
+#define vdbgx8(arg) printhex8(arg, debugchar)
 #else
 #define vdebug(...)
 #define vdbgx64(...)
+#define vdbgx32(...)
+#define vdbgx16(...)
+#define vdbgx8(...)
 #endif
 #define tdebug(...) debugstr(__VA_ARGS__)
 #define tdbgx64(arg) printhex64(arg, debugchar)
+#define tdbgx32(arg) printhex32(arg, debugchar)
+#define tdbgx16(arg) printhex16(arg, debugchar)
+#define tdbgx8(arg) printhex8(arg, debugchar)
 #else
 #define tdebug(...)
 #define tdbgx64(...)
+#define tdbgx32(...)
+#define tdbgx16(...)
+#define tdbgx8(...)
 #define vdebug(...)
 #define vdbgx64(...)
+#define vdbgx32(...)
+#define vdbgx16(...)
+#define vdbgx8(...)
 #endif
 
-noreturn void user_thread_entrypoint(void) {
-    // _hopefully_ nothing will have trounced r15 yet :D
-    uintptr_t thread_entrypoint = get_new_thread_entrypoint();
-    uintptr_t thread_userstack = get_new_thread_userstack();
-
+noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
+                                     uintptr_t thread_userstack) {
+    // Scheduler will **always** be locked when we get here!
     sched_unlock();
 
     tdebug("Starting new user thread with func @ ");
-    tdbgx64(thread_entrypoint);
+    tdbgx8(thread_entrypoint);
     tdebug("\n");
-
-    // Task *current = task_current();
 
     // Switch to user mode
     __asm__ volatile(

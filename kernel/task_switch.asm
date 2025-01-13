@@ -29,8 +29,6 @@ task_do_switch:
     push    rcx
     push    rdx
     push    rbp
-    push    rsi
-    push    rdi
     push    r8
     push    r9
     push    r10
@@ -39,6 +37,8 @@ task_do_switch:
     push    r13
     push    r14
     push    r15
+    push    rsi                             ; Order matters! task_user_entrypoint relies
+    push    rdi                             ; on rsi/rdi order for arguments here!
 
     mov     rsi,[task_current_ptr]          ; Get current task struct
     mov     [rsi+TASK_SSP],rsp              ; Save stack pointer
@@ -59,7 +59,9 @@ task_do_switch:
     mov     cr3,rcx                         ; ... else, switch out cr3 with the new tables.
 
 .page_tables_done:
-    pop     r15                             ; Pop all GP registers
+    pop     rdi                             ; Pop all GP registers
+    pop     rsi
+    pop     r15
     pop     r14
     pop     r13
     pop     r12
@@ -67,8 +69,6 @@ task_do_switch:
     pop     r10
     pop     r9
     pop     r8
-    pop     rdi
-    pop     rsi
     pop     rbp
     pop     rdx
     pop     rcx
