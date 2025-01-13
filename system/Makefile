@@ -14,8 +14,9 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 # The following C defines are recognised by system and enable various things
 #
 #   DEBUG_INT_SYSCALLS		Use int 0x69 instead of syscall instruction
+#	DEBUG_TEST_SYSCALL		Sanity-check the TEST syscall at user-mode startup
 #
-CDEFS=-DDEBUG_INT_SYSCALLS
+CDEFS=
 
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(THIS_DIR)/..)

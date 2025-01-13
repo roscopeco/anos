@@ -11,6 +11,7 @@
 #include "syscalls.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
+#include "pmm/pagealloc.h"
 #include "printhex.h"
 #include "sched.h"
 #include "task.h"
@@ -18,6 +19,8 @@
 #include <stdint.h>
 
 typedef void (*ThreadFunc)(void);
+
+extern MemoryRegion *physical_region;
 
 static SyscallResult handle_testcall(SyscallArg arg0, SyscallArg arg1,
                                      SyscallArg arg2, SyscallArg arg3,
@@ -60,6 +63,15 @@ static SyscallResult handle_create_thread(ThreadFunc func,
     return task->tid;
 }
 
+static SyscallResult handle_memstats(AnosMemInfo *mem_info) {
+    if (((uint64_t)mem_info & 0xffffffff00000000) == 0) {
+        mem_info->physical_total = physical_region->size;
+        mem_info->physical_avail = physical_region->free;
+    }
+
+    return SYSCALL_OK;
+}
+
 SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
                                 SyscallArg arg2, SyscallArg arg3,
                                 SyscallArg arg4, SyscallArg syscall_num) {
@@ -72,6 +84,8 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
         return handle_debugchar((char)arg0);
     case 3:
         return handle_create_thread((ThreadFunc)arg0, (uintptr_t)arg1);
+    case 4:
+        return handle_memstats((AnosMemInfo *)arg0);
     default:
         return SYSCALL_BAD_NUMBER;
     }

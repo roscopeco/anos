@@ -23,6 +23,7 @@
 #include "machine.h"
 #include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
+#include "printdec.h"
 #include "printhex.h"
 #include "process.h"
 #include "sched.h"
@@ -362,7 +363,7 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     syscall_init();
 
     debugstr("We have ");
-    printhex64(physical_region->size, debugchar);
+    printdec(physical_region->size, debugchar);
     debugstr(" bytes physical memory\n");
 
 #ifdef DEBUG_ACPI

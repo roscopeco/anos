@@ -1,7 +1,7 @@
 CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/structs/*.o kernel/tests/pci/*.o kernel/tests/fba/*.o 	\
 				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/build
-				
+
 UBSAN_CFLAGS=-fsanitize=undefined -fno-sanitize-recover=all
 TEST_CFLAGS=-g -Ikernel/include -Ikernel/tests/include -O3 $(UBSAN_CFLAGS)
 HOST_ARCH=$(shell uname -p)
@@ -96,6 +96,9 @@ kernel/tests/build/sched/rr: kernel/tests/munit.o kernel/tests/sched/rr.o kernel
 kernel/tests/build/sched/lock: kernel/tests/munit.o kernel/tests/sched/lock.o kernel/tests/build/sched/lock.o kernel/tests/test_spinlock.o kernel/tests/test_machine.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/printdec: kernel/tests/munit.o kernel/tests/printdec.o kernel/tests/build/printdec.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
@@ -111,7 +114,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/slab/alloc										\
 			kernel/tests/build/vmm/recursive									\
 			kernel/tests/build/sched/lock										\
-			kernel/tests/build/sched/rr
+			kernel/tests/build/sched/rr											\
+			kernel/tests/build/printdec
 
 test: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test || exit 1; done'

@@ -20,6 +20,12 @@ typedef enum {
     SYSCALL_BAD_NUMBER = -1,
 } SyscallResult;
 
+// TODO this is duplicated into libanos headers...
+typedef struct {
+    uint64_t physical_total;
+    uint64_t physical_avail;
+} AnosMemInfo;
+
 // Set things up for fast syscalls (via `sysenter`)
 void syscall_init(void);
 

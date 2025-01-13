@@ -7,6 +7,7 @@
 global testcall_int, testcall_syscall
 global kputchar_syscall, kputchar_int, kprint_int, kprint_syscall
 global anos_create_thread_syscall, anos_create_thread_int
+global anos_get_mem_info_syscall, anos_get_mem_info_int
 
 
 ; args:
@@ -68,6 +69,8 @@ kprint_syscall:
 ;
 ; mods:
 ;   rax - result
+;   r11 - trashed
+;   rcx - trashed
 ;   
 kprint_int:
     mov r9, $1
@@ -80,6 +83,8 @@ kprint_int:
 ;
 ; mods:
 ;   rax - result
+;   r11 - trashed
+;   rcx - trashed
 ;   
 kputchar_syscall:
     mov r9, $2
@@ -92,6 +97,8 @@ kputchar_syscall:
 ;
 ; mods:
 ;   rax - result
+;   r11 - trashed
+;   rcx - trashed
 ;   
 kputchar_int:
     mov r9, $2
@@ -101,9 +108,12 @@ kputchar_int:
 
 ; args:
 ;   rdi - function pointer
+;   rsi - user stack
 ;
 ; mods:
 ;   rax - result
+;   r11 - trashed
+;   rcx - trashed
 ;   
 anos_create_thread_syscall:
     mov r9, $3
@@ -113,12 +123,42 @@ anos_create_thread_syscall:
 
 ; args:
 ;   rdi - function pointer
+;   rsi - user stack
 ;
 ; mods:
 ;   rax - result
+;   r11 - trashed
+;   rcx - trashed
 ;   
 anos_create_thread_int:
     mov r9, $3
+    int 0x69
+    ret
+
+; args:
+;   rdi - AnosMemInfo pointer
+;
+; mods:
+;   rax - result
+;   r11 - trashed
+;   rcx - trashed
+;   
+anos_get_mem_info_syscall:
+    mov r9, $4
+    syscall
+    ret
+
+
+; args:
+;   rdi - AnosMemInfo pointer
+;
+; mods:
+;   rax - result
+;   r11 - trashed
+;   rcx - trashed
+;   
+anos_get_mem_info_int:
+    mov r9, $4
     int 0x69
     ret
 

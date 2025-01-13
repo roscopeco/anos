@@ -44,7 +44,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_MADT -DDEBUG_PCI_ENUM
+CDEFS=  #-DDEBUG_MADT -DDEBUG_PCI_ENUM
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -102,6 +102,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/debugprint.o											\
 			$(STAGE3_DIR)/printhex.o											\
+			$(STAGE3_DIR)/printdec.o											\
 			$(STAGE3_DIR)/machine.o												\
 			$(STAGE3_DIR)/machine_asm.o											\
 			$(STAGE3_DIR)/pic.o													\
