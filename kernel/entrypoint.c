@@ -362,10 +362,6 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     install_interrupts();
     syscall_init();
 
-    debugstr("We have ");
-    printdec(physical_region->size, debugchar);
-    debugstr(" bytes physical memory\n");
-
 #ifdef DEBUG_ACPI
     debugstr("RSDP at ");
     printhex64((uint64_t)rsdp, debugchar);
