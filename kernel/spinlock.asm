@@ -24,11 +24,12 @@ FUNC(spinlock_init):
 ;   rdi - *lock
 ; 
 FUNC(spinlock_lock):
-    lock bts qword [rdi], 0
+    xacquire lock bts qword [rdi], 0
     jc .wait
     ret
 
 .wait:
+    pause
     test qword [rdi], 1
     jz FUNC(spinlock_lock)
     jmp .wait
@@ -37,7 +38,7 @@ FUNC(spinlock_lock):
 ;   rdi - *lock
 ;
 FUNC(spinlock_unlock):
-    lock btr qword [rdi], 0         ; keeping the lock as it feels like requiring
+    xrelease lock btr qword [rdi], 0; keeping the lock as it feels like requiring
     ret                             ; alignment of the lock will lead to subtle bugs..
 
 ; args:
@@ -61,7 +62,7 @@ FUNC(spinlock_reentrant_lock):
     jz .nolock                      ; Just don't lock again if so...
 
 .trylock:
-    lock bts qword [rdi], 0         ; Try to set lock bit
+    xacquire lock bts qword [rdi], 0; Try to set lock bit
     jc .wait                        ; If we couldn't set it, wait
     mov qword [rdi+8], rsi          ; else, store the ident
 
@@ -69,6 +70,7 @@ FUNC(spinlock_reentrant_lock):
     ret
 
 .wait:
+    pause
     test qword [rdi], 1             ; Does it look unlocked now?
     jz .trylock                     ; yes - go try to lock it
     jmp .wait                       ; else no - spin
@@ -88,7 +90,7 @@ FUNC(spinlock_reentrant_unlock):
     cmp qword [rdi+8], rsi          ; Is ident the owner of the lock?
     jnz .no_unlock                  ; Don't unlock if not...
 
-    lock btr qword [rdi], 0         ; keeping the prefix as it feels like requiring
+    xrelease lock btr qword [rdi], 0; keeping the prefix as it feels like requiring
     mov qword [rdi+8],0             ; alignment of the lock could lead to subtle bugs..
 
     mov rax,1                       ; Unlocked - return 1
