@@ -11,6 +11,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "anos_assert.h"
+
 typedef struct {
     uint64_t lock;
     uint64_t fill_cache_line[7];
@@ -21,6 +23,9 @@ typedef struct {
     uint64_t ident;
     uint64_t fill_cache_line[6];
 } ReentrantSpinLock;
+
+static_assert_sizeof(SpinLock, 64);
+static_assert_sizeof(ReentrantSpinLock, 64);
 
 /*
  * Init (zero) a spinlock. Note that this is optional,

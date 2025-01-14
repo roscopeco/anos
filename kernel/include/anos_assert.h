@@ -22,6 +22,6 @@
 
 #define static_assert_sizeof(type, size)                                       \
     static_assert(sizeof(type) == size,                                        \
-                  #type " is wrongly-sized, may need C23 sized enums...");
+                  #type " is wrongly-sized, may need C23 sized enums...")
 
 #endif //__ANOS_KERNEL_ASSERT_H
