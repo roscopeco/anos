@@ -12,7 +12,13 @@
 #include "structs/list.h"
 #include <stdint.h>
 
-#define DEFAULT_TIMESLICE ((20))
+#define DEFAULT_TIMESLICE (((uint8_t)20))
+
+typedef enum {
+    TASK_STATE_BLOCKED = 0,
+    TASK_STATE_READY,
+    TASK_STATE_RUNNING,
+} TaskState;
 
 /*
  * task_switch.asm depends on the exact layout of this!
@@ -23,10 +29,15 @@ typedef struct {
     uintptr_t rsp0; // 32
     uintptr_t ssp;  // 40
     Process *owner; // 48
-    uintptr_t
-            pml4; // 56 [duplicated from process to avoid cache miss on naive switch]
-    uint64_t reserved2; // 64
-} Task;
+
+    // duplicated from process to avoid cache miss on naive switch
+    uintptr_t pml4; // 56
+
+    uint16_t ts_remain; // 58
+    uint8_t state;      // 59
+    uint8_t res1;       // 60
+    uint32_t res2;      // 64
+} __attribute__((packed)) Task;
 
 void task_init(void *tss);
 Task *task_current();

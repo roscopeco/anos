@@ -72,7 +72,8 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func) {
     new_task->owner = new_process;
     new_task->pml4 = new_process->pml4;
     new_task->tid = 1;
-    new_task->reserved2 = DEFAULT_TIMESLICE;
+    new_task->ts_remain = DEFAULT_TIMESLICE;
+    new_task->state = TASK_STATE_READY;
 
     new_task->this.next = NULL;
     new_task->this.type = KTYPE_TASK;
@@ -90,7 +91,7 @@ void sched_schedule() {
     vdebug("\n");
 
     if (current) {
-        if (--current->reserved2 != 0) {
+        if (--current->ts_remain != 0) {
             // timeslice continues, stick with it
             vdebug("Task ");
             vdbgx64((uint64_t)current);
@@ -125,21 +126,36 @@ void sched_schedule() {
 
     runnable_head = (Task *)next->this.next;
 
-    if (current) {
+    if (current && current->state == TASK_STATE_RUNNING) {
+        current->state = TASK_STATE_READY;
+
         current = (Task *)list_add((ListNode *)runnable_head,
                                    (ListNode *)current);
+
         if (runnable_head == NULL) {
             runnable_head = current;
         }
     }
 
-    next->reserved2 = DEFAULT_TIMESLICE;
+    next->ts_remain = DEFAULT_TIMESLICE;
+    next->state = TASK_STATE_RUNNING;
+
     task_switch(next);
 }
 
 void sched_unblock(Task *task) {
     task = (Task *)list_add((ListNode *)runnable_head, (ListNode *)task);
+
     if (runnable_head == NULL) {
         runnable_head = task;
     }
+
+    // TODO conditionally sched_schedule() once preemption is supported...
+    task->state = TASK_STATE_READY;
+}
+
+void sched_block(Task *task) {
+    task->state = TASK_STATE_BLOCKED;
+
+    sched_schedule();
 }

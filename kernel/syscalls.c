@@ -58,7 +58,10 @@ static SyscallResult handle_create_thread(ThreadFunc func,
                                           uintptr_t user_stack) {
     Task *task =
             task_create_new(task_current()->owner, user_stack, (uintptr_t)func);
+
+    sched_lock();
     sched_unblock(task);
+    sched_unlock();
 
     return task->tid;
 }

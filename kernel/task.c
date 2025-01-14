@@ -95,7 +95,8 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t func) {
 
     task->owner = owner;
     task->pml4 = owner->pml4;
-    task->reserved2 = DEFAULT_TIMESLICE;
+    task->ts_remain = DEFAULT_TIMESLICE;
+    task->state = TASK_STATE_READY;
 
     task->this.next = (void *)0;
     task->this.type = KTYPE_TASK;
