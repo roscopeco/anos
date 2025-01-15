@@ -90,12 +90,18 @@ To build, just do:
 make clean all
 ```
 
-As part of the build, all the objects are built to ELF format with
-debugging info, and a disassembly file is created. These are then
-stripped to binary.
+This will do the following:
 
-A full build will also run the full suite of unit tests for all
-components.
+* Build kernel ELF
+* Build the user-mode `libanos` and `System` user-mode supervisor
+* Create a disassembly file (`.dis`)
+* Build a floppy-disk image with the (stripped) kernel and System
+* Run a bunch of unit tests
+
+You can also choose to just run `make test` if you want to run the
+tests. If you have `LCOV` installed, you can also generate 
+coverage reports with `make coverage` - these will be output in
+the `gcov/kernel` directory as HTML.
 
 ### Running
 

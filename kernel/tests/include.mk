@@ -12,6 +12,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				gcov
 
 UBSAN_CFLAGS=-fsanitize=undefined -fno-sanitize-recover=all
+TEST_CFLAGS=-g -Ikernel/include -Ikernel/tests/include -O3 -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
 
 HOST_ARCH=$(shell uname -p)
 
@@ -27,10 +28,9 @@ TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm
 ifeq (, $(shell which lcov))
 $(warning LCOV not installed, coverage will be skipped)
 else
-GCOV_CFLAGS=-fprofile-arcs -ftest-coverage
+TEST_CFLAGS+=-fprofile-arcs -ftest-coverage
 endif
 
-TEST_CFLAGS=-g -Ikernel/include -Ikernel/tests/include -O3 -DCONSERVATIVE_BUILD $(GCOV_CFLAGS) $(UBSAN_CFLAGS)
 
 kernel/tests/build:
 	mkdir -p kernel/tests/build
