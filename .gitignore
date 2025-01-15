@@ -13,3 +13,6 @@ kernel/tests/build
 native_tests/pt
 system/system.bin
 **/.DS_Store
+**/*.gcda
+**/*.gcno
+gcov

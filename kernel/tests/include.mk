@@ -1,9 +1,18 @@
 CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/structs/*.o kernel/tests/pci/*.o kernel/tests/fba/*.o 	\
-				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/build
+				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/build		\
+				kernel/tests/*.gcda kernel/tests/pmm/*.gcda kernel/tests/vmm/*.gcda	\
+				kernel/tests/structs/*.gcda kernel/tests/pci/*.gcda 				\
+				kernel/tests/fba/*.gcda kernel/tests/slab/*.gcda 					\
+				kernel/tests/sched/*.gcda kernel/tests/build						\
+				kernel/tests/*.gcno kernel/tests/pmm/*.gcno kernel/tests/vmm/*.gcno	\
+				kernel/tests/structs/*.gcno kernel/tests/pci/*.gcno 				\
+				kernel/tests/fba/*.gcno kernel/tests/slab/*.gcno 					\
+				kernel/tests/sched/*.gcno kernel/tests/build						\
+				gcov
 
 UBSAN_CFLAGS=-fsanitize=undefined -fno-sanitize-recover=all
-TEST_CFLAGS=-g -Ikernel/include -Ikernel/tests/include -O3 -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
+
 HOST_ARCH=$(shell uname -p)
 
 ifeq ($(HOST_ARCH),arm)
@@ -14,6 +23,14 @@ TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm
 				kernel/tests/build/structs kernel/tests/build/pci 					\
 				kernel/tests/build/fba kernel/tests/build/slab 						\
 				kernel/tests/build/sched
+
+ifeq (, $(shell which lcov))
+$(warning LCOV not installed, coverage will be skipped)
+else
+GCOV_CFLAGS=-fprofile-arcs -ftest-coverage
+endif
+
+TEST_CFLAGS=-g -Ikernel/include -Ikernel/tests/include -O3 -DCONSERVATIVE_BUILD $(GCOV_CFLAGS) $(UBSAN_CFLAGS)
 
 kernel/tests/build:
 	mkdir -p kernel/tests/build
@@ -125,6 +142,21 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/sched/prr										\
 			kernel/tests/build/printdec
 
+PHONY: test
 test: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test || exit 1; done'
+
+ifeq (, $(shell which lcov))
+coverage:
+	@echo "LCOV not installed, coverage cannot be generated"
+else
+PHONY: gcov
+
+gcov/kernel:
+	mkdir -p $@
+
+coverage: test gcov/kernel
+	lcov --capture --directory kernel/tests --output-file gcov/kernel/coverage.info
+	genhtml gcov/kernel/coverage.info --output-directory gcov/kernel
+endif
 
