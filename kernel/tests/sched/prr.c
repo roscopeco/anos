@@ -9,11 +9,11 @@
 
 #include "fba/alloc.h"
 #include "ktypes.h"
+#include "mock_pmm.h"
 #include "munit.h"
 #include "sched.h"
 #include "slab/alloc.h"
 #include "task.h"
-#include "test_pmm.h"
 
 #define TEST_PML4_ADDR (((uint64_t *)0x100000))
 #define TEST_PAGE_COUNT ((32768))
@@ -72,7 +72,7 @@ static MunitResult test_sched_init_with_ssp(const MunitParameter params[],
     munit_assert_null(task->this.next);
 
     // We should have allocated overhead (FBA + Slab), plus a slab for the blocks we needed
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==,
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
     // Process (allocated first) is at the base of the slab area, plus 64 bytes (Slab* is at the base)
@@ -132,7 +132,7 @@ static MunitResult test_sched_init_with_all(const MunitParameter params[],
     munit_assert_null(task->this.next);
 
     // We should have allocated overhead (FBA + Slab), plus a slab for the blocks we needed
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==,
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
     // Process (allocated first) is at the base of the slab area, plus 64 bytes (Slab* is at the base)
@@ -192,9 +192,9 @@ static MunitResult test_sched_schedule_with_no_current_and_one_norm_queued(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
-    Task test_task = {0};
+    Task mock_task = {0};
 
-    task_init(&test_task);
+    task_init(&mock_task);
 
     bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
     munit_assert_true(result);
@@ -202,11 +202,11 @@ static MunitResult test_sched_schedule_with_no_current_and_one_norm_queued(
     // Remove the init task that'll have been added...
     test_sched_prr_set_runnable_head(INIT_TASK_CLASS, NULL);
 
-    munit_assert_ptr_equal(task_current(), &test_task);
+    munit_assert_ptr_equal(task_current(), &mock_task);
 
     sched_schedule();
 
-    munit_assert_ptr_equal(task_current(), &test_task);
+    munit_assert_ptr_equal(task_current(), &mock_task);
 
     return MUNIT_OK;
 }
@@ -564,7 +564,7 @@ static void *test_setup(const MunitParameter params[], void *user_data) {
 
 static void test_teardown(void *page_area_ptr) {
     free(page_area_ptr);
-    test_pmm_reset();
+    mock_pmm_reset();
 }
 
 static MunitTest test_suite_tests[] = {

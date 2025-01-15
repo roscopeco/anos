@@ -5,19 +5,19 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+#include "mock_machine.h"
+#include "mock_spinlock.h"
 #include "munit.h"
 #include "sched.h"
-#include "test_machine.h"
-#include "test_spinlock.h"
 
 static MunitResult test_sched_lock_unlocked(const MunitParameter params[],
                                             void *param) {
     sched_lock();
 
-    munit_assert_uint32(test_spinlock_get_lock_count(), ==, 1);
-    munit_assert_uint32(test_spinlock_get_unlock_count(), ==, 0);
+    munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 1);
+    munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 0);
 
-    munit_assert_uint32(test_machine_intr_disable_level(), ==, 1);
+    munit_assert_uint32(mock_machine_intr_disable_level(), ==, 1);
 
     return MUNIT_OK;
 }
@@ -26,16 +26,16 @@ static MunitResult test_sched_lock_locked(const MunitParameter params[],
                                           void *param) {
     sched_lock();
 
-    munit_assert_uint32(test_spinlock_get_lock_count(), ==, 1);
-    munit_assert_uint32(test_spinlock_get_unlock_count(), ==, 0);
+    munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 1);
+    munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 0);
 
     sched_lock();
 
     // still only one lock, it's non-reentrant!
-    munit_assert_uint32(test_spinlock_get_lock_count(), ==, 1);
-    munit_assert_uint32(test_spinlock_get_unlock_count(), ==, 0);
+    munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 1);
+    munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 0);
 
-    munit_assert_uint32(test_machine_intr_disable_level(), ==, 2);
+    munit_assert_uint32(mock_machine_intr_disable_level(), ==, 2);
 
     return MUNIT_OK;
 }
@@ -46,11 +46,11 @@ static MunitResult test_sched_unlock_locked(const MunitParameter params[],
 
     sched_unlock();
 
-    munit_assert_uint32(test_spinlock_get_lock_count(), ==, 1);
-    munit_assert_uint32(test_spinlock_get_unlock_count(), ==, 1);
+    munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 1);
+    munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 1);
 
-    munit_assert_uint32(test_machine_intr_disable_level(), ==, 0);
-    munit_assert_uint32(test_machine_max_intr_disable_level(), ==, 1);
+    munit_assert_uint32(mock_machine_intr_disable_level(), ==, 0);
+    munit_assert_uint32(mock_machine_max_intr_disable_level(), ==, 1);
 
     return MUNIT_OK;
 }
@@ -59,17 +59,17 @@ static MunitResult test_sched_unlock_unlocked(const MunitParameter params[],
                                               void *param) {
     sched_unlock();
 
-    munit_assert_uint32(test_spinlock_get_lock_count(), ==, 0);
-    munit_assert_uint32(test_spinlock_get_unlock_count(), ==, 1);
+    munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 0);
+    munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 1);
 
-    munit_assert_uint32(test_machine_intr_disable_level(), ==, 0);
-    munit_assert_uint32(test_machine_max_intr_disable_level(), ==, 0);
+    munit_assert_uint32(mock_machine_intr_disable_level(), ==, 0);
+    munit_assert_uint32(mock_machine_max_intr_disable_level(), ==, 0);
 
     return MUNIT_OK;
 }
 
 static void *test_setup(const MunitParameter params[], void *user_data) {
-    test_spinlock_reset();
+    mock_spinlock_reset();
     return NULL;
 }
 

@@ -23,26 +23,26 @@ static uint64_t last_page_map_pml4 = 0;
 static uintptr_t last_page_unmap_pml4 = 0;
 static uintptr_t last_page_unmap_virt = 0;
 
-void test_vmm_reset() {
+void mock_vmm_reset() {
     total_page_maps = 0;
     total_page_unmaps = 0;
 }
 
-uint64_t test_vmm_get_last_page_map_paddr() { return last_page_map_paddr; }
+uint64_t mock_vmm_get_last_page_map_paddr() { return last_page_map_paddr; }
 
-uint64_t test_vmm_get_last_page_map_vaddr() { return last_page_map_vaddr; }
+uint64_t mock_vmm_get_last_page_map_vaddr() { return last_page_map_vaddr; }
 
-uint16_t test_vmm_get_last_page_map_flags() { return last_page_map_flags; }
+uint16_t mock_vmm_get_last_page_map_flags() { return last_page_map_flags; }
 
-uint64_t test_vmm_get_last_page_map_pml4() { return last_page_map_pml4; }
+uint64_t mock_vmm_get_last_page_map_pml4() { return last_page_map_pml4; }
 
-uint32_t test_vmm_get_total_page_maps() { return total_page_maps; }
+uint32_t mock_vmm_get_total_page_maps() { return total_page_maps; }
 
-uint32_t test_vmm_get_total_page_unmaps() { return total_page_unmaps; }
+uint32_t mock_vmm_get_total_page_unmaps() { return total_page_unmaps; }
 
-uintptr_t test_vmm_get_last_page_unmap_pml4() { return last_page_unmap_pml4; }
+uintptr_t mock_vmm_get_last_page_unmap_pml4() { return last_page_unmap_pml4; }
 
-uintptr_t test_vmm_get_last_page_unmap_virt() { return last_page_unmap_virt; }
+uintptr_t mock_vmm_get_last_page_unmap_virt() { return last_page_unmap_virt; }
 
 bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
                      uint16_t flags) {

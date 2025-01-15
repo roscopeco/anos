@@ -74,7 +74,7 @@ kernel/tests/build/structs/bitmap: kernel/tests/munit.o kernel/tests/structs/bit
 kernel/tests/build/pmm/pagealloc: kernel/tests/munit.o kernel/tests/pmm/pagealloc.o kernel/tests/build/pmm/pagealloc.o kernel/tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/vmm/vmmapper: kernel/tests/munit.o kernel/tests/vmm/vmmapper.o kernel/tests/build/vmm/vmmapper.o kernel/tests/test_pmm_malloc.o kernel/tests/build/spinlock.o
+kernel/tests/build/vmm/vmmapper: kernel/tests/munit.o kernel/tests/vmm/vmmapper.o kernel/tests/build/vmm/vmmapper.o kernel/tests/mock_pmm_malloc.o kernel/tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/vmm/vmalloc_linkedlist: kernel/tests/munit.o kernel/tests/vmm/vmalloc_linkedlist.o kernel/tests/build/vmm/vmalloc_linkedlist.o kernel/tests/build/spinlock.o
@@ -83,7 +83,7 @@ kernel/tests/build/vmm/vmalloc_linkedlist: kernel/tests/munit.o kernel/tests/vmm
 kernel/tests/build/debugprint: kernel/tests/munit.o kernel/tests/debugprint.o kernel/tests/build/debugprint.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/acpitables: kernel/tests/munit.o kernel/tests/acpitables.o kernel/tests/build/acpitables.o kernel/tests/test_vmm.o
+kernel/tests/build/acpitables: kernel/tests/munit.o kernel/tests/acpitables.o kernel/tests/build/acpitables.o kernel/tests/mock_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/structs/list: kernel/tests/munit.o kernel/tests/structs/list.o kernel/tests/build/structs/list.o
@@ -95,28 +95,28 @@ kernel/tests/build/structs/pq: kernel/tests/munit.o kernel/tests/structs/pq.o ke
 kernel/tests/build/gdt: kernel/tests/munit.o kernel/tests/gdt.o kernel/tests/build/gdt.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/pci/bus: kernel/tests/munit.o kernel/tests/pci/bus.o kernel/tests/build/pci/bus.o kernel/tests/test_machine.o
+kernel/tests/build/pci/bus: kernel/tests/munit.o kernel/tests/pci/bus.o kernel/tests/build/pci/bus.o kernel/tests/mock_machine.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/fba/alloc: kernel/tests/munit.o kernel/tests/fba/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/test_pmm_noalloc.o kernel/tests/test_vmm.o kernel/tests/build/spinlock.o
+kernel/tests/build/fba/alloc: kernel/tests/munit.o kernel/tests/fba/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/spinlock: kernel/tests/munit.o kernel/tests/spinlock.o kernel/tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/slab/alloc: kernel/tests/munit.o kernel/tests/slab/alloc.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/test_pmm_noalloc.o kernel/tests/test_vmm.o
+kernel/tests/build/slab/alloc: kernel/tests/munit.o kernel/tests/slab/alloc.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/vmm/recursive: kernel/tests/munit.o kernel/tests/vmm/recursive.o $(TEST_BUILD_DIRS)
 	$(CC) $(TEST_CFLAGS) -o $@ kernel/tests/munit.o kernel/tests/vmm/recursive.o
 
-kernel/tests/build/sched/rr: kernel/tests/munit.o kernel/tests/sched/rr.o kernel/tests/build/sched/rr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/test_task.o kernel/tests/test_user_entrypoint.o kernel/tests/test_pmm_noalloc.o kernel/tests/test_vmm.o kernel/tests/test_task.o
+kernel/tests/build/sched/rr: kernel/tests/munit.o kernel/tests/sched/rr.o kernel/tests/build/sched/rr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/mock_task.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_task.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/build/structs/pq.o kernel/tests/test_task.o kernel/tests/test_user_entrypoint.o kernel/tests/test_pmm_noalloc.o kernel/tests/test_vmm.o kernel/tests/test_task.o
+kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/build/structs/pq.o kernel/tests/mock_task.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_task.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/sched/lock: kernel/tests/munit.o kernel/tests/sched/lock.o kernel/tests/build/sched/lock.o kernel/tests/test_spinlock.o kernel/tests/test_machine.o
+kernel/tests/build/sched/lock: kernel/tests/munit.o kernel/tests/sched/lock.o kernel/tests/build/sched/lock.o kernel/tests/mock_spinlock.o kernel/tests/mock_machine.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/printdec: kernel/tests/munit.o kernel/tests/printdec.o kernel/tests/build/printdec.o

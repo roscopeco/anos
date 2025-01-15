@@ -21,9 +21,9 @@ static uint8_t page_ptr = 0;
 static uint32_t total_page_allocs = 0;
 static uint32_t total_page_frees = 0;
 
-uint32_t test_pmm_get_total_page_allocs() { return total_page_allocs; }
+uint32_t mock_pmm_get_total_page_allocs() { return total_page_allocs; }
 
-void test_pmm_reset() {
+void mock_pmm_reset() {
     while (page_ptr > 0) {
         free(pages[--page_ptr]);
     }
