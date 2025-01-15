@@ -10,14 +10,14 @@
 static uint32_t lock_count = 0;
 static uint32_t unlock_count = 0;
 
-void test_spinlock_reset() {
+void mock_spinlock_reset() {
     lock_count = 0;
     unlock_count = 0;
 }
 
-uint32_t test_spinlock_get_lock_count() { return lock_count; }
+uint32_t mock_spinlock_get_lock_count() { return lock_count; }
 
-uint32_t test_spinlock_get_unlock_count() { return unlock_count; }
+uint32_t mock_spinlock_get_unlock_count() { return unlock_count; }
 
 void spinlock_lock(SpinLock *lock) { ++lock_count; }
 

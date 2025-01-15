@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <stdnoreturn.h>
 
-#include "test_machine.h"
+#include "mock_machine.h"
 
 #define BUFFER_SIZE 1024
 #define BUFFER_MASK ((BUFFER_SIZE - 1))
@@ -31,7 +31,7 @@ static uint32_t out_buffer_write_ptr[65536];
 static uint32_t intr_disable_level;
 static uint32_t max_intr_disable_level;
 
-void test_machine_reset(void) {
+void mock_machine_reset(void) {
     for (int i = 0; i < 65536; i++) {
         in_buffer_read_ptr[i] = 0;
         in_buffer_write_ptr[i] = 0;
@@ -43,12 +43,12 @@ void test_machine_reset(void) {
     max_intr_disable_level = 0;
 }
 
-inline bool test_machine_outl_avail(uint16_t port) {
+inline bool mock_machine_outl_avail(uint16_t port) {
     return out_buffer_read_ptr[port] != out_buffer_write_ptr[port];
 }
 
-uint32_t test_machine_read_outl_buffer(uint16_t port) {
-    if (!test_machine_outl_avail(port)) {
+uint32_t mock_machine_read_outl_buffer(uint16_t port) {
+    if (!mock_machine_outl_avail(port)) {
         return 0;
     }
 
@@ -57,7 +57,7 @@ uint32_t test_machine_read_outl_buffer(uint16_t port) {
     return result;
 }
 
-bool test_machine_write_outl_buffer(uint16_t port, uint32_t value) {
+bool mock_machine_write_outl_buffer(uint16_t port, uint32_t value) {
     if ((out_buffer_write_ptr[port] == out_buffer_read_ptr[port] - 1) ||
         (in_buffer_write_ptr[port] == 0xffff &&
          in_buffer_read_ptr[port] == 0)) {
@@ -70,12 +70,12 @@ bool test_machine_write_outl_buffer(uint16_t port, uint32_t value) {
     return true;
 }
 
-inline bool test_machine_inl_avail(uint16_t port) {
+inline bool mock_machine_inl_avail(uint16_t port) {
     return in_buffer_read_ptr[port] != in_buffer_write_ptr[port];
 }
 
-uint32_t test_machine_read_inl_buffer(uint16_t port) {
-    if (!test_machine_inl_avail(port)) {
+uint32_t mock_machine_read_inl_buffer(uint16_t port) {
+    if (!mock_machine_inl_avail(port)) {
         return 0;
     }
 
@@ -84,7 +84,7 @@ uint32_t test_machine_read_inl_buffer(uint16_t port) {
     return result;
 }
 
-bool test_machine_write_inl_buffer(uint16_t port, uint32_t value) {
+bool mock_machine_write_inl_buffer(uint16_t port, uint32_t value) {
     if ((in_buffer_write_ptr[port] == in_buffer_read_ptr[port] - 1) ||
         (in_buffer_write_ptr[port] == 0xffff &&
          in_buffer_read_ptr[port] == 0)) {
@@ -102,24 +102,24 @@ bool test_machine_write_inl_buffer(uint16_t port, uint32_t value) {
 noreturn void halt_and_catch_fire(void) { exit(100); }
 
 void outl(uint16_t port, uint32_t value) {
-    if (!test_machine_write_outl_buffer(port, value)) {
+    if (!mock_machine_write_outl_buffer(port, value)) {
         fprintf(stderr,
-                "WARN: test_machine outl [port 0x%04x value 0x%8x] discarded: "
+                "WARN: mock_machine outl [port 0x%04x value 0x%8x] discarded: "
                 "buffer full\n",
                 port, value);
     }
 }
 
 uint32_t inl(uint16_t port) {
-    if (!test_machine_inl_avail(port)) {
+    if (!mock_machine_inl_avail(port)) {
         fprintf(stderr,
-                "WARN: test_machine inll [port 0x%04x] underflow: buffer "
+                "WARN: mock_machine inll [port 0x%04x] underflow: buffer "
                 "empty\n",
                 port);
         return 0;
     }
 
-    return test_machine_read_inl_buffer(port);
+    return mock_machine_read_inl_buffer(port);
 }
 
 void enable_interrupts() {
@@ -136,8 +136,8 @@ void disable_interrupts() {
     }
 }
 
-uint32_t test_machine_intr_disable_level() { return intr_disable_level; }
+uint32_t mock_machine_intr_disable_level() { return intr_disable_level; }
 
-uint32_t test_machine_max_intr_disable_level() {
+uint32_t mock_machine_max_intr_disable_level() {
     return max_intr_disable_level;
 }

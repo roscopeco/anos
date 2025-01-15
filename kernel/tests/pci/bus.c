@@ -7,9 +7,9 @@
 
 #include <stdint.h>
 
+#include "mock_machine.h"
 #include "munit.h"
 #include "pci/bus.h"
-#include "test_machine.h"
 
 static MunitResult test_PCI_ADDR_ENABLE(const MunitParameter params[],
                                         void *param) {
@@ -363,14 +363,14 @@ test_pci_address_reg_out_of_bounds_registers(const MunitParameter params[],
 static MunitResult
 test_pci_config_read_dword_all_0(const MunitParameter params[], void *param) {
     // Given...
-    test_machine_write_inl_buffer(0xcfc, 0x12345678);
+    mock_machine_write_inl_buffer(0xcfc, 0x12345678);
 
     // When...
     uint32_t result = pci_config_read_dword(0, 0, 0, 0);
 
     // Then...
     //      Address correctly written to address output port
-    uint32_t address_written = test_machine_read_outl_buffer(0xcf8);
+    uint32_t address_written = mock_machine_read_outl_buffer(0xcf8);
     munit_assert_uint32(address_written, ==, pci_address_reg(0, 0, 0, 0));
 
     //      And result correctly read from data input port
@@ -382,14 +382,14 @@ test_pci_config_read_dword_all_0(const MunitParameter params[], void *param) {
 static MunitResult
 test_pci_config_read_dword_values(const MunitParameter params[], void *param) {
     // Given...
-    test_machine_write_inl_buffer(0xcfc, 0x12345678);
+    mock_machine_write_inl_buffer(0xcfc, 0x12345678);
 
     // When...
     uint32_t result = pci_config_read_dword(0x12, 0x34, 0x56, 0x78);
 
     // Then...
     //      Address correctly written to address output port
-    uint32_t address_written = test_machine_read_outl_buffer(0xcf8);
+    uint32_t address_written = mock_machine_read_outl_buffer(0xcf8);
     munit_assert_uint32(address_written, ==,
                         pci_address_reg(0x12, 0x34, 0x56, 0x78));
 
@@ -399,9 +399,9 @@ test_pci_config_read_dword_values(const MunitParameter params[], void *param) {
     return MUNIT_OK;
 }
 
-static void *test_machine_setup(const MunitParameter params[],
+static void *mock_machine_setup(const MunitParameter params[],
                                 void *user_data) {
-    test_machine_reset();
+    mock_machine_reset();
     return NULL;
 }
 
@@ -458,10 +458,10 @@ static MunitTest test_suite_tests[] = {
          MUNIT_TEST_OPTION_NONE, NULL},
 
         {(char *)"/pci/config_read_dword_all_0",
-         test_pci_config_read_dword_all_0, test_machine_setup, NULL,
+         test_pci_config_read_dword_all_0, mock_machine_setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/pci/config_read_dword_values",
-         test_pci_config_read_dword_values, test_machine_setup, NULL,
+         test_pci_config_read_dword_values, mock_machine_setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},

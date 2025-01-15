@@ -6,8 +6,8 @@
  */
 
 #include "vmm/vmmapper.h"
+#include "mock_pmm.h"
 #include "munit.h"
-#include "test_pmm.h"
 
 static uint64_t *empty_pml4;
 
@@ -47,7 +47,7 @@ static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[],
     munit_assert_uint64(pt[0], ==, 0x1000);
 
     // We allocated three pages (one for each table level)
-    munit_assert_uint8(test_pmm_get_total_page_allocs(), ==, 3);
+    munit_assert_uint8(mock_pmm_get_total_page_allocs(), ==, 3);
 
     return MUNIT_OK;
 }
@@ -88,7 +88,7 @@ static MunitResult test_map_page_empty_pml4_2M(const MunitParameter params[],
     munit_assert_uint64(pt[0], ==, 0x1000);
 
     // We allocated three pages (one for each table level)
-    munit_assert_uint8(test_pmm_get_total_page_allocs(), ==, 3);
+    munit_assert_uint8(mock_pmm_get_total_page_allocs(), ==, 3);
 
     return MUNIT_OK;
 }
@@ -131,7 +131,7 @@ static MunitResult test_map_page_empty_pml4_1G(const MunitParameter params[],
     munit_assert_uint64(pt[0], ==, 0x1000);
 
     // We allocated three pages (one for each table level)
-    munit_assert_uint8(test_pmm_get_total_page_allocs(), ==, 3);
+    munit_assert_uint8(mock_pmm_get_total_page_allocs(), ==, 3);
 
     return MUNIT_OK;
 }
@@ -174,7 +174,7 @@ static MunitResult test_map_page_empty_pml4_512G(const MunitParameter params[],
     munit_assert_uint64(pt[0], ==, 0x1000);
 
     // We allocated three pages (one for each table level)
-    munit_assert_uint8(test_pmm_get_total_page_allocs(), ==, 3);
+    munit_assert_uint8(mock_pmm_get_total_page_allocs(), ==, 3);
 
     return MUNIT_OK;
 }
@@ -189,7 +189,7 @@ static MunitResult test_map_page_complete_pml4_0(const MunitParameter params[],
     munit_assert_uint64(complete_pt[0], ==, 0x1000);
 
     // No pages were allocated
-    munit_assert_uint8(test_pmm_get_total_page_allocs(), ==, 0);
+    munit_assert_uint8(mock_pmm_get_total_page_allocs(), ==, 0);
 
     return MUNIT_OK;
 }
@@ -315,7 +315,7 @@ static void *setup(const MunitParameter params[], void *user_data) {
 }
 
 static void teardown(void *param) {
-    test_pmm_reset();
+    mock_pmm_reset();
     free(empty_pml4);
     free(complete_pml4);
     free(complete_pdpt);

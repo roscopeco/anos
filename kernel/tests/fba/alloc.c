@@ -12,10 +12,10 @@
 #include <stdlib.h>
 
 #include "fba/alloc.h"
+#include "mock_pmm.h"
+#include "mock_vmm.h"
 #include "munit.h"
 #include "structs/bitmap.h"
-#include "test_pmm.h"
-#include "test_vmm.h"
 #include "vmm/vmmapper.h"
 
 #define TEST_PML4_ADDR (((uint64_t *)0x100000))
@@ -36,8 +36,8 @@ static void *test_setup(const MunitParameter params[], void *user_data) {
 
 static void test_teardown(void *page_area_ptr) {
     free(page_area_ptr);
-    test_pmm_reset();
-    test_vmm_reset();
+    mock_pmm_reset();
+    mock_vmm_reset();
 }
 
 static MunitResult test_fba_init_zero(const MunitParameter params[],
@@ -52,7 +52,7 @@ static MunitResult test_fba_init_zero(const MunitParameter params[],
     munit_assert_uint64((uint64_t)test_fba_check_size(), ==, 0);
 
     // No pages allocated for the bitmap because zero size...
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 0);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 0);
 
     return MUNIT_OK;
 }
@@ -107,17 +107,17 @@ static MunitResult test_fba_init_32768_ok(const MunitParameter params[],
     munit_assert_uint64((uint64_t)test_fba_check_size(), ==, 32768);
 
     // One page allocated for bitmap (32768 bits)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 1);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 1);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 1);
 
     // Page was mapped into the correct place (first page in the area)...
-    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==,
                         TEST_PMM_NOALLOC_START_ADDRESS);
-    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         (uint64_t)test_page_area);
-    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+    munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
                         WRITE | PRESENT);
-    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
     // Bitmap and bitmap end are set correctly
@@ -145,17 +145,17 @@ static MunitResult test_fba_init_65536_ok(const MunitParameter params[],
     munit_assert_uint64((uint64_t)test_fba_check_size(), ==, 65536);
 
     // Two pages allocated for bitmap (65536 bits)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 2);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 2);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 2);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 2);
 
     // Last page was mapped into the correct place (second page in the area)...
-    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==,
                         TEST_PMM_NOALLOC_START_ADDRESS + 0x1000);
-    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x1000);
-    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+    munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
                         WRITE | PRESENT);
-    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
     // Bitmap and bitmap end are set correctly
@@ -193,17 +193,17 @@ static MunitResult test_fba_alloc_block_one(const MunitParameter params[],
                            (uint64_t *)((uint64_t)test_page_area + 0x1000));
 
     // Two pages allocated (one for bitmap, one for the block itself)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 2);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 2);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 2);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 2);
 
     // Last page was mapped into the correct place (second page in the area)...
-    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==,
                         TEST_PMM_NOALLOC_START_ADDRESS + 0x1000);
-    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x1000);
-    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+    munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
                         WRITE | PRESENT);
-    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
     return MUNIT_OK;
@@ -222,17 +222,17 @@ static MunitResult test_fba_alloc_block_two(const MunitParameter params[],
                            (uint64_t *)((uint64_t)test_page_area + 0x2000));
 
     // Three pages allocated (one for bitmap, two for the blocks themselves)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 3);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 3);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 3);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 3);
 
     // Last page was mapped into the correct place (third page in the area)...
-    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==,
                         TEST_PMM_NOALLOC_START_ADDRESS + 0x2000);
-    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x2000);
-    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+    munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
                         WRITE | PRESENT);
-    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
     return MUNIT_OK;
@@ -283,17 +283,17 @@ static MunitResult test_fba_alloc_blocks_one(const MunitParameter params[],
                            (uint64_t *)((uint64_t)test_page_area + 0x1000));
 
     // Two pages allocated (one for bitmap, one for the block itself)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 2);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 2);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 2);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 2);
 
     // Last page was mapped into the correct place (second page in the area)...
-    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==,
                         TEST_PMM_NOALLOC_START_ADDRESS + 0x1000);
-    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x1000);
-    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+    munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
                         WRITE | PRESENT);
-    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
     return MUNIT_OK;
@@ -310,17 +310,17 @@ static MunitResult test_fba_alloc_blocks_two(const MunitParameter params[],
                            (uint64_t *)((uint64_t)test_page_area + 0x1000));
 
     // Three pages allocated (one for bitmap, two for the blocks themselves)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 3);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 3);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 3);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 3);
 
     // Last page was mapped into the correct place (third page in the area)...
-    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==,
                         TEST_PMM_NOALLOC_START_ADDRESS + 0x2000);
-    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x2000);
-    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+    munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
                         WRITE | PRESENT);
-    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
     return MUNIT_OK;
@@ -338,8 +338,8 @@ static MunitResult test_fba_alloc_blocks_max(const MunitParameter params[],
                            (uint64_t *)((uint64_t)test_page_area + 0x1000));
 
     // 32768 pages allocated (1 for bitmap, 32767 for the blocks themselves)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 32768);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 32768);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 32768);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 32768);
 
     return MUNIT_OK;
 }
@@ -368,17 +368,17 @@ test_fba_alloc_blocks_aligned_1(const MunitParameter params[],
                            (uint64_t *)((uint64_t)test_page_area + 0x1000));
 
     // Two pages allocated (one for bitmap, one for the block itself)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 2);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 2);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 2);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 2);
 
     // Last page was mapped into the correct place (second page in the area)...
-    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==,
                         TEST_PMM_NOALLOC_START_ADDRESS + 0x1000);
-    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x1000);
-    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+    munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
                         WRITE | PRESENT);
-    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
     return MUNIT_OK;
@@ -396,17 +396,17 @@ test_fba_alloc_blocks_aligned_2(const MunitParameter params[],
                            (uint64_t *)((uint64_t)test_page_area + 0x2000));
 
     // Two pages allocated (one for bitmap, one for the block itself)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 2);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 2);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 2);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 2);
 
     // Last page was mapped into the correct place (third page in the area)...
-    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==,
                         TEST_PMM_NOALLOC_START_ADDRESS + 0x1000);
-    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x2000);
-    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+    munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
                         WRITE | PRESENT);
-    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
     return MUNIT_OK;
@@ -424,17 +424,17 @@ test_fba_alloc_blocks_aligned_4(const MunitParameter params[],
                            (uint64_t *)((uint64_t)test_page_area + 0x4000));
 
     // Two pages allocated (one for bitmap, one for the block itself)
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 2);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 2);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 2);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 2);
 
     // Last page was mapped into the correct place (fifth page in the area)...
-    munit_assert_uint64(test_vmm_get_last_page_map_paddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==,
                         TEST_PMM_NOALLOC_START_ADDRESS + 0x1000);
-    munit_assert_uint64(test_vmm_get_last_page_map_vaddr(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x4000);
-    munit_assert_uint16(test_vmm_get_last_page_map_flags(), ==,
+    munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
                         WRITE | PRESENT);
-    munit_assert_uint64(test_vmm_get_last_page_map_pml4(), ==,
+    munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
     return MUNIT_OK;
@@ -529,10 +529,10 @@ static MunitResult test_fba_free_single_block(const MunitParameter params[],
     munit_assert_false(bitmap_check(test_fba_bitmap(), 1));
 
     // Verify that the page is unmapped
-    munit_assert_uint32(test_vmm_get_total_page_unmaps(), ==, 1);
+    munit_assert_uint32(mock_vmm_get_total_page_unmaps(), ==, 1);
 
     // Verify that the physical page was freed
-    munit_assert_uint32(test_pmm_get_total_page_frees(), ==, 1);
+    munit_assert_uint32(mock_pmm_get_total_page_frees(), ==, 1);
 
     return MUNIT_OK;
 }
@@ -557,10 +557,10 @@ static MunitResult test_fba_free_multiple_blocks(const MunitParameter params[],
     munit_assert_false(bitmap_check(test_fba_bitmap(), 2));
 
     // Verify that the pages are unmapped
-    munit_assert_uint32(test_vmm_get_total_page_unmaps(), ==, 2);
+    munit_assert_uint32(mock_vmm_get_total_page_unmaps(), ==, 2);
 
     // Verify that the physical pages were freed
-    munit_assert_uint32(test_pmm_get_total_page_frees(), ==, 2);
+    munit_assert_uint32(mock_pmm_get_total_page_frees(), ==, 2);
 
     return MUNIT_OK;
 }
@@ -575,9 +575,9 @@ test_fba_free_unallocated_block(const MunitParameter params[],
     fba_free((void *)((uint64_t)test_page_area + 0x1000));
 
     // Verify that the state remains unchanged
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 1);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 1);
-    munit_assert_uint32(test_vmm_get_total_page_unmaps(), ==, 0);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 1);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 1);
+    munit_assert_uint32(mock_vmm_get_total_page_unmaps(), ==, 0);
 
     return MUNIT_OK;
 }
@@ -591,9 +591,9 @@ static MunitResult test_fba_free_invalid_address(const MunitParameter params[],
     fba_free((void *)((uint64_t)test_page_area + 0x10000));
 
     // Verify that the state remains unchanged
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==, 1);
-    munit_assert_uint32(test_vmm_get_total_page_maps(), ==, 1);
-    munit_assert_uint32(test_vmm_get_total_page_unmaps(), ==, 0);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 1);
+    munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 1);
+    munit_assert_uint32(mock_vmm_get_total_page_unmaps(), ==, 0);
 
     return MUNIT_OK;
 }

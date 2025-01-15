@@ -9,11 +9,11 @@
 
 #include "fba/alloc.h"
 #include "ktypes.h"
+#include "mock_pmm.h"
 #include "munit.h"
 #include "sched.h"
 #include "slab/alloc.h"
 #include "task.h"
-#include "test_pmm.h"
 
 #define TEST_PML4_ADDR (((uint64_t *)0x100000))
 #define TEST_PAGE_COUNT ((32768))
@@ -54,7 +54,7 @@ static MunitResult test_sched_init_with_ssp(const MunitParameter params[],
     Task *task = test_sched_rr_get_runnable_head();
 
     // We should have allocated overhead (FBA + Slab), plus a slab for the blocks we needed
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==,
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
     // Process (allocated first) is at the base of the slab area, plus 64 bytes (Slab* is at the base)
@@ -99,7 +99,7 @@ static MunitResult test_sched_init_with_all(const MunitParameter params[],
     Task *task = test_sched_rr_get_runnable_head();
 
     // We should have allocated overhead (FBA + Slab), plus a slab for the blocks we needed
-    munit_assert_uint32(test_pmm_get_total_page_allocs(), ==,
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
     // Process (allocated first) is at the base of the slab area, plus 64 bytes (Slab* is at the base)
@@ -143,7 +143,7 @@ static void *test_setup(const MunitParameter params[], void *user_data) {
 
 static void test_teardown(void *page_area_ptr) {
     free(page_area_ptr);
-    test_pmm_reset();
+    mock_pmm_reset();
 }
 
 static MunitTest test_suite_tests[] = {

@@ -19,10 +19,10 @@ static uint32_t total_page_allocs = 0;
 static uint32_t total_page_frees = 0;
 static uint64_t next_page_addr = 0x1000;
 
-uint32_t test_pmm_get_total_page_allocs() { return total_page_allocs; }
-uint32_t test_pmm_get_total_page_frees() { return total_page_frees; }
+uint32_t mock_pmm_get_total_page_allocs() { return total_page_allocs; }
+uint32_t mock_pmm_get_total_page_frees() { return total_page_frees; }
 
-void test_pmm_reset() {
+void mock_pmm_reset() {
     total_page_allocs = 0;
     total_page_frees = 0;
     next_page_addr = 0x1000;
