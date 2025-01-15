@@ -98,6 +98,11 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t func) {
     task->ts_remain = DEFAULT_TIMESLICE;
     task->state = TASK_STATE_READY;
 
+    // TODO pass these in, or inherit from owner
+    //      if the latter, have a separate call to change them...
+    task->class = TASK_CLASS_NORMAL;
+    task->prio = 0;
+
     task->this.next = (void *)0;
     task->this.type = KTYPE_TASK;
 

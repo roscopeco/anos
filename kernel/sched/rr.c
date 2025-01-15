@@ -10,7 +10,7 @@
 #include <slab/alloc.h>
 #include <task.h>
 
-Task *runnable_head;
+static Task *runnable_head;
 
 #define NULL (((void *)0))
 
@@ -90,6 +90,8 @@ void sched_schedule() {
     vdbgx64((uintptr_t)current);
     vdebug("\n");
 
+    // TODO this will be false _exactly once_ (the first time we switch),
+    //      seems a shame to have to check it every time...
     if (current) {
         if (--current->ts_remain != 0) {
             // timeslice continues, stick with it

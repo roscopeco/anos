@@ -16,10 +16,10 @@
 #define DEFAULT_TIMESLICE (((uint8_t)20))
 
 typedef enum {
-    TASK_CLASS_REALTIME = 0,
+    TASK_CLASS_IDLE = 0,
+    TASK_CLASS_NORMAL,
     TASK_CLASS_HIGH,
-    TASK_CLASS_LOW,
-    TASK_CLASS_IDLE,
+    TASK_CLASS_REALTIME,
 } __attribute__((packed)) TaskClass;
 
 typedef enum {

@@ -24,6 +24,8 @@ endif
 
 # The following C defines are recognised by stage3 and enable various things
 #
+#   CONSERVATIVE_BUILD	Will build a (slow) kernel with various invariant checks
+#
 #   DEBUG_VMM 			Enable debugging of the VMM
 #	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
@@ -45,7 +47,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=  #-DDEBUG_MADT -DDEBUG_PCI_ENUM
+CDEFS=
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -134,7 +136,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/task_switch.o											\
 			$(STAGE3_DIR)/task_user_entrypoint.o								\
 			$(STAGE3_DIR)/sched/lock.o											\
-			$(STAGE3_DIR)/sched/rr.o											\
+			$(STAGE3_DIR)/sched/prr.o											\
+			$(STAGE3_DIR)/structs/pq.o											\
 			$(SYSTEM)_linkable.o
 			
 ALL_TARGETS=floppy.img

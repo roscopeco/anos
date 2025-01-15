@@ -13,9 +13,13 @@
 #include "task.h"
 
 static ListNode *switch_chain;
-static Task test_task;
+static Task *current_task;
 
-Task *task_current(void) { return &test_task; }
+void task_init(void *abused_to_be_init_task_instead) {
+    current_task = (Task *)abused_to_be_init_task_instead;
+}
+
+Task *task_current(void) { return current_task; }
 
 void task_switch(Task *next) {
     ListNode *added = list_add(switch_chain, (ListNode *)next);
@@ -23,4 +27,6 @@ void task_switch(Task *next) {
     if (switch_chain == NULL) {
         switch_chain = added;
     }
+
+    current_task = next;
 }

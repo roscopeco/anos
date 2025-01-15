@@ -3,7 +3,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/build
 
 UBSAN_CFLAGS=-fsanitize=undefined -fno-sanitize-recover=all
-TEST_CFLAGS=-g -Ikernel/include -Ikernel/tests/include -O3 $(UBSAN_CFLAGS)
+TEST_CFLAGS=-g -Ikernel/include -Ikernel/tests/include -O3 -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
 HOST_ARCH=$(shell uname -p)
 
 ifeq ($(HOST_ARCH),arm)
@@ -72,6 +72,9 @@ kernel/tests/build/acpitables: kernel/tests/munit.o kernel/tests/acpitables.o ke
 kernel/tests/build/structs/list: kernel/tests/munit.o kernel/tests/structs/list.o kernel/tests/build/structs/list.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/structs/pq: kernel/tests/munit.o kernel/tests/structs/pq.o kernel/tests/build/structs/pq.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/gdt: kernel/tests/munit.o kernel/tests/gdt.o kernel/tests/build/gdt.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
@@ -93,6 +96,9 @@ kernel/tests/build/vmm/recursive: kernel/tests/munit.o kernel/tests/vmm/recursiv
 kernel/tests/build/sched/rr: kernel/tests/munit.o kernel/tests/sched/rr.o kernel/tests/build/sched/rr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/test_task.o kernel/tests/test_user_entrypoint.o kernel/tests/test_pmm_noalloc.o kernel/tests/test_vmm.o kernel/tests/test_task.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/build/structs/pq.o kernel/tests/test_task.o kernel/tests/test_user_entrypoint.o kernel/tests/test_pmm_noalloc.o kernel/tests/test_vmm.o kernel/tests/test_task.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/sched/lock: kernel/tests/munit.o kernel/tests/sched/lock.o kernel/tests/build/sched/lock.o kernel/tests/test_spinlock.o kernel/tests/test_machine.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
@@ -107,6 +113,7 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/debugprint										\
 			kernel/tests/build/acpitables										\
 			kernel/tests/build/structs/list										\
+			kernel/tests/build/structs/pq										\
 			kernel/tests/build/gdt												\
 			kernel/tests/build/pci/bus											\
 			kernel/tests/build/fba/alloc										\
@@ -115,6 +122,7 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/vmm/recursive									\
 			kernel/tests/build/sched/lock										\
 			kernel/tests/build/sched/rr											\
+			kernel/tests/build/sched/prr										\
 			kernel/tests/build/printdec
 
 test: $(ALL_TESTS)
