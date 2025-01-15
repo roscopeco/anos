@@ -255,6 +255,8 @@ find_acpi_tables:
 MSG   db  "ANLOAD #", version_str, 0
 RSDP  db  "RSD PTR "
 
+align 8
+
 GDT:
   ; segment 0 - null
   dq 0

@@ -79,6 +79,9 @@ ListNode *list_insert_after(ListNode *target, ListNode *subject);
  * Returns:
  *  The inserted node
  */
+// TODO in hindsight, it might be more convenient for
+//      this to return the list head...
+//
 ListNode *list_add(ListNode *head, ListNode *subject);
 
 /*

@@ -1,7 +1,8 @@
 ## anos - An Operating System 💾
 
-> **Note**: This is not yet an operating system. It's barely even a toy.
-> I may continue to grow it, or I may not. We'll see.
+> **Note**: This is not yet an operating system, but _has_ just about 
+> reached toy status, since it now supports user mode preemptive 
+> multitasking.
 
 A toy operating system I'm using as a vehicle for learning more about
 long mode and experimenting with some ideas for different ways to do 
@@ -11,7 +12,7 @@ I'm _trying_ to not even _look_ at other people's code, or patchy and
 outdated wikis etc - as much as possible I'm just going from official 
 reference materials (like the Intel manuals).
 
-  - Updated mission statement, December 2024
+  - Updated mission statement, January 2025
 
 ### High-level overview
 
@@ -39,17 +40,22 @@ Also worth noting that the loader doesn't do **anything** at all with
 interrupt vectors - that's totally up to the kernel (and interrupts are
 left disabled throughout the load and remain so on kernel entry).
 
-As far as the Kernel is concerned, there's much to still be decided. 
+As far as the Kernel is concerned, there's much to still be decided,
+and most of what has been decided could still change without notice.
 However, since this is being designed as 64-bit from the beginning, there's
-a lot of things I can do that I wouldn't otherwise be able to.
+a lot of things I can do that I wouldn't otherwise be able to, and
+decisions I've taken so far are, as much as possible, documented in
+the source / comments.
 
-Right now, it's very early days. There's a simple stack-based physical
+Right now, it's early days, but there's a simple stack-based physical
 memory allocator and enough support for everything (page fault handling,
 IDT, virtual memory management, etc) to be able to get to user mode
-and then back via a simple (`int`-only right now) syscall interface.
+and then back via a simple syscall interface (accessible via both
+`int` and `syscall` interfaces).
 
 The basics of interrupt handling is configured, with the local APIC 
-timer currently providing a "proof-of-life" heartbeat.
+timer currently providing a "proof-of-life" heartbeat and basic 
+multitasking via the round-robin scheduler.
 
 ### Building
 
@@ -84,9 +90,18 @@ To build, just do:
 make clean all
 ```
 
-As part of the build, all the objects are built to ELF format with
-debugging info, and a disassembly file is created. These are then
-stripped to binary
+This will do the following:
+
+* Build kernel ELF
+* Build the user-mode `libanos` and `System` user-mode supervisor
+* Create a disassembly file (`.dis`)
+* Build a floppy-disk image with the (stripped) kernel and System
+* Run a bunch of unit tests
+
+You can also choose to just run `make test` if you want to run the
+tests. If you have `LCOV` installed, you can also generate 
+coverage reports with `make coverage` - these will be output in
+the `gcov/kernel` directory as HTML.
 
 ### Running
 
@@ -208,10 +223,16 @@ it should be relatively recent.
 
 * Boot
 * Init LAPICs
+* Set everything up for usermode startup
+* Start a simple round-robin scheduler
+* User-mode starts a thread with a `syscall`, and then
+  * Thread #1 - Loop from usermode, printing periodic dots with syscall
+  * Thread #2 - Same, but printing periodic `B` instead
+
+<img src="images/Screenshot 2025-01-13 at 22.22.04.png" alt="Hopefully-recent Screenshot">
+
+The following things are not shown in this shot, but are still happening under the hood:
+
 * Enumerate MADT for debugging
 * Enumerate PCI bus (including bridges)
-* Set everything up for usermode startup
-* Loop from usermode, printing periodic dots with syscall
-
-<img src="images/Screenshot 2024-12-23 at 16.32.23.png" alt="Hopefully-recent Screenshot">
 

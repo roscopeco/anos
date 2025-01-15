@@ -23,8 +23,10 @@
 #include "machine.h"
 #include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
+#include "printdec.h"
 #include "printhex.h"
 #include "process.h"
+#include "sched.h"
 #include "slab/alloc.h"
 #include "syscalls.h"
 #include "task.h"
@@ -57,9 +59,6 @@
 
 extern void *_system_bin_start;
 extern void *_system_bin_end;
-
-static Process *system_process;
-static Task *system_task;
 
 static char *MSG = VERSION "\n";
 
@@ -265,6 +264,17 @@ static inline void init_kernel_gdt() {
                    GDT_ENTRY_FLAGS_64BIT);
 }
 
+static inline void *get_tss() {
+    GDTR gdtr;
+
+    store_gdtr(&gdtr);
+
+    GDTEntry *tss_entry = get_gdt_entry(&gdtr, 5);
+
+    return (void *)(0ULL | (tss_entry->base_high << 24) |
+                    (tss_entry->base_middle << 16) | tss_entry->base_low);
+}
+
 MemoryRegion *physical_region;
 BIOS_SDTHeader *acpi_root_table;
 
@@ -285,12 +295,14 @@ noreturn void start_system(void) {
     }
 
     // TODO the way this is set up currently, there's no way to know how much
-    // BSS/Data we need... We'll just map a page for now...
+    // BSS/Data we need... We'll just map a couple pages for now...
 
-    // Set up a page for the user bss / data
+    // Set up two pages for the user bss / data
     uint64_t user_bss = 0x0000000080000000;
     uint64_t user_bss_phys = page_alloc(physical_region);
     vmm_map_page(user_bss, user_bss_phys, flags | WRITE);
+    user_bss_phys = page_alloc(physical_region);
+    vmm_map_page(user_bss + 0x1000, user_bss_phys, flags | WRITE);
 
     // ... and a page below that for the user stack
     uint64_t user_stack = user_bss - 0x1000;
@@ -301,34 +313,17 @@ noreturn void start_system(void) {
     void *kernel_stack = fba_alloc_blocks(4); // 16KiB
 
     // create a process and task for system
-    system_process = fba_alloc_block();
-    system_task = fba_alloc_block();
+    sched_init((uintptr_t)user_stack + 0x1000, (uintptr_t)kernel_stack + 0x4000,
+               (uintptr_t)0x0000000001000000);
 
-    system_task->this.next = NULL;
-    system_task->this.type = KTYPE_TASK;
-    system_task->owner = system_process;
-    system_task->sp = user_stack;
-    system_task->ssp = kernel_stack;
+    // We can just get away with disabling here, no need to save/restore flags
+    // because we know we're currently the only thread...
+    __asm__ volatile("cli");
 
-    system_process->this.next = NULL;
-    system_process->this.type = KTYPE_PROCESS;
-    system_process->pid = 1;
+    // Kick off scheduling...
+    sched_schedule();
 
-    debugstr("Starting user-mode supervisor...\n");
-
-    // Switch to user mode
-    __asm__ volatile(
-            "mov %0, %%rsp\n\t" // Set stack pointer
-            "push $0x1B\n\t"    // Push user data segment selector (GDT entry 3)
-            "push %0\n\t"       // Push user stack pointer
-            "pushf\n\t"         // Push EFLAGS
-            "push $0x23\n\t"    // Push user code segment selector (GDT entry 4)
-            "push %1\n\t"       // Push user code entry point
-            "iretq\n\t"         // "Return" to user mode
-            :
-            : "r"(user_stack + 0x1000), "r"((uint64_t)0x0000000001000000)
-            : "memory");
-
+    // ... which will never return to here.
     __builtin_unreachable();
 }
 
@@ -366,10 +361,6 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
 
     install_interrupts();
     syscall_init();
-
-    debugstr("We have ");
-    printhex64(physical_region->size, debugchar);
-    debugstr(" bytes physical memory\n");
 
 #ifdef DEBUG_ACPI
     debugstr("RSDP at ");
@@ -442,16 +433,11 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     debugstr("\n");
 #endif
 
-#ifdef DEBUG_TEST_TASKS
-    void debug_test_tasks(void);
-    debugstr("Running endless task test...\n");
-    debug_test_tasks(); // this won't return...
-#endif
-
 #ifdef DEBUG_NO_START_SYSTEM
     debugstr("All is well, DEBUG_NO_START_SYSTEM was specified, so halting for "
              "now.\n");
 #else
+    task_init(get_tss());
     start_system();
     debugstr("Somehow ended up back in entrypoint, that's probably not good - "
              "halting.  ..\n");

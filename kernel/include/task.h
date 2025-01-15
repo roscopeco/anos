@@ -8,30 +8,52 @@
 #ifndef __ANOS_KERNEL_TASK_H
 #define __ANOS_KERNEL_TASK_H
 
+#include "anos_assert.h"
 #include "process.h"
 #include "structs/list.h"
 #include <stdint.h>
 
+#define DEFAULT_TIMESLICE (((uint8_t)20))
+
+typedef enum {
+    TASK_CLASS_IDLE = 0,
+    TASK_CLASS_NORMAL,
+    TASK_CLASS_HIGH,
+    TASK_CLASS_REALTIME,
+} __attribute__((packed)) TaskClass;
+
+typedef enum {
+    TASK_STATE_BLOCKED = 0,
+    TASK_STATE_READY,
+    TASK_STATE_RUNNING,
+} __attribute__((packed)) TaskState;
+
 /*
  * task_switch.asm depends on the exact layout of this!
- * Make sure it only grows, and stays packed...
  */
-typedef struct {
-    ListNode this;      // 16 bytes
-    uintptr_t tid;      // 32
-    uintptr_t sp;       // 40
-    void *ssp;          // 48
-    Process *owner;     // 56
-    uint64_t reserved1; // 24
-    uint64_t reserved2; // 64
-} Task;
+typedef struct Task {
+    ListNode this;  // 16 bytes
+    uintptr_t tid;  // 24
+    uintptr_t rsp0; // 32
+    uintptr_t ssp;  // 40
+    Process *owner; // 48
 
+    // duplicated from process to avoid cache miss on naive switch
+    uintptr_t pml4; // 56
+
+    uint16_t ts_remain; // 58
+    TaskState state;    // 59
+    TaskClass class;    // 60
+    uint8_t prio;       // 61
+    uint8_t res1;       // 62
+    uint16_t res2;      // 64
+} __attribute__((packed)) Task;
+
+static_assert_sizeof(Task, 64);
+
+void task_init(void *tss);
 Task *task_current();
 void task_switch(Task *next);
-
-#ifdef DEBUG_TEST_TASKS
-#include <stdnoreturn.h>
-noreturn void debug_test_tasks();
-#endif
+Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t func);
 
 #endif //__ANOS_KERNEL_TASK_H

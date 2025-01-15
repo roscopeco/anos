@@ -24,12 +24,15 @@ endif
 
 # The following C defines are recognised by stage3 and enable various things
 #
+#   CONSERVATIVE_BUILD	Will build a (slow) kernel with various invariant checks
+#
 #   DEBUG_VMM 			Enable debugging of the VMM
 #	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
-#	DEBUG_ACPI				Enable debugging in ACPI mapper / parser
+#	DEBUG_ACPI			Enable debugging in ACPI mapper / parser
 #	DEBUG_MADT			Enable debug dump of the Multiple APIC Descriptor Table at boot
 #	VERY_NOISY_ACPI		Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
+#   DEBUG_LAPIC_INIT	Enable debugging of LAPIC initialisation
 #	DEBUG_PCI_ENUM		Enable debugging of PCI enumeration
 #	VERY_NOISY_PCI_ENUM	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
 #
@@ -37,14 +40,14 @@ endif
 #
 #	DEBUG_FORCE_HANDLED_PAGE_FAULT		Force a handled page-fault at boot
 #	DEBUG_FORCE_UNHANDLED_PAGE_FAULT	Force an unhandled page-fault at boot
-#   DEBUG_TEST_TASKS					Run a noreturn func that just tests the basic task switch
+#   DEBUG_TASK_SWITCH					Dump debug info when switching tasks
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #
 # Additionally:
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_MADT -DDEBUG_PCI_ENUM
+CDEFS=
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -102,7 +105,9 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/debugprint.o											\
 			$(STAGE3_DIR)/printhex.o											\
+			$(STAGE3_DIR)/printdec.o											\
 			$(STAGE3_DIR)/machine.o												\
+			$(STAGE3_DIR)/machine_asm.o											\
 			$(STAGE3_DIR)/pic.o													\
 			$(STAGE3_DIR)/interrupts.o											\
 			$(STAGE3_DIR)/isr_handlers.o										\
@@ -111,6 +116,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/pagefault.o											\
 			$(STAGE3_DIR)/structs/list.o										\
 			$(STAGE3_DIR)/init_pagetables.o										\
+			$(STAGE3_DIR)/pmm/sys_asm.o											\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/vmm/vmmapper.o										\
 			$(STAGE3_DIR)/fba/alloc.o											\
@@ -128,6 +134,10 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/syscalls.o											\
 			$(STAGE3_DIR)/task.o												\
 			$(STAGE3_DIR)/task_switch.o											\
+			$(STAGE3_DIR)/task_user_entrypoint.o								\
+			$(STAGE3_DIR)/sched/lock.o											\
+			$(STAGE3_DIR)/sched/prr.o											\
+			$(STAGE3_DIR)/structs/pq.o											\
 			$(SYSTEM)_linkable.o
 			
 ALL_TARGETS=floppy.img
@@ -142,7 +152,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/pmm/*.o $(STAGE3_DIR)/vmm/*.o				 		\
 				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
 				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
-				$(STAGE3_DIR)/structs/*.o										\
+				$(STAGE3_DIR)/structs/*.o $(STAGE3_DIR)/sched/*.o				\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\

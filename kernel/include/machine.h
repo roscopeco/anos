@@ -48,4 +48,19 @@ noreturn void halt_and_catch_fire(void);
 void outl(uint16_t port, uint32_t value);
 uint32_t inl(uint16_t port);
 
+void disable_interrupts();
+void enable_interrupts();
+uint64_t save_disable_interrupts();
+void restore_saved_interrupts(uint64_t flags);
+
+/*
+ * These are used by the new thread entrypoint code.
+ *
+ * They just returns whatever is currently in r15 (entrypoint)
+ * or r14 (user stack) which is where the new thread setup puts 
+ * the right values for the new thread...
+ */
+uintptr_t get_new_thread_entrypoint();
+uintptr_t get_new_thread_userstack();
+
 #endif //__ANOS_KERNEL_MACHINE_H

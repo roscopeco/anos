@@ -10,6 +10,10 @@
 
 #include <stdint.h>
 
+// TODO it'd be nice if these were constexpr but then we can't build hosted
+//      tests (Apple clang doesn't support constexpr yet - Jan 2025)
+//
+
 // Base address for tables (high bits always set, tables will always be in kernel space...)
 static const uintptr_t BASE_ADDRESS = 0xffff000000000000;
 
@@ -76,25 +80,25 @@ typedef struct {
  * levels, and a zero offset:
  *
  * ```C
- * uintptr_t pml4 = vmm_recursive_table_address(511, 511, 511, 511, 0);
+ * uintptr_t pml4 = vmm_recursive_table_address(256, 256, 256, 256, 0);
  * ```
  *
  * To get a PDPT (from PML4 index 1 in this case):
  *
  * ```C
- * uintptr_t pdpt1 = vmm_recursive_table_address(511, 511, 511, 1, 0);
+ * uintptr_t pdpt1 = vmm_recursive_table_address(256, 256, 256, 1, 0);
  * ```
  *
  * Or a PD, index 2, from PDPT index 1:
  *
  * ```C
- * uintptr_t pdpt1_pd2 = vmm_recursive_table_address(511, 511, 1, 2, 0);
+ * uintptr_t pdpt1_pd2 = vmm_recursive_table_address(256, 256, 1, 2, 0);
  * ```
  *
  * And finally a PT, index 3 from PD index 2, PDPT index 1:
  *
  * ```C
- * uintptr_t pdpt1_pd2_pt3 = vmm_recursive_table_address(511, 1, 2, 3, 0);
+ * uintptr_t pdpt1_pd2_pt3 = vmm_recursive_table_address(256, 1, 2, 3, 0);
  * ```
  *
  * If an alternative PML4 entry is being used for the recursive mapping,
@@ -102,15 +106,15 @@ typedef struct {
  * in this file, which are hardcoded to use the last entry):
  *
  * ```C
- * uintptr_t pdpt1_pd2_pt3 = vmm_recursive_table_address(500, 1, 2, 3, 0);
+ * uintptr_t pdpt1_pd2_pt3 = vmm_recursive_table_address(257, 1, 2, 3, 0);
  * ```
  *
  * Note that this function **does not** canonicalise addresses automatically - so the
  * l1 value must translate to addresses above 0xffff800000000000.
  *
  * In practice, this means that the recursive mapping must be in the top 256 entries
- * of the PML4 - the kernel maps the _current_ PML4 into the second-from-top (index 510)
- * entry, and I plan to map alternative process spaces into the third-from-top (index 509)
+ * of the PML4 - the kernel maps the _current_ PML4 into the first such entry (index 256)
+ * entry, and I plan to map alternative process spaces into the next entry (index 257)
  * if/when that becomes a thing, so this isn't a problem for now...
  */
 static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2,
