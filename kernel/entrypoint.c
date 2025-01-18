@@ -208,6 +208,28 @@ void debug_madt(BIOS_SDTHeader *rsdt) {
 #endif
 
 static inline void banner() {
+    // This relies on stage2 having fiddled with the
+    // font and the video mode. See load_font.asm
+    // under stage2/
+    //
+    debugattr(0x09);
+    debugstr("   \n");
+    debugstr("    \x80\x81\x82\x83\x84\x85\x86\x87\n");
+    debugattr(0x0a);
+    debugstr("   \x88\x89 ");
+    debugattr(0x0e);
+    debugstr("\x8a\x8b\n");
+    debugattr(0x0a);
+    debugstr("  \x8c\x8d\x8e\x8f");
+    debugattr(0x0e);
+    debugstr("\x90\x91\x92\x93\x94\x95\n");
+    debugattr(0x0a);
+    debugstr("   \x96\x97 ");
+    debugattr(0x0e);
+    debugstr("\x98\x99\x9a\x9b\x9c\x9d\n");
+    debugattr(0x09);
+    debugstr("   \x9e\x9f\xa0\xa1\xa2\xa3\xa4\xa5\xa6\n\n");
+
     debugattr(0x0B);
     debugstr("STAGE");
     debugattr(0x03);

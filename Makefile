@@ -99,7 +99,8 @@ STAGE2_OBJS=$(STAGE2_DIR)/$(STAGE2).o 											\
 			$(STAGE2_DIR)/a20.o 												\
 			$(STAGE2_DIR)/modern.o 												\
 			$(STAGE2_DIR)/fat.o 												\
-			$(STAGE2_DIR)/init_pagetables.o
+			$(STAGE2_DIR)/init_pagetables.o										\
+			$(STAGE2_DIR)/loadfont.o
 			
 STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/entrypoint.o											\

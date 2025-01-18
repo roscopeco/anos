@@ -44,6 +44,7 @@
 
 global _start                             ; Shut up NASM, I (imagine I) know what I'm doing... 🙄🤣
 
+extern load_font                          ; Defined in load_font.asm
 extern real_print_sz                      ; Defined in prints.asm
 extern build_e820_memory_map              ; Defined in memorymap.asm
 extern check_a20, enable_a20              ; Defined in a20.asm
@@ -106,9 +107,10 @@ _start:
   call  build_e820_memory_map             ; Looks like we're good, so let's grab the mem map before leaving real mode.
   jc    .too_bad                          ; Just print message and die on fail (see also comments in memorymap.asm!)
 
-  mov ah, 0x00                            ; One last thing before we leave (un)real mode forever...
-  mov al, 0x03                            ; Set video to text mode 80x25 16 colours,
-  int 0x10                                ; which will clear the screen...
+ mov ah, 0x00                            ; One last thing before we leave (un)real mode forever...
+ mov al, 0x02                            ; Set video to text mode 80x25 16 colours,
+ int 0x10                                ; which will clear the screen...
+  call load_font
 
 .protect:
   ; Jump to protected mode for reals this time
