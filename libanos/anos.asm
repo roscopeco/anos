@@ -8,6 +8,7 @@ global testcall_int, testcall_syscall
 global kputchar_syscall, kputchar_int, kprint_int, kprint_syscall
 global anos_create_thread_syscall, anos_create_thread_int
 global anos_get_mem_info_syscall, anos_get_mem_info_int
+global anos_task_sleep_current_syscall, anos_task_sleep_current_int
 
 
 ; args:
@@ -135,6 +136,7 @@ anos_create_thread_int:
     int 0x69
     ret
 
+
 ; args:
 ;   rdi - AnosMemInfo pointer
 ;
@@ -159,6 +161,34 @@ anos_get_mem_info_syscall:
 ;   
 anos_get_mem_info_int:
     mov r9, $4
+    int 0x69
+    ret
+
+
+; args:
+;   rdi - tick count
+;
+; mods:
+;   rax - result
+;   r11 - trashed
+;   rcx - trashed
+;   
+anos_task_sleep_current_syscall:
+    mov r9, $5
+    syscall
+    ret
+
+
+; args:
+;   rdi - tick count
+;
+; mods:
+;   rax - result
+;   r11 - trashed
+;   rcx - trashed
+;   
+anos_task_sleep_current_int:
+    mov r9, $5
     int 0x69
     ret
 

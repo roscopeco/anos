@@ -33,10 +33,13 @@ static inline void banner() {
 
 static void thread2() {
     int count = 0;
+    printf("\nTask 2 - startup and immediately sleep...\n");
+    anos_task_sleep_current(500);
+    printf("\nTask 2 has arisen!\n");
 
     while (1) {
         if (count++ % 100000000 == 0) {
-            kputchar('B');
+            kputchar('2');
         }
     }
 }
@@ -83,7 +86,7 @@ int main(int argc, char **argv) {
         num = subroutine(num);
 
         if (count++ % 100000000 == 0) {
-            kputchar('.');
+            kputchar('1');
         }
     }
 }

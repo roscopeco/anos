@@ -35,6 +35,7 @@ endif
 #   DEBUG_LAPIC_INIT	Enable debugging of LAPIC initialisation
 #	DEBUG_PCI_ENUM		Enable debugging of PCI enumeration
 #	VERY_NOISY_PCI_ENUM	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
+#	DEBUG_SLEEP			Debug the sleep task (and eventually yield etc) syscall(s)
 #
 # These ones enable some specific feature tests
 #
@@ -138,6 +139,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/sched/lock.o											\
 			$(STAGE3_DIR)/sched/prr.o											\
 			$(STAGE3_DIR)/structs/pq.o											\
+			$(STAGE3_DIR)/sleep.o												\
 			$(SYSTEM)_linkable.o
 			
 ALL_TARGETS=floppy.img
