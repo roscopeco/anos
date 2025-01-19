@@ -162,7 +162,7 @@ static void sched_enqueue(Task *task) {
     task_pq_push(candidate_queue, task);
 }
 
-void sched_schedule() {
+void sched_schedule(void) {
     Task *current = task_current();
     Task *candidate_next = NULL;
     TaskPriorityQueue *candidate_queue = NULL;
@@ -239,14 +239,8 @@ void sched_schedule() {
 }
 
 void sched_unblock(Task *task) {
-    sched_enqueue(task);
-
-    // TODO conditionally sched_schedule() once preemption is supported...
     task->state = TASK_STATE_READY;
+    sched_enqueue(task);
 }
 
-void sched_block(Task *task) {
-    task->state = TASK_STATE_BLOCKED;
-
-    sched_schedule();
-}
+void sched_block(Task *task) { task->state = TASK_STATE_BLOCKED; }

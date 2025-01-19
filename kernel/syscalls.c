@@ -14,6 +14,7 @@
 #include "pmm/pagealloc.h"
 #include "printhex.h"
 #include "sched.h"
+#include "sleep.h"
 #include "task.h"
 
 #include <stdint.h>
@@ -75,6 +76,14 @@ static SyscallResult handle_memstats(AnosMemInfo *mem_info) {
     return SYSCALL_OK;
 }
 
+static SyscallResult handle_sleep(uint64_t ticks) {
+    sched_lock();
+    sleep_task(task_current(), ticks);
+    sched_unlock();
+
+    return SYSCALL_OK;
+}
+
 SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
                                 SyscallArg arg2, SyscallArg arg3,
                                 SyscallArg arg4, SyscallArg syscall_num) {
@@ -89,6 +98,8 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
         return handle_create_thread((ThreadFunc)arg0, (uintptr_t)arg1);
     case 4:
         return handle_memstats((AnosMemInfo *)arg0);
+    case 5:
+        return handle_sleep(arg0);
     default:
         return SYSCALL_BAD_NUMBER;
     }
