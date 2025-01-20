@@ -98,8 +98,8 @@ void debug_memmap(E820h_MemMap *memmap) {
 #endif
 
 #ifdef DEBUG_MADT
-void debug_madt(BIOS_SDTHeader *rsdt) {
-    BIOS_SDTHeader *madt = find_acpi_table(rsdt, "APIC");
+void debug_madt(ACPI_SDTHeader *rsdt) {
+    ACPI_SDTHeader *madt = find_acpi_table(rsdt, "APIC");
 
     if (madt == NULL) {
         debugstr("(ACPI MADT table not found)\n");
@@ -221,9 +221,9 @@ static inline void banner() {
 
 static inline void install_interrupts() { idt_install(0x08); }
 
-static inline void init_this_cpu(BIOS_SDTHeader *rsdt) {
+static inline void init_this_cpu(ACPI_SDTHeader *rsdt) {
     // Init local APIC on this CPU
-    BIOS_SDTHeader *madt = find_acpi_table(rsdt, "APIC");
+    ACPI_SDTHeader *madt = find_acpi_table(rsdt, "APIC");
 
     if (madt == NULL) {
         debugstr("No MADT; Halting\n");
@@ -276,7 +276,7 @@ static inline void *get_tss() {
 }
 
 MemoryRegion *physical_region;
-BIOS_SDTHeader *acpi_root_table;
+ACPI_SDTHeader *acpi_root_table;
 
 noreturn void start_system(void) {
     uint64_t system_start_virt = 0x1000000;
@@ -340,7 +340,7 @@ static void panic(char *msg) {
     halt_and_catch_fire();
 }
 
-noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
+noreturn void start_kernel(ACPI_RDSP *rsdp, E820h_MemMap *memmap) {
     debugterm_init(VRAM_VIRT_BASE);
     banner();
 
@@ -368,7 +368,7 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     debugstr(" (physical): OEM is ");
 #endif
 
-    rsdp = (BIOS_RSDP *)(((uint64_t)rsdp) | 0xFFFFFFFF80000000);
+    rsdp = (ACPI_RDSP *)(((uint64_t)rsdp) | 0xFFFFFFFF80000000);
 
 #ifdef DEBUG_ACPI
     debugstr(rsdp->oem_id);

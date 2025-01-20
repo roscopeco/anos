@@ -16,7 +16,7 @@
 #include "vmm/vmmapper.h"
 
 #define RSDT_ENTRY_COUNT(sdt)                                                  \
-    ((sdt->length - sizeof(BIOS_SDTHeader)) /                                  \
+    ((sdt->length - sizeof(ACPI_SDTHeader)) /                                  \
      4) // TODO hard-coded to 32-bit rev0
 
 typedef struct {
@@ -29,7 +29,7 @@ static AddressMapping page_stack[64];
 static uint16_t page_stack_ptr;
 static uint64_t next_vaddr = ACPI_TABLES_VADDR_BASE;
 
-static bool checksum_rsdp(BIOS_RSDP *rsdp) {
+static bool checksum_rsdp(ACPI_RDSP *rsdp) {
     uint8_t *byteptr = (uint8_t *)rsdp;
     uint8_t sum = 0;
 
@@ -47,7 +47,7 @@ static bool checksum_rsdp(BIOS_RSDP *rsdp) {
     return sum == 0;
 }
 
-static bool checksum_sdt(BIOS_SDTHeader *sdt) {
+static bool checksum_sdt(ACPI_SDTHeader *sdt) {
     uint8_t *byteptr = (uint8_t *)sdt;
     uint8_t sum = 0;
 
@@ -124,7 +124,7 @@ static uint64_t get_mapping_for(uint64_t phys) {
     }
 }
 
-bool has_sig(const char *expect, BIOS_SDTHeader *sdt) {
+bool has_sig(const char *expect, ACPI_SDTHeader *sdt) {
     for (int i = 0; i < 4; i++) {
         if (expect[i] != sdt->signature[i]) {
             return false;
@@ -134,7 +134,7 @@ bool has_sig(const char *expect, BIOS_SDTHeader *sdt) {
     return true;
 }
 
-static BIOS_SDTHeader *map_sdt(uint64_t phys_addr) {
+static ACPI_SDTHeader *map_sdt(uint64_t phys_addr) {
     uint64_t vaddr = get_mapping_for(phys_addr);
 
     if (vaddr == 0) {
@@ -147,7 +147,7 @@ static BIOS_SDTHeader *map_sdt(uint64_t phys_addr) {
         return NULL;
     }
 
-    BIOS_SDTHeader *sdt = (BIOS_SDTHeader *)(vaddr);
+    ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(vaddr);
 
     if (!checksum_sdt(sdt)) {
 #ifdef DEBUG_ACPI
@@ -187,7 +187,7 @@ static BIOS_SDTHeader *map_sdt(uint64_t phys_addr) {
     return sdt;
 }
 
-BIOS_SDTHeader *map_acpi_tables(BIOS_RSDP *rsdp) {
+ACPI_SDTHeader *map_acpi_tables(ACPI_RDSP *rsdp) {
     if (!rsdp) {
 #ifdef DEBUG_ACPI
         debugstr("Cannot map NULL RSDP!\n");
@@ -205,13 +205,13 @@ BIOS_SDTHeader *map_acpi_tables(BIOS_RSDP *rsdp) {
     return map_sdt(rsdp->rsdt_address);
 }
 
-BIOS_SDTHeader *find_acpi_table(BIOS_SDTHeader *rsdp, const char *ident) {
+ACPI_SDTHeader *find_acpi_table(ACPI_SDTHeader *rsdp, const char *ident) {
     uint32_t entries = RSDT_ENTRY_COUNT(rsdp);
     uint32_t *entry = ((uint32_t *)(rsdp + 1));
 
     for (int i = 0; i < entries; i++) {
-        BIOS_SDTHeader *sdt =
-                (BIOS_SDTHeader *)(((uint64_t)*entry) | 0xFFFFFFFF00000000);
+        ACPI_SDTHeader *sdt =
+                (ACPI_SDTHeader *)(((uint64_t)*entry) | 0xFFFFFFFF00000000);
 
 #ifdef DEBUG_ACPI
 #ifdef VERY_NOISY_ACPI

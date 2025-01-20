@@ -30,7 +30,7 @@ typedef struct {
     uint64_t xsdt_address;
     uint8_t extended_checksum;
     uint8_t reserved[3];
-} __attribute__((packed)) BIOS_RSDP;
+} __attribute__((packed)) ACPI_RDSP;
 
 /*
  * System Description Table (SDP) Header
@@ -45,7 +45,15 @@ typedef struct {
     uint32_t oem_revision;
     uint32_t creator_id;
     uint32_t creator_revision;
-} __attribute__((packed)) BIOS_SDTHeader;
+} __attribute__((packed)) ACPI_SDTHeader;
+
+typedef struct {
+    uint8_t address_space_id; // 0 = Sys Mem, 1 = Sys IO
+    uint8_t register_bit_width;
+    uint8_t register_bit_offset;
+    uint8_t reserved;
+    uint64_t address;
+} __attribute__((packed)) ACPI_GenericAddress;
 
 /*
  * Validate the ACPI tables and map them into virtual memory.
@@ -77,8 +85,8 @@ typedef struct {
  * only the ones I'm actually using right now. More will be added
  * as I need them 🙃
  */
-BIOS_SDTHeader *map_acpi_tables(BIOS_RSDP *rsdp);
+ACPI_SDTHeader *map_acpi_tables(ACPI_RDSP *rsdp);
 
-BIOS_SDTHeader *find_acpi_table(BIOS_SDTHeader *rsdp, const char *ident);
+ACPI_SDTHeader *find_acpi_table(ACPI_SDTHeader *rsdp, const char *ident);
 
 #endif //__ANOS_KERNEL_ACPITABLES_H

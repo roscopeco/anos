@@ -8,7 +8,7 @@
 #include "acpitables.h"
 #include "munit.h"
 
-static BIOS_RSDP bad_checksum = {
+static ACPI_RDSP bad_checksum = {
         .signature = {'R', 'S', 'D', ' ', 'P', 'T', 'R', ' '},
         .checksum = 42,
         .oem_id = {'A', 'N', 'O', 'E', 'M', 0},
@@ -16,7 +16,7 @@ static BIOS_RSDP bad_checksum = {
         .rsdt_address = 9999,
 };
 
-static BIOS_RSDP good_checksum = {
+static ACPI_RDSP good_checksum = {
         .signature = {'R', 'S', 'D', ' ', 'P', 'T', 'R', ' '},
         .checksum = 59,
         .oem_id = {'A', 'N', 'O', 'E', 'M', 0},
@@ -25,7 +25,7 @@ static BIOS_RSDP good_checksum = {
 };
 
 static MunitResult test_map_null(const MunitParameter params[], void *param) {
-    BIOS_SDTHeader *result = map_acpi_tables(NULL);
+    ACPI_SDTHeader *result = map_acpi_tables(NULL);
 
     munit_assert_null(result);
 
@@ -35,7 +35,7 @@ static MunitResult test_map_null(const MunitParameter params[], void *param) {
 static MunitResult test_map_bad_checksum_r0(const MunitParameter params[],
                                             void *param) {
 
-    BIOS_SDTHeader *result = map_acpi_tables(&bad_checksum);
+    ACPI_SDTHeader *result = map_acpi_tables(&bad_checksum);
 
     munit_assert_null(result);
 

@@ -15,7 +15,7 @@
 #include "printhex.h"
 #include "vmm/vmmapper.h"
 
-void init_local_apic(BIOS_SDTHeader *madt) {
+void init_local_apic(ACPI_SDTHeader *madt) {
     uint32_t *lapic_addr = ((uint32_t *)(madt + 1));
 #ifdef DEBUG_LAPIC_INIT
     uint32_t *flags = lapic_addr + 1;
