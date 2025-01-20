@@ -30,10 +30,10 @@ typedef struct {
     uint64_t xsdt_address;
     uint8_t extended_checksum;
     uint8_t reserved[3];
-} __attribute__((packed)) ACPI_RDSP;
+} __attribute__((packed)) ACPI_RSDP;
 
 /*
- * System Description Table (SDP) Header
+ * System Description Table (SDT) Header
  */
 typedef struct {
     char signature[4];
@@ -85,8 +85,8 @@ typedef struct {
  * only the ones I'm actually using right now. More will be added
  * as I need them 🙃
  */
-ACPI_SDTHeader *map_acpi_tables(ACPI_RDSP *rsdp);
+ACPI_SDTHeader *acpi_tables_init(ACPI_RSDP *rsdp);
 
-ACPI_SDTHeader *find_acpi_table(ACPI_SDTHeader *rsdp, const char *ident);
+ACPI_SDTHeader *acpi_tables_find(ACPI_SDTHeader *rsdp, const char *ident);
 
 #endif //__ANOS_KERNEL_ACPITABLES_H

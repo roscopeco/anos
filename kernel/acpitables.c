@@ -15,10 +15,6 @@
 #include "printhex.h"
 #include "vmm/vmmapper.h"
 
-#define RSDT_ENTRY_COUNT(sdt)                                                  \
-    ((sdt->length - sizeof(ACPI_SDTHeader)) /                                  \
-     4) // TODO hard-coded to 32-bit rev0
-
 typedef struct {
     uint64_t phys;
     uint64_t virt;
@@ -29,7 +25,12 @@ static AddressMapping page_stack[64];
 static uint16_t page_stack_ptr;
 static uint64_t next_vaddr = ACPI_TABLES_VADDR_BASE;
 
-static bool checksum_rsdp(ACPI_RDSP *rsdp) {
+static inline uint32_t RSDT_ENTRY_COUNT(ACPI_SDTHeader *sdt) {
+    // TODO hard-coded to 32-bit rev0
+    return ((sdt->length - sizeof(ACPI_SDTHeader)) / 4);
+}
+
+static bool checksum_rsdp(ACPI_RSDP *rsdp) {
     uint8_t *byteptr = (uint8_t *)rsdp;
     uint8_t sum = 0;
 
@@ -124,7 +125,7 @@ static uint64_t get_mapping_for(uint64_t phys) {
     }
 }
 
-bool has_sig(const char *expect, ACPI_SDTHeader *sdt) {
+static inline bool has_sig(const char *expect, ACPI_SDTHeader *sdt) {
     for (int i = 0; i < 4; i++) {
         if (expect[i] != sdt->signature[i]) {
             return false;
@@ -187,7 +188,7 @@ static ACPI_SDTHeader *map_sdt(uint64_t phys_addr) {
     return sdt;
 }
 
-ACPI_SDTHeader *map_acpi_tables(ACPI_RDSP *rsdp) {
+static ACPI_SDTHeader *map_acpi_tables(ACPI_RSDP *rsdp) {
     if (!rsdp) {
 #ifdef DEBUG_ACPI
         debugstr("Cannot map NULL RSDP!\n");
@@ -205,7 +206,11 @@ ACPI_SDTHeader *map_acpi_tables(ACPI_RDSP *rsdp) {
     return map_sdt(rsdp->rsdt_address);
 }
 
-ACPI_SDTHeader *find_acpi_table(ACPI_SDTHeader *rsdp, const char *ident) {
+ACPI_SDTHeader *acpi_tables_init(ACPI_RSDP *rsdp) {
+    return map_acpi_tables(rsdp);
+}
+
+ACPI_SDTHeader *acpi_tables_find(ACPI_SDTHeader *rsdp, const char *ident) {
     uint32_t entries = RSDT_ENTRY_COUNT(rsdp);
     uint32_t *entry = ((uint32_t *)(rsdp + 1));
 
