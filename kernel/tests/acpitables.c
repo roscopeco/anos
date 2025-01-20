@@ -1,5 +1,5 @@
 /*
- * Tests for ACPI table mapper / parser
+ * Tests for ACPI table initper / parser
  * anos - An Operating System
  *
  * Copyright (c) 2023 Ross Bamford
@@ -8,7 +8,7 @@
 #include "acpitables.h"
 #include "munit.h"
 
-static ACPI_RDSP bad_checksum = {
+static ACPI_RSDP bad_checksum = {
         .signature = {'R', 'S', 'D', ' ', 'P', 'T', 'R', ' '},
         .checksum = 42,
         .oem_id = {'A', 'N', 'O', 'E', 'M', 0},
@@ -16,7 +16,7 @@ static ACPI_RDSP bad_checksum = {
         .rsdt_address = 9999,
 };
 
-static ACPI_RDSP good_checksum = {
+static ACPI_RSDP good_checksum = {
         .signature = {'R', 'S', 'D', ' ', 'P', 'T', 'R', ' '},
         .checksum = 59,
         .oem_id = {'A', 'N', 'O', 'E', 'M', 0},
@@ -24,18 +24,18 @@ static ACPI_RDSP good_checksum = {
         .rsdt_address = 9999,
 };
 
-static MunitResult test_map_null(const MunitParameter params[], void *param) {
-    ACPI_SDTHeader *result = map_acpi_tables(NULL);
+static MunitResult test_init_null(const MunitParameter params[], void *param) {
+    ACPI_SDTHeader *result = acpi_tables_init(NULL);
 
     munit_assert_null(result);
 
     return MUNIT_OK;
 }
 
-static MunitResult test_map_bad_checksum_r0(const MunitParameter params[],
-                                            void *param) {
+static MunitResult test_init_bad_checksum_r0(const MunitParameter params[],
+                                             void *param) {
 
-    ACPI_SDTHeader *result = map_acpi_tables(&bad_checksum);
+    ACPI_SDTHeader *result = acpi_tables_init(&bad_checksum);
 
     munit_assert_null(result);
 
@@ -43,9 +43,9 @@ static MunitResult test_map_bad_checksum_r0(const MunitParameter params[],
 }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/acpitables/map_null", test_map_null, NULL, NULL,
+        {(char *)"/acpitables/init_null", test_init_null, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/acpitables/bad_checksum_r0", test_map_bad_checksum_r0, NULL,
+        {(char *)"/acpitables/bad_checksum_r0", test_init_bad_checksum_r0, NULL,
          NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
