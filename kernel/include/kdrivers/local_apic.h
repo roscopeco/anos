@@ -39,7 +39,7 @@ typedef struct {
     uint16_t reserved;
 } LocalAPIC;
 
-void init_local_apic(BIOS_SDTHeader *madt);
+void init_local_apic(ACPI_SDTHeader *madt);
 
 void local_apic_eoe();
 

@@ -29,6 +29,6 @@ typedef struct _KernelDriver {
     KDriverEntrypoint entrypoint;
 } KernelDriver;
 
-void init_kernel_drivers(BIOS_SDTHeader *rsdp);
+void init_kernel_drivers(ACPI_SDTHeader *rsdp);
 
 #endif //__ANOS_KERNEL_DRIVERS_H
