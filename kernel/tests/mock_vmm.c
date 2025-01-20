@@ -70,6 +70,11 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     return last_page_map_paddr;
 }
 
+bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
+                             uint16_t flags) {
+    return vmm_map_page(virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
+}
+
 uintptr_t vmm_unmap_page(uintptr_t virt_addr) {
     return vmm_unmap_page_in((uint64_t *)vmm_recursive_find_pml4(), virt_addr);
 }
