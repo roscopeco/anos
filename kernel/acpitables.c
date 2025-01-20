@@ -210,13 +210,21 @@ ACPI_SDTHeader *acpi_tables_init(ACPI_RSDP *rsdp) {
     return map_acpi_tables(rsdp);
 }
 
-ACPI_SDTHeader *acpi_tables_find(ACPI_SDTHeader *rsdp, const char *ident) {
-    uint32_t entries = RSDT_ENTRY_COUNT(rsdp);
-    uint32_t *entry = ((uint32_t *)(rsdp + 1));
+ACPI_SDTHeader *acpi_tables_find(ACPI_SDTHeader *rsdt, const char *ident) {
+    if (rsdt == NULL || ident == NULL) {
+        return NULL;
+    }
+
+    uint32_t entries = RSDT_ENTRY_COUNT(rsdt);
+    uint32_t *entry = ((uint32_t *)(rsdt + 1));
 
     for (int i = 0; i < entries; i++) {
+#ifdef UNIT_TESTS
+        ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(((uint64_t)*entry));
+#else
         ACPI_SDTHeader *sdt =
                 (ACPI_SDTHeader *)(((uint64_t)*entry) | 0xFFFFFFFF00000000);
+#endif
 
 #ifdef DEBUG_ACPI
 #ifdef VERY_NOISY_ACPI

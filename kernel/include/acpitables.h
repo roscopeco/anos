@@ -55,6 +55,17 @@ typedef struct {
     uint64_t address;
 } __attribute__((packed)) ACPI_GenericAddress;
 
+typedef struct {
+    ACPI_SDTHeader header;
+    ACPI_SDTHeader *sdt_list;
+} __attribute__((packed)) ACPI_RSDT;
+
+typedef struct {
+    ACPI_SDTHeader header;
+    uint32_t lapic_address;
+    uint32_t lapic_flags;
+} __attribute__((packed)) ACPI_MADT;
+
 /*
  * Validate the ACPI tables and map them into virtual memory.
  *
