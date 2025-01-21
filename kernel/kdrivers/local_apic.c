@@ -15,8 +15,8 @@
 #include "printhex.h"
 #include "vmm/vmmapper.h"
 
-void init_local_apic(ACPI_SDTHeader *madt) {
-    uint32_t *lapic_addr = ((uint32_t *)(madt + 1));
+void init_local_apic(ACPI_MADT *madt) {
+    uint32_t lapic_addr = madt->lapic_address;
 #ifdef DEBUG_LAPIC_INIT
     uint32_t *flags = lapic_addr + 1;
     debugstr("LAPIC address (phys : virt) = ");
@@ -25,7 +25,7 @@ void init_local_apic(ACPI_SDTHeader *madt) {
     printhex32(*flags, debugchar);
     debugstr("]\n");
 #endif
-    vmm_map_page(KERNEL_HARDWARE_VADDR_BASE, *lapic_addr, PRESENT | WRITE);
+    vmm_map_page(KERNEL_HARDWARE_VADDR_BASE, lapic_addr, PRESENT | WRITE);
 
     uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
 

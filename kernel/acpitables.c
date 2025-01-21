@@ -25,9 +25,9 @@ static AddressMapping page_stack[64];
 static uint16_t page_stack_ptr;
 static uint64_t next_vaddr = ACPI_TABLES_VADDR_BASE;
 
-static inline uint32_t RSDT_ENTRY_COUNT(ACPI_SDTHeader *sdt) {
+static inline uint32_t RSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
     // TODO hard-coded to 32-bit rev0
-    return ((sdt->length - sizeof(ACPI_SDTHeader)) / 4);
+    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 4);
 }
 
 static bool checksum_rsdp(ACPI_RSDP *rsdp) {
@@ -169,7 +169,7 @@ static ACPI_SDTHeader *map_sdt(uint64_t phys_addr) {
 
     if (has_sig("RSDT", sdt)) {
         // deal with RSDT
-        uint32_t entries = RSDT_ENTRY_COUNT(sdt);
+        uint32_t entries = RSDT_ENTRY_COUNT((ACPI_RSDT *)sdt);
         uint32_t *entry = ((uint32_t *)(sdt + 1));
 
 #ifdef DEBUG_ACPI
@@ -188,7 +188,7 @@ static ACPI_SDTHeader *map_sdt(uint64_t phys_addr) {
     return sdt;
 }
 
-static ACPI_SDTHeader *map_acpi_tables(ACPI_RSDP *rsdp) {
+static ACPI_RSDT *map_acpi_tables(ACPI_RSDP *rsdp) {
     if (!rsdp) {
 #ifdef DEBUG_ACPI
         debugstr("Cannot map NULL RSDP!\n");
@@ -203,14 +203,12 @@ static ACPI_SDTHeader *map_acpi_tables(ACPI_RSDP *rsdp) {
         return NULL;
     }
 
-    return map_sdt(rsdp->rsdt_address);
+    return (ACPI_RSDT *)map_sdt(rsdp->rsdt_address);
 }
 
-ACPI_SDTHeader *acpi_tables_init(ACPI_RSDP *rsdp) {
-    return map_acpi_tables(rsdp);
-}
+ACPI_RSDT *acpi_tables_init(ACPI_RSDP *rsdp) { return map_acpi_tables(rsdp); }
 
-ACPI_SDTHeader *acpi_tables_find(ACPI_SDTHeader *rsdt, const char *ident) {
+ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdt, const char *ident) {
     if (rsdt == NULL || ident == NULL) {
         return NULL;
     }

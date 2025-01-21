@@ -9,7 +9,6 @@
 
 #include "acpitables.h"
 #include "kdrivers/drivers.h"
+#include "kdrivers/hpet.h"
 
-void init_kernel_drivers(ACPI_SDTHeader *rsdt) {
-    // TODO not yet
-}
+void init_kernel_drivers(ACPI_RSDT *rsdt) { init_hpet(rsdt); }
