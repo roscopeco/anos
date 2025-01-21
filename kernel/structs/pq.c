@@ -19,11 +19,13 @@
 #define NULL (((void *)0))
 
 #ifdef CONSERVATIVE_BUILD
-#ifdef __STDC_HOSTED__
+#if __STDC_HOSTED__ == 1
 #include <stdio.h>
 #define debugstr(...) printf(__VA_ARGS__)
+#define printdec(arg, ignore) printf("%d", arg)
 #else
 #include "debugprint.h"
+#include "printdec.h"
 #endif
 
 static bool check_invariants(TaskPriorityQueue *pq) {
@@ -41,8 +43,6 @@ static bool check_invariants(TaskPriorityQueue *pq) {
     Task *slow = pq->head;
     Task *fast = (Task *)pq->head->this.next;
 
-    int prev_priority = pq->head->prio;
-
     while (fast != NULL && fast->this.next != NULL) {
         // (Floyd's algorithm)
         if (fast == slow || ((Task *)fast->this.next) == slow) {
@@ -52,8 +52,11 @@ static bool check_invariants(TaskPriorityQueue *pq) {
 
         // priority ordering
         if (slow->prio > ((Task *)slow->this.next)->prio) {
-            debugstr("Error: Priority ordering violation: %d > %d\n",
-                     slow->prio, ((Task *)slow->this.next)->prio);
+            debugstr("Error: Priority ordering violation: ");
+            printdec(slow->prio, debugchar);
+            debugstr(" > ");
+            printdec(((Task *)slow->this.next)->prio, debugchar);
+            debugstr("\n");
             return false;
         }
 

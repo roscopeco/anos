@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+#include "anos_assert.h"
+
 #define ACPI_R0_RSDP_SIZE 20
 
 #define ACPI_TABLES_VADDR_BASE 0xFFFFFFFF81000000
@@ -65,6 +67,12 @@ typedef struct {
     uint32_t lapic_flags;
 } __attribute__((packed)) ACPI_MADT;
 
+static_assert_sizeof(ACPI_RSDP, 36);
+static_assert_sizeof(ACPI_SDTHeader, 36);
+static_assert_sizeof(ACPI_GenericAddress, 12);
+static_assert_sizeof(ACPI_RSDT, 36);
+static_assert_sizeof(ACPI_MADT, 44);
+
 /*
  * Validate the ACPI tables and map them into virtual memory.
  *
@@ -97,7 +105,7 @@ typedef struct {
  */
 ACPI_RSDT *acpi_tables_init(ACPI_RSDP *rsdp);
 
-ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdp, const char *ident);
+ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdt, const char *ident);
 
 static inline ACPI_MADT *acpi_tables_find_madt(ACPI_RSDT *rsdt) {
     return (ACPI_MADT *)acpi_tables_find(rsdt, "APIC");
