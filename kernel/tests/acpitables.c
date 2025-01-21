@@ -25,11 +25,12 @@ static ACPI_RSDP rsdp_good_checksum = {
         .rsdt_address = 0x9999,
 };
 
-static ACPI_SDTHeader rsdt_good_empty = {.signature = {'R', 'S', 'D', 'T'},
-                                         .checksum = 123,
-                                         .oem_id = {'A', 'N', 'O', 'E', 'M', 0},
-                                         .revision = 0,
-                                         .length = sizeof(ACPI_SDTHeader)};
+static ACPI_RSDT rsdt_good_empty = {
+        .header = {.signature = {'R', 'S', 'D', 'T'},
+                   .checksum = 123,
+                   .oem_id = {'A', 'N', 'O', 'E', 'M', 0},
+                   .revision = 0,
+                   .length = sizeof(ACPI_SDTHeader)}};
 
 static ACPI_MADT madt_good = {
         .header = {.signature = {'M', 'A', 'D', 'T'},
@@ -50,7 +51,7 @@ static ACPI_RSDT rsdt_good_madt = {
                         .revision = 0,
                         .length = sizeof(ACPI_SDTHeader) + 4,
                 },
-        .sdt_list = &madt_good,
+        // TODO MADT not actually linked...
 };
 
 static void *test_setup(const MunitParameter params[], void *user_data) {
@@ -60,7 +61,7 @@ static void *test_setup(const MunitParameter params[], void *user_data) {
 }
 
 static MunitResult test_init_null(const MunitParameter params[], void *param) {
-    ACPI_SDTHeader *result = acpi_tables_init(NULL);
+    ACPI_RSDT *result = acpi_tables_init(NULL);
 
     munit_assert_null(result);
 
@@ -70,7 +71,7 @@ static MunitResult test_init_null(const MunitParameter params[], void *param) {
 static MunitResult test_init_bad_checksum_r0(const MunitParameter params[],
                                              void *param) {
 
-    ACPI_SDTHeader *result = acpi_tables_init(&rsdp_bad_checksum);
+    ACPI_RSDT *result = acpi_tables_init(&rsdp_bad_checksum);
 
     munit_assert_null(result);
 
@@ -80,7 +81,7 @@ static MunitResult test_init_bad_checksum_r0(const MunitParameter params[],
 static MunitResult test_init_good_checksum_r0(const MunitParameter params[],
                                               void *param) {
 
-    ACPI_SDTHeader *result = acpi_tables_init(&rsdp_good_checksum);
+    ACPI_RSDT *result = acpi_tables_init(&rsdp_good_checksum);
 
     munit_assert_not_null(result);
 

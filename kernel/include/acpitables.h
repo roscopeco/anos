@@ -57,7 +57,6 @@ typedef struct {
 
 typedef struct {
     ACPI_SDTHeader header;
-    ACPI_SDTHeader *sdt_list;
 } __attribute__((packed)) ACPI_RSDT;
 
 typedef struct {
@@ -96,8 +95,12 @@ typedef struct {
  * only the ones I'm actually using right now. More will be added
  * as I need them 🙃
  */
-ACPI_SDTHeader *acpi_tables_init(ACPI_RSDP *rsdp);
+ACPI_RSDT *acpi_tables_init(ACPI_RSDP *rsdp);
 
-ACPI_SDTHeader *acpi_tables_find(ACPI_SDTHeader *rsdp, const char *ident);
+ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdp, const char *ident);
+
+static inline ACPI_MADT *acpi_tables_find_madt(ACPI_RSDT *rsdt) {
+    return (ACPI_MADT *)acpi_tables_find(rsdt, "APIC");
+}
 
 #endif //__ANOS_KERNEL_ACPITABLES_H

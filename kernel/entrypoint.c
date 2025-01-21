@@ -98,8 +98,8 @@ void debug_memmap(E820h_MemMap *memmap) {
 #endif
 
 #ifdef DEBUG_MADT
-void debug_madt(ACPI_SDTHeader *rsdt) {
-    ACPI_SDTHeader *madt = acpi_tables_find(rsdt, "APIC");
+void debug_madt(ACPI_RSDT *rsdt) {
+    ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
 
     if (madt == NULL) {
         debugstr("(ACPI MADT table not found)\n");
@@ -107,19 +107,17 @@ void debug_madt(ACPI_SDTHeader *rsdt) {
     }
 
     debugstr("MADT length    : ");
-    printhex32(madt->length, debugchar);
+    printhex32(madt->header.length, debugchar);
     debugstr("\n");
 
-    uint32_t *lapic_addr = ((uint32_t *)(madt + 1));
-    uint32_t *flags = lapic_addr + 1;
     debugstr("LAPIC address  : ");
-    printhex32(*lapic_addr, debugchar);
+    printhex32(madt->lapic_address, debugchar);
     debugstr("\n");
     debugstr("Flags          : ");
-    printhex32(*flags, debugchar);
+    printhex32(madt->lapic_address, debugchar);
     debugstr("\n");
 
-    uint16_t remain = madt->length - 0x2C;
+    uint16_t remain = madt->header.length - 0x2C;
     uint8_t *ptr = ((uint8_t *)madt) + 0x2C;
 
     while (remain > 0) {
@@ -221,9 +219,9 @@ static inline void banner() {
 
 static inline void install_interrupts() { idt_install(0x08); }
 
-static inline void init_this_cpu(ACPI_SDTHeader *rsdt) {
+static inline void init_this_cpu(ACPI_RSDT *rsdt) {
     // Init local APIC on this CPU
-    ACPI_SDTHeader *madt = acpi_tables_find(rsdt, "APIC");
+    ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
 
     if (madt == NULL) {
         debugstr("No MADT; Halting\n");
@@ -276,7 +274,7 @@ static inline void *get_tss() {
 }
 
 MemoryRegion *physical_region;
-ACPI_SDTHeader *acpi_root_table;
+ACPI_RSDT *acpi_root_table;
 
 noreturn void start_system(void) {
     uint64_t system_start_virt = 0x1000000;
