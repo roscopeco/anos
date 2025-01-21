@@ -11,4 +11,12 @@
 #include "kdrivers/drivers.h"
 #include "kdrivers/hpet.h"
 
-void init_kernel_drivers(ACPI_RSDT *rsdt) { init_hpet(rsdt); }
+bool kernel_drivers_init(ACPI_RSDT *rsdt) {
+    if (!rsdt) {
+        return false;
+    }
+
+    hpet_init(rsdt);
+
+    return true;
+}

@@ -386,7 +386,7 @@ noreturn void start_kernel(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     debug_memmap(memmap);
     debug_madt(acpi_root_table);
     init_this_cpu(acpi_root_table);
-    init_kernel_drivers(acpi_root_table);
+    kernel_drivers_init(acpi_root_table);
     pci_enumerate();
 
 #ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT

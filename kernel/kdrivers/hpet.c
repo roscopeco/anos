@@ -8,11 +8,27 @@
 #include <stdbool.h>
 
 #include "acpitables.h"
-#include "debugprint.h"
 #include "kdrivers/hpet.h"
-#include "printhex.h"
 
-bool init_hpet(ACPI_RSDT *rsdt) {
+#ifdef DEBUG_HPET
+#if __STDC_HOSTED__ == 1
+#include <stdio.h>
+#define debugstr(...) printf(__VA_ARGS__)
+#define printhex8(arg, ignore) printf("0x%02x", arg)
+#define printhex16(arg, ignore) printf("0x%04x", arg)
+#define printhex32(arg, ignore) printf("0x%08x", arg)
+#define printhex64(arg, ignore) printf("0x%016x", arg)
+#else
+#include "debugprint.h"
+#include "printhex.h"
+#endif
+#endif
+
+bool hpet_init(ACPI_RSDT *rsdt) {
+    if (!rsdt) {
+        return false;
+    }
+
     ACPI_HPET *hpet = acpi_tables_find_hpet(rsdt);
 
     if (hpet) {

@@ -27,10 +27,12 @@ typedef struct {
     uint8_t page_protection;
 } __attribute__((packed)) ACPI_HPET;
 
+static_assert_sizeof(ACPI_HPET, 56);
+
 static inline ACPI_HPET *acpi_tables_find_hpet(ACPI_RSDT *rsdt) {
     return (ACPI_HPET *)acpi_tables_find(rsdt, "HPET");
 }
 
-bool init_hpet(ACPI_RSDT *rsdt);
+bool hpet_init(ACPI_RSDT *rsdt);
 
 #endif //__ANOS_KERNEL_DRIVERS_HPET_H

@@ -12,7 +12,7 @@
 #define __ANOS_KERNEL_ASSERT_H
 
 #if (__STDC_VERSION__ < 202000)
-#if defined(__STDC_HOSTED__)
+#if __STDC_HOSTED__ == 1
 #include <assert.h>
 #define static_assert _Static_assert
 #else

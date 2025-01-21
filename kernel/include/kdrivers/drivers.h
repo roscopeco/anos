@@ -14,8 +14,12 @@
 #ifndef __ANOS_KERNEL_DRIVERS_H
 #define __ANOS_KERNEL_DRIVERS_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
+#include "acpitables.h"
+
+// See MemoryMap.md for details on the size and purpose of these...
 #define KERNEL_HARDWARE_VADDR_BASE 0xffffffa000000000
 #define KERNEL_DRIVER_VADDR_BASE 0xffffffff81008000
 
@@ -29,6 +33,19 @@ typedef struct _KernelDriver {
     KDriverEntrypoint entrypoint;
 } KernelDriver;
 
-void init_kernel_drivers(ACPI_RSDT *rsdp);
+bool kernel_drivers_init(ACPI_RSDT *rsdp);
+
+/*
+ * Allocate page(s) in the kernel driver area for 
+ * base system driver MMIO.
+ *
+ * This is a one-way street - there is no free. Since this
+ * is only for the very basic drivers the kernel will init
+ * at boot time, we will never need to unmap them... 
+ * 
+ * In the current design, there are 248 pages total 
+ * (for 992KiB) of address space available here.
+ */
+void *alloc_driver_pages(uint64_t count);
 
 #endif //__ANOS_KERNEL_DRIVERS_H
