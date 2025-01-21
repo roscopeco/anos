@@ -49,7 +49,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_HPET
+CDEFS=
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
