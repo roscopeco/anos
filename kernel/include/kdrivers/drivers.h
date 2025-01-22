@@ -22,6 +22,7 @@
 // See MemoryMap.md for details on the size and purpose of these...
 #define KERNEL_HARDWARE_VADDR_BASE 0xffffffa000000000
 #define KERNEL_DRIVER_VADDR_BASE 0xffffffff81008000
+#define KERNEL_DRIVER_VADDR_SIZE 0x00000000000f8000
 
 typedef uint64_t (*KDriverEntrypoint)(void *arg);
 
@@ -46,6 +47,6 @@ bool kernel_drivers_init(ACPI_RSDT *rsdp);
  * In the current design, there are 248 pages total 
  * (for 992KiB) of address space available here.
  */
-void *alloc_driver_pages(uint64_t count);
+void *kernel_drivers_alloc_pages(uint64_t count);
 
 #endif //__ANOS_KERNEL_DRIVERS_H
