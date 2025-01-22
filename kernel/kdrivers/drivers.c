@@ -6,10 +6,24 @@
  */
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include "acpitables.h"
 #include "kdrivers/drivers.h"
 #include "kdrivers/hpet.h"
+#include "vmm/vmconfig.h"
+
+#define KERNEL_DRIVER_VADDR_END                                                \
+    ((KERNEL_DRIVER_VADDR_BASE + KERNEL_DRIVER_VADDR_SIZE))
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+
+typedef struct {
+    uint8_t page[VM_PAGE_SIZE];
+} DriverPage;
+
+static DriverPage *next_page = (DriverPage *)KERNEL_DRIVER_VADDR_BASE;
 
 bool kernel_drivers_init(ACPI_RSDT *rsdt) {
     if (!rsdt) {
@@ -20,3 +34,23 @@ bool kernel_drivers_init(ACPI_RSDT *rsdt) {
 
     return true;
 }
+
+void *kernel_drivers_alloc_pages(uint64_t count) {
+    if (count == 0) {
+        return NULL;
+    }
+
+    if (((uintptr_t)(next_page + count)) > KERNEL_DRIVER_VADDR_END) {
+        return NULL;
+    }
+
+    void *result = next_page;
+    next_page += count;
+    return result;
+}
+
+#ifdef UNIT_TESTS
+void kernel_drivers_alloc_pages_reset(void) {
+    next_page = (DriverPage *)KERNEL_DRIVER_VADDR_BASE;
+}
+#endif

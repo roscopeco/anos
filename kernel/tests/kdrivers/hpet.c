@@ -9,10 +9,10 @@
 #include "mock_acpitables.h"
 #include "munit.h"
 
-static const ACPI_RSDT valid_rsdt = {.header = {
-                                             .checksum = 0x123,
-                                             .length = sizeof(ACPI_RSDT),
-                                     }};
+static ACPI_RSDT valid_rsdt = {.header = {
+                                       .checksum = 0x23,
+                                       .length = sizeof(ACPI_RSDT),
+                               }};
 
 static MunitResult test_init_null(const MunitParameter params[], void *param) {
     bool result = hpet_init(NULL);
