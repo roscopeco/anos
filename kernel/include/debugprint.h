@@ -12,9 +12,16 @@
 
 void debugterm_init(char *vram_addr);
 
+#if __STDC_HOSTED__ == 1
+#include <stdio.h>
+#define debugstr(str) printf("%s", str)
+#define debugchar(chr) printf("%c", chr)
+#define debugattr(...)
+#else
 void debugchar(char chr);
 void debugstr(char *str);
 void debugstr_len(char *str, int len);
 void debugattr(uint8_t new_attr);
+#endif
 
 #endif //__ANOS_KERNEL_DEBUGPRINT_H
