@@ -18,7 +18,10 @@
 #include "vmm/vmmapper.h"
 
 #define tprintf(...)
+
+#ifndef NULL
 #define NULL (((void *)0))
+#endif
 
 #define SPIN_LOCK()                                                            \
     do {                                                                       \

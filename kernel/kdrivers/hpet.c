@@ -8,7 +8,10 @@
 #include <stdbool.h>
 
 #include "acpitables.h"
+#include "debugprint.h"
+#include "kdrivers/drivers.h"
 #include "kdrivers/hpet.h"
+#include "vmm/vmmapper.h"
 
 #ifdef DEBUG_HPET
 #if __STDC_HOSTED__ == 1
@@ -19,10 +22,27 @@
 #define printhex32(arg, ignore) printf("0x%08x", arg)
 #define printhex64(arg, ignore) printf("0x%016x", arg)
 #else
-#include "debugprint.h"
+#include "printdec.h"
 #include "printhex.h"
 #endif
 #endif
+
+#ifndef NULL
+#define NULL (((void *)0))
+#endif
+
+/*
+QEMU caps & id: 0x009896808086a201
+
+00000000100110001001011010000000 1000000010000110 1 0 1 00010 00000001
+         = 10000000                   = 8086      Y N Y  = 2    = 1
+
+So period = 10000000
+   vendor = 8086
+   flags  = 64-bit legacy-capable
+   tmax   = 2
+   rev    = 1
+*/
 
 bool hpet_init(ACPI_RSDT *rsdt) {
     if (!rsdt) {
@@ -32,6 +52,22 @@ bool hpet_init(ACPI_RSDT *rsdt) {
     ACPI_HPET *hpet = acpi_tables_find_hpet(rsdt);
 
     if (hpet) {
+        void *vaddr = kernel_drivers_alloc_pages(1);
+
+        if (vaddr == NULL) {
+            debugstr("WARN: Failed to allocate MMIO vm space for HPET\n");
+            return false;
+        }
+
+        // per-spec, HPET **must** be in memory...
+        if (!vmm_map_page_containing((uintptr_t)vaddr, hpet->address.address,
+                                     PRESENT | WRITE)) {
+            debugstr("WARN: Failed to map MMIO vm space for HPET\n");
+            return false;
+        }
+
+        HPETRegs volatile *regs = (HPETRegs *)vaddr;
+
 #ifdef DEBUG_HPET
         debugstr("Found HPET ");
         printhex8(hpet->hpet_number, debugchar);
@@ -59,6 +95,29 @@ bool hpet_init(ACPI_RSDT *rsdt) {
 
         debugstr("  HW rev ID: ");
         printhex8(hpet->hardware_rev_id, debugchar);
+        debugstr("\n");
+
+        debugstr("  CAPS: ");
+        printhex64(regs->caps_and_id, debugchar);
+        debugstr("\n");
+
+        debugstr("  Vendor ID: ");
+        printhex16(hpet_vendor(regs->caps_and_id), debugchar);
+        debugstr("\n");
+
+        debugstr("  Clock period: ");
+        printhex16(hpet_period(regs->caps_and_id), debugchar);
+        debugstr("  (");
+        printdec(hpet_period(regs->caps_and_id), debugchar);
+        debugstr(" femtosecs)\n");
+
+        debugstr("  Timer count: ");
+        printdec(hpet_timer_count(regs->caps_and_id), debugchar);
+        debugstr("\n");
+
+        debugstr("  Capabilities: ");
+        debugstr(hpet_is_64_bit(regs->caps_and_id) ? " [64BIT]" : " [32BIT]");
+        debugstr(hpet_can_legacy(regs->caps_and_id) ? " [LRM]" : " [NO LRM]");
         debugstr("\n");
 #endif
 
