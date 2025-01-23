@@ -129,7 +129,7 @@ kernel/tests/build/printdec: kernel/tests/munit.o kernel/tests/printdec.o kernel
 kernel/tests/build/kdrivers/drivers: kernel/tests/munit.o kernel/tests/kdrivers/drivers.o kernel/tests/build/kdrivers/drivers.o kernel/tests/mock_kernel_drivers.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/kdrivers/hpet: kernel/tests/munit.o kernel/tests/kdrivers/hpet.o kernel/tests/build/kdrivers/hpet.o kernel/tests/mock_acpitables.o
+kernel/tests/build/kdrivers/hpet: kernel/tests/munit.o kernel/tests/kdrivers/hpet.o kernel/tests/build/kdrivers/hpet.o kernel/tests/build/kdrivers/drivers.o kernel/tests/mock_acpitables.o kernel/tests/mock_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 ALL_TESTS=kernel/tests/build/interrupts 										\

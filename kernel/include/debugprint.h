@@ -12,7 +12,7 @@
 
 void debugterm_init(char *vram_addr);
 
-#if __STDC_HOSTED__ == 1
+#if __STDC_HOSTED__ == 1 && !defined(UNIT_TEST_DEBUGPRINT)
 #include <stdio.h>
 #define debugstr(str) printf("%s", str)
 #define debugchar(chr) printf("%c", chr)
