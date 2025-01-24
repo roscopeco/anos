@@ -87,7 +87,7 @@ kernel/tests/build/vmm/vmalloc_linkedlist: kernel/tests/munit.o kernel/tests/vmm
 kernel/tests/build/debugprint: kernel/tests/munit.o kernel/tests/debugprint.o kernel/tests/build/debugprint.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/acpitables: kernel/tests/munit.o kernel/tests/acpitables.o kernel/tests/build/acpitables.o kernel/tests/mock_vmm.o
+kernel/tests/build/acpitables: kernel/tests/munit.o kernel/tests/acpitables.o kernel/tests/build/acpitables.o kernel/tests/mock_vmm.o kernel/tests/mock_machine.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/structs/list: kernel/tests/munit.o kernel/tests/structs/list.o kernel/tests/build/structs/list.o
