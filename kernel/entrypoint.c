@@ -18,6 +18,7 @@
 #include "gdt.h"
 #include "init_pagetables.h"
 #include "interrupts.h"
+#include "kdrivers/cpu.h"
 #include "kdrivers/drivers.h"
 #include "kdrivers/local_apic.h"
 #include "ktypes.h"
@@ -221,20 +222,8 @@ static inline void banner() {
 static inline void install_interrupts() { idt_install(0x08); }
 
 static inline void init_this_cpu(ACPI_RSDT *rsdt) {
-    init_cpuid();
-
-    uint32_t eax, ebx, ecx, edx;
-    cpuid(0x16, &eax, &ebx, &ecx, &edx);
-
-    debugstr("CPUID: ");
-    printhex32(eax, debugchar);
-    debugstr(" : ");
-    printhex32(ebx, debugchar);
-    debugstr(" : ");
-    printhex32(ecx, debugchar);
-    debugstr(" : ");
-    printhex32(edx, debugchar);
-    debugstr("\n");
+    cpu_init_this();
+    cpu_debug_info();
 
     // Init local APIC on this CPU
     ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
