@@ -17,14 +17,14 @@
 static bool heart_state = false;
 static volatile uint32_t counter;
 
-uint64_t lapic_timer_upticks;
+volatile uint64_t lapic_timer_upticks;
 
 uint64_t get_lapic_timer_upticks(void) { return lapic_timer_upticks; }
 
 void handle_timer_interrupt(void) {
     lapic_timer_upticks += 1;
 
-    if (counter++ == 10) {
+    if (counter++ == (KERNEL_HZ / 2)) /* one full cycle / sec */ {
         counter = 0;
 
         uint8_t *vram = (uint8_t *)VRAM_VIRTUAL_HEART;

@@ -11,6 +11,7 @@
 #include "debugprint.h"
 #include "kdrivers/drivers.h"
 #include "kdrivers/hpet.h"
+#include "kdrivers/timer.h"
 #include "vmm/vmmapper.h"
 
 #ifdef DEBUG_HPET
@@ -44,6 +45,27 @@ So period = 10000000
    rev    = 1
 */
 
+static volatile HPETRegs *regs;
+static KernelTimer timer;
+
+static uint64_t nanos_per_tick(void) {
+    if (regs) {
+        return hpet_period(regs->caps_and_id) / 1000000;
+    } else {
+        return 0;
+    }
+}
+
+static uint64_t current_ticks(void) {
+    if (regs) {
+        return regs->counter_value;
+    } else {
+        return 0;
+    }
+}
+
+KernelTimer *hpet_as_timer(void) { return &timer; }
+
 bool hpet_init(ACPI_RSDT *rsdt) {
     if (!rsdt) {
         return false;
@@ -52,7 +74,7 @@ bool hpet_init(ACPI_RSDT *rsdt) {
     ACPI_HPET *hpet = acpi_tables_find_hpet(rsdt);
 
     if (hpet) {
-        void *vaddr = kernel_drivers_alloc_pages(1);
+        void volatile *vaddr = kernel_drivers_alloc_pages(1);
 
         if (vaddr == NULL) {
             debugstr("WARN: Failed to allocate MMIO vm space for HPET\n");
@@ -66,8 +88,13 @@ bool hpet_init(ACPI_RSDT *rsdt) {
             return false;
         }
 
+        regs = (HPETRegs *)vaddr;
+        timer.current_ticks = current_ticks;
+        timer.nanos_per_tick = nanos_per_tick;
+        regs->counter_value = 10;
+        regs->flags = 1;
+
 #ifdef DEBUG_HPET
-        HPETRegs volatile *regs = (HPETRegs *)vaddr;
 
         debugstr("Found HPET ");
         printhex8(hpet->hpet_number, debugchar);
