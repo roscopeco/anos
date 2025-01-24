@@ -26,8 +26,11 @@ static uint16_t page_stack_ptr;
 static uint64_t next_vaddr = ACPI_TABLES_VADDR_BASE;
 
 static inline uint32_t RSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
-    // TODO hard-coded to 32-bit rev0
     return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 4);
+}
+
+static inline uint32_t XSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
+    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 8);
 }
 
 static bool checksum_rsdp(ACPI_RSDP *rsdp) {
@@ -183,6 +186,21 @@ static ACPI_SDTHeader *map_sdt(uint64_t phys_addr) {
                                 0xFFFFFFFF);
             entry++;
         }
+    } else if (has_sig("XSDT", sdt)) {
+        // deal with XSDT
+        uint32_t entries = XSDT_ENTRY_COUNT((ACPI_RSDT *)sdt);
+        uint64_t *entry = ((uint64_t *)(sdt + 1));
+
+#ifdef DEBUG_ACPI
+        debugstr("There are ");
+        printhex32(entries, debugchar);
+        debugstr(" entries in the ACPI tables\n");
+#endif
+
+        for (int i = 0; i < entries; i++) {
+            *entry = (((uint64_t)map_sdt((uint64_t)*entry)) & 0xFFFFFFFF);
+            entry++;
+        }
     }
 
     return sdt;
@@ -203,7 +221,11 @@ static ACPI_RSDT *map_acpi_tables(ACPI_RSDP *rsdp) {
         return NULL;
     }
 
-    return (ACPI_RSDT *)map_sdt(rsdp->rsdt_address);
+    if (rsdp->revision > 1) {
+        return (ACPI_RSDT *)map_sdt(rsdp->xsdt_address);
+    } else {
+        return (ACPI_RSDT *)map_sdt(rsdp->rsdt_address);
+    }
 }
 
 ACPI_RSDT *acpi_tables_init(ACPI_RSDP *rsdp) { return map_acpi_tables(rsdp); }
@@ -213,31 +235,68 @@ ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdt, const char *ident) {
         return NULL;
     }
 
-    uint32_t entries = RSDT_ENTRY_COUNT(rsdt);
-    uint32_t *entry = ((uint32_t *)(rsdt + 1));
+    if (has_sig("XSDT", &rsdt->header)) {
+        uint32_t entries = XSDT_ENTRY_COUNT(rsdt);
+        uint64_t *entry = ((uint64_t *)(rsdt + 1));
 
-    for (int i = 0; i < entries; i++) {
+        for (int i = 0; i < entries; i++) {
 #ifdef UNIT_TESTS
-        ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(((uint64_t)*entry));
+            ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(((uint64_t)*entry));
 #else
-        ACPI_SDTHeader *sdt =
-                (ACPI_SDTHeader *)(((uint64_t)*entry) | 0xFFFFFFFF00000000);
+            ACPI_SDTHeader *sdt =
+                    (ACPI_SDTHeader *)(*entry | 0xFFFFFFFF00000000);
 #endif
 
 #ifdef DEBUG_ACPI
 #ifdef VERY_NOISY_ACPI
-        debugstr("Find ACPI entry: Checking: ");
-        printhex64(((uint64_t)entry) | 0xFFFFFFFF00000000, debugchar);
-        debugstr(" = ");
-        debugstr_len(sdt->signature, 4);
-        debugstr("\n");
+            debugstr("Find ACPI entry: Checking: ");
+            printhex64(((uint64_t)entry) | 0xFFFFFFFF00000000, debugchar);
+            debugstr(" = ");
+            debugstr_len(sdt->signature, 4);
+            debugstr("\n");
 #endif
 #endif
 
-        if (has_sig(ident, sdt)) {
-            return sdt;
+            if (has_sig(ident, sdt)) {
+                return sdt;
+            }
+            entry++;
         }
-        entry++;
+    } else if (has_sig("RSDT", &rsdt->header)) {
+        uint32_t entries = RSDT_ENTRY_COUNT(rsdt);
+        uint32_t *entry = ((uint32_t *)(rsdt + 1));
+
+        for (int i = 0; i < entries; i++) {
+#ifdef UNIT_TESTS
+            ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(((uint64_t)*entry));
+#else
+            ACPI_SDTHeader *sdt =
+                    (ACPI_SDTHeader *)(((uint64_t)*entry) | 0xFFFFFFFF00000000);
+#endif
+
+#ifdef DEBUG_ACPI
+#ifdef VERY_NOISY_ACPI
+            debugstr("Find ACPI entry: Checking: ");
+            printhex64(((uint64_t)entry) | 0xFFFFFFFF00000000, debugchar);
+            debugstr(" = ");
+            debugstr_len(sdt->signature, 4);
+            debugstr("\n");
+#endif
+#endif
+
+            if (has_sig(ident, sdt)) {
+                return sdt;
+            }
+            entry++;
+        }
+    } else {
+#ifdef CONSERVATIVE_BUILD
+        debugstr(
+                "CONSERVATIVE: Non-RSDT passed to acpi_tables_find; Halting\n");
+        halt_and_catch_fire();
+#else
+        debugstr("WARNING: Non-RSDT passed to acpi_tables_find!\n");
+#endif
     }
 
     return NULL;

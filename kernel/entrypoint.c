@@ -12,6 +12,7 @@
 #include <stdnoreturn.h>
 
 #include "acpitables.h"
+#include "cpuid.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
 #include "gdt.h"
@@ -220,6 +221,21 @@ static inline void banner() {
 static inline void install_interrupts() { idt_install(0x08); }
 
 static inline void init_this_cpu(ACPI_RSDT *rsdt) {
+    init_cpuid();
+
+    uint32_t eax, ebx, ecx, edx;
+    cpuid(0x16, &eax, &ebx, &ecx, &edx);
+
+    debugstr("CPUID: ");
+    printhex32(eax, debugchar);
+    debugstr(" : ");
+    printhex32(ebx, debugchar);
+    debugstr(" : ");
+    printhex32(ecx, debugchar);
+    debugstr(" : ");
+    printhex32(edx, debugchar);
+    debugstr("\n");
+
     // Init local APIC on this CPU
     ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
 
@@ -369,11 +385,17 @@ noreturn void start_kernel(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     rsdp = (ACPI_RSDP *)(((uint64_t)rsdp) | 0xFFFFFFFF80000000);
 
 #ifdef DEBUG_ACPI
-    debugstr(rsdp->oem_id);
+    debugstr_len(rsdp->oem_id, 6);
     debugstr("\nRSDP revision is ");
     printhex8(rsdp->revision, debugchar);
-    debugstr("\nRSDT at ");
-    printhex32(rsdp->rsdt_address, debugchar);
+
+    if (rsdp->revision > 1) {
+        debugstr("\nXSDT at ");
+        printhex64(rsdp->xsdt_address, debugchar);
+    } else {
+        debugstr("\nRSDT at ");
+        printhex32(rsdp->rsdt_address, debugchar);
+    }
     debugstr("\n");
 #endif
 
