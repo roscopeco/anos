@@ -66,9 +66,9 @@ bool hpet_init(ACPI_RSDT *rsdt) {
             return false;
         }
 
+#ifdef DEBUG_HPET
         HPETRegs volatile *regs = (HPETRegs *)vaddr;
 
-#ifdef DEBUG_HPET
         debugstr("Found HPET ");
         printhex8(hpet->hpet_number, debugchar);
         debugstr(" with ");
