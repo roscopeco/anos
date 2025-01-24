@@ -18,11 +18,13 @@
 #define kputchar kputchar_int
 #define anos_create_thread anos_create_thread_int
 #define anos_get_mem_info anos_get_mem_info_int
+#define anos_task_sleep_current anos_task_sleep_current_int
 #else
 #define kprint kprint_syscall
 #define kputchar kputchar_syscall
 #define anos_create_thread anos_create_thread_syscall
 #define anos_get_mem_info anos_get_mem_info_syscall
+#define anos_task_sleep_current anos_task_sleep_current_syscall
 #endif
 
 typedef void (*ThreadFunc)(void);
@@ -43,5 +45,8 @@ int anos_create_thread_syscall(ThreadFunc func, uintptr_t stack_pointer);
 
 int anos_get_mem_info_int(AnosMemInfo *meminfo);
 int anos_get_mem_info_syscall(AnosMemInfo *meminfo);
+
+int anos_task_sleep_current_syscall(uint64_t ticks);
+int anos_task_sleep_current_int(uint64_t ticks);
 
 #endif //__ANOS_ANOS_SYSCALLS_H

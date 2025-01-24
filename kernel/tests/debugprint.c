@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 
+#define UNIT_TEST_DEBUGPRINT
 #include "debugprint.h"
 #include "munit.h"
 

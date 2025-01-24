@@ -83,7 +83,7 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func) {
     return true;
 }
 
-void sched_schedule() {
+void sched_schedule(void) {
     Task *current = task_current();
 
     vdebug("Switching tasks : current is ");
@@ -152,12 +152,7 @@ void sched_unblock(Task *task) {
         runnable_head = task;
     }
 
-    // TODO conditionally sched_schedule() once preemption is supported...
     task->state = TASK_STATE_READY;
 }
 
-void sched_block(Task *task) {
-    task->state = TASK_STATE_BLOCKED;
-
-    sched_schedule();
-}
+void sched_block(Task *task) { task->state = TASK_STATE_BLOCKED; }

@@ -88,13 +88,16 @@ at this point, leaving us with:
 * `0xffff800000000000` -> `0xffffff7fffffffff` : Virtual Mapping area (127TiB)
 * `0xffffff8000000000` -> `0xffffff9fffffefff` : PMM structures area (only the first page is actually present).
 * `0xffffff9ffffff000` -> `0xffffff9fffffffff` : PMM structures guard page (Reserved, never mapped)
-* `0xffffffa000000000` -> `0xffffffa0000003ff` : Local APIC (for all CPUs)
+* `0xffffffa000000000` -> `0xffffffa0000003ff` : Local APIC (for all CPUs) [TODO should probably move to driver space]
 * `0xffffffa000000400` -> `0xffffffff7fffffff` : [_Currently unused, ~381GiB_]
 * `0xffffffff80000000` -> `0xffffffff803fffff` : First 4MiB of top (or negative) 2GiB mapped to first 4MiB phys (kernel code etc is here!)
 * `0xffffffff80400000` -> `0xffffffff80ffffff` : 1MiB Kernel "Automap" space, **for testing only**
 * `0xffffffff81000000` -> `0xffffffff81007fff` : (Temporary) Reserved space for ACPI tables
-* `0xffffffff81008000` -> `0xffffffffbfffffff` : [_Currently unused, ~1007MiB_]
+* `0xffffffff81008000` -> `0xffffffff810fffff` : Kernel driver MMIO mapping space (992KiB, 248 pages)
+* `0xffffffff81100000` -> `0xffffffffbfffffff` : [_Currently unused, ~1006MiB_]
 * `0xffffffffc0000000` -> `0xffffffffffffffff` : 1GiB FBA space
+
+#### Notes on specific areas
 
 ACPI tables are mapped into a small (8-page currently) reserved space, which is _probably_
 going to be just temporary (just during bootstrap) - not sure there's much point in keeping
@@ -117,7 +120,18 @@ The local APIC is **temporarily** mapped to:
 
 * `0xffffffa000000000` -> `0xffffffa0000003ff` : Local APIC (for all CPUs)
 
-This, again, won't be staying there, but it works for now.
+This, again, won't be staying there, but it works for now. It'll eventually
+get moved into:
+
+* `0xffffffff81008000` -> `0xffffffff810fffff` : Kernel driver MMIO mapping space
+
+This area (of 248 pages, or 992KiB) is specifically reserved for mapping the
+basic kernel drivers (the ones in `kdrivers/`). Allocation is handled in 
+`kdrivers/drivers.c` with a simple check and increment - there's no ability
+to free pages here (because there's no expectation we'll ever unmap these 
+basic drivers once they're mapped in).
+
+#### Notes / Future Plans
 
 This is all fun and games, but will almost certainly be a problem later 
 (i.e. the kernel being stuck at <1MiB size and located at the ~1MiB mark in physical 

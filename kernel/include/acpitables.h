@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+#include "anos_assert.h"
+
 #define ACPI_R0_RSDP_SIZE 20
 
 #define ACPI_TABLES_VADDR_BASE 0xFFFFFFFF81000000
@@ -30,10 +32,10 @@ typedef struct {
     uint64_t xsdt_address;
     uint8_t extended_checksum;
     uint8_t reserved[3];
-} __attribute__((packed)) BIOS_RSDP;
+} __attribute__((packed)) ACPI_RSDP;
 
 /*
- * System Description Table (SDP) Header
+ * System Description Table (SDT) Header
  */
 typedef struct {
     char signature[4];
@@ -45,7 +47,31 @@ typedef struct {
     uint32_t oem_revision;
     uint32_t creator_id;
     uint32_t creator_revision;
-} __attribute__((packed)) BIOS_SDTHeader;
+} __attribute__((packed)) ACPI_SDTHeader;
+
+typedef struct {
+    uint8_t address_space_id; // 0 = Sys Mem, 1 = Sys IO
+    uint8_t register_bit_width;
+    uint8_t register_bit_offset;
+    uint8_t reserved;
+    uint64_t address;
+} __attribute__((packed)) ACPI_GenericAddress;
+
+typedef struct {
+    ACPI_SDTHeader header;
+} __attribute__((packed)) ACPI_RSDT;
+
+typedef struct {
+    ACPI_SDTHeader header;
+    uint32_t lapic_address;
+    uint32_t lapic_flags;
+} __attribute__((packed)) ACPI_MADT;
+
+static_assert_sizeof(ACPI_RSDP, 36);
+static_assert_sizeof(ACPI_SDTHeader, 36);
+static_assert_sizeof(ACPI_GenericAddress, 12);
+static_assert_sizeof(ACPI_RSDT, 36);
+static_assert_sizeof(ACPI_MADT, 44);
 
 /*
  * Validate the ACPI tables and map them into virtual memory.
@@ -77,8 +103,12 @@ typedef struct {
  * only the ones I'm actually using right now. More will be added
  * as I need them 🙃
  */
-BIOS_SDTHeader *map_acpi_tables(BIOS_RSDP *rsdp);
+ACPI_RSDT *acpi_tables_init(ACPI_RSDP *rsdp);
 
-BIOS_SDTHeader *find_acpi_table(BIOS_SDTHeader *rsdp, const char *ident);
+ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdt, const char *ident);
+
+static inline ACPI_MADT *acpi_tables_find_madt(ACPI_RSDT *rsdt) {
+    return (ACPI_MADT *)acpi_tables_find(rsdt, "APIC");
+}
 
 #endif //__ANOS_KERNEL_ACPITABLES_H

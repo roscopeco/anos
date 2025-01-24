@@ -12,11 +12,13 @@
 #include <stdnoreturn.h>
 
 #include "acpitables.h"
+#include "cpuid.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
 #include "gdt.h"
 #include "init_pagetables.h"
 #include "interrupts.h"
+#include "kdrivers/cpu.h"
 #include "kdrivers/drivers.h"
 #include "kdrivers/local_apic.h"
 #include "ktypes.h"
@@ -98,8 +100,8 @@ void debug_memmap(E820h_MemMap *memmap) {
 #endif
 
 #ifdef DEBUG_MADT
-void debug_madt(BIOS_SDTHeader *rsdt) {
-    BIOS_SDTHeader *madt = find_acpi_table(rsdt, "APIC");
+void debug_madt(ACPI_RSDT *rsdt) {
+    ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
 
     if (madt == NULL) {
         debugstr("(ACPI MADT table not found)\n");
@@ -107,19 +109,17 @@ void debug_madt(BIOS_SDTHeader *rsdt) {
     }
 
     debugstr("MADT length    : ");
-    printhex32(madt->length, debugchar);
+    printhex32(madt->header.length, debugchar);
     debugstr("\n");
 
-    uint32_t *lapic_addr = ((uint32_t *)(madt + 1));
-    uint32_t *flags = lapic_addr + 1;
     debugstr("LAPIC address  : ");
-    printhex32(*lapic_addr, debugchar);
+    printhex32(madt->lapic_address, debugchar);
     debugstr("\n");
     debugstr("Flags          : ");
-    printhex32(*flags, debugchar);
+    printhex32(madt->lapic_address, debugchar);
     debugstr("\n");
 
-    uint16_t remain = madt->length - 0x2C;
+    uint16_t remain = madt->header.length - 0x2C;
     uint8_t *ptr = ((uint8_t *)madt) + 0x2C;
 
     while (remain > 0) {
@@ -221,9 +221,12 @@ static inline void banner() {
 
 static inline void install_interrupts() { idt_install(0x08); }
 
-static inline void init_this_cpu(BIOS_SDTHeader *rsdt) {
+static inline void init_this_cpu(ACPI_RSDT *rsdt) {
+    cpu_init_this();
+    cpu_debug_info();
+
     // Init local APIC on this CPU
-    BIOS_SDTHeader *madt = find_acpi_table(rsdt, "APIC");
+    ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
 
     if (madt == NULL) {
         debugstr("No MADT; Halting\n");
@@ -276,7 +279,7 @@ static inline void *get_tss() {
 }
 
 MemoryRegion *physical_region;
-BIOS_SDTHeader *acpi_root_table;
+ACPI_RSDT *acpi_root_table;
 
 noreturn void start_system(void) {
     uint64_t system_start_virt = 0x1000000;
@@ -340,7 +343,7 @@ static void panic(char *msg) {
     halt_and_catch_fire();
 }
 
-noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
+noreturn void start_kernel(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     debugterm_init(VRAM_VIRT_BASE);
     banner();
 
@@ -368,18 +371,24 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
     debugstr(" (physical): OEM is ");
 #endif
 
-    rsdp = (BIOS_RSDP *)(((uint64_t)rsdp) | 0xFFFFFFFF80000000);
+    rsdp = (ACPI_RSDP *)(((uint64_t)rsdp) | 0xFFFFFFFF80000000);
 
 #ifdef DEBUG_ACPI
-    debugstr(rsdp->oem_id);
+    debugstr_len(rsdp->oem_id, 6);
     debugstr("\nRSDP revision is ");
     printhex8(rsdp->revision, debugchar);
-    debugstr("\nRSDT at ");
-    printhex32(rsdp->rsdt_address, debugchar);
+
+    if (rsdp->revision > 1) {
+        debugstr("\nXSDT at ");
+        printhex64(rsdp->xsdt_address, debugchar);
+    } else {
+        debugstr("\nRSDT at ");
+        printhex32(rsdp->rsdt_address, debugchar);
+    }
     debugstr("\n");
 #endif
 
-    acpi_root_table = map_acpi_tables(rsdp);
+    acpi_root_table = acpi_tables_init(rsdp);
     if (acpi_root_table == NULL) {
         debugstr("ACPI table mapping failed; halting\n");
         halt_and_catch_fire();
@@ -387,8 +396,8 @@ noreturn void start_kernel(BIOS_RSDP *rsdp, E820h_MemMap *memmap) {
 
     debug_memmap(memmap);
     debug_madt(acpi_root_table);
+    kernel_drivers_init(acpi_root_table);
     init_this_cpu(acpi_root_table);
-    init_kernel_drivers(acpi_root_table);
     pci_enumerate();
 
 #ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT

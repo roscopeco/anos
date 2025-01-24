@@ -15,10 +15,6 @@
 #include "printhex.h"
 #include "vmm/vmmapper.h"
 
-#define RSDT_ENTRY_COUNT(sdt)                                                  \
-    ((sdt->length - sizeof(BIOS_SDTHeader)) /                                  \
-     4) // TODO hard-coded to 32-bit rev0
-
 typedef struct {
     uint64_t phys;
     uint64_t virt;
@@ -29,7 +25,15 @@ static AddressMapping page_stack[64];
 static uint16_t page_stack_ptr;
 static uint64_t next_vaddr = ACPI_TABLES_VADDR_BASE;
 
-static bool checksum_rsdp(BIOS_RSDP *rsdp) {
+static inline uint32_t RSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
+    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 4);
+}
+
+static inline uint32_t XSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
+    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 8);
+}
+
+static bool checksum_rsdp(ACPI_RSDP *rsdp) {
     uint8_t *byteptr = (uint8_t *)rsdp;
     uint8_t sum = 0;
 
@@ -47,7 +51,7 @@ static bool checksum_rsdp(BIOS_RSDP *rsdp) {
     return sum == 0;
 }
 
-static bool checksum_sdt(BIOS_SDTHeader *sdt) {
+static bool checksum_sdt(ACPI_SDTHeader *sdt) {
     uint8_t *byteptr = (uint8_t *)sdt;
     uint8_t sum = 0;
 
@@ -124,7 +128,7 @@ static uint64_t get_mapping_for(uint64_t phys) {
     }
 }
 
-bool has_sig(const char *expect, BIOS_SDTHeader *sdt) {
+static inline bool has_sig(const char *expect, ACPI_SDTHeader *sdt) {
     for (int i = 0; i < 4; i++) {
         if (expect[i] != sdt->signature[i]) {
             return false;
@@ -134,7 +138,7 @@ bool has_sig(const char *expect, BIOS_SDTHeader *sdt) {
     return true;
 }
 
-static BIOS_SDTHeader *map_sdt(uint64_t phys_addr) {
+static ACPI_SDTHeader *map_sdt(uint64_t phys_addr) {
     uint64_t vaddr = get_mapping_for(phys_addr);
 
     if (vaddr == 0) {
@@ -147,7 +151,7 @@ static BIOS_SDTHeader *map_sdt(uint64_t phys_addr) {
         return NULL;
     }
 
-    BIOS_SDTHeader *sdt = (BIOS_SDTHeader *)(vaddr);
+    ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(vaddr);
 
     if (!checksum_sdt(sdt)) {
 #ifdef DEBUG_ACPI
@@ -168,7 +172,7 @@ static BIOS_SDTHeader *map_sdt(uint64_t phys_addr) {
 
     if (has_sig("RSDT", sdt)) {
         // deal with RSDT
-        uint32_t entries = RSDT_ENTRY_COUNT(sdt);
+        uint32_t entries = RSDT_ENTRY_COUNT((ACPI_RSDT *)sdt);
         uint32_t *entry = ((uint32_t *)(sdt + 1));
 
 #ifdef DEBUG_ACPI
@@ -182,12 +186,27 @@ static BIOS_SDTHeader *map_sdt(uint64_t phys_addr) {
                                 0xFFFFFFFF);
             entry++;
         }
+    } else if (has_sig("XSDT", sdt)) {
+        // deal with XSDT
+        uint32_t entries = XSDT_ENTRY_COUNT((ACPI_RSDT *)sdt);
+        uint64_t *entry = ((uint64_t *)(sdt + 1));
+
+#ifdef DEBUG_ACPI
+        debugstr("There are ");
+        printhex32(entries, debugchar);
+        debugstr(" entries in the ACPI tables\n");
+#endif
+
+        for (int i = 0; i < entries; i++) {
+            *entry = (((uint64_t)map_sdt((uint64_t)*entry)) & 0xFFFFFFFF);
+            entry++;
+        }
     }
 
     return sdt;
 }
 
-BIOS_SDTHeader *map_acpi_tables(BIOS_RSDP *rsdp) {
+static ACPI_RSDT *map_acpi_tables(ACPI_RSDP *rsdp) {
     if (!rsdp) {
 #ifdef DEBUG_ACPI
         debugstr("Cannot map NULL RSDP!\n");
@@ -202,31 +221,82 @@ BIOS_SDTHeader *map_acpi_tables(BIOS_RSDP *rsdp) {
         return NULL;
     }
 
-    return map_sdt(rsdp->rsdt_address);
+    if (rsdp->revision > 1) {
+        return (ACPI_RSDT *)map_sdt(rsdp->xsdt_address);
+    } else {
+        return (ACPI_RSDT *)map_sdt(rsdp->rsdt_address);
+    }
 }
 
-BIOS_SDTHeader *find_acpi_table(BIOS_SDTHeader *rsdp, const char *ident) {
-    uint32_t entries = RSDT_ENTRY_COUNT(rsdp);
-    uint32_t *entry = ((uint32_t *)(rsdp + 1));
+ACPI_RSDT *acpi_tables_init(ACPI_RSDP *rsdp) { return map_acpi_tables(rsdp); }
 
-    for (int i = 0; i < entries; i++) {
-        BIOS_SDTHeader *sdt =
-                (BIOS_SDTHeader *)(((uint64_t)*entry) | 0xFFFFFFFF00000000);
+ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdt, const char *ident) {
+    if (rsdt == NULL || ident == NULL) {
+        return NULL;
+    }
+
+    if (has_sig("XSDT", &rsdt->header)) {
+        uint32_t entries = XSDT_ENTRY_COUNT(rsdt);
+        uint64_t *entry = ((uint64_t *)(rsdt + 1));
+
+        for (int i = 0; i < entries; i++) {
+#ifdef UNIT_TESTS
+            ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(((uint64_t)*entry));
+#else
+            ACPI_SDTHeader *sdt =
+                    (ACPI_SDTHeader *)(*entry | 0xFFFFFFFF00000000);
+#endif
 
 #ifdef DEBUG_ACPI
 #ifdef VERY_NOISY_ACPI
-        debugstr("Find ACPI entry: Checking: ");
-        printhex64(((uint64_t)entry) | 0xFFFFFFFF00000000, debugchar);
-        debugstr(" = ");
-        debugstr_len(sdt->signature, 4);
-        debugstr("\n");
+            debugstr("Find ACPI entry: Checking: ");
+            printhex64(((uint64_t)entry) | 0xFFFFFFFF00000000, debugchar);
+            debugstr(" = ");
+            debugstr_len(sdt->signature, 4);
+            debugstr("\n");
 #endif
 #endif
 
-        if (has_sig(ident, sdt)) {
-            return sdt;
+            if (has_sig(ident, sdt)) {
+                return sdt;
+            }
+            entry++;
         }
-        entry++;
+    } else if (has_sig("RSDT", &rsdt->header)) {
+        uint32_t entries = RSDT_ENTRY_COUNT(rsdt);
+        uint32_t *entry = ((uint32_t *)(rsdt + 1));
+
+        for (int i = 0; i < entries; i++) {
+#ifdef UNIT_TESTS
+            ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(((uint64_t)*entry));
+#else
+            ACPI_SDTHeader *sdt =
+                    (ACPI_SDTHeader *)(((uint64_t)*entry) | 0xFFFFFFFF00000000);
+#endif
+
+#ifdef DEBUG_ACPI
+#ifdef VERY_NOISY_ACPI
+            debugstr("Find ACPI entry: Checking: ");
+            printhex64(((uint64_t)entry) | 0xFFFFFFFF00000000, debugchar);
+            debugstr(" = ");
+            debugstr_len(sdt->signature, 4);
+            debugstr("\n");
+#endif
+#endif
+
+            if (has_sig(ident, sdt)) {
+                return sdt;
+            }
+            entry++;
+        }
+    } else {
+#ifdef CONSERVATIVE_BUILD
+        debugstr(
+                "CONSERVATIVE: Non-RSDT passed to acpi_tables_find; Halting\n");
+        halt_and_catch_fire();
+#else
+        debugstr("WARNING: Non-RSDT passed to acpi_tables_find!\n");
+#endif
     }
 
     return NULL;
