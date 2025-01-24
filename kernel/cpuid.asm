@@ -12,7 +12,7 @@ init_cpuid:
 
     xor eax,eax                     ; Clear eax
     cpuid
-    mov byte [cpuid_max],byte al    ; Store highest CPUID function
+    mov [cpuid_max],eax             ; Store highest CPUID function
     mov [__cpuid_vendor],ebx        ; Store vendor string...
     mov [__cpuid_vendor+4],edx
     mov [__cpuid_vendor+8],ecx
@@ -23,7 +23,7 @@ init_cpuid:
 
 cpuid:
     mov rax,rdi                     ; Func num in rax
-    cmp al,byte [cpuid_max]         ; Does CPU support it?
+    cmp al,[cpuid_max]              ; Does CPU support it?
     ja  .bad_func                   ; ... bad func if not...
 
     push rbx                        ; Save rbx
@@ -51,8 +51,8 @@ cpuid:
 
 section .bss
 
-__cpuid_vendor  db  13
-cpuid_max       db  1
+__cpuid_vendor  resb  13
+cpuid_max       resd  1
 
 section .text
 

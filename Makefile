@@ -37,6 +37,7 @@ endif
 #	VERY_NOISY_PCI_ENUM	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
 #	DEBUG_HPET			Enable debugging of the HPET initialisation
 #	DEBUG_SLEEP			Enable debugging of the sleep (and eventually yield etc) syscall(s)
+#	DEBUG_CPU			Enable debugging of CPU information at boot
 #
 # These ones enable some specific feature tests
 #
@@ -49,7 +50,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=
+CDEFS=-DDEBUG_CPU
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -128,6 +129,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/general_protection_fault.o							\
 			$(STAGE3_DIR)/timer_isr.o											\
 			$(STAGE3_DIR)/kdrivers/drivers.o									\
+			$(STAGE3_DIR)/kdrivers/cpu.o										\
 			$(STAGE3_DIR)/kdrivers/local_apic.o									\
 			$(STAGE3_DIR)/kdrivers/hpet.o										\
 			$(STAGE3_DIR)/pci/bus.o												\
