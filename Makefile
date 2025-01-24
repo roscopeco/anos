@@ -142,6 +142,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/sched/prr.o											\
 			$(STAGE3_DIR)/structs/pq.o											\
 			$(STAGE3_DIR)/sleep.o												\
+			$(STAGE3_DIR)/cpuid.o												\
 			$(SYSTEM)_linkable.o
 			
 ALL_TARGETS=floppy.img
