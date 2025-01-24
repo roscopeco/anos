@@ -46,7 +46,7 @@ static void debug_cpu_brand(void) {
 #define debug_cpu_brand(...)
 #endif
 
-#ifdef DEBUG_CPU_TSC_FREQ
+#ifdef DEBUG_CPU_FREQ
 static void debug_tsc_frequency_cpuid(void) {
     debugstr("TSC frequency (CPUID): ");
 
@@ -89,5 +89,5 @@ static void debug_tsc_frequency_msr(void) {
 void cpu_debug_info(void) {
     debug_cpu_brand();
     debug_tsc_frequency_cpuid();
-    debug_tsc_frequency_msr()
+    debug_tsc_frequency_msr();
 }

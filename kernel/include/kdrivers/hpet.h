@@ -12,6 +12,7 @@
 #include <stdint.h>
 
 #include "acpitables.h"
+#include "kdrivers/timer.h"
 
 typedef struct {
     ACPI_SDTHeader header;
@@ -40,16 +41,22 @@ static_assert_sizeof(HPETTimerRegs, 24);
 typedef struct {
     uint64_t caps_and_id;
     uint64_t pad1;
+
     uint64_t flags;
     uint64_t pad2;
+
     uint64_t interrupt_status;
     uint64_t pad3;
+
+    uint64_t reserved[24];
+
     uint64_t counter_value;
     uint64_t pad4;
+
     HPETTimerRegs timers[];
 } __attribute__((packed)) HPETRegs;
 
-static_assert_sizeof(HPETRegs, 64);
+static_assert_sizeof(HPETRegs, 256);
 
 static inline ACPI_HPET *acpi_tables_find_hpet(ACPI_RSDT *rsdt) {
     return (ACPI_HPET *)acpi_tables_find(rsdt, "HPET");
@@ -76,5 +83,6 @@ static inline bool hpet_can_legacy(uint64_t hpet_caps) {
 }
 
 bool hpet_init(ACPI_RSDT *rsdt);
+KernelTimer *hpet_as_timer(void);
 
 #endif //__ANOS_KERNEL_DRIVERS_HPET_H

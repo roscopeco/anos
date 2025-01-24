@@ -38,6 +38,7 @@ endif
 #	DEBUG_HPET			Enable debugging of the HPET initialisation
 #	DEBUG_SLEEP			Enable debugging of the sleep (and eventually yield etc) syscall(s)
 #	DEBUG_CPU			Enable debugging of CPU information at boot
+#	DEBUG_CPU_FREQ		Enable debugging of CPU frequency calibration (requires DEBUG_CPU)
 #
 # These ones enable some specific feature tests
 #
