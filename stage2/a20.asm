@@ -11,6 +11,13 @@ global check_a20, enable_a20
 ; Enable the A20 line, unless it's already enabled (in which case,
 ; this is a no-op success).
 ;
+; This should rarely, if ever, do anything. On a modern x86_64 bit
+; machine (like we know we have, since we check at the beginning
+; of stage 2) A20 might not even be a thing, and if it is, the 
+; BIOS call we did before leaving real mode should reliably
+; sort it out, meaning this should just check, find it's okay,
+; and return without doing much...
+;
 ; Call in protected mode.
 ;
 ; Modifies: nothing
@@ -22,16 +29,31 @@ enable_a20:
 
   test  ax,ax                             ; Is AX zero?
   pop   eax                               ; Restore registers
-  je    .disabled             
+  je    .disabled
 
   mov   byte [0xb8000],'E'                ; Print "E"
   mov   byte [0xb8001],0x2a               ; In color
   ret
 
 .disabled:
+  in al, 0x92                             ; Try the fast method...
+  or al, 2
+  out 0x92, al
+
+  call  check_a20                         ; Check the A20 line again
+
+  test  ax,ax                             ; Is AX zero?
+  pop   eax                               ; Restore registers
+  je    .still_disabled
+
+  mov   byte [0xb8004],'E'                ; Print "E"
+  mov   byte [0xb8005],0x2a               ; In color
+  ret
+
+.still_disabled:
+  ret
   mov   byte [0xb8000],'D'                ; Print "D"
   mov   byte [0xb8001],0x4c               ; In color
-
   call  enable_a20_kbd                    ; Try the Keyboard method
 
   push  eax                               ; Save EAX again
@@ -40,13 +62,13 @@ enable_a20:
 
   test  ax,ax                             ; Is AX zero?
   pop   eax                               ; Restore registers
-  je    .still_disabled             
+  je    .really_disabled
   
   mov   byte [0xb8004],'E'                ; Print "E"
   mov   byte [0xb8005],0x2a               ; In color
   ret
 
-.still_disabled:
+.really_disabled:
   ; TODO just die for now - but we should try BIOS and fast methods too...
   mov   byte [0xb8004],'X'                ; Print "X"
   mov   byte [0xb8005],0x4c               ; In color
@@ -61,7 +83,7 @@ enable_a20:
 ; supported everywhere(?).
 ;
 ; I wouldn't be surprised some modern computers don't support
-; it though to be fair...
+; it though to be fair... [edit: Virtualbox doesn't either!]
 ;
 ; Port 0x64 is the keyboard controller command port. Bits:
 ;

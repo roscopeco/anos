@@ -73,6 +73,10 @@ _start:
   mov   bl,0x02                           ; (Target Operating Mode Callback)  - Neither Bochs nor qemu
   int   0x15                              ; appear to support this, so give back CF=1 and AH=0x86...
 
+  mov   ax, 0x2401                        ; Just try a cheeky BIOS "enable A20" here...
+	int   0x15                              ; Don't really care if it works, we'll check it later properly
+                                          ; but will be in pmode by then so won't be able to do the BIOS thing...
+
 .unreal:
   ; Jump to unreal mode
   push  ds                                ; Save DS and ES (both should be zero anyway)
