@@ -237,7 +237,7 @@ it should be relatively recent.
 
 It's running in VirtualBox here, just for a change from qemu...
 
-![ANOS running in VirtualBox](images/Screenshot 2025-01-25 at 23.19.18.png)
+<img src="images/Screenshot 2025-01-25 at 23.19.18.png" alt="ANOS running in VirtualBox">
 
 The following things are not shown in this shot, but are still happening under the hood:
 
