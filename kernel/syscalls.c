@@ -76,9 +76,9 @@ static SyscallResult handle_memstats(AnosMemInfo *mem_info) {
     return SYSCALL_OK;
 }
 
-static SyscallResult handle_sleep(uint64_t ticks) {
+static SyscallResult handle_sleep(uint64_t nanos) {
     sched_lock();
-    sleep_task(task_current(), ticks);
+    sleep_task(task_current(), nanos);
     sched_unlock();
 
     return SYSCALL_OK;

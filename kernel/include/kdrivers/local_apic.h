@@ -46,6 +46,8 @@ typedef struct {
 
 void init_local_apic(ACPI_MADT *madt);
 
-void local_apic_eoe();
+uint64_t local_apic_get_count(void);
+
+void local_apic_eoe(void);
 
 #endif //__ANOS_KERNEL_DRIVERS_LOCAL_APIC_H

@@ -34,7 +34,7 @@ static inline void banner() {
 static void thread2() {
     int count = 0;
     printf("\nTask 2 - startup and immediately sleep...\n");
-    anos_task_sleep_current(500);
+    anos_task_sleep_current_secs(5);
     printf("\nTask 2 has arisen!\n");
 
     while (1) {
