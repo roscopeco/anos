@@ -68,6 +68,7 @@ jobs:
           find . -name '*.h' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
           make clean test coverage
         shell: bash
+<<<<<<< HEAD
 
 <<<<<<< HEAD
       - name: Coverage Badge
@@ -88,3 +89,5 @@ jobs:
         uses: GoogleCloudPlatform/lcov-coverage-badge@v1.0.0
         file: ./gcov/kernel/coverage.info
 >>>>>>> b22406e (Try add coverage badge)
+=======
+>>>>>>> 7fe9dc0 (Moar fixes)
