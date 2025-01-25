@@ -1,5 +1,8 @@
 ## anos - An Operating System 💾
 
+![workflow status](https://github.com/roscopeco/anos/actions/workflows/compile_test.yaml/badge.svg)
+![coverage](coverage.svg)
+
 > **Note**: This is not yet an operating system, but _has_ just about 
 > reached toy status, since it now supports user mode preemptive 
 > multitasking.
