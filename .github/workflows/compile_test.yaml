@@ -62,7 +62,7 @@ jobs:
         shell: bash
 
       - name: Coverage Badge
-        uses: GoogleCloudPlatform/lcov-coverage-badge@v1.0.0
+        uses: ImBIOS/lcov-coverage-badge@v1
         with:
           file: ./gcov/kernel/coverage.info
 
@@ -71,5 +71,6 @@ jobs:
         with:
           coverage-files: ./gcov/kernel/coverage.info
           artifact-name: code-coverage-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
       
