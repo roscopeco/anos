@@ -54,7 +54,7 @@ jobs:
 
       - name: Build & run tests
         run: |
-          sudo apt-get install nasm
+          sudo apt-get install nasm lcov
           pip install clang-format
           find . -name '*.c' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
           find . -name '*.h' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
@@ -64,5 +64,5 @@ jobs:
       - name: Coverage
         uses: GoogleCloudPlatform/lcov-coverage-badge@v1.0.1
         with:
-          file: gcov/kernel/coverage.info
+          file: ./gcov/kernel/coverage.info
       
