@@ -3,9 +3,12 @@ name: compile_and_test
 on:
   push:
     branches: [ main ]
-
+    paths-ignore:
+      - "**/coverage.svg"
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - "**/coverage.svg"
 
   workflow_dispatch:
 
@@ -51,9 +54,23 @@ jobs:
 
       - name: Build & run tests
         run: |
-          sudo apt-get install nasm
+          sudo apt-get install nasm lcov
           pip install clang-format
           find . -name '*.c' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
           find . -name '*.h' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
-          make clean test
+          make clean test coverage
         shell: bash
+
+      - name: Coverage Badge
+        uses: ImBIOS/lcov-coverage-badge@v1
+        with:
+          file: ./gcov/kernel/coverage.info
+
+      - name: Report code coverage
+        uses: zgosalvez/github-actions-report-lcov@v3
+        with:
+          coverage-files: ./gcov/kernel/coverage.info
+          artifact-name: code-coverage-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
+      
