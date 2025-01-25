@@ -231,7 +231,7 @@ it should be relatively recent.
 * Init LAPICs and calibrate with HPET
 * Set everything up for usermode startup
 * Start a simple round-robin scheduler & drop to user mode
-* User-mode supervisor ("`SYSTEM`"") starts a thread with a `syscall`, and then
+* User-mode supervisor ("`SYSTEM`") starts a thread with a `syscall`, and then
   * Thread #1 - Loop from usermode, printing periodic `1`'s with syscall
   * Thread #2 - Start, sleep for 5secs, then loop printing periodic `2`s with syscall 
 
