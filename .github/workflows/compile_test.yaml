@@ -3,9 +3,12 @@ name: compile_and_test
 on:
   push:
     branches: [ main ]
-
+    paths-ignore:
+          - "**/coverage.svg"
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - "**/coverage.svg"
 
   workflow_dispatch:
 
@@ -55,5 +58,9 @@ jobs:
           pip install clang-format
           find . -name '*.c' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
           find . -name '*.h' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
-          make clean test
+          make clean test coverage
         shell: bash
+
+      - name: Coverage badge
+        uses: GoogleCloudPlatform/lcov-coverage-badge@v1.0.0
+        file: ./gcov/kernel/coverage.info
