@@ -132,6 +132,9 @@ kernel/tests/build/kdrivers/drivers: kernel/tests/munit.o kernel/tests/kdrivers/
 kernel/tests/build/kdrivers/hpet: kernel/tests/munit.o kernel/tests/kdrivers/hpet.o kernel/tests/build/kdrivers/hpet.o kernel/tests/build/kdrivers/drivers.o kernel/tests/mock_acpitables.o kernel/tests/mock_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/sleep_queue: kernel/tests/munit.o kernel/tests/sleep_queue.o kernel/tests/build/sleep_queue.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
@@ -152,7 +155,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/sched/prr										\
 			kernel/tests/build/printdec											\
 			kernel/tests/build/kdrivers/drivers									\
-			kernel/tests/build/kdrivers/hpet
+			kernel/tests/build/kdrivers/hpet									\
+			kernel/tests/build/sleep_queue
 
 PHONY: test
 test: $(ALL_TESTS)
