@@ -4,7 +4,11 @@ on:
   push:
     branches: [ main ]
     paths-ignore:
+<<<<<<< HEAD
       - "**/coverage.svg"
+=======
+          - "**/coverage.svg"
+>>>>>>> b22406e (Try add coverage badge)
   pull_request:
     branches: [ main ]
     paths-ignore:
@@ -61,6 +65,7 @@ jobs:
           make clean test coverage
         shell: bash
 
+<<<<<<< HEAD
       - name: Coverage Badge
         uses: ImBIOS/lcov-coverage-badge@v1
         with:
@@ -74,3 +79,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
       
+=======
+      - name: Coverage badge
+        uses: GoogleCloudPlatform/lcov-coverage-badge@v1.0.0
+        file: ./gcov/kernel/coverage.info
+>>>>>>> b22406e (Try add coverage badge)
