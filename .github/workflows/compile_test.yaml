@@ -5,10 +5,14 @@ on:
     branches: [ main ]
     paths-ignore:
 <<<<<<< HEAD
+<<<<<<< HEAD
       - "**/coverage.svg"
 =======
           - "**/coverage.svg"
 >>>>>>> b22406e (Try add coverage badge)
+=======
+      - "**/coverage.svg"
+>>>>>>> 24434b2 (Fixes)
   pull_request:
     branches: [ main ]
     paths-ignore:
