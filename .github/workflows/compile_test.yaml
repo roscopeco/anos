@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths-ignore:
-          - "**/coverage.svg"
+      - "**/coverage.svg"
   pull_request:
     branches: [ main ]
     paths-ignore:
