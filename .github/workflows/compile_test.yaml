@@ -61,8 +61,15 @@ jobs:
           make clean test coverage
         shell: bash
 
-      - name: Coverage
-        uses: GoogleCloudPlatform/lcov-coverage-badge@v1.0.1
+      - name: Coverage Badge
+        uses: GoogleCloudPlatform/lcov-coverage-badge@v1.0.0
         with:
           file: ./gcov/kernel/coverage.info
+
+      - name: Report code coverage
+        uses: zgosalvez/github-actions-report-lcov@v3
+        with:
+          coverage-files: ./gcov/kernel/coverage.info
+          artifact-name: code-coverage-report
+          update-comment: true
       
