@@ -223,18 +223,23 @@ pre-commit install
 This probably isn't up to date enough to represent where it's at, but
 it should be relatively recent.
 
-* Boot
-* Init LAPICs
+* Boot from real to long mode
+* Set up a RLE stack-based PMM
+* Set up VMM & recursive paging (for now, will likely change later)
+* Set up fixed block & slab allocators
+* _Just enough_ ACPI to initialise basic platform devices (HPET & LAPICs)
+* Init LAPICs and calibrate with HPET
 * Set everything up for usermode startup
-* Start a simple round-robin scheduler
-* User-mode starts a thread with a `syscall`, and then
-  * Thread #1 - Loop from usermode, printing periodic dots with syscall
-  * Thread #2 - Same, but printing periodic `B` instead
+* Start a simple round-robin scheduler & drop to user mode
+* User-mode supervisor ("`SYSTEM`"") starts a thread with a `syscall`, and then
+  * Thread #1 - Loop from usermode, printing periodic `1`'s with syscall
+  * Thread #2 - Start, sleep for 5secs, then loop printing periodic `2`s with syscall 
 
-<img src="images/Screenshot 2025-01-13 at 22.22.04.png" alt="Hopefully-recent Screenshot">
+It's running in VirtualBox here, just for a change from qemu...
+
+![ANOS running in VirtualBox](images/Screenshot 2025-01-25 at 23.19.18.png)
 
 The following things are not shown in this shot, but are still happening under the hood:
 
-* Enumerate MADT for debugging
 * Enumerate PCI bus (including bridges)
 
