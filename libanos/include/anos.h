@@ -8,6 +8,10 @@
 #ifndef __ANOS_ANOS_H
 #define __ANOS_ANOS_H
 
+#include <stdint.h>
+
 const char *libanos_version();
+
+void anos_task_sleep_current_secs(uint64_t secs);
 
 #endif //__ANOS_ANOS_H

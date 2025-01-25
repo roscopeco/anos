@@ -8,10 +8,12 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+#include <stdint.h>
+
+#include "config.h"
 #include "sched.h"
 #include "structs/list.h"
 #include "task.h"
-#include <stdint.h>
 
 #ifdef DEBUG_SLEEP
 #include "debugprint.h"
@@ -26,11 +28,11 @@ static uint64_t wake_tick;
 uint64_t get_lapic_timer_upticks(void);
 
 /* Caller MUST lock the scheduler! */
-void sleep_task(Task *task, uint64_t ticks) {
+void sleep_task(Task *task, uint64_t nanos) {
     if (sleeper == NULL) {
         // only one sleeper at a time right now...
         sleeper = task;
-        wake_tick = get_lapic_timer_upticks() + ticks;
+        wake_tick = get_lapic_timer_upticks() + (nanos / NANOS_PER_TICK);
 
 #ifdef DEBUG_SLEEP
         debugstr("Ticks now is ");

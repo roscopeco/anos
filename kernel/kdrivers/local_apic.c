@@ -89,11 +89,16 @@ void init_local_apic(ACPI_MADT *madt) {
     KernelTimer *timer = hpet_as_timer();
     uint64_t hz_ticks = local_apic_calibrate_count(timer, KERNEL_HZ);
 
-    // /16 mode, 2000000 init count
+    // /16 mode, init count based on caibrated kernel Hz.
     start_timer(lapic, 0x03, hz_ticks);
 }
 
-void local_apic_eoe() {
+uint64_t local_apic_get_count(void) {
+    uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
+    return *REG_LAPIC_CURRENT_COUNT(lapic);
+}
+
+void local_apic_eoe(void) {
     uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
     *(REG_LAPIC_EOI(lapic)) = 0;
 }

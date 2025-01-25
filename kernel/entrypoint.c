@@ -300,12 +300,14 @@ noreturn void start_system(void) {
     // TODO the way this is set up currently, there's no way to know how much
     // BSS/Data we need... We'll just map a couple pages for now...
 
-    // Set up two pages for the user bss / data
+    // Set up three pages for the user bss / data
     uint64_t user_bss = 0x0000000080000000;
     uint64_t user_bss_phys = page_alloc(physical_region);
     vmm_map_page(user_bss, user_bss_phys, flags | WRITE);
     user_bss_phys = page_alloc(physical_region);
     vmm_map_page(user_bss + 0x1000, user_bss_phys, flags | WRITE);
+    user_bss_phys = page_alloc(physical_region);
+    vmm_map_page(user_bss + 0x2000, user_bss_phys, flags | WRITE);
 
     // ... and a page below that for the user stack
     uint64_t user_stack = user_bss - 0x1000;

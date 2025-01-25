@@ -17,6 +17,7 @@
 static bool heart_state = false;
 static volatile uint32_t counter;
 
+// TODO could probably derive this directly from timer count now...?
 volatile uint64_t lapic_timer_upticks;
 
 uint64_t get_lapic_timer_upticks(void) { return lapic_timer_upticks; }
