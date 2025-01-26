@@ -232,13 +232,15 @@ it should be relatively recent.
 * Init LAPICs and calibrate with HPET
 * Set everything up for usermode startup
 * Start a simple round-robin scheduler & drop to user mode
-* User-mode supervisor ("`SYSTEM`") starts a thread with a `syscall`, and then
+* User-mode supervisor ("`SYSTEM`") starts some threads with a `syscall`, and then
   * Thread #1 - Loop from usermode, printing periodic `1`'s with syscall
   * Thread #2 - Start, sleep for 5secs, then loop printing periodic `2`s with syscall 
+  * Thread #3 - Same as thread 2, but printing `3`s instead
+  * Thread #4 - Looping as the others, but also sleeping every time it prints
 
 It's running in VirtualBox here, just for a change from qemu...
 
-<img src="images/Screenshot 2025-01-25 at 23.19.18.png" alt="ANOS running in VirtualBox">
+<img src="images/Screenshot 2025-01-26 at 12.06.41.png" alt="ANOS running in VirtualBox">
 
 The following things are not shown in this shot, but are still happening under the hood:
 
