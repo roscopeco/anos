@@ -32,8 +32,7 @@ static_assert_sizeof(SleepQueue, 64);
 /*
  * Enqueue a single sleeper.
  */
-void sleep_queue_enqueue(SleepQueue *queue, Sleeper *sleeper,
-                         uint64_t deadline);
+bool sleep_queue_enqueue(SleepQueue *queue, Task *task, uint64_t deadline);
 
 /*
  * Dequeue sleepers given the specified deadline. 

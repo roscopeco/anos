@@ -132,7 +132,7 @@ kernel/tests/build/kdrivers/drivers: kernel/tests/munit.o kernel/tests/kdrivers/
 kernel/tests/build/kdrivers/hpet: kernel/tests/munit.o kernel/tests/kdrivers/hpet.o kernel/tests/build/kdrivers/hpet.o kernel/tests/build/kdrivers/drivers.o kernel/tests/mock_acpitables.o kernel/tests/mock_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/sleep_queue: kernel/tests/munit.o kernel/tests/sleep_queue.o kernel/tests/build/sleep_queue.o
+kernel/tests/build/sleep_queue: kernel/tests/munit.o kernel/tests/sleep_queue.o kernel/tests/build/sleep_queue.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 ALL_TESTS=kernel/tests/build/interrupts 										\
