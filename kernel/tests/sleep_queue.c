@@ -37,6 +37,7 @@ static void *test_setup(const MunitParameter params[], void *user_data) {
 
     SleepQueue *queue = malloc(sizeof(SleepQueue));
     queue->head = NULL;
+    queue->always0 = 0;
     queue->tail = NULL;
 
     Fixture *fixture = malloc(sizeof(Fixture));
@@ -63,6 +64,8 @@ static MunitResult test_enqueue_single(const MunitParameter params[],
 
     Task task = {0};
 
+    uint32_t initial_allocs = mock_pmm_get_total_page_allocs();
+
     bool result = sleep_queue_enqueue(queue, &task, 100);
 
     munit_assert_true(result);
@@ -70,6 +73,8 @@ static MunitResult test_enqueue_single(const MunitParameter params[],
     munit_assert_ptr_equal(queue->head, queue->tail);
     munit_assert_uint64(queue->head->wake_at, ==, 100);
     munit_assert_ptr_equal(queue->head->task, &task);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
+                        initial_allocs + PAGES_PER_SLAB);
 
     return MUNIT_OK;
 }
@@ -96,7 +101,7 @@ static MunitResult test_enqueue_multiple_ordered(const MunitParameter params[],
     munit_assert_uint64(queue->head->wake_at, ==, 100);
     munit_assert_uint64(queue->tail->wake_at, ==, 200);
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        initial_allocs + 2);
+                        initial_allocs + PAGES_PER_SLAB);
 
     return MUNIT_OK;
 }
@@ -122,7 +127,7 @@ test_enqueue_multiple_unordered(const MunitParameter params[],
     munit_assert_uint64(queue->head->wake_at, ==, 100);
     munit_assert_uint64(queue->tail->wake_at, ==, 200);
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        initial_allocs + 2);
+                        initial_allocs + PAGES_PER_SLAB);
 
     return MUNIT_OK;
 }
@@ -136,7 +141,7 @@ static MunitResult test_dequeue_none(const MunitParameter params[],
     uint32_t initial_frees = mock_pmm_get_total_page_frees();
 
     sleep_queue_enqueue(queue, &task, 200);
-    Sleeper *result = sleep_queue_dequeue(queue, 100);
+    Task *result = sleep_queue_dequeue(queue, 100);
 
     munit_assert_ptr_null(result);
     munit_assert_ptr_not_null(queue->head);
@@ -154,12 +159,17 @@ static MunitResult test_dequeue_single(const MunitParameter params[],
     uint32_t initial_frees = mock_pmm_get_total_page_frees();
 
     sleep_queue_enqueue(queue, &task, 100);
-    Sleeper *result = sleep_queue_dequeue(queue, 200);
+    Task *result = sleep_queue_dequeue(queue, 200);
 
+    // result is dequeued
     munit_assert_ptr_not_null(result);
-    munit_assert_ptr_equal(result->task, &task);
+    munit_assert_ptr_equal(result, &task);
+    munit_assert_ptr_null(result->this.next);
+
+    // queue is empty
     munit_assert_ptr_null(queue->head);
     munit_assert_ptr_null(queue->tail);
+
     munit_assert_uint32(mock_pmm_get_total_page_frees(), ==,
                         initial_frees); // Dequeue returns memory to caller
 
@@ -178,15 +188,53 @@ static MunitResult test_dequeue_multiple(const MunitParameter params[],
     sleep_queue_enqueue(queue, &task2, 200);
     sleep_queue_enqueue(queue, &task3, 300);
 
-    Sleeper *result = sleep_queue_dequeue(queue, 250);
+    Task *result = sleep_queue_dequeue(queue, 250);
 
+    // Result has the two dequeued nodes
     munit_assert_ptr_not_null(result);
-    munit_assert_ptr_equal(result->task, &task1);
-    munit_assert_ptr_equal(((ListNode *)result)->next, (ListNode *)queue->head);
+    munit_assert_ptr_equal(result, &task1);
+    munit_assert_ptr_equal(((ListNode *)result)->next, (ListNode *)&task2);
+    munit_assert_null(((ListNode *)result)->next->next);
+
     munit_assert_ptr_equal(queue->head->task, &task3);
     munit_assert_ptr_equal(queue->tail->task, &task3);
+
+    // TODO really need to be checking actual slab block frees here,
+    //      rather than the whole slab, which won't get freed anyhow
     munit_assert_uint32(mock_pmm_get_total_page_frees(), ==,
-                        initial_frees); // Memory returned in list
+                        initial_frees); // slab not freed
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_dequeue_mult_all(const MunitParameter params[],
+                                         void *fixture_v) {
+    Fixture *fixture = (Fixture *)fixture_v;
+    SleepQueue *queue = (SleepQueue *)fixture->queue;
+
+    Task task1 = {0}, task2 = {0}, task3 = {0};
+    uint32_t initial_frees = mock_pmm_get_total_page_frees();
+
+    sleep_queue_enqueue(queue, &task1, 100);
+    sleep_queue_enqueue(queue, &task2, 200);
+    sleep_queue_enqueue(queue, &task3, 300);
+
+    Task *result = sleep_queue_dequeue(queue, 10000);
+
+    // Result has the three dequeued nodes
+    munit_assert_ptr_not_null(result);
+    munit_assert_ptr_equal(result, &task1);
+    munit_assert_ptr_equal(((ListNode *)result)->next, (ListNode *)&task2);
+    munit_assert_ptr_equal(((ListNode *)result)->next->next,
+                           (ListNode *)&task3);
+    munit_assert_null(((ListNode *)result)->next->next->next);
+
+    munit_assert_ptr_equal(queue->head, NULL);
+    munit_assert_ptr_equal(queue->tail, NULL);
+
+    // TODO really need to be checking actual slab block frees here,
+    //      rather than the whole slab, which won't get freed anyhow
+    munit_assert_uint32(mock_pmm_get_total_page_frees(), ==, initial_frees);
 
     return MUNIT_OK;
 }
@@ -244,6 +292,29 @@ static MunitResult test_enqueue_null_task(const MunitParameter params[],
     return MUNIT_OK;
 }
 
+static MunitResult
+test_enqueue_single_zero_deadline(const MunitParameter params[],
+                                  void *fixture_v) {
+    Fixture *fixture = (Fixture *)fixture_v;
+    SleepQueue *queue = (SleepQueue *)fixture->queue;
+
+    Task task = {0};
+
+    uint32_t initial_allocs = mock_pmm_get_total_page_allocs();
+
+    bool result = sleep_queue_enqueue(queue, &task, 0);
+
+    munit_assert_true(result);
+    munit_assert_ptr_not_null(queue->head);
+    munit_assert_ptr_equal(queue->head, queue->tail);
+    munit_assert_uint64(queue->head->wake_at, ==, 0);
+    munit_assert_ptr_equal(queue->head->task, &task);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
+                        initial_allocs + PAGES_PER_SLAB);
+
+    return MUNIT_OK;
+}
+
 static MunitResult test_dequeue_empty_queue(const MunitParameter params[],
                                             void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
@@ -251,7 +322,7 @@ static MunitResult test_dequeue_empty_queue(const MunitParameter params[],
 
     uint32_t initial_frees = mock_pmm_get_total_page_frees();
 
-    Sleeper *result = sleep_queue_dequeue(queue, 100);
+    Task *result = sleep_queue_dequeue(queue, 100);
 
     munit_assert_ptr_null(result);
     munit_assert_uint32(mock_pmm_get_total_page_frees(), ==, initial_frees);
@@ -260,23 +331,27 @@ static MunitResult test_dequeue_empty_queue(const MunitParameter params[],
 }
 
 static MunitTest sleep_queue_tests[] = {
-        {"/enqueue_single", test_enqueue_single, test_setup, test_teardown,
+        {"/enqueue_one", test_enqueue_single, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/enqueue_multiple_ordered", test_enqueue_multiple_ordered, test_setup,
+        {"/enqueue_mult_ordered", test_enqueue_multiple_ordered, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/enqueue_multiple_unordered", test_enqueue_multiple_unordered,
-         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/enqueue_mult_unordered", test_enqueue_multiple_unordered, test_setup,
+         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {"/enqueue_alloc_failure", test_enqueue_alloc_failure, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {"/enqueue_null_queue", test_enqueue_null_queue, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {"/enqueue_null_task", test_enqueue_null_task, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/enqueue_zero_deadline", test_enqueue_single_zero_deadline,
+         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {"/dequeue_none", test_dequeue_none, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
         {"/dequeue_single", test_dequeue_single, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
         {"/dequeue_multiple", test_dequeue_multiple, test_setup, test_teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/dequeue_mult_all", test_dequeue_mult_all, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
         {"/dequeue_empty_queue", test_dequeue_empty_queue, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
