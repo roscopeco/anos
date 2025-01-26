@@ -65,6 +65,7 @@ jobs:
         uses: ImBIOS/lcov-coverage-badge@v1
         with:
           file: ./gcov/kernel/coverage.info
+          access_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Report code coverage
         uses: zgosalvez/github-actions-report-lcov@v3
