@@ -8,13 +8,17 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
-#include "sched.h"
-#include "structs/list.h"
-#include "task.h"
+#ifndef __ANOS_KERNEL_SLEEP_H
+#define __ANOS_KERNEL_SLEEP_H
+
 #include <stdint.h>
+
+#include "task.h"
 
 /* Caller MUST lock the scheduler! */
 void sleep_task(Task *task, uint64_t ticks);
 
 /* Caller MUST lock the scheduler! */
 void check_sleepers();
+
+#endif //__ANOS_KERNEL_SLEEP_H

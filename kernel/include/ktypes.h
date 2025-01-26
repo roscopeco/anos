@@ -14,6 +14,7 @@ typedef enum {
     KTYPE_SLAB_HEADER = 1,
     KTYPE_TASK,
     KTYPE_PROCESS,
+    KTYPE_SLEEPER,
 } KType;
 
 #endif //__ANOS_KERNEL_KTYPES_H
