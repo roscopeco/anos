@@ -25,6 +25,8 @@ volatile int num;
 int subroutine(int in) { return in * 2; }
 
 static uint8_t t2_stack[4096];
+static uint8_t t3_stack[4096];
+static uint8_t t4_stack[4096];
 
 static inline void banner() {
     printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION,
@@ -40,6 +42,33 @@ static void thread2() {
     while (1) {
         if (count++ % 100000000 == 0) {
             kputchar('2');
+        }
+    }
+}
+
+static void thread3() {
+    int count = 0;
+    printf("\nTask 3 - startup and immediately sleep...\n");
+    anos_task_sleep_current_secs(3);
+    printf("\nTask 3 has arisen!\n");
+
+    while (1) {
+        if (count++ % 100000000 == 0) {
+            kputchar('3');
+        }
+    }
+}
+
+static void thread4() {
+    int count = 0;
+    printf("\nTask 4 - startup and immediately sleep...\n");
+    anos_task_sleep_current_secs(10);
+    printf("\nTask 4 has arisen!\n");
+
+    while (1) {
+        if (count++ % 100000000 == 0) {
+            kputchar('4');
+            anos_task_sleep_current_secs(2);
         }
     }
 }
@@ -71,12 +100,25 @@ int main(int argc, char **argv) {
     }
 #endif
 
-    int thread = anos_create_thread(thread2, ((uintptr_t)t2_stack) + 0x1000);
-
-    if (thread == 0) {
-        printf("\nThread creation failed!\n\n");
+    int t2 = anos_create_thread(thread2, ((uintptr_t)t2_stack) + 0x1000);
+    if (t2 == 0) {
+        printf("Thread 2 creation failed!\n");
     } else {
-        printf("\nThread created with tid 0x%02x\n\n", thread);
+        printf("Thread 2 created with tid 0x%02x\n", t2);
+    }
+
+    int t3 = anos_create_thread(thread3, ((uintptr_t)t3_stack) + 0x1000);
+    if (t3 == 0) {
+        printf("Thread 3 creation failed!\n");
+    } else {
+        printf("Thread 3 created with tid 0x%02x\n", t3);
+    }
+
+    int t4 = anos_create_thread(thread4, ((uintptr_t)t4_stack) + 0x1000);
+    if (t4 == 0) {
+        printf("Thread 4 creation failed!\n");
+    } else {
+        printf("Thread 4 created with tid 0x%02x\n", t4);
     }
 
     num = 1;
