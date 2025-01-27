@@ -13,10 +13,32 @@ bool cpu_init_this(void) {
     return true;
 }
 
-uint64_t cpu_read_msr(uint32_t msr) {
+inline uint64_t cpu_read_msr(uint32_t msr) {
     uint32_t eax, edx;
     __asm__ volatile("rdmsr" : "=a"(eax), "=d"(edx) : "c"(0xCE));
     return ((uint64_t)edx << 32) | eax;
+}
+
+inline uint64_t cpu_rdtsc(void) {
+    uint32_t edx, eax;
+    __asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx));
+    return ((uint64_t)edx << 32) | eax;
+}
+
+inline void cpu_tsc_delay(uint64_t cycles) {
+    uint64_t wake_at = cpu_rdtsc() + cycles;
+    while (cpu_rdtsc() < wake_at)
+        ;
+}
+
+void cpu_tsc_mdelay(int n) {
+    // TODO actually calibrate?
+    cpu_tsc_delay(n * 1000000);
+}
+
+void cpu_tsc_udelay(int n) {
+    // TODO actually calibrate?
+    cpu_tsc_delay(n * 1000000);
 }
 
 #ifdef DEBUG_CPU

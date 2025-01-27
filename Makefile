@@ -6,7 +6,7 @@ QEMU?=qemu-system-x86_64
 XCC?=x86_64-elf-gcc
 BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
-CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
+CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23										\
 		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=kernel															\
@@ -60,6 +60,7 @@ STAGE2?=stage2
 STAGE3?=kernel
 SYSTEM?=system
 LIBANOS?=libanos
+REALMODE?=realmode
 STAGE1_DIR?=$(STAGE1)
 STAGE2_DIR?=$(STAGE2)
 STAGE3_DIR?=$(STAGE3)
@@ -69,6 +70,7 @@ STAGE1_BIN=$(STAGE1).bin
 STAGE2_BIN=$(STAGE2).bin
 STAGE3_BIN=$(STAGE3).bin
 SYSTEM_BIN=$(SYSTEM).bin
+REALMODE_BIN=$(REALMODE).bin
 LIBANOS_ARCHIVE=$(LIBANOS).a
 
 export LIBANOS_DIR
@@ -147,8 +149,12 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/sleep.o												\
 			$(STAGE3_DIR)/cpuid.o												\
 			$(STAGE3_DIR)/sleep_queue.o											\
+			$(STAGE3_DIR)/smp/startup.o											\
+			$(STAGE3_DIR)/$(REALMODE)_linkable.o								\
 			$(SYSTEM)_linkable.o
-			
+		
+REALMODE_OBJS=$(STAGE3_DIR)/smp/ap_trampoline.o
+
 ALL_TARGETS=floppy.img
 
 FLOPPY_DEPENDENCIES=$(STAGE1_DIR)/$(STAGE1_BIN) 								\
@@ -162,6 +168,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
 				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
 				$(STAGE3_DIR)/structs/*.o $(STAGE3_DIR)/sched/*.o				\
+				$(STAGE3_DIR)/smp/*.o											\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
@@ -225,7 +232,22 @@ $(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile $(LIBANOS_DIR)/$(LIBANOS_ARC
 	$(MAKE) -C $(SYSTEM_DIR)
 
 $(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
-	$(XOBJCOPY) -I binary --rename-section .data=.system_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+	$(XOBJCOPY) -I binary --rename-section .data=.$(SYSTEM)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+
+# ############ Real mode #############
+$(STAGE3_DIR)/$(REALMODE).elf: $(REALMODE_OBJS)
+	$(XLD) -T $(STAGE3_DIR)/$(REALMODE).ld -o $@ $^
+	chmod a-x $@
+
+$(STAGE3_DIR)/$(REALMODE).dis: $(STAGE3_DIR)/$(REALMODE).elf
+	$(XOBJDUMP) -D -S -Maddr64,data64 $< > $@
+
+$(STAGE3_DIR)/$(REALMODE_BIN): $(STAGE3_DIR)/$(REALMODE).elf $(STAGE3_DIR)/$(REALMODE).dis
+	$(XOBJCOPY) --strip-debug -O binary $< $@
+	chmod a-x $@
+
+$(STAGE3_DIR)/$(REALMODE)_linkable.o: $(STAGE3_DIR)/$(REALMODE_BIN)
+	$(XOBJCOPY) -I binary --rename-section .data=.$(REALMODE)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
 
 # ############# Stage 3 ##############
 $(STAGE3_DIR)/$(STAGE3).elf: $(STAGE3_OBJS)

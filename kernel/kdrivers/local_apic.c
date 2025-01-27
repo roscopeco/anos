@@ -61,7 +61,7 @@ static uint64_t local_apic_calibrate_count(KernelTimer *calibrated_timer,
     return ticks_in_20ms * 50 / desired_hz;
 }
 
-void init_local_apic(ACPI_MADT *madt) {
+uint32_t volatile *init_local_apic(ACPI_MADT *madt) {
     uint32_t lapic_addr = madt->lapic_address;
 #ifdef DEBUG_LAPIC_INIT
     uint32_t *flags = lapic_addr + 1;
@@ -91,6 +91,8 @@ void init_local_apic(ACPI_MADT *madt) {
 
     // /16 mode, init count based on caibrated kernel Hz.
     start_timer(lapic, 0x03, hz_ticks);
+
+    return lapic;
 }
 
 uint64_t local_apic_get_count(void) {

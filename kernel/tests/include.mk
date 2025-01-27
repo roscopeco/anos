@@ -1,14 +1,18 @@
 CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/structs/*.o kernel/tests/pci/*.o kernel/tests/fba/*.o 	\
-				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/build		\
+				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/smp/*.o	\
+				kernel/tests/kdrivers/*.o											\
+				kernel/tests/build													\
 				kernel/tests/*.gcda kernel/tests/pmm/*.gcda kernel/tests/vmm/*.gcda	\
 				kernel/tests/structs/*.gcda kernel/tests/pci/*.gcda 				\
 				kernel/tests/fba/*.gcda kernel/tests/slab/*.gcda 					\
-				kernel/tests/sched/*.gcda kernel/tests/kdrivers/*.gcda				\
+				kernel/tests/sched/*.gcda kernel/tests/smp/*.gcda					\
+				kernel/tests/kdrivers/*.gcda										\
 				kernel/tests/*.gcno kernel/tests/pmm/*.gcno kernel/tests/vmm/*.gcno	\
 				kernel/tests/structs/*.gcno kernel/tests/pci/*.gcno 				\
 				kernel/tests/fba/*.gcno kernel/tests/slab/*.gcno 					\
-				kernel/tests/sched/*.gcno kernel/tests/kdrivers/*.gcno				\
+				kernel/tests/sched/*.gcno kernel/tests/smp/*.gcno					\
+				kernel/tests/kdrivers/*.gcno										\
 				kernel/tests/build													\
 				gcov
 
@@ -24,7 +28,8 @@ endif
 TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm	\
 				kernel/tests/build/structs kernel/tests/build/pci 					\
 				kernel/tests/build/fba kernel/tests/build/slab 						\
-				kernel/tests/build/sched kernel/tests/build/kdrivers
+				kernel/tests/build/sched kernel/tests/build/kdrivers				\
+				kernel/tests/build/smp
 
 ifeq (, $(shell which lcov))
 $(warning LCOV not installed, coverage will be skipped)
@@ -59,6 +64,9 @@ kernel/tests/build/sched:
 
 kernel/tests/build/kdrivers:
 	mkdir -p kernel/tests/build/kdrivers
+
+kernel/tests/build/smp:
+	mkdir -p kernel/tests/build/smp
 
 kernel/tests/build/%.o: kernel/%.c $(TEST_BUILD_DIRS)
 	$(CC) -DUNIT_TESTS $(TEST_CFLAGS) -c -o $@ $<

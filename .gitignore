@@ -16,3 +16,5 @@ system/system.bin
 **/*.gcda
 **/*.gcno
 gcov
+kernel/realmode.bin
+

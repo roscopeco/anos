@@ -30,6 +30,7 @@
 #include "process.h"
 #include "sched.h"
 #include "slab/alloc.h"
+#include "smp/startup.h"
 #include "syscalls.h"
 #include "task.h"
 #include "vmm/recursive.h"
@@ -221,7 +222,7 @@ static inline void banner() {
 
 static inline void install_interrupts() { idt_install(0x08); }
 
-static inline void init_this_cpu(ACPI_RSDT *rsdt) {
+static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt) {
     cpu_init_this();
     cpu_debug_info();
 
@@ -233,7 +234,7 @@ static inline void init_this_cpu(ACPI_RSDT *rsdt) {
         halt_and_catch_fire();
     }
 
-    init_local_apic(madt);
+    return init_local_apic(madt);
 }
 
 // Replace the bootstrap 32-bit pages with 64-bit user pages.
@@ -401,7 +402,11 @@ noreturn void start_kernel(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     debug_memmap(memmap);
     debug_madt(acpi_root_table);
     kernel_drivers_init(acpi_root_table);
-    init_this_cpu(acpi_root_table);
+
+    uint32_t volatile *lapic = init_this_cpu(acpi_root_table);
+
+    smp_bsp_start_ap(1, lapic);
+
     pci_enumerate();
 
 #ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT

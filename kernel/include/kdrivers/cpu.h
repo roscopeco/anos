@@ -12,7 +12,14 @@
 #include <stdint.h>
 
 bool cpu_init_this(void);
-void cpu_debug_info(void);
+
 uint64_t cpu_read_msr(uint32_t msr);
+uint64_t rdtsc(void);
+
+void cpu_tsc_delay(uint64_t cycles);
+void cpu_tsc_mdelay(int n);
+void cpu_tsc_udelay(int n);
+
+void cpu_debug_info(void);
 
 #endif //__ANOS_KERNEL_DRIVERS_CPU_H
