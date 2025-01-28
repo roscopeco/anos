@@ -71,7 +71,9 @@ static void debug_cpu_brand(void) {
         }
     }
 
-    debugstr("\nCPU #0: ");
+    debugstr("CPU #");
+    printdec(cpu_read_local_apic_id(), debugchar);
+    debugstr(": ");
     debugstr(&brand[0]);
     debugstr("\n");
 }

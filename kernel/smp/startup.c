@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "acpitables.h"
+#include "cpuid.h"
 #include "kdrivers/cpu.h"
 #include "kdrivers/local_apic.h"
 #include "vmm/recursive.h"
@@ -95,6 +96,7 @@ void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
         ;
 
 #ifdef DEBUG_SMP_STARTUP
+#ifdef VERY_NOISY_SMP_STARTUP
     spinlock_lock(&debug_output_lock);
 
     debugstr("AP #");
@@ -103,11 +105,12 @@ void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
 
     spinlock_unlock(&debug_output_lock);
 #endif
+#endif
 }
 
 static void ap_kernel_entrypoint(uint64_t ap_num) {
 #ifdef DEBUG_SMP_STARTUP
-
+#ifdef VERY_NOISY_SMP_STARTUP
     spinlock_lock(&debug_output_lock);
 
     debugstr("AP #");
@@ -116,6 +119,10 @@ static void ap_kernel_entrypoint(uint64_t ap_num) {
 
     spinlock_unlock(&debug_output_lock);
 #endif
+#endif
+
+    init_cpuid();
+    cpu_debug_info();
 
     while (1) {
         __asm__ volatile("hlt");
@@ -168,6 +175,7 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
                 if (lapic_id != bsp_local_apic_id && (flags & 0x03) == 0x1) {
                     // can enable!
 #ifdef DEBUG_SMP_STARTUP
+#ifdef VERY_NOISY_SMP_STARTUP
                     spinlock_lock(&debug_output_lock);
                     debugstr("Will enable CPU ID  ");
                     printhex8(cpu_id, debugchar);
@@ -178,9 +186,11 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
                     debugstr("]\n");
                     spinlock_unlock(&debug_output_lock);
 #endif
+#endif
                     smp_bsp_start_ap(cpu_id, lapic);
                 } else {
 #ifdef DEBUG_SMP_STARTUP
+#ifdef VERY_NOISY_SMP_STARTUP
                     if (lapic_id == bsp_local_apic_id) {
                         spinlock_lock(&debug_output_lock);
                         debugstr("Skipping CPU ID  ");
@@ -198,6 +208,7 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
                         debugstr("]\n");
                         spinlock_unlock(&debug_output_lock);
                     }
+#endif
 #endif
                 }
 

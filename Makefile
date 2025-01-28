@@ -26,33 +26,34 @@ endif
 #
 #   CONSERVATIVE_BUILD	Will build a (slow) kernel with various invariant checks
 #
-#   DEBUG_VMM 			Enable debugging of the VMM
-#	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
-#	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
-#	DEBUG_ACPI			Enable debugging in ACPI mapper / parser
-#	DEBUG_MADT			Enable debug dump of the Multiple APIC Descriptor Table at boot
-#	VERY_NOISY_ACPI		Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
-#   DEBUG_LAPIC_INIT	Enable debugging of LAPIC initialisation
-#	DEBUG_PCI_ENUM		Enable debugging of PCI enumeration
-#	VERY_NOISY_PCI_ENUM	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
-#	DEBUG_HPET			Enable debugging of the HPET initialisation
-#	DEBUG_SLEEP			Enable debugging of the sleep (and eventually yield etc) syscall(s)
-#	DEBUG_CPU			Enable debugging of CPU information at boot
-#	DEBUG_CPU_FREQ		Enable debugging of CPU frequency calibration (requires DEBUG_CPU)
-#	DEBUG_SMP_STARTUP	Enable debugging of SMP AP startup
+#	DEBUG_VMM				Enable debugging of the VMM
+#	VERY_NOISY_VMM			Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
+#	DEBUG_PAGE_FAULT		Enable debugging in page fault handler
+#	DEBUG_ACPI				Enable debugging in ACPI mapper / parser
+#	DEBUG_MADT				Enable debug dump of the Multiple APIC Descriptor Table at boot
+#	VERY_NOISY_ACPI			Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
+#	DEBUG_LAPIC_INIT		Enable debugging of LAPIC initialisation
+#	DEBUG_PCI_ENUM			Enable debugging of PCI enumeration
+#	VERY_NOISY_PCI_ENUM		Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
+#	DEBUG_HPET				Enable debugging of the HPET initialisation
+#	DEBUG_SLEEP				Enable debugging of the sleep (and eventually yield etc) syscall(s)
+#	DEBUG_CPU				Enable debugging of CPU information at boot
+#	DEBUG_CPU_FREQ			Enable debugging of CPU frequency calibration (requires DEBUG_CPU)
+#	DEBUG_SMP_STARTUP		Enable debugging of SMP AP startup
+#	VERY_NOISY_SMP_STARTUP	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
 #
 # These ones enable some specific feature tests
 #
 #	DEBUG_FORCE_HANDLED_PAGE_FAULT		Force a handled page-fault at boot
 #	DEBUG_FORCE_UNHANDLED_PAGE_FAULT	Force an unhandled page-fault at boot
-#   DEBUG_TASK_SWITCH					Dump debug info when switching tasks
+#	DEBUG_TASK_SWITCH					Dump debug info when switching tasks
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #
 # Additionally:
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_SMP_STARTUP
+CDEFS=-DDEBUG_CPU -DDEBUG_SMP_STARTUP
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
