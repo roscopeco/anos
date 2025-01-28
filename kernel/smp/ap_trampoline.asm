@@ -2,19 +2,159 @@ bits 16
 
 section .text.init
 global _start
+extern STACKS_BASE
 
-; This is the AP trampoline...
+; This is the AP trampoline.
+;
+; This code is at 0x0400:0000 (0x4000 linear), and we enter in real mode.
+; BSS is at 0x8000, and each AP has its own 16 byte (yeah, really) stack 
+; in the region starting from 0x9000. The real-mode code is responsible for
+; setting that up (keep reading).
+;
+; The BSS will have a few things already set up by the SMP startup code:
+;
+;   * ap_count  - A counter tracking starting APs (starts at 1)
+;   * k_pml4    - The physical address of the kernel page-tables
+;   * ap_flag   - A flag the AP should set if it makes it to long mode
+;
+; In real mode, the AP will atomically grab the next available number
+; from he `ap_count`, and stash it away. It'll then set up its 16-byte
+; stack at a suitable offset from 0x9000 based on that number.
+;
+; On the stack there is already a qword waiting, which is the address the
+; AP should "return to" once it's finished setting things up.
+;
+; The `ap_flag` is holding the BSP, currently indefinitely, but there
+; will probably need to be a timeout or something in case of a faulty
+; AP - but either way, the AP needs to set it to unblock the BSP.
+;
+; Bear in mind the `ap_flag` is shared between APs, so we can (currently)
+; only boot one at a time, which probably doesn't much matter...
+;
+; The job really then boils down to:
+;
+;   * Get unique ID
+;   * Set up stack
+;   * Go to protected mode
+;   * Set up paging & go to long mode
+;   * Set flag to unlock the BSP
+;   * Put unique ID in RDI
+;   * Clear regs, housekeeping, then "return"
+;
+; Once those things are done, the regular kernel code takes over
+; (see `ap_kernel_entrypoint` in `smp/startup.c`).
+;
+; NOTE: Probably also worth noting that this is linked weirdly;
+; see notes in `realmode.ld` if you're interested in that.
+;
 _start:
   cli
   cld
-  mov [cs:0x10],byte $1
-  
-.die:
-    hlt
-    jmp .die
 
+  xor sp, sp
+
+  ; Each AP gets a unique ID...
+.get_id:
+  mov ax, WORD [ap_count]
+  mov bx, ax
+  inc bx
+  lock cmpxchg WORD [ap_count], bx
+  jnz .get_id
+
+  mov cx, ax
+
+  ; Set up stack for this AP...
+  ;   ss = STACKS_BASE | unique id 
+  ; so 16-bytes of stack somewhere in the 1KiB reserved...
+  ;
+  or  ax, STACKS_BASE
+  mov ss, ax
+
+  lgdt  [AP_GDT_DESC]                     ; Load GDT reg with the (temporary) descriptor
+
+  mov   bx,0x20                           ; Loading segment 4 (32-bit data)...
+  mov   ds,bx                             ; ... into DS
+  mov   es,bx
+
+  ; Jump to protected mode
+  mov   eax,cr0                           ; Get control register 0 into eax
+  or    al,1                              ; Set PR bit (enable protected mode)
+  mov   cr0,eax                           ; And put back into cr0
+
+  jmp   0x18:main32                       ; Far jump to main32, use GDT selector at offset 0x18 (32-bit code).
+
+bits 32
+main32:
+  mov   ax,0x20                           ; Set ax to 0x20 - offset of segment 4, the 32-bit data segment...
+  mov   ds,ax                             ; and set DS to that..
+  mov   es,ax                             ; and ES too...
+  mov   ss,ax                             ; as well as SS.
+
+  xor   eax,eax                           ; Set up a stack for protected mode
+  mov   ax,cx                             ; CX still has this AP's unique ID
+  shl   eax,4                             ; ... which we'll shift left by 4
+  or    eax,STACKS_BASE                   ; ... and OR in the stack base
+  add   eax,0x8                           ; ... then add 8 to point to stack top, minus the return address already stacked...
+  mov   esp,eax                           ; ... and we're good!
+
+  push  0                                 ; ... and make it 64-bit
+  push  ecx                               ; Stack the BSP unique id
+
+
+;;; GO LONG
+
+  mov   eax,0b10100000                    ; Set PAE and PGE bits
+  mov   cr4,eax
+
+  mov   eax,[k_pml4]                      ; Load PML4 into cr3
+  mov   cr3,eax
+
+  mov   ecx,0xC0000080                    ; Read EFER MSR
+  rdmsr
+
+  or    eax,0x100                         ; Set the long-mode enable bit
+  wrmsr                                   ; and write back to EFER MSR
+
+  mov   eax,cr0                           ; Activate paging to go full long mode
+  or    eax,0x80000000                    ; (we're already in protected mode)
+  mov   cr0,eax
+
+  jmp   0x08:main64                       ; Go go go
+
+
+; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; 64-bit section
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+bits 64
+main64:
+  mov qword [ap_flag], 1                  ; We made it to long mode, let the bsp know
+
+  or  rsp,0xffffffff80000000              ; Fix up stack for long mode
+  pop rdi                                 ; Pop the unique ID we pushed earlier,
+                                          ; and set it up as argument to the 
+                                          ; entrypoint we're about to "return" to...
+
+  xor rax, rax                            ; Zero out the rest of the GP registers...
+  xor rbx, rbx
+  xor rcx, rcx
+  xor rdx, rdx
+  xor rsi, rsi
+  xor rbp, rbp
+  xor r8,  r8
+  xor r9,  r9
+  xor r10, r10
+  xor r11, r11
+  xor r12, r12
+  xor r13, r13
+  xor r14, r14
+  xor r15, r15
+
+  ret                                     ; And "return" to the AP entrypoint
 
 align 16
+
+; TODO This is copied pretty-much verbatim from Stage 2!
+;
 
 AP_GDT:
   ; segment 0 - null
@@ -87,3 +227,11 @@ AP_TSS:
   dq  0                   ; IST8
   dw  0                   ; Reserved
   dw  0                   ; IOPB
+
+
+section .bss
+
+ap_count  resw  1         ; Unique ID flag
+reserved  resb  6
+k_pml4    resq  1         ; Kernel PML4 (physical)
+ap_flag   resq  1         ; AP booted flag

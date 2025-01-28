@@ -355,6 +355,7 @@ noreturn void start_kernel(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     init_kernel_gdt();
 
     pagetables_init();
+
     physical_region =
             page_alloc_init(memmap, PMM_PHYS_BASE, STATIC_PMM_VREGION);
 
@@ -405,7 +406,7 @@ noreturn void start_kernel(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
 
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table);
 
-    smp_bsp_start_ap(1, lapic);
+    smp_bsp_start_aps(lapic);
 
     pci_enumerate();
 

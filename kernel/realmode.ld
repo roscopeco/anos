@@ -24,8 +24,10 @@ ENTRY(_start)
 MEMORY {
     CODE    : org = 0x00004000,  l = 0x00004000                /* 16KiB (max) for realmode code */
     DATA    : org = 0x00008000,  l = 0x00001000                /* 4KiB for bss */
-    STACKS  : org = 0x00009000,  l = 0x00004000                /* 16KiB for stacks, each AP gets 64 bytes */
+    STACKS  : org = 0x00009000,  l = 0x00001000                /* 4KiB for stacks, each AP gets 16 bytes */
 }
+
+PROVIDE(STACKS_BASE = ORIGIN(STACKS));
 
 SECTIONS
 {
