@@ -14,7 +14,8 @@
 bool cpu_init_this(void);
 
 uint64_t cpu_read_msr(uint32_t msr);
-uint64_t rdtsc(void);
+uint64_t cpu_read_tsc(void);
+uint64_t cpu_read_local_apic_id(void);
 
 void cpu_tsc_delay(uint64_t cycles);
 void cpu_tsc_mdelay(int n);

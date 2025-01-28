@@ -19,15 +19,26 @@ inline uint64_t cpu_read_msr(uint32_t msr) {
     return ((uint64_t)edx << 32) | eax;
 }
 
-inline uint64_t cpu_rdtsc(void) {
+inline uint64_t cpu_read_tsc(void) {
     uint32_t edx, eax;
     __asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx));
     return ((uint64_t)edx << 32) | eax;
 }
 
+uint64_t cpu_read_local_apic_id(void) {
+    uint8_t bsp_apic_id;
+    __asm__ __volatile__("mov $1, %%eax\n\t"
+                         "cpuid\n\t"
+                         "shrl $24, %%ebx\n\t"
+                         : "=b"(bsp_apic_id)
+                         :
+                         :);
+    return bsp_apic_id;
+}
+
 inline void cpu_tsc_delay(uint64_t cycles) {
-    uint64_t wake_at = cpu_rdtsc() + cycles;
-    while (cpu_rdtsc() < wake_at)
+    uint64_t wake_at = cpu_read_tsc() + cycles;
+    while (cpu_read_tsc() < wake_at)
         ;
 }
 

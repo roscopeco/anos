@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include "acpitables.h"
 #include "kdrivers/cpu.h"
 #include "kdrivers/local_apic.h"
 #include "vmm/recursive.h"
@@ -15,6 +16,7 @@
 #ifdef DEBUG_SMP_STARTUP
 #include "debugprint.h"
 #include "printdec.h"
+#include "printhex.h"
 #include "spinlock.h"
 
 static SpinLock debug_output_lock;
@@ -120,8 +122,7 @@ static void ap_kernel_entrypoint(uint64_t ap_num) {
     }
 }
 
-void smp_bsp_start_aps(uint32_t volatile *lapic) {
-
+void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
     // copy the AP trampoline code to a fixed address in low conventional memory (to address 0x0400:0x0000)
     memcpy(AP_TRAMPOLINE_BASE_VADDR, AP_TRAMPOLINE_BIN_START,
            AP_TRAMPOLINE_BIN_LENGTH);
@@ -146,10 +147,69 @@ void smp_bsp_start_aps(uint32_t volatile *lapic) {
     *(AP_TRAMPOLINE_BSS_PML4) =
             vmm_recursive_find_pml4()->entries[RECURSIVE_ENTRY];
 
-    // Let's do it!
-    smp_bsp_start_ap(1, lapic);
-    smp_bsp_start_ap(2, lapic);
-    smp_bsp_start_ap(3, lapic);
+    ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
+
+    if (madt) {
+        uint16_t remain = madt->header.length - sizeof(ACPI_MADT);
+        uint8_t *ptr = ((uint8_t *)madt) + sizeof(ACPI_MADT);
+        uint8_t bsp_local_apic_id = cpu_read_local_apic_id();
+
+        while (remain > 0) {
+            uint8_t *type = ptr++;
+            uint8_t *len = ptr++;
+
+            switch (*type) {
+            case 0: // Processor local APIC
+                uint8_t cpu_id = *ptr++;
+                uint8_t lapic_id = *ptr++;
+                uint32_t *flags32 = (uint32_t *)ptr;
+                uint32_t flags = *flags32;
+
+                if (lapic_id != bsp_local_apic_id && (flags & 0x03) == 0x1) {
+                    // can enable!
+#ifdef DEBUG_SMP_STARTUP
+                    spinlock_lock(&debug_output_lock);
+                    debugstr("Will enable CPU ID  ");
+                    printhex8(cpu_id, debugchar);
+                    debugstr(" [LAPIC ");
+                    printhex8(lapic_id, debugchar);
+                    debugstr("; Flags: ");
+                    printhex32(flags, debugchar);
+                    debugstr("]\n");
+                    spinlock_unlock(&debug_output_lock);
+#endif
+                    smp_bsp_start_ap(cpu_id, lapic);
+                } else {
+#ifdef DEBUG_SMP_STARTUP
+                    if (lapic_id == bsp_local_apic_id) {
+                        spinlock_lock(&debug_output_lock);
+                        debugstr("Skipping CPU ID  ");
+                        printhex8(cpu_id, debugchar);
+                        debugstr(" - it is the BSP\n");
+                        spinlock_unlock(&debug_output_lock);
+                    } else {
+                        spinlock_lock(&debug_output_lock);
+                        debugstr("Cannot enable CPU ID  ");
+                        printhex8(cpu_id, debugchar);
+                        debugstr(" [LAPIC ");
+                        printhex8(lapic_id, debugchar);
+                        debugstr("; Flags: ");
+                        printhex32(flags, debugchar);
+                        debugstr("]\n");
+                        spinlock_unlock(&debug_output_lock);
+                    }
+#endif
+                }
+
+                ptr += 4;
+                break;
+            default:
+                ptr += *len - 2;
+            }
+
+            remain -= *len;
+        }
+    }
 
     // Unmap the low pages, they aren't needed any more...
     for (int i = 0x4000; i < 0xa000; i += 0x1000) {
