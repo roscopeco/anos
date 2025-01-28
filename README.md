@@ -230,6 +230,7 @@ it should be relatively recent.
 * Set up fixed block & slab allocators
 * _Just enough_ ACPI to initialise basic platform devices (HPET & LAPICs)
 * Init LAPICs and calibrate with HPET
+* Spin up the APs and park them in long-mode kernel code (for now)
 * Set everything up for usermode startup
 * Start a simple round-robin scheduler & drop to user mode
 * User-mode supervisor ("`SYSTEM`") starts some threads with a `syscall`, and then
@@ -240,7 +241,7 @@ it should be relatively recent.
 
 It's running in VirtualBox here, just for a change from qemu...
 
-<img src="images/Screenshot 2025-01-26 at 12.06.41.png" alt="ANOS running in VirtualBox">
+<img src="images/Screenshot 2025-01-28 at 22.09.42.png" alt="ANOS running in VirtualBox">
 
 The following things are not shown in this shot, but are still happening under the hood:
 
