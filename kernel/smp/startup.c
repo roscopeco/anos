@@ -9,6 +9,7 @@
 
 #include "acpitables.h"
 #include "cpuid.h"
+#include "gdt.h"
 #include "kdrivers/cpu.h"
 #include "kdrivers/local_apic.h"
 #include "vmm/recursive.h"
@@ -55,6 +56,8 @@ extern void *_binary_kernel_realmode_bin_start,
 #define AP_TRAMPOLINE_BSS_FLAG_VADDR ((AP_TRAMPOLINE_BSS_VADDR + 0x10))
 #define AP_TRAMPOLINE_BSS_FLAG                                                 \
     (((uint64_t volatile *)(AP_TRAMPOLINE_BSS_FLAG_VADDR)))
+#define AP_TRAMPOLINE_BSS_GDT_VADDR ((AP_TRAMPOLINE_BSS_VADDR + 0x18))
+#define AP_TRAMPOLINE_BSS_GDT (((GDTR *)(AP_TRAMPOLINE_BSS_GDT_VADDR)))
 
 static inline void memcpy(volatile void *dest, volatile void *src,
                           uint64_t count) {
@@ -96,7 +99,6 @@ void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
         ;
 
 #ifdef DEBUG_SMP_STARTUP
-#ifdef VERY_NOISY_SMP_STARTUP
     spinlock_lock(&debug_output_lock);
 
     debugstr("AP #");
@@ -104,7 +106,6 @@ void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
     debugstr(" is up...\n");
 
     spinlock_unlock(&debug_output_lock);
-#endif
 #endif
 }
 
@@ -153,6 +154,9 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
     // Give APs the same pagetables we have to start with
     *(AP_TRAMPOLINE_BSS_PML4) =
             vmm_recursive_find_pml4()->entries[RECURSIVE_ENTRY];
+
+    // Once in long-mode, we'll want APs to use our GDT...
+    store_gdtr(AP_TRAMPOLINE_BSS_GDT);
 
     ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
 

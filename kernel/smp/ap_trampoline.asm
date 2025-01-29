@@ -127,12 +127,14 @@ main32:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 bits 64
 main64:
-  mov qword [ap_flag], 1                  ; We made it to long mode, let the bsp know
-
   or  rsp,0xffffffff80000000              ; Fix up stack for long mode
   pop rdi                                 ; Pop the unique ID we pushed earlier,
                                           ; and set it up as argument to the 
                                           ; entrypoint we're about to "return" to...
+
+  lgdt  [k_gdtr]                          ; Load the kernel GDT we were given
+
+  mov qword [ap_flag], 1                  ; We made it to long mode, let the bsp know
 
   xor rax, rax                            ; Zero out the rest of the GP registers...
   xor rbx, rbx
@@ -235,3 +237,5 @@ ap_count  resw  1         ; Unique ID flag
 reserved  resb  6
 k_pml4    resq  1         ; Kernel PML4 (physical)
 ap_flag   resq  1         ; AP booted flag
+k_gdtr    resd  3         ; Kernel GDT
+reserved2 resd  1

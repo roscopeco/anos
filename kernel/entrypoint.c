@@ -406,7 +406,9 @@ noreturn void start_kernel(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
 
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table);
 
+#ifndef NO_SMP
     smp_bsp_start_aps(acpi_root_table, lapic);
+#endif
 
     pci_enumerate();
 
