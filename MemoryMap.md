@@ -35,7 +35,7 @@ These memory areas are reserved, and not added into the pool managed by the PMM.
 
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
-| `0x0000000000008400` | `0x0000000000009bff` | BIOS E820h memory map (passed to kernel by stage2)           |
+| `0x0000000000008400` | `0x0000000000009bff` | BIOS E820h memory map (passed to kernel by stage2, SEE BELOW)|
 | `0x0000000000099000` | `0x0000000000099fff` | PMM Bootstrap page (Region struct and bottom of stack)       |
 | `0x000000000009a000` | `0x000000000009afff` | PMM Area bootstrap page directory                            |
 | `0x000000000009b000` | `0x000000000009bfff` | PMM Area bootstrap page table                                |
@@ -46,6 +46,21 @@ These memory areas are reserved, and not added into the pool managed by the PMM.
 | `0x0000000000100000` | `0x000000000010ffff` | Initial 64KiB long-mode stack (set up by stage 2 for kernel) |
 | `0x0000000000110000` | `0x000000000011ffff` | 64KiB Kernel BSS                                             |
 | `0x0000000000120000` | `0x00000000001fffff` | 896KiB Kernel load area                                      |
+
+The `0x8400-0x9bff` space is reused for the AP startup trampoline, which is done after the memory map has
+been processed during early startup. Once AP startup is in progress, that area looks like:
+
+| Start                | End                  | Use                                                          |
+|----------------------|----------------------|--------------------------------------------------------------|
+| `0x0000000000001000` | `0x0000000000004fff` | AP trampoline bootstrap code (real -> long mode)             |
+| `0x0000000000005000` | `0x0000000000005fff` | AP trampoline Data / BSS - kernel passes data to and from    |
+| `0x0000000000006000` | `0x00000000000d5fff` | AP initial stacks (2KiB each AP for now)                     |
+
+This area remains reserved until AP startup is fully complete and the scheduler has been initialized on
+all APs - until that time, this area will still be in use for stacks (at least).
+
+These ranges are defined in `realmode.ld` (and repeated in `startup.c` so if you change them, keep them
+in step or you're likely to experience sadness).
 
 ### Long Mode Initial Page Table Layout
 
