@@ -23,7 +23,7 @@ typedef struct {
 typedef struct {
     uint16_t limit;
     uint64_t base;
-} __attribute__((packed)) Idtr;
+} __attribute__((packed)) IDTR;
 
 typedef void(isr_dispatcher)(void);
 
@@ -36,7 +36,7 @@ typedef void(isr_dispatcher)(void);
 
 void idt_entry(IdtEntry *target, isr_dispatcher *handler, uint16_t segment,
                uint8_t ist_entry, uint8_t attr);
-void idt_r(Idtr *target, uintptr_t base, uint16_t limit);
+void idt_r(IDTR *target, uintptr_t base, uint16_t limit);
 
 void idt_install(uint16_t kernel_cs);
 

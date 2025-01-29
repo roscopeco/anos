@@ -48,7 +48,7 @@ static void thread2() {
 
 static void thread3() {
     int count = 0;
-    printf("\nTask 3 - startup and immediately sleep...\n");
+    printf("Task 3 - startup and immediately sleep...\n");
     anos_task_sleep_current_secs(3);
     printf("\nTask 3 has arisen!\n");
 
@@ -61,7 +61,7 @@ static void thread3() {
 
 static void thread4() {
     int count = 0;
-    printf("\nTask 4 - startup and immediately sleep...\n");
+    printf("Task 4 - startup and immediately sleep...\n");
     anos_task_sleep_current_secs(10);
     printf("\nTask 4 has arisen!\n");
 

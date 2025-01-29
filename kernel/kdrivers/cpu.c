@@ -13,10 +13,43 @@ bool cpu_init_this(void) {
     return true;
 }
 
-uint64_t cpu_read_msr(uint32_t msr) {
+inline uint64_t cpu_read_msr(uint32_t msr) {
     uint32_t eax, edx;
     __asm__ volatile("rdmsr" : "=a"(eax), "=d"(edx) : "c"(0xCE));
     return ((uint64_t)edx << 32) | eax;
+}
+
+inline uint64_t cpu_read_tsc(void) {
+    uint32_t edx, eax;
+    __asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx));
+    return ((uint64_t)edx << 32) | eax;
+}
+
+uint64_t cpu_read_local_apic_id(void) {
+    uint8_t bsp_apic_id;
+    __asm__ __volatile__("mov $1, %%eax\n\t"
+                         "cpuid\n\t"
+                         "shrl $24, %%ebx\n\t"
+                         : "=b"(bsp_apic_id)
+                         :
+                         :);
+    return bsp_apic_id;
+}
+
+inline void cpu_tsc_delay(uint64_t cycles) {
+    uint64_t wake_at = cpu_read_tsc() + cycles;
+    while (cpu_read_tsc() < wake_at)
+        ;
+}
+
+void cpu_tsc_mdelay(int n) {
+    // TODO actually calibrate?
+    cpu_tsc_delay(n * 1000000);
+}
+
+void cpu_tsc_udelay(int n) {
+    // TODO actually calibrate?
+    cpu_tsc_delay(n * 1000000);
 }
 
 #ifdef DEBUG_CPU
@@ -38,7 +71,9 @@ static void debug_cpu_brand(void) {
         }
     }
 
-    debugstr("\nCPU #0: ");
+    debugstr("CPU #");
+    printdec(cpu_read_local_apic_id(), debugchar);
+    debugstr(": ");
     debugstr(&brand[0]);
     debugstr("\n");
 }

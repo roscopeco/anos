@@ -6,7 +6,7 @@ QEMU?=qemu-system-x86_64
 XCC?=x86_64-elf-gcc
 BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
-CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
+CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23										\
 		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=kernel															\
@@ -26,26 +26,32 @@ endif
 #
 #   CONSERVATIVE_BUILD	Will build a (slow) kernel with various invariant checks
 #
-#   DEBUG_VMM 			Enable debugging of the VMM
-#	VERY_NOISY_VMM		Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
-#	DEBUG_PAGE_FAULT	Enable debugging in page fault handler
-#	DEBUG_ACPI			Enable debugging in ACPI mapper / parser
-#	DEBUG_MADT			Enable debug dump of the Multiple APIC Descriptor Table at boot
-#	VERY_NOISY_ACPI		Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
-#   DEBUG_LAPIC_INIT	Enable debugging of LAPIC initialisation
-#	DEBUG_PCI_ENUM		Enable debugging of PCI enumeration
-#	VERY_NOISY_PCI_ENUM	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
-#	DEBUG_HPET			Enable debugging of the HPET initialisation
-#	DEBUG_SLEEP			Enable debugging of the sleep (and eventually yield etc) syscall(s)
-#	DEBUG_CPU			Enable debugging of CPU information at boot
-#	DEBUG_CPU_FREQ		Enable debugging of CPU frequency calibration (requires DEBUG_CPU)
+#	DEBUG_VMM				Enable debugging of the VMM
+#	VERY_NOISY_VMM			Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
+#	DEBUG_PAGE_FAULT		Enable debugging in page fault handler
+#	DEBUG_ACPI				Enable debugging in ACPI mapper / parser
+#	DEBUG_MADT				Enable debug dump of the Multiple APIC Descriptor Table at boot
+#	VERY_NOISY_ACPI			Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
+#	DEBUG_LAPIC_INIT		Enable debugging of LAPIC initialisation
+#	DEBUG_PCI_ENUM			Enable debugging of PCI enumeration
+#	VERY_NOISY_PCI_ENUM		Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
+#	DEBUG_HPET				Enable debugging of the HPET initialisation
+#	DEBUG_SLEEP				Enable debugging of the sleep (and eventually yield etc) syscall(s)
+#	DEBUG_CPU				Enable debugging of CPU information at boot
+#	DEBUG_CPU_FREQ			Enable debugging of CPU frequency calibration (requires DEBUG_CPU)
+#	DEBUG_SMP_STARTUP		Enable debugging of SMP AP startup
+#	VERY_NOISY_SMP_STARTUP	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
 #
 # These ones enable some specific feature tests
 #
 #	DEBUG_FORCE_HANDLED_PAGE_FAULT		Force a handled page-fault at boot
 #	DEBUG_FORCE_UNHANDLED_PAGE_FAULT	Force an unhandled page-fault at boot
-#   DEBUG_TASK_SWITCH					Dump debug info when switching tasks
+#	DEBUG_TASK_SWITCH					Dump debug info when switching tasks
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
+#
+# And these will selectively disable features
+#
+#	NO_SMP					Disable SMP (don't spin-up any of the APs)
 #
 # Additionally:
 #
@@ -60,6 +66,7 @@ STAGE2?=stage2
 STAGE3?=kernel
 SYSTEM?=system
 LIBANOS?=libanos
+REALMODE?=realmode
 STAGE1_DIR?=$(STAGE1)
 STAGE2_DIR?=$(STAGE2)
 STAGE3_DIR?=$(STAGE3)
@@ -69,6 +76,7 @@ STAGE1_BIN=$(STAGE1).bin
 STAGE2_BIN=$(STAGE2).bin
 STAGE3_BIN=$(STAGE3).bin
 SYSTEM_BIN=$(SYSTEM).bin
+REALMODE_BIN=$(REALMODE).bin
 LIBANOS_ARCHIVE=$(LIBANOS).a
 
 export LIBANOS_DIR
@@ -147,8 +155,13 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/sleep.o												\
 			$(STAGE3_DIR)/cpuid.o												\
 			$(STAGE3_DIR)/sleep_queue.o											\
+			$(STAGE3_DIR)/smp/startup.o											\
+			$(STAGE3_DIR)/panic.o												\
+			$(STAGE3_DIR)/$(REALMODE)_linkable.o								\
 			$(SYSTEM)_linkable.o
-			
+		
+REALMODE_OBJS=$(STAGE3_DIR)/smp/ap_trampoline.o
+
 ALL_TARGETS=floppy.img
 
 FLOPPY_DEPENDENCIES=$(STAGE1_DIR)/$(STAGE1_BIN) 								\
@@ -162,6 +175,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
 				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
 				$(STAGE3_DIR)/structs/*.o $(STAGE3_DIR)/sched/*.o				\
+				$(STAGE3_DIR)/smp/*.o											\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
@@ -225,7 +239,22 @@ $(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile $(LIBANOS_DIR)/$(LIBANOS_ARC
 	$(MAKE) -C $(SYSTEM_DIR)
 
 $(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
-	$(XOBJCOPY) -I binary --rename-section .data=.system_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+	$(XOBJCOPY) -I binary --rename-section .data=.$(SYSTEM)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+
+# ############ Real mode #############
+$(STAGE3_DIR)/$(REALMODE).elf: $(REALMODE_OBJS)
+	$(XLD) -T $(STAGE3_DIR)/$(REALMODE).ld -o $@ $^
+	chmod a-x $@
+
+$(STAGE3_DIR)/$(REALMODE).dis: $(STAGE3_DIR)/$(REALMODE).elf
+	$(XOBJDUMP) -D -S -Maddr64,data64 $< > $@
+
+$(STAGE3_DIR)/$(REALMODE_BIN): $(STAGE3_DIR)/$(REALMODE).elf $(STAGE3_DIR)/$(REALMODE).dis
+	$(XOBJCOPY) --strip-debug -O binary $< $@
+	chmod a-x $@
+
+$(STAGE3_DIR)/$(REALMODE)_linkable.o: $(STAGE3_DIR)/$(REALMODE_BIN)
+	$(XOBJCOPY) -I binary --rename-section .data=.$(REALMODE)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
 
 # ############# Stage 3 ##############
 $(STAGE3_DIR)/$(STAGE3).elf: $(STAGE3_OBJS)
@@ -246,7 +275,7 @@ $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
 
-QEMU_OPTS=-smp cpus=2 -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -monitor stdio
+QEMU_OPTS=-smp cpus=4 -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -monitor stdio
 QEMU_DEBUG_OPTS=$(QEMU_OPTS) -gdb tcp::9666 -S
 
 qemu: $(FLOPPY_IMG)

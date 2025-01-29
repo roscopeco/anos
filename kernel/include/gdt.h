@@ -46,16 +46,6 @@ typedef struct {
     uint8_t base_high;
 } __attribute__((packed)) GDTEntry;
 
-// Execute `lgdt` to load a variable with the GDTR
-static inline void load_gdtr(GDTR *gdtr) {
-    __asm__ __volatile__("lgdt (%0)" : : "r"(gdtr));
-}
-
-// Execute `sgdt` to load GDTR from a variable
-static inline void store_gdtr(GDTR *gdtr) {
-    __asm__ __volatile__("sgdt (%0)" : : "r"(gdtr));
-}
-
 // Function to get a GDT entry given a GDTR and index
 GDTEntry *get_gdt_entry(GDTR *gdtr, int index);
 

@@ -27,7 +27,7 @@ extern void pic_init(void);
 
 // These can't live here long-term, but it'll do for now...
 static IdtEntry idt[256];
-static Idtr idtr;
+static IDTR idtr;
 
 void idt_install(uint16_t kernel_cs) {
     install_trap(0);

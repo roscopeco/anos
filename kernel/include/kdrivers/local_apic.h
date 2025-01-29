@@ -8,8 +8,10 @@
 #ifndef __ANOS_KERNEL_DRIVERS_LOCAL_APIC_H
 #define __ANOS_KERNEL_DRIVERS_LOCAL_APIC_H
 
-#include "acpitables.h"
+#include <stdbool.h>
 #include <stdint.h>
+
+#include "acpitables.h"
 
 // This doesn't belong here, it'll go away when we go tickless...
 #define KERNEL_HZ ((100))
@@ -21,6 +23,8 @@
 #define REG_LAPIC_DIVIDE_O 0xf8
 #define REG_LAPIC_INITIAL_COUNT_O 0xe0
 #define REG_LAPIC_CURRENT_COUNT_O 0xe4
+#define REG_LAPIC_ICR_LOW_O 0xc0
+#define REG_LAPIC_ICR_HIGH_O 0xc4
 #define REG_LAPIC_LVT_TIMER_O 0xc8
 
 #define LAPIC_REG(lapic, reg) ((lapic + REG_LAPIC##_##reg##_##O))
@@ -32,6 +36,8 @@
 #define REG_LAPIC_DIVIDE(lapic) (LAPIC_REG(lapic, DIVIDE))
 #define REG_LAPIC_INITIAL_COUNT(lapic) (LAPIC_REG(lapic, INITIAL_COUNT))
 #define REG_LAPIC_CURRENT_COUNT(lapic) (LAPIC_REG(lapic, CURRENT_COUNT))
+#define REG_LAPIC_ICR_LOW(lapic) (LAPIC_REG(lapic, ICR_LOW))
+#define REG_LAPIC_ICR_HIGH(lapic) (LAPIC_REG(lapic, ICR_HIGH))
 #define REG_LAPIC_LVT_TIMER(lapic) (LAPIC_REG(lapic, LVT_TIMER))
 
 #define LAPIC_TIMER_VECTOR (((uint8_t)0x30))
@@ -44,7 +50,7 @@ typedef struct {
     uint16_t reserved;
 } LocalAPIC;
 
-void init_local_apic(ACPI_MADT *madt);
+uint32_t volatile *init_local_apic(ACPI_MADT *madt, bool bsp);
 
 uint64_t local_apic_get_count(void);
 

@@ -18,7 +18,7 @@ void idt_entry(IdtEntry *target, isr_dispatcher *handler, uint16_t segment,
     target->attr = attr;
 }
 
-void idt_r(Idtr *target, uintptr_t base, uint16_t limit) {
+void idt_r(IDTR *target, uintptr_t base, uint16_t limit) {
     target->limit = limit;
     target->base = base;
 }
