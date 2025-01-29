@@ -51,30 +51,16 @@ _start:
   cli
   cld
 
-  xor sp, sp
+.get_id:                                  ; Each AP gets a unique ID...
+  mov ax, WORD [ap_count]                 ; There's a counter in the (shared) BSS,
+  mov bx, ax                              ; each AP just atomically grabs the next
+  inc bx                                  ; number and uses that...
+  lock cmpxchg WORD [ap_count], bx        ; NOTE that it doesn't necessarily match
+  jnz .get_id                             ; LAPIC or CPU IDs!
 
-  ; Each AP gets a unique ID...
-.get_id:
-  mov ax, WORD [ap_count]
-  mov bx, ax
-  inc bx
-  lock cmpxchg WORD [ap_count], bx
-  jnz .get_id
-
-  mov cx, ax
-
-  ; Set up stack for this AP...
-  ;   ss = STACKS_BASE | unique id 
-  ; so 16-bytes of stack somewhere in the 1KiB reserved...
-  ;
-  or  ax, STACKS_BASE
-  mov ss, ax
+  mov cx, ax                              ; Stash the unique ID in cx for now...
 
   lgdt  [AP_GDT_DESC]                     ; Load GDT reg with the (temporary) descriptor
-
-  mov   bx,0x20                           ; Loading segment 4 (32-bit data)...
-  mov   ds,bx                             ; ... into DS
-  mov   es,bx
 
   ; Jump to protected mode
   mov   eax,cr0                           ; Get control register 0 into eax
