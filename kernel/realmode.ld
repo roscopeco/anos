@@ -22,12 +22,15 @@ OUTPUT_FORMAT("elf32-i386")
 ENTRY(_start)
 
 MEMORY {
-    CODE    : org = 0x00004000,  l = 0x00004000                /* 16KiB (max) for realmode code */
-    DATA    : org = 0x00008000,  l = 0x00001000                /* 4KiB for bss */
-    STACKS  : org = 0x00009000,  l = 0x00001000                /* 4KiB for stacks, each AP gets 16 bytes */
+    CODE    : org = 0x00001000,  l = 0x00004000                /* 4KiB (max) for realmode code */
+    DATA    : org = 0x00005000,  l = 0x00001000                /* 4KiB for bss */
+    STACKS  : org = 0x00006000,  l = 0x00008000                /* 32KiB for stacks, each AP gets 2KiB bytes */
+                                                               /* (based on current max 16 CPUs) */
 }
 
 PROVIDE(STACKS_BASE = ORIGIN(STACKS));
+PROVIDE(STACK_SHIFT = 11);
+PROVIDE(STACK_START_OFS = 0x7f8);
 
 SECTIONS
 {

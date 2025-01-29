@@ -9,11 +9,10 @@
 
 #include "debugprint.h"
 #include "machine.h"
+#include "panic.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
 #include "vmm/vmmapper.h"
-
-#define IS_KERNEL_CODE(addr) (((addr & 0xFFFFFFFF80000000) != 0))
 
 #ifdef DEBUG_PAGE_FAULT
 #define C_DEBUGSTR debugstr
@@ -66,20 +65,7 @@ static inline void debug_page_fault(uint64_t code, uintptr_t fault_addr,
     }
 #endif
 
-    debugattr(0x4C);
-    debugstr("PANIC");
-    debugattr(0x0C);
-    debugstr("         : Unhandled page fault (0x0e)");
-    debugstr("\nCode          : ");
-    printhex64(code, debugchar);
-    debug_page_fault_code(code);
-    debugstr("\nOrigin IP     : ");
-    printhex64(origin_addr, debugchar);
-    debugstr(IS_KERNEL_CODE(origin_addr) ? " [KERNEL]" : " [NON-KERNEL]");
-    debugstr("\nFault addr    : ");
-    printhex64(fault_addr, debugchar);
-
-    halt_and_catch_fire();
+    panic_page_fault(origin_addr, fault_addr, code);
 }
 
 void handle_page_fault(uint64_t code, uint64_t fault_addr,

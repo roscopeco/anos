@@ -29,7 +29,7 @@
 bits 64
 global _start
 
-extern start_kernel
+extern bsp_kernel_entrypoint
 extern _bss_start, _bss_end               ; Linker defined symbols
 
 section .text.init                        ; Linker needs to make sure this goes in first...
@@ -64,7 +64,7 @@ _start:
                                           ; fine until next time there's an exception...
 
 .done:
-  jmp   start_kernel                      ; Let's do some C...
+  jmp   bsp_kernel_entrypoint             ; Let's do some C...
 
 .GDT_DESC:
   ; GDT Descriptor

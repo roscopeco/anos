@@ -8,8 +8,10 @@
 #ifndef __ANOS_KERNEL_DRIVERS_LOCAL_APIC_H
 #define __ANOS_KERNEL_DRIVERS_LOCAL_APIC_H
 
-#include "acpitables.h"
+#include <stdbool.h>
 #include <stdint.h>
+
+#include "acpitables.h"
 
 // This doesn't belong here, it'll go away when we go tickless...
 #define KERNEL_HZ ((100))
@@ -48,7 +50,7 @@ typedef struct {
     uint16_t reserved;
 } LocalAPIC;
 
-uint32_t volatile *init_local_apic(ACPI_MADT *madt);
+uint32_t volatile *init_local_apic(ACPI_MADT *madt, bool bsp);
 
 uint64_t local_apic_get_count(void);
 

@@ -23,6 +23,7 @@
 #include "kdrivers/local_apic.h"
 #include "ktypes.h"
 #include "machine.h"
+#include "panic.h"
 #include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
 #include "printdec.h"
@@ -222,7 +223,7 @@ static inline void banner() {
 
 static inline void install_interrupts() { idt_install(0x08); }
 
-static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt) {
+static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt, bool bsp) {
     cpu_init_this();
     cpu_debug_info();
 
@@ -234,7 +235,7 @@ static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt) {
         halt_and_catch_fire();
     }
 
-    return init_local_apic(madt);
+    return init_local_apic(madt, bsp);
 }
 
 // Replace the bootstrap 32-bit pages with 64-bit user pages.
@@ -247,7 +248,7 @@ static inline void init_kernel_gdt() {
     GDTEntry *user_code;
     GDTEntry *user_data;
 
-    store_gdtr(&gdtr);
+    cpu_store_gdtr(&gdtr);
 
     // Reverse ordered because SYSRET is fucking weird...
     user_data = get_gdt_entry(&gdtr, 3);
@@ -271,7 +272,7 @@ static inline void init_kernel_gdt() {
 static inline void *get_tss() {
     GDTR gdtr;
 
-    store_gdtr(&gdtr);
+    cpu_store_gdtr(&gdtr);
 
     GDTEntry *tss_entry = get_gdt_entry(&gdtr, 5);
 
@@ -335,20 +336,31 @@ noreturn void start_system(void) {
     __builtin_unreachable();
 }
 
-static void panic(char *msg) {
-    debugattr(0x4C);
-    debugstr("PANIC");
-    debugattr(0x0C);
+noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
+#ifdef DEBUG_SMP_STARTUP
+#ifdef VERY_NOISY_SMP_STARTUP
+    spinlock_lock(&debug_output_lock);
 
-    debugstr("         : ");
-    debugstr(msg);
-    debugstr(" - ");
+    debugstr("AP #");
+    printdec(ap_num, debugchar);
+    debugstr(" has entered the chat...\n");
 
-    debugstr("\nHalting...");
-    halt_and_catch_fire();
+    spinlock_unlock(&debug_output_lock);
+#endif
+#endif
+
+    init_cpuid();
+
+    syscall_init();
+
+    uint32_t volatile *lapic = init_this_cpu(acpi_root_table, false);
+
+    while (1) {
+        __asm__ volatile("hlt");
+    }
 }
 
-noreturn void start_kernel(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
+noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     debugterm_init(VRAM_VIRT_BASE);
     banner();
 
@@ -404,7 +416,7 @@ noreturn void start_kernel(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     debug_madt(acpi_root_table);
     kernel_drivers_init(acpi_root_table);
 
-    uint32_t volatile *lapic = init_this_cpu(acpi_root_table);
+    uint32_t volatile *lapic = init_this_cpu(acpi_root_table, true);
 
 #ifndef NO_SMP
     smp_bsp_start_aps(acpi_root_table, lapic);

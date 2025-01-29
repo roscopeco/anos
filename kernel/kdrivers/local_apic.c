@@ -5,6 +5,7 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "acpitables.h"
@@ -16,6 +17,7 @@
 #include "machine.h"
 #include "printdec.h"
 #include "printhex.h"
+#include "spinlock.h"
 #include "vmm/vmmapper.h"
 
 #define NANOS_IN_20MS (((uint64_t)20000000))
@@ -61,7 +63,9 @@ static uint64_t local_apic_calibrate_count(KernelTimer *calibrated_timer,
     return ticks_in_20ms * 50 / desired_hz;
 }
 
-uint32_t volatile *init_local_apic(ACPI_MADT *madt) {
+static SpinLock init_timers_spinlock;
+
+uint32_t volatile *init_local_apic(ACPI_MADT *madt, bool bsp) {
     uint32_t lapic_addr = madt->lapic_address;
 #ifdef DEBUG_LAPIC_INIT
     uint32_t *flags = lapic_addr + 1;
@@ -71,7 +75,10 @@ uint32_t volatile *init_local_apic(ACPI_MADT *madt) {
     printhex32(*flags, debugchar);
     debugstr("]\n");
 #endif
-    vmm_map_page(KERNEL_HARDWARE_VADDR_BASE, lapic_addr, PRESENT | WRITE);
+
+    if (bsp) {
+        vmm_map_page(KERNEL_HARDWARE_VADDR_BASE, lapic_addr, PRESENT | WRITE);
+    }
 
     uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
 
@@ -86,11 +93,20 @@ uint32_t volatile *init_local_apic(ACPI_MADT *madt) {
     // Set spurious interrupt and enable
     *(REG_LAPIC_SPURIOUS(lapic)) = 0x1FF;
 
+    // if (bsp) {
+    spinlock_lock(&init_timers_spinlock);
     KernelTimer *timer = hpet_as_timer();
-    uint64_t hz_ticks = local_apic_calibrate_count(timer, KERNEL_HZ);
+
+    uint64_t hz_ticks;
+    hz_ticks = local_apic_calibrate_count(timer, KERNEL_HZ);
+    spinlock_unlock(&init_timers_spinlock);
 
     // /16 mode, init count based on caibrated kernel Hz.
-    start_timer(lapic, 0x03, hz_ticks);
+    if (bsp) {
+        // Can't start AP timer ticks yet, we don't have everything set up
+        // to handle them...
+        start_timer(lapic, 0x03, hz_ticks);
+    }
 
     return lapic;
 }

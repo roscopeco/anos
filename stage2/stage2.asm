@@ -53,6 +53,48 @@ extern init_page_tables                   ; Defined in init_pagetables.asm
 
 extern PM4_START                          ; Variable, Defined in init_pagetables.asm
 
+%macro init_tss 1
+  mov   rax,TSS%1
+  or    rax,0xFFFFFFFF80000000
+  mov   word [TSS%1_BASE_LOW],ax
+  shr   rax,0x10
+  mov   byte [TSS%1_BASE_MID],al
+  shr   rax,0x08
+  mov   byte [TSS%1_BASE_HIGH],al
+%endmacro
+
+%macro tss_segment 1
+  dw 0x0067               ; 104 bytes for a TSS
+TSS%1_BASE_LOW:
+  dw 0                    ; Base (bits 0-15) - 0 (calculated at runtime)
+TSS%1_BASE_MID:
+  db 0                    ; Base (bits 16-23) - 0 (calculated at runtime)
+  db 0b10001001           ; Access: 1 = Present, 00 = Ring 0, 0 = Type (system), 1001 = Long mode TSS (Available)
+  db 0b00010000           ; Flags + Limit: 0 = byte granularity, 0 = 16-bit, 0 = Long mode, 1 = Available
+TSS%1_BASE_HIGH:
+  db 0                    ; Base (bits 23-31) - 0 (calculated at runtime)
+  dd 0xFFFFFFFF           ; Base (bits 32-63) - 0xFFFFFFFF (in the identity-mapped kernel mem)
+  dd 0                    ; Reserved
+%endmacro
+
+%macro define_tss 2
+TSS%1:
+  dd  0                   ; Reserved
+  dq  %2                  ; RSP0
+  dq  0                   ; RSP1
+  dq  0                   ; RSP2
+  dq  0                   ; Reserved
+  dq  0                   ; IST1
+  dq  0                   ; IST2
+  dq  0                   ; IST3
+  dq  0                   ; IST4
+  dq  0                   ; IST5
+  dq  0                   ; IST6
+  dq  0                   ; IST7
+  dq  0                   ; IST8
+  dw  0                   ; Reserved
+  dw  0                   ; IOPB
+%endmacro
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; 16-bit section
@@ -187,15 +229,25 @@ main64:
   mov   byte [0xb8002],'L'                ; Print "L"
   mov   byte [0xb8003],0x2a               ; In color
 
-  mov   rax,TSS
-  or    rax,0xFFFFFFFF80000000
-  mov   word [TSS_BASE_LOW],ax
-  shr   rax,0x10
-  mov   byte [TSS_BASE_MID],al
-  shr   rax,0x08
-  mov   byte [TSS_BASE_HIGH],al
+  init_tss 0                              ; Init 16 TSS segments
+  init_tss 1                              ; Note: this totally isn't scalable, it will change
+  init_tss 2                              ; eventually to (probably) having the whole GDT in 
+  init_tss 3                              ; managed memory rather than statically defined here...
+  init_tss 4
+  init_tss 5
+  init_tss 6
+  init_tss 7
+  init_tss 8
+  init_tss 9
+  init_tss 10
+  init_tss 11
+  init_tss 12
+  init_tss 13
+  init_tss 14
+  init_tss 15
+
   mov   ax,0x28
-  ltr   ax                                ; Load the TSS (GDT selector 5)
+  ltr   ax                                ; Load the TSS (GDT selector 5 for the BSP)
 
   call  find_acpi_tables                  ; Find the ACPI tables (places address in rdi for stage 3, first param)
   mov   rsi,0xFFFFFFFF80008400            ; Memory map was loaded at 0x8400, pass kernel-space mapping into stage3
@@ -297,38 +349,46 @@ GDT:
   db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
 
-  ; segment 5 - TSS - Base is calculated in code...
-  dw 0x0067               ; 104 bytes for a TSS
-TSS_BASE_LOW:
-  dw 0                    ; Base (bits 0-15) - 0 (calculated at runtime)
-TSS_BASE_MID:
-  db 0                    ; Base (bits 16-23) - 0 (calculated at runtime)
-  db 0b10001001           ; Access: 1 = Present, 00 = Ring 0, 0 = Type (system), 1001 = Long mode TSS (Available)
-  db 0b00010000           ; Flags + Limit: 0 = byte granularity, 0 = 16-bit, 0 = Long mode, 1 = Available
-TSS_BASE_HIGH:
-  db 0                    ; Base (bits 23-31) - 0 (calculated at runtime)
-  dd 0xFFFFFFFF           ; Base (bits 32-63) - 0xFFFFFFFF (in the identity-mapped kernel mem)
-  dd 0                    ; Reserved
+  ; segments 5 to 20 - TSSn (one per supported CPU)
+  ; Values within these are calculated in code...
+  tss_segment 0
+  tss_segment 1
+  tss_segment 2
+  tss_segment 3
+  tss_segment 4
+  tss_segment 5
+  tss_segment 6
+  tss_segment 7
+  tss_segment 8
+  tss_segment 9
+  tss_segment 10
+  tss_segment 11
+  tss_segment 12
+  tss_segment 13
+  tss_segment 14
+  tss_segment 15
 
 GDT_DESC:
   ; GDT Descriptor
   dw  GDT_DESC-GDT-1      ; Size (computed from here - start)
   dd  GDT                 ; Address (GDT, above)
 
-
-TSS:
-  dd  0                   ; Reserved
-  dq  0xFFFFFFFF80110000  ; RSP0
-  dq  0                   ; RSP1
-  dq  0                   ; RSP2
-  dq  0                   ; Reserved
-  dq  0                   ; IST1
-  dq  0                   ; IST2
-  dq  0                   ; IST3
-  dq  0                   ; IST4
-  dq  0                   ; IST5
-  dq  0                   ; IST6
-  dq  0                   ; IST7
-  dq  0                   ; IST8
-  dw  0                   ; Reserved
-  dw  0                   ; IOPB
+; Define the actual TSSes - only the first gets an RSP0 
+; at this point, the rest are set up for their individual 
+; CPUs later...
+define_tss 0, 0xFFFFFFFF80110000
+define_tss 1, 0
+define_tss 2, 0
+define_tss 3, 0
+define_tss 4, 0
+define_tss 5, 0
+define_tss 6, 0
+define_tss 7, 0
+define_tss 8, 0
+define_tss 9, 0
+define_tss 10, 0
+define_tss 11, 0
+define_tss 12, 0
+define_tss 13, 0
+define_tss 14, 0
+define_tss 15, 0

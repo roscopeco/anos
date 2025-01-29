@@ -2,14 +2,14 @@ bits 16
 
 section .text.init
 global _start
-extern STACKS_BASE
+extern STACKS_BASE, STACK_SHIFT, STACK_START_OFS
 
 ; This is the AP trampoline.
 ;
-; This code is at 0x0400:0000 (0x4000 linear), and we enter in real mode.
-; BSS is at 0x8000, and each AP has its own 16 byte (yeah, really) stack 
-; in the region starting from 0x9000. The real-mode code is responsible for
-; setting that up (keep reading).
+; This code is at 0x0100:0000 (0x1000 linear), and we enter in real mode.
+; BSS is at 0x1000, and each AP has its own 2KiB stack in the region starting
+; from 0x6000. The real-mode code is responsible for setting that up 
+; (keep reading).
 ;
 ; The BSS will have a few things already set up by the SMP startup code:
 ;
@@ -92,13 +92,13 @@ main32:
 
   xor   eax,eax                           ; Set up a stack for protected mode
   mov   ax,cx                             ; CX still has this AP's unique ID
-  shl   eax,4                             ; ... which we'll shift left by 4
+  shl   eax,STACK_SHIFT                   ; ... which we'll shift left by 4
   or    eax,STACKS_BASE                   ; ... and OR in the stack base
-  add   eax,0x8                           ; ... then add 8 to point to stack top, minus the return address already stacked...
+  add   eax,STACK_START_OFS               ; ... then add 8 to point to stack top, minus the return address already stacked...
   mov   esp,eax                           ; ... and we're good!
 
-  push  0                                 ; ... and make it 64-bit
-  push  ecx                               ; Stack the BSP unique id
+  push  0                                 ; Stack the BSP unique id
+  push  ecx                               ; ... as 64-bit
 
 
 ;;; GO LONG
@@ -128,11 +128,19 @@ main32:
 bits 64
 main64:
   or  rsp,0xffffffff80000000              ; Fix up stack for long mode
+
   pop rdi                                 ; Pop the unique ID we pushed earlier,
                                           ; and set it up as argument to the 
                                           ; entrypoint we're about to "return" to...
 
   lgdt  [k_gdtr]                          ; Load the kernel GDT we were given
+
+  mov rcx,rdi                             ; Set up the TSS for this specific core,
+  shl rcx,4                               ; based on the unique ID we grabbed at
+  add rcx,0x28                            ; the beginning. NOTE: This may differ
+  ltr cx                                  ; from the CPU / LAPIC ID for this CPU!
+
+  lidt  [k_idtr]                          ; Load the kernel IDT we were given
 
   mov qword [ap_flag], 1                  ; We made it to long mode, let the bsp know
 
@@ -239,3 +247,5 @@ k_pml4    resq  1         ; Kernel PML4 (physical)
 ap_flag   resq  1         ; AP booted flag
 k_gdtr    resd  3         ; Kernel GDT
 reserved2 resd  1
+k_idtr    resd  3         ; Kernel IDT
+reserved3 resd  1

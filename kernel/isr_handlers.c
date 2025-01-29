@@ -12,61 +12,22 @@
 #include "general_protection_fault.h"
 #include "machine.h"
 #include "pagefault.h"
+#include "panic.h"
 #include "printhex.h"
-
-/*
- * Basic debug handler for exceptions with no error code.
- *
- * Called from the relevant ISR dispatchers.
- */
-static void debug_exception_nc(uint8_t vector, uint64_t origin_addr) {
-    debugattr(0x4C);
-    debugstr("PANIC");
-    debugattr(0x0C);
-
-    debugstr(": Unhandled exception (");
-    printhex8(vector, debugchar);
-    debugstr(")\nOrigin IP     : ");
-    printhex64(origin_addr, debugchar);
-    debugstr("\nHalting...");
-    halt_and_catch_fire();
-}
-
-/*
- * Basic debug handler for exceptions with an error code.
- *
- * Called from the relevant ISR dispatchers.
- */
-static void debug_exception_wc(uint8_t vector, uint64_t code,
-                               uint64_t origin_addr) {
-    debugattr(0x4C);
-    debugstr("PANIC");
-    debugattr(0x0C);
-
-    debugstr("         : Unhandled exception (");
-    printhex8(vector, debugchar);
-    debugstr(")\nCode          : ");
-    printhex64(code, debugchar);
-    debugstr("\nOrigin IP     : ");
-    printhex64(origin_addr, debugchar);
-
-    debugstr("\nHalting...");
-    halt_and_catch_fire();
-}
 
 /*
  * Actual handler for exceptions with no code.
  *
- * For now, just calls debug handler, above.
+ * For now, just panics.
  */
 void handle_exception_nc(uint8_t vector, uint64_t origin_addr) {
-    debug_exception_nc(vector, origin_addr);
+    panic_exception_no_code(vector, origin_addr);
 }
 
 /*
  * Actual handler for exceptions with error code.
  *
- * For now, just calls debug handler, above.
+ * For now, just panics.
  */
 void handle_exception_wc(uint8_t vector, uint64_t code, uint64_t origin_addr) {
     uint64_t fault_addr;
@@ -81,16 +42,8 @@ void handle_exception_wc(uint8_t vector, uint64_t code, uint64_t origin_addr) {
         handle_general_protection_fault(code, origin_addr);
         break;
     default:
-        debug_exception_wc(vector, code, origin_addr);
+        panic_exception_with_code(vector, code, origin_addr);
     }
 }
 
-void handle_unknown_interrupt() {
-    debugattr(0x4C);
-    debugstr("PANIC");
-    debugattr(0x0C);
-
-    debugstr(": Unhandled interrupt!\n");
-    debugstr("Halting...");
-    halt_and_catch_fire();
-}
+void handle_unknown_interrupt() { panic("Unhandled interrupt!"); }

@@ -156,6 +156,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/cpuid.o												\
 			$(STAGE3_DIR)/sleep_queue.o											\
 			$(STAGE3_DIR)/smp/startup.o											\
+			$(STAGE3_DIR)/panic.o												\
 			$(STAGE3_DIR)/$(REALMODE)_linkable.o								\
 			$(SYSTEM)_linkable.o
 		

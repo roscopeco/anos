@@ -96,7 +96,7 @@ static MunitResult test_idt_entry_func(const MunitParameter params[],
 }
 
 static MunitResult test_idt_r(const MunitParameter params[], void *param) {
-    Idtr test_r;
+    IDTR test_r;
     idt_r(&test_r, 0x12345678, 0xA0A0);
 
     munit_assert_short(test_r.limit, ==, 0xA0A0);
