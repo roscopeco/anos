@@ -49,11 +49,15 @@ endif
 #	DEBUG_TASK_SWITCH					Dump debug info when switching tasks
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #
+# And these will selectively disable features
+#
+#	NO_SMP					Disable SMP (don't spin-up any of the APs)
+#
 # Additionally:
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU -DDEBUG_SMP_STARTUP
+CDEFS=-DDEBUG_CPU
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
