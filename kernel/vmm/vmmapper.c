@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "kdrivers/cpu.h"
+
 #include "pmm/pagealloc.h"
 #include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
@@ -277,6 +279,6 @@ void vmm_invalidate_page(uintptr_t virt_addr) {
     C_PRINTHEX64(virt_addr, debugchar);
     C_DEBUGSTR("\n");
 #endif
-    __asm__ volatile("invlpg (%0)\n\t" : : "r"(virt_addr) : "memory");
+    cpu_invalidate_page(virt_addr);
 #endif
 }
