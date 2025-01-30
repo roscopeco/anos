@@ -24,8 +24,8 @@ typedef struct {
     uint64_t fill_cache_line[6];
 } ReentrantSpinLock;
 
-static_assert_sizeof(SpinLock, 64);
-static_assert_sizeof(ReentrantSpinLock, 64);
+static_assert_sizeof(SpinLock, ==, 64);
+static_assert_sizeof(ReentrantSpinLock, ==, 64);
 
 /*
  * Init (zero) a spinlock. Note that this is optional,

@@ -20,6 +20,6 @@ typedef struct {
     uint64_t reserved[4];  // 64
 } Process;
 
-static_assert_sizeof(Process, 64);
+static_assert_sizeof(Process, ==, 64);
 
 #endif

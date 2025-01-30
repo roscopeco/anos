@@ -28,7 +28,7 @@ typedef struct {
     uint8_t page_protection;
 } __attribute__((packed)) ACPI_HPET;
 
-static_assert_sizeof(ACPI_HPET, 56);
+static_assert_sizeof(ACPI_HPET, ==, 56);
 
 typedef struct {
     uint64_t caps_and_config;
@@ -36,7 +36,7 @@ typedef struct {
     uint64_t interrupt_route;
 } __attribute__((packed)) HPETTimerRegs;
 
-static_assert_sizeof(HPETTimerRegs, 24);
+static_assert_sizeof(HPETTimerRegs, ==, 24);
 
 typedef struct {
     uint64_t caps_and_id;
@@ -56,7 +56,7 @@ typedef struct {
     HPETTimerRegs timers[];
 } __attribute__((packed)) HPETRegs;
 
-static_assert_sizeof(HPETRegs, 256);
+static_assert_sizeof(HPETRegs, ==, 256);
 
 static inline ACPI_HPET *acpi_tables_find_hpet(ACPI_RSDT *rsdt) {
     return (ACPI_HPET *)acpi_tables_find(rsdt, "HPET");

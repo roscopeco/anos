@@ -27,7 +27,7 @@ typedef struct PerCPUState {
     uint8_t reserved2[3072]; // takes us to 4096 bytes
 } PerCPUState;
 
-static_assert_sizeof(PerCPUState, 4096);
+static_assert_sizeof(PerCPUState, ==, 4096);
 
 // Assumes GS is already swapped to KernelGSBase...
 static inline PerCPUState *state_get_per_cpu(void) {

@@ -67,11 +67,11 @@ typedef struct {
     uint32_t lapic_flags;
 } __attribute__((packed)) ACPI_MADT;
 
-static_assert_sizeof(ACPI_RSDP, 36);
-static_assert_sizeof(ACPI_SDTHeader, 36);
-static_assert_sizeof(ACPI_GenericAddress, 12);
-static_assert_sizeof(ACPI_RSDT, 36);
-static_assert_sizeof(ACPI_MADT, 44);
+static_assert_sizeof(ACPI_RSDP, ==, 36);
+static_assert_sizeof(ACPI_SDTHeader, ==, 36);
+static_assert_sizeof(ACPI_GenericAddress, ==, 12);
+static_assert_sizeof(ACPI_RSDT, ==, 36);
+static_assert_sizeof(ACPI_MADT, ==, 44);
 
 /*
  * Validate the ACPI tables and map them into virtual memory.

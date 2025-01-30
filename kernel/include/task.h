@@ -49,7 +49,7 @@ typedef struct Task {
     uint16_t res2;      // 64
 } __attribute__((packed)) Task;
 
-static_assert_sizeof(Task, 64);
+static_assert_sizeof(Task, ==, 64);
 
 void task_init(void *tss);
 Task *task_current();
