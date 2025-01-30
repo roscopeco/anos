@@ -13,18 +13,6 @@ bool cpu_init_this(void) {
     return true;
 }
 
-inline uint64_t cpu_read_msr(uint32_t msr) {
-    uint32_t eax, edx;
-    __asm__ volatile("rdmsr" : "=a"(eax), "=d"(edx) : "c"(0xCE));
-    return ((uint64_t)edx << 32) | eax;
-}
-
-inline uint64_t cpu_read_tsc(void) {
-    uint32_t edx, eax;
-    __asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx));
-    return ((uint64_t)edx << 32) | eax;
-}
-
 uint64_t cpu_read_local_apic_id(void) {
     uint8_t bsp_apic_id;
     __asm__ __volatile__("mov $1, %%eax\n\t"
@@ -52,13 +40,11 @@ void cpu_tsc_udelay(int n) {
     cpu_tsc_delay(n * 1000000);
 }
 
-#ifdef DEBUG_CPU
-static void debug_cpu_brand(void) {
-    char brand[49];
-    uint32_t *buf_ptr = (uint32_t *)&brand;
+void cpu_get_brand_str(char *buffer) {
+    uint32_t *buf_ptr = (uint32_t *)buffer;
 
     for (int i = 0; i < 49; i++) {
-        brand[i] = 0;
+        buffer[i] = 0;
     }
 
     for (uint64_t leaf = 0x80000002; leaf < 0x80000005; leaf++) {
@@ -70,6 +56,12 @@ static void debug_cpu_brand(void) {
             *buf_ptr++ = edx;
         }
     }
+}
+
+#ifdef DEBUG_CPU
+static void debug_cpu_brand(void) {
+    char brand[49];
+    cpu_get_brand_str(brand);
 
     debugstr("CPU #");
     printdec(cpu_read_local_apic_id(), debugchar);

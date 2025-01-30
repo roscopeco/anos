@@ -14,17 +14,40 @@
 #include "gdt.h"
 #include "interrupts.h"
 
+#define MSR_FSBase ((0xC0000100))
+#define MSR_GSBase ((0xC0000101))
+#define MSR_KernelGSBase ((0xC0000102))
+
 bool cpu_init_this(void);
 
-uint64_t cpu_read_msr(uint32_t msr);
-uint64_t cpu_read_tsc(void);
 uint64_t cpu_read_local_apic_id(void);
 
 void cpu_tsc_delay(uint64_t cycles);
 void cpu_tsc_mdelay(int n);
 void cpu_tsc_udelay(int n);
 
+// Buffer must have space for 49 characters!
+void cpu_get_brand_str(char *buffer);
+
 void cpu_debug_info(void);
+
+static inline uint64_t cpu_read_msr(uint32_t msr) {
+    uint32_t eax, edx;
+    __asm__ volatile("rdmsr" : "=a"(eax), "=d"(edx) : "c"(msr));
+    return ((uint64_t)edx << 32) | eax;
+}
+
+static inline void cpu_write_msr(uint64_t msr, uint64_t value) {
+    uint32_t low = value & 0xFFFFFFFF;
+    uint32_t high = value >> 32;
+    __asm__ volatile("wrmsr" : : "c"(msr), "a"(low), "d"(high));
+}
+
+static inline uint64_t cpu_read_tsc(void) {
+    uint32_t edx, eax;
+    __asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx));
+    return ((uint64_t)edx << 32) | eax;
+}
 
 // Execute `lgdt` to load a variable with the GDTR
 static inline void cpu_load_gdtr(GDTR *gdtr) {
@@ -44,6 +67,14 @@ static inline void cpu_load_idtr(IDTR *idtr) {
 // Execute `sidt` to load IDTR from a variable
 static inline void cpu_store_idtr(IDTR *idtr) {
     __asm__ __volatile__("sidt (%0)" : : "r"(idtr));
+}
+
+static inline void cpu_invalidate_page(uintptr_t virt_addr) {
+    __asm__ volatile("invlpg (%0)\n\t" : : "r"(virt_addr) : "memory");
+}
+
+static inline void cpu_swapgs(void) {
+    __asm__ volatile("swapgs" : : : "memory");
 }
 
 #endif //__ANOS_KERNEL_DRIVERS_CPU_H

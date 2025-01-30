@@ -32,6 +32,7 @@
 #include "sched.h"
 #include "slab/alloc.h"
 #include "smp/startup.h"
+#include "smp/state.h"
 #include "syscalls.h"
 #include "task.h"
 #include "vmm/recursive.h"
@@ -223,9 +224,31 @@ static inline void banner() {
 
 static inline void install_interrupts() { idt_install(0x08); }
 
-static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt, bool bsp) {
+static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
+                                               uint8_t cpu_num) {
     cpu_init_this();
     cpu_debug_info();
+
+    // Allocate our per-CPU data
+    uint64_t *state_block = fba_alloc_block();
+
+    if (!state_block) {
+        panic("Failed to allocate CPU state");
+    }
+
+    for (int i = 0; i < sizeof(PerCPUState) / 8; i++) {
+        state_block[i] = 0;
+    }
+
+    PerCPUState *cpu_state = (PerCPUState *)state_block;
+
+    cpu_state->self = cpu_state;
+    cpu_state->cpu_id = cpu_num;
+    cpu_state->lapic_id = cpu_read_local_apic_id();
+    cpu_get_brand_str(cpu_state->cpu_brand);
+
+    cpu_write_msr(MSR_KernelGSBase, (uint64_t)cpu_state);
+    cpu_swapgs();
 
     // Init local APIC on this CPU
     ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
@@ -235,7 +258,7 @@ static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt, bool bsp) {
         halt_and_catch_fire();
     }
 
-    return init_local_apic(madt, bsp);
+    return init_local_apic(madt, cpu_num == 0);
 }
 
 // Replace the bootstrap 32-bit pages with 64-bit user pages.
@@ -353,7 +376,7 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
 
     syscall_init();
 
-    uint32_t volatile *lapic = init_this_cpu(acpi_root_table, false);
+    uint32_t volatile *lapic = init_this_cpu(acpi_root_table, ap_num);
 
     while (1) {
         __asm__ volatile("hlt");
@@ -416,7 +439,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     debug_madt(acpi_root_table);
     kernel_drivers_init(acpi_root_table);
 
-    uint32_t volatile *lapic = init_this_cpu(acpi_root_table, true);
+    uint32_t volatile *lapic = init_this_cpu(acpi_root_table, 0);
 
 #ifndef NO_SMP
     smp_bsp_start_aps(acpi_root_table, lapic);
@@ -471,6 +494,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
              "now.\n");
 #else
     task_init(get_tss());
+
     start_system();
     debugstr("Somehow ended up back in entrypoint, that's probably not good - "
              "halting.  ..\n");

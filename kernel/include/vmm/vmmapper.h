@@ -8,9 +8,10 @@
 #ifndef __ANOS_KERNEL_VM_MAPPER_H
 #define __ANOS_KERNEL_VM_MAPPER_H
 
-#include "vmm/vmconfig.h"
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "vmm/vmconfig.h"
 
 /*
  * Extract a PML4 index from a virtual address.
