@@ -21,6 +21,6 @@ typedef struct {
     uint64_t reserved[6];
 } KernelTimer;
 
-static_assert_sizeof(KernelTimer, 64);
+static_assert_sizeof(KernelTimer, ==, 64);
 
 #endif //__ANOS_KERNEL_DRIVERS_TIMER_H

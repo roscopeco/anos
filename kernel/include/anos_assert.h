@@ -20,8 +20,8 @@
 #endif
 #endif
 
-#define static_assert_sizeof(type, size)                                       \
-    static_assert(sizeof(type) == size,                                        \
+#define static_assert_sizeof(type, op, size)                                   \
+    static_assert(sizeof(type) op size,                                        \
                   #type " is wrongly-sized, may need C23 sized enums...")
 
 #endif //__ANOS_KERNEL_ASSERT_H

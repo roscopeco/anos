@@ -47,8 +47,8 @@ typedef struct {
     uint64_t res[4];   // ..64
 } SleepQueue;
 
-static_assert_sizeof(Sleeper, 64);
-static_assert_sizeof(SleepQueue, 64);
+static_assert_sizeof(Sleeper, ==, 64);
+static_assert_sizeof(SleepQueue, ==, 64);
 
 /*
  * Enqueue a single sleeper.
