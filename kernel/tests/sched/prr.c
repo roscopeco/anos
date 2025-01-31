@@ -13,6 +13,7 @@
 #include "munit.h"
 #include "sched.h"
 #include "slab/alloc.h"
+#include "smp/state.h"
 #include "task.h"
 
 #define TEST_PML4_ADDR (((uint64_t *)0x100000))
