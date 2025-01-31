@@ -6,7 +6,8 @@
 
 bits 64
 global task_do_switch
-extern task_current_ptr, task_tss_ptr
+extern task_current_ptr, task_tss_ptr   ; TODO tss_ptr not used here now...
+                                        ;      but needs setting up properly!
 
 %define TASK_TID    16
 %define TASK_RSP0   24
@@ -15,7 +16,7 @@ extern task_current_ptr, task_tss_ptr
 
 %define TSS_RSP0    4
 
-%define PER_CPU_TASK_CURRENT_OFFSET     928
+%define PER_CPU_TASK_CURRENT_OFFSET     928 
 %define PER_CPU_TASK_TSS_OFFSET         936
 
 ; **Must** be called with scheduler locked!

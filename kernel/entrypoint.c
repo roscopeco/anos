@@ -68,6 +68,9 @@ extern void *_system_bin_end;
 
 static char *MSG = VERSION "\n";
 
+void user_thread_entrypoint(void);
+void kernel_thread_entrypoint(void);
+
 #ifdef DEBUG_MEMMAP
 static char *MEM_TYPES[] = {"INVALID",  "AVAILABLE",  "RESERVED",
                             "ACPI",     "NVS",        "UNUSABLE",
@@ -294,6 +297,8 @@ static inline void init_kernel_gdt() {
 }
 
 static inline void *get_tss() {
+    // TODO this isn't actually working now, we aren't setting it up
+    //      in the per-CPU TSS's. Need to do that before syscalls on APs...
     GDTR gdtr;
 
     cpu_store_gdtr(&gdtr);
@@ -308,14 +313,14 @@ MemoryRegion *physical_region;
 ACPI_RSDT *acpi_root_table;
 
 noreturn void start_system(void) {
-    uint64_t system_start_virt = 0x1000000;
-    uint64_t system_start_phys =
+    const uint64_t system_start_virt = 0x1000000;
+    const uint64_t system_start_phys =
             (uint64_t)&_system_bin_start & ~(0xFFFFFFFF80000000);
-    uint64_t system_len_bytes =
+    const uint64_t system_len_bytes =
             (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
-    uint64_t system_len_pages = system_len_bytes >> 12;
+    const uint64_t system_len_pages = system_len_bytes >> 12;
 
-    uint16_t flags = PRESENT | USER;
+    const uint16_t flags = PRESENT | USER;
 
     // Map pages for the user code
     for (int i = 0; i < system_len_pages; i++) {
@@ -347,7 +352,37 @@ noreturn void start_system(void) {
 
     // create a process and task for system
     sched_init((uintptr_t)user_stack + 0x1000, (uintptr_t)kernel_stack + 0x4000,
-               (uintptr_t)0x0000000001000000);
+               (uintptr_t)0x0000000001000000, (uintptr_t)user_thread_entrypoint,
+               TASK_CLASS_NORMAL);
+
+    // We can just get away with disabling here, no need to save/restore flags
+    // because we know we're currently the only thread...
+    __asm__ volatile("cli");
+
+    // Kick off scheduling...
+    sched_schedule();
+
+    // ... which will never return to here.
+    __builtin_unreachable();
+}
+
+static noreturn void idle() {
+    while (1) {
+        __asm__ volatile("hlt");
+    }
+
+    __builtin_unreachable();
+}
+
+noreturn void start_idle(void) {
+    // ... the FBA can give us runtime and kernel stacks...
+    void *runtime_stack = fba_alloc_block(); // 4KiB
+    void *kernel_stack = fba_alloc_block();  // 4KiB
+
+    // create a process and task for idle
+    sched_init((uintptr_t)runtime_stack + 0x1000,
+               (uintptr_t)kernel_stack + 0x1000, (uintptr_t)idle,
+               (uintptr_t)kernel_thread_entrypoint, TASK_CLASS_IDLE);
 
     // We can just get away with disabling here, no need to save/restore flags
     // because we know we're currently the only thread...
@@ -379,9 +414,12 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
 
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table, ap_num);
 
-    while (1) {
-        __asm__ volatile("hlt");
-    }
+    task_init(get_tss());
+    sleep_init();
+
+    start_idle();
+
+    panic("Somehow ended up back in AP entrypoint. This is a bad thing...");
 }
 
 noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
