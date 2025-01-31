@@ -76,6 +76,7 @@ syscall_init:
 
 ; Entry point for SYSCALLs
 syscall_enter:
+    swapgs
     push rbp
     mov rbp, rsp
     push rcx        ; Return addr
@@ -98,4 +99,5 @@ syscall_enter:
     pop rbx
     pop rcx
     pop rbp
+    swapgs
     o64 sysret

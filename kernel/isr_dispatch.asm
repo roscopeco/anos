@@ -46,9 +46,18 @@ extern handle_syscall_69
   pop   rax
 %endmacro
 
+%macro conditional_swapgs 0
+	cmp byte [rsp+0x8], 0x8                 ; TODO race condition here, if entered via a 
+                                          ; non-interrupt gate (i.e. if interrupts are enabled).
+	je %%.noswap
+	swapgs  
+%%.noswap:
+%endmacro
+
 %macro trap_dispatcher_with_code 1        ; General handler for traps that stack an error code
 global trap_dispatcher_%+%1               ; Ensure declared global
 trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
+  conditional_swapgs
   pusha_sysv
   
   mov   rdi,%1                            ; Put the trap number in the first C argument
@@ -60,12 +69,14 @@ trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
 
   add   rsp,8                             ; Discard the error code
 
+  conditional_swapgs
   iretq                                   ; And done...
 %endmacro
 
 %macro trap_dispatcher_no_code 1          ; General handler for traps that stack an error code
 global trap_dispatcher_%+%1               ; Ensure declared global
 trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_1`
+  conditional_swapgs
   pusha_sysv
   
   mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
@@ -73,6 +84,7 @@ trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_1`
   call  handle_exception_nc               ; Call the no-code handler
 
   popa_sysv
+  conditional_swapgs
 
   iretq                                    ; And done...
 %endmacro
@@ -123,6 +135,7 @@ pic_irq_handler:
 ; (vector 0x2f) because we should be sending EOI to the master PIC in that case...
 
 timer_interrupt_handler:
+  conditional_swapgs
   pusha_sysv
 
   ; TODO stack alignment?
@@ -130,9 +143,11 @@ timer_interrupt_handler:
   call  handle_timer_interrupt            ; Just call directly to C handler
 
   popa_sysv
+  conditional_swapgs
   iretq
 
 syscall_69_handler:
+  conditional_swapgs
   pusha_sysv_not_rax
   add   rsp,$8
 
@@ -141,10 +156,12 @@ syscall_69_handler:
 
   sub   rsp,$8
   popa_sysv_not_rax
+  conditional_swapgs
   iretq
 
 ; ISR dispatcher for Unknown (unhandled) IRQs
 unknown_interrupt_handler:
+  conditional_swapgs
   pusha_sysv
 
   ; TODO stack alignment?
@@ -152,6 +169,7 @@ unknown_interrupt_handler:
   call  handle_unknown_interrupt          ; Just call directly to C handler
   
   popa_sysv
+  conditional_swapgs
   iretq
 
 ; Running count of spurious PIC IRQs
