@@ -31,6 +31,7 @@
 #include "process.h"
 #include "sched.h"
 #include "slab/alloc.h"
+#include "sleep.h"
 #include "smp/startup.h"
 #include "smp/state.h"
 #include "syscalls.h"
@@ -494,6 +495,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
              "now.\n");
 #else
     task_init(get_tss());
+    sleep_init();
 
     start_system();
     debugstr("Somehow ended up back in entrypoint, that's probably not good - "

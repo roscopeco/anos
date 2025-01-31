@@ -5,11 +5,13 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+#include "anos_assert.h"
+#include "ktypes.h"
+#include "pmm/sys.h"
+#include "slab/alloc.h"
+#include "smp/state.h"
 #include "structs/pq.h"
-#include <ktypes.h>
-#include <pmm/sys.h>
-#include <slab/alloc.h>
-#include <task.h>
+#include "task.h"
 
 #ifdef DEBUG_UNIT_TESTS
 #include <stdio.h>
@@ -18,10 +20,14 @@
 #define printf(...)
 #endif
 
-static TaskPriorityQueue realtime_head;
-static TaskPriorityQueue high_head;
-static TaskPriorityQueue normal_head;
-static TaskPriorityQueue idle_head;
+typedef per_cpu struct {
+    TaskPriorityQueue realtime_head;
+    TaskPriorityQueue high_head;
+    TaskPriorityQueue normal_head;
+    TaskPriorityQueue idle_head;
+} PerCPUSchedState;
+
+static_assert_sizeof(PerCPUSchedState, <=, STATE_SCHED_DATA_MAX);
 
 #ifdef DEBUG_TASK_SWITCH
 #include "debugprint.h"
@@ -42,17 +48,33 @@ static TaskPriorityQueue idle_head;
 #define vdbgx64(...)
 #endif
 
+static inline PerCPUSchedState *get_cpu_sched_state(void) {
+    PerCPUState *cpu_state = state_get_per_cpu();
+    return (PerCPUSchedState *)cpu_state->sched_data;
+}
+
+static inline PerCPUSchedState *init_cpu_sched_state(void) {
+    PerCPUSchedState *state = get_cpu_sched_state();
+
+    task_pq_init(&state->realtime_head);
+    task_pq_init(&state->high_head);
+    task_pq_init(&state->normal_head);
+    task_pq_init(&state->idle_head);
+
+    return state;
+}
+
 #ifdef UNIT_TESTS
 Task *test_sched_prr_get_runnable_head(TaskClass level) {
     switch (level) {
     case TASK_CLASS_REALTIME:
-        return task_pq_peek(&realtime_head);
+        return task_pq_peek(&get_cpu_sched_state()->realtime_head);
     case TASK_CLASS_HIGH:
-        return task_pq_peek(&high_head);
+        return task_pq_peek(&get_cpu_sched_state()->high_head);
     case TASK_CLASS_NORMAL:
-        return task_pq_peek(&normal_head);
+        return task_pq_peek(&get_cpu_sched_state()->normal_head);
     case TASK_CLASS_IDLE:
-        return task_pq_peek(&idle_head);
+        return task_pq_peek(&get_cpu_sched_state()->idle_head);
     }
 
     return NULL;
@@ -63,16 +85,16 @@ Task *test_sched_prr_set_runnable_head(TaskClass level, Task *task) {
 
     switch (level) {
     case TASK_CLASS_REALTIME:
-        queue = &realtime_head;
+        queue = &get_cpu_sched_state()->realtime_head;
         break;
     case TASK_CLASS_HIGH:
-        queue = &high_head;
+        queue = &get_cpu_sched_state()->high_head;
         break;
     case TASK_CLASS_NORMAL:
-        queue = &normal_head;
+        queue = &get_cpu_sched_state()->normal_head;
         break;
     case TASK_CLASS_IDLE:
-        queue = &idle_head;
+        queue = &get_cpu_sched_state()->idle_head;
         break;
     default:
         return NULL;
@@ -94,6 +116,9 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func) {
     if (sys_ssp == 0) {
         return false;
     }
+
+    // Set up our state...
+    PerCPUSchedState *state = init_cpu_sched_state();
 
     // Create a process & task to represent the init thread (which System will inherit)
     Process *new_process = slab_alloc_block();
@@ -131,28 +156,29 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func) {
     new_task->this.next = NULL;
     new_task->this.type = KTYPE_TASK;
 
-    task_pq_push(&normal_head, new_task);
+    task_pq_push(&state->normal_head, new_task);
 
     return true;
 }
 
 static void sched_enqueue(Task *task) {
+    PerCPUSchedState *state = get_cpu_sched_state();
     TaskPriorityQueue *candidate_queue = NULL;
 
     printf("REQUEUE\n");
 
     switch (task->class) {
     case TASK_CLASS_REALTIME:
-        candidate_queue = &realtime_head;
+        candidate_queue = &state->realtime_head;
         break;
     case TASK_CLASS_HIGH:
-        candidate_queue = &high_head;
+        candidate_queue = &state->high_head;
         break;
     case TASK_CLASS_NORMAL:
-        candidate_queue = &normal_head;
+        candidate_queue = &state->normal_head;
         break;
     case TASK_CLASS_IDLE:
-        candidate_queue = &idle_head;
+        candidate_queue = &state->idle_head;
         break;
     default:
         vdebug("WARN: Attempt to requeue task with bad class; Ignored\n");
@@ -163,6 +189,8 @@ static void sched_enqueue(Task *task) {
 }
 
 void sched_schedule(void) {
+    PerCPUSchedState *state = get_cpu_sched_state();
+
     Task *current = task_current();
     Task *candidate_next = NULL;
     TaskPriorityQueue *candidate_queue = NULL;
@@ -171,18 +199,18 @@ void sched_schedule(void) {
     vdbgx64((uintptr_t)current);
     vdebug("\n");
 
-    if ((candidate_next = task_pq_peek(&realtime_head))) {
+    if ((candidate_next = task_pq_peek(&state->realtime_head))) {
         printf("Have a realtime candidate\n");
-        candidate_queue = &realtime_head;
-    } else if ((candidate_next = task_pq_peek(&high_head))) {
+        candidate_queue = &state->realtime_head;
+    } else if ((candidate_next = task_pq_peek(&state->high_head))) {
         printf("Have a high candidate\n");
-        candidate_queue = &high_head;
-    } else if ((candidate_next = task_pq_peek(&normal_head))) {
+        candidate_queue = &state->high_head;
+    } else if ((candidate_next = task_pq_peek(&state->normal_head))) {
         printf("Have a normal candidate\n");
-        candidate_queue = &normal_head;
-    } else if ((candidate_next = task_pq_peek(&idle_head))) {
+        candidate_queue = &state->normal_head;
+    } else if ((candidate_next = task_pq_peek(&state->idle_head))) {
         printf("Have an idle candidate\n");
-        candidate_queue = &idle_head;
+        candidate_queue = &state->idle_head;
     } else {
         printf("No candidate! Always current class is %d; Normal head is %p\n",
                always_current->class, normal_head.head);

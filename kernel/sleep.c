@@ -13,6 +13,7 @@
 #include "config.h"
 #include "sched.h"
 #include "sleep_queue.h"
+#include "smp/state.h"
 #include "structs/list.h"
 #include "task.h"
 
@@ -23,17 +24,21 @@
 
 #define NULL (((void *)0))
 
-static SleepQueue sleep_queue;
-
-static uint64_t wake_tick;
-
 uint64_t get_lapic_timer_upticks(void);
+
+void sleep_init(void) {
+    PerCPUState *cpu_state = state_get_per_cpu();
+    sleep_queue_init(&cpu_state->sleep_queue);
+}
 
 /* Caller MUST lock the scheduler! */
 void sleep_task(Task *task, uint64_t nanos) {
     if (task != NULL) {
-        wake_tick = get_lapic_timer_upticks() + (nanos / NANOS_PER_TICK);
-        sleep_queue_enqueue(&sleep_queue, task, wake_tick);
+        PerCPUState *cpu_state = state_get_per_cpu();
+
+        uint64_t wake_tick =
+                get_lapic_timer_upticks() + (nanos / NANOS_PER_TICK);
+        sleep_queue_enqueue(&cpu_state->sleep_queue, task, wake_tick);
 
 #ifdef DEBUG_SLEEP
         debugstr("Ticks now is ");
@@ -59,7 +64,9 @@ void check_sleepers() {
     }
 #endif
 
-    Task *waker = sleep_queue_dequeue(&sleep_queue, get_lapic_timer_upticks());
+    PerCPUState *cpu_state = state_get_per_cpu();
+    Task *waker = sleep_queue_dequeue(&cpu_state->sleep_queue,
+                                      get_lapic_timer_upticks());
 
     while (waker) {
         Task *next = (Task *)waker->this.next;
