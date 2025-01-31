@@ -40,11 +40,24 @@ typedef struct PerCPUState {
 
 static_assert_sizeof(PerCPUState, ==, VM_PAGE_SIZE);
 
+#ifdef UNIT_TESTS
+#ifdef MUNIT_H
+PerCPUState __test_cpu_state;
+#endif
+
+static inline PerCPUState *state_get_per_cpu(void) {
+#ifndef MUNIT_H
+    extern PerCPUState __test_cpu_state;
+#endif
+    return &__test_cpu_state;
+}
+#else
 // Assumes GS is already swapped to KernelGSBase...
 static inline PerCPUState *state_get_per_cpu(void) {
     PerCPUState *ptr;
     __asm__ volatile("mov %%gs:0, %0" : "=r"(ptr));
     return ptr;
 }
+#endif
 
 #endif //__ANOS_SMP_STATE_H
