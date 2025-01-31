@@ -110,12 +110,15 @@ Task *test_sched_prr_set_runnable_head(TaskClass level, Task *task) {
 }
 #endif
 
-void user_thread_entrypoint(void);
-
-bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func) {
+bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
+                uintptr_t bootstrap_func, TaskClass task_class) {
     if (sys_ssp == 0) {
         return false;
     }
+
+    // Init the scheduler spinlock
+    PerCPUState *cpu_state = state_get_per_cpu();
+    spinlock_init(&cpu_state->sched_lock);
 
     // Set up our state...
     PerCPUSchedState *state = init_cpu_sched_state();
@@ -131,7 +134,7 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func) {
 
     // push address of init func as first place this task will return to...
     sys_ssp -= 8;
-    *((uint64_t *)sys_ssp) = (uint64_t)user_thread_entrypoint;
+    *((uint64_t *)sys_ssp) = (uint64_t)bootstrap_func;
 
     // space for initial registers except rsi, rdi, values don't care...
     sys_ssp -= 104;
@@ -151,7 +154,7 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func) {
     new_task->ts_remain = DEFAULT_TIMESLICE;
     new_task->state = TASK_STATE_READY;
     new_task->prio = 0;
-    new_task->class = TASK_CLASS_NORMAL;
+    new_task->class = task_class;
 
     new_task->this.next = NULL;
     new_task->this.type = KTYPE_TASK;
