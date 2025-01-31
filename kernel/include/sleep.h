@@ -15,6 +15,9 @@
 
 #include "task.h"
 
+/* MUST call this _on each CPU_ before using any other sleep funcs! */
+void sleep_init(void);
+
 /* Caller MUST lock the scheduler! */
 void sleep_task(Task *task, uint64_t ticks);
 

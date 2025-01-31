@@ -13,6 +13,13 @@
 #define NULL (((void *)0))
 #endif
 
+// Optional - not needed if static
+void sleep_queue_init(SleepQueue *queue) {
+    queue->always0 = 0;
+    queue->head = 0;
+    queue->tail = 0;
+}
+
 bool sleep_queue_enqueue(SleepQueue *queue, Task *task, uint64_t deadline) {
     if (queue == NULL || task == NULL) {
         return false;
@@ -45,48 +52,6 @@ bool sleep_queue_enqueue(SleepQueue *queue, Task *task, uint64_t deadline) {
 
     return true;
 }
-
-// Sleeper *sleep_queue_dequeue(SleepQueue *queue, uint64_t deadline) {
-//     if (queue == NULL) {
-//         return false;
-//     }
-
-//     Sleeper* last = queue->head;
-
-//     while (last != NULL && last->wake_at <= deadline) {
-//         last = (Sleeper*)last->this.next;
-//     }
-
-//     if (last->wake_at >= deadline) {
-//         Sleeper *first = queue->head;
-
-//         // Dequeue, make sure tail stays in sync
-//         queue->head = last->this.next;
-//         if (queue->tail == last) {
-//             queue->tail = NULL;
-//         }
-
-//         Task *result, *current;
-
-//         do {
-//             current = first->task;
-
-//             if (result == NULL) {
-//                 result = current;
-//             }
-
-//             result->this.next = (ListNode*)current;
-
-//             first = first->this.next;
-//             slab_free_block(first);
-//         } while (first);
-
-//         return result;
-
-//     } else {
-//         return NULL;
-//     }
-// }
 
 Task *sleep_queue_dequeue(SleepQueue *queue, uint64_t deadline) {
     if (!queue || !queue->head) {

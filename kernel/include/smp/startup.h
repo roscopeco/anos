@@ -2,7 +2,7 @@
  * stage3 - SMP startup support
  * anos - An Operating System
  *
- * Copyright (c) 2023 Ross Bamford
+ * Copyright (c) 2025 Ross Bamford
  */
 
 #ifndef __ANOS_SMP_STARTUP_H

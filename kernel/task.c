@@ -5,14 +5,17 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include "task.h"
+#include <stdatomic.h>
+#include <stdint.h>
+
+#include "anos_assert.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
 #include "ktypes.h"
 #include "printhex.h"
 #include "slab/alloc.h"
-
-#include <stdint.h>
+#include "smp/state.h"
+#include "task.h"
 
 #ifdef DEBUG_TASK_SWITCH
 #include "debugprint.h"
@@ -33,30 +36,46 @@
 #define vdbgx64(...)
 #endif
 
-// not static, ASM needs it...
-Task *task_current_ptr;
-void *task_tss_ptr; // opaque, we only access from assembly...
+typedef per_cpu struct {
+    Task *task_current_ptr;
+    void *task_tss_ptr; // opaque, we only access from assembly...
+} PerCPUTaskState;
 
-static uint64_t next_tid;
+static_assert_sizeof(PerCPUTaskState, <=, STATE_TASK_DATA_MAX);
+
+static _Atomic volatile uint64_t next_tid;
+
+static inline PerCPUTaskState *get_cpu_task_state(void) {
+    PerCPUState *cpu_state = state_get_per_cpu();
+    return (PerCPUTaskState *)cpu_state->task_data;
+}
+
+static inline PerCPUTaskState *init_cpu_task_state(void *tss) {
+    PerCPUTaskState *state = get_cpu_task_state();
+
+    state->task_current_ptr = (Task *)0;
+    state->task_tss_ptr = tss;
+
+    return state;
+}
 
 void task_init(void *tss) {
+    PerCPUTaskState *cpu_state = init_cpu_task_state(tss);
+
     // start with no initial task, task_switch can handle this...
     // TODO debugging would be nicer if we kept the original stack,
     // it'd give nicer backtraces at least...
     //
     // Look into that at some point...
-    task_current_ptr = (Task *)0;
 
     tdebug("TSS is at ");
     tdbgx64((uint64_t)tss);
     tdebug("\n");
 
-    task_tss_ptr = tss;
-
     next_tid = 2;
 }
 
-Task *task_current() { return task_current_ptr; }
+Task *task_current() { return get_cpu_task_state()->task_current_ptr; }
 
 // See task_switch.asm
 void task_do_switch(Task *next);

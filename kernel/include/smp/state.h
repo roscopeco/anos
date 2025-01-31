@@ -2,7 +2,7 @@
  * stage3 - SMP per-CPU state
  * anos - An Operating System
  *
- * Copyright (c) 2023 Ross Bamford
+ * Copyright (c) 2025 Ross Bamford
  */
 
 #ifndef __ANOS_SMP_STATE_H
@@ -11,6 +11,14 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
+#include "sleep_queue.h"
+#include "vmm/vmconfig.h"
+
+#define STATE_SCHED_DATA_MAX ((672))
+#define STATE_TASK_DATA_MAX ((32))
+
+// This is just a marker define for information purposes...
+#define per_cpu
 
 typedef struct PerCPUState {
     struct PerCPUState *self; // 8
@@ -22,12 +30,15 @@ typedef struct PerCPUState {
     char cpu_brand[49];
     uint8_t reserved1[143]; // takes us to 256 bytes
 
-    uint8_t sched_data[768]; // takes us to 1024 bytes
+    uint8_t sched_data[STATE_SCHED_DATA_MAX]; // takes us to 928 bytes
+    uint8_t task_data[STATE_TASK_DATA_MAX];   // takes us to 960 bytes
+
+    SleepQueue sleep_queue; // takes us to 1024 bytes
 
     uint8_t reserved2[3072]; // takes us to 4096 bytes
 } PerCPUState;
 
-static_assert_sizeof(PerCPUState, ==, 4096);
+static_assert_sizeof(PerCPUState, ==, VM_PAGE_SIZE);
 
 // Assumes GS is already swapped to KernelGSBase...
 static inline PerCPUState *state_get_per_cpu(void) {
