@@ -61,6 +61,11 @@ jobs:
           make clean test coverage
         shell: bash
 
+      - name: Make coverage paths relative
+        run: |
+          sed -i.tmp "s;$PWD/;;g" gcov/kernel/coverage*.info
+        shell: bash
+
       - name: Coverage Badge
         uses: ImBIOS/lcov-coverage-badge@v1
         with:
