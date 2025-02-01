@@ -121,6 +121,11 @@ main64:
 
   lgdt  [k_gdtr]                          ; Load the kernel GDT we were given
 
+  mov   ax,0x10                           ; Set ax to 0x10 - offset of segment 2, the kernel's 64-bit data segment...
+  mov   ds,ax                             ; and set DS to that..
+  mov   es,ax                             ; and ES too...
+  mov   ss,ax                             ; as well as SS.
+
   mov rcx,rdi                             ; Set up the TSS for this specific core,
   shl rcx,4                               ; based on the unique ID we grabbed at
   add rcx,0x28                            ; the beginning. NOTE: This may differ

@@ -9,6 +9,7 @@
 #include "mock_spinlock.h"
 #include "munit.h"
 #include "sched.h"
+#include "smp/state.h"
 
 static MunitResult test_sched_lock_unlocked(const MunitParameter params[],
                                             void *param) {

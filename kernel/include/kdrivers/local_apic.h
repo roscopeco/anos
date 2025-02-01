@@ -40,7 +40,8 @@
 #define REG_LAPIC_ICR_HIGH(lapic) (LAPIC_REG(lapic, ICR_HIGH))
 #define REG_LAPIC_LVT_TIMER(lapic) (LAPIC_REG(lapic, LVT_TIMER))
 
-#define LAPIC_TIMER_VECTOR (((uint8_t)0x30))
+#define LAPIC_TIMER_BSP_VECTOR (((uint8_t)0x30))
+#define LAPIC_TIMER_AP_VECTOR (((uint8_t)0x31))
 
 typedef struct {
     uint64_t base_address;

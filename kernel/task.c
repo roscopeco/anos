@@ -17,6 +17,8 @@
 #include "smp/state.h"
 #include "task.h"
 
+#include "printdec.h"
+
 #ifdef DEBUG_TASK_SWITCH
 #include "debugprint.h"
 #include "printhex.h"

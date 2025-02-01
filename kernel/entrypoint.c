@@ -296,17 +296,9 @@ static inline void init_kernel_gdt() {
                    GDT_ENTRY_FLAGS_64BIT);
 }
 
-static inline void *get_tss() {
-    // TODO this isn't actually working now, we aren't setting it up
-    //      in the per-CPU TSS's. Need to do that before syscalls on APs...
-    GDTR gdtr;
-
-    cpu_store_gdtr(&gdtr);
-
-    GDTEntry *tss_entry = get_gdt_entry(&gdtr, 5);
-
-    return (void *)(0ULL | (tss_entry->base_high << 24) |
-                    (tss_entry->base_middle << 16) | tss_entry->base_low);
+static inline void *get_this_cpu_tss() {
+    PerCPUState *cpu_state = state_get_per_cpu();
+    return gdt_per_cpu_tss(cpu_state->cpu_id);
 }
 
 MemoryRegion *physical_region;
@@ -385,7 +377,7 @@ noreturn void start_idle(void) {
                (uintptr_t)kernel_thread_entrypoint, TASK_CLASS_IDLE);
 
     // We can just get away with disabling here, no need to save/restore flags
-    // because we know we're currently the only thread...
+    // because we know we're currently the only thread on this CPU...
     __asm__ volatile("cli");
 
     // Kick off scheduling...
@@ -414,7 +406,7 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
 
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table, ap_num);
 
-    task_init(get_tss());
+    task_init(get_this_cpu_tss());
     sleep_init();
 
     start_idle();
@@ -532,7 +524,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     debugstr("All is well, DEBUG_NO_START_SYSTEM was specified, so halting for "
              "now.\n");
 #else
-    task_init(get_tss());
+    task_init(get_this_cpu_tss());
     sleep_init();
 
     start_system();

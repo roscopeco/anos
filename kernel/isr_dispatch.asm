@@ -8,10 +8,12 @@
 
 bits 64
 
-global pic_irq_handler, timer_interrupt_handler, unknown_interrupt_handler, spurious_irq_count
+global pic_irq_handler, unknown_interrupt_handler, spurious_irq_count
+global bsp_timer_interrupt_handler, ap_timer_interrupt_handler
 global syscall_69_handler
 
-extern handle_exception_nc, handle_exception_wc, handle_timer_interrupt, handle_unknown_interrupt
+extern handle_exception_nc, handle_exception_wc, handle_unknown_interrupt
+extern handle_bsp_timer_interrupt, handle_ap_timer_interrupt, 
 extern handle_syscall_69
 
 %macro pusha_sysv_not_rax 0
@@ -134,13 +136,25 @@ pic_irq_handler:
 ; TODO I suspect we might need a separate handler here, specifically for PIC IRQ 15
 ; (vector 0x2f) because we should be sending EOI to the master PIC in that case...
 
-timer_interrupt_handler:
+bsp_timer_interrupt_handler:
   conditional_swapgs
   pusha_sysv
 
   ; TODO stack alignment?
 
-  call  handle_timer_interrupt            ; Just call directly to C handler
+  call  handle_bsp_timer_interrupt        ; Just call directly to C handler
+
+  popa_sysv
+  conditional_swapgs
+  iretq
+
+ap_timer_interrupt_handler:
+  conditional_swapgs
+  pusha_sysv
+
+  ; TODO stack alignment?
+
+  call  handle_ap_timer_interrupt         ; Just call directly to C handler
 
   popa_sysv
   conditional_swapgs

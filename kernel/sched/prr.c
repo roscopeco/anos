@@ -123,6 +123,24 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     // Set up our state...
     PerCPUSchedState *state = init_cpu_sched_state();
 
+    TaskPriorityQueue *queue;
+    switch (task_class) {
+    case TASK_CLASS_REALTIME:
+        queue = &state->realtime_head;
+        break;
+    case TASK_CLASS_HIGH:
+        queue = &state->high_head;
+        break;
+    case TASK_CLASS_NORMAL:
+        queue = &state->normal_head;
+        break;
+    case TASK_CLASS_IDLE:
+        queue = &state->idle_head;
+        break;
+    default:
+        return false;
+    }
+
     // Create a process & task to represent the init thread (which System will inherit)
     Process *new_process = slab_alloc_block();
     new_process->pid = 1;
@@ -159,7 +177,7 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     new_task->this.next = NULL;
     new_task->this.type = KTYPE_TASK;
 
-    task_pq_push(&state->normal_head, new_task);
+    task_pq_push(queue, new_task);
 
     return true;
 }

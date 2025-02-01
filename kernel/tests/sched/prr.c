@@ -26,6 +26,8 @@ static const int PAGES_PER_SLAB = BYTES_PER_SLAB / VM_PAGE_SIZE;
 static const uintptr_t TEST_PAGETABLE_ROOT = 0x1234567887654321;
 static const uintptr_t TEST_SYS_SP = 0xc0c010c0a1b2c3d4;
 static const uintptr_t TEST_SYS_FUNC = 0x2bad3bad4badf00d;
+static const uintptr_t TEST_BOOT_FUNC = 0x1010101020101020;
+static const uintptr_t TEST_TASK_CLASS = TASK_CLASS_NORMAL;
 
 Task *test_sched_prr_get_runnable_head(TaskClass level);
 Task *test_sched_prr_set_runnable_head(TaskClass level, Task *task);
@@ -39,7 +41,7 @@ static inline void *slab_area_base(void *page_area_ptr) {
 
 static MunitResult test_sched_init_zeroes(const MunitParameter params[],
                                           void *page_area_ptr) {
-    bool result = sched_init(0, 0, 0);
+    bool result = sched_init(0, 0, 0, 0, 0);
 
     munit_assert_false(result);
 
@@ -51,7 +53,7 @@ static MunitResult test_sched_init_with_ssp(const MunitParameter params[],
     // We must have a sys stack since the routine expects to modify it!
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
-    bool result = sched_init(0, sys_stack, 0);
+    bool result = sched_init(0, sys_stack, 0, 0, 0);
 
     munit_assert_true(result);
 
@@ -63,12 +65,12 @@ static MunitResult test_sched_init_with_ssp(const MunitParameter params[],
     task = test_sched_prr_get_runnable_head(TASK_CLASS_HIGH);
     munit_assert_null(task);
 
-    // No idle tasks
-    task = test_sched_prr_get_runnable_head(TASK_CLASS_IDLE);
+    // No tasks in NORMAL class
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL);
     munit_assert_null(task);
 
-    // Init task in NORMAL class
-    task = test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL);
+    // Init task in idle tasks (0 is TASK_CLASS_IDLE)
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_IDLE);
     munit_assert_not_null(task);
     munit_assert_null(task->this.next);
 
@@ -111,7 +113,8 @@ static MunitResult test_sched_init_with_all(const MunitParameter params[],
     // We must have a sys stack since the routine expects to modify it!
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, INIT_TASK_CLASS);
 
     munit_assert_true(result);
 
@@ -154,7 +157,197 @@ static MunitResult test_sched_init_with_all(const MunitParameter params[],
 
     // func addr is "valid" and was pushed after reserved register space...
     munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==,
-                        (uint64_t)user_thread_entrypoint);
+                        (uint64_t)TEST_BOOT_FUNC);
+
+    // r15 register slot on stack has user function entrypoint
+    munit_assert_uint64(*(uint64_t *)(task->ssp), ==, TEST_SYS_FUNC);
+
+    // r14 register slot on stack has user SP
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 8), ==, TEST_SYS_SP);
+
+    munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
+    munit_assert_ptr(task->this.next, ==, NULL);
+
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_sched_init_with_realtime_prio(const MunitParameter params[],
+                                   void *page_area_ptr) {
+    // We must have a sys stack since the routine expects to modify it!
+    uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
+
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TASK_CLASS_REALTIME);
+
+    munit_assert_true(result);
+
+    // No high-priority tasks
+    Task *task = test_sched_prr_get_runnable_head(TASK_CLASS_HIGH);
+    munit_assert_null(task);
+
+    // No idle tasks
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_IDLE);
+    munit_assert_null(task);
+
+    // Nothing in NORMAL class
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL);
+    munit_assert_null(task);
+
+    // Init task in realtime
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_REALTIME);
+    munit_assert_not_null(task);
+    munit_assert_null(task->this.next);
+
+    // We should have allocated overhead (FBA + Slab), plus a slab for the blocks we needed
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
+                        PAGES_PER_SLAB + 2);
+
+    // Process (allocated first) is at the base of the slab area, plus 64 bytes (Slab* is at the base)
+    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 64);
+
+    // Task (allocated second) is at the base of the slab area, plus 128 bytes (after the Process)
+    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 128);
+
+    munit_assert_uint64(task->owner->pid, ==, 1);
+    munit_assert_uint64(task->owner->pml4, ==, TEST_PAGETABLE_ROOT);
+
+    munit_assert_uint64(task->tid, ==, 1);
+    munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
+    munit_assert_uint64(task->rsp0, ==, sys_stack);
+
+    // -128 because reg space was reserved, and func was pushed
+    munit_assert_uint64(task->ssp, ==, sys_stack - 128);
+
+    // func addr is "valid" and was pushed after reserved register space...
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==,
+                        (uint64_t)TEST_BOOT_FUNC);
+
+    // r15 register slot on stack has user function entrypoint
+    munit_assert_uint64(*(uint64_t *)(task->ssp), ==, TEST_SYS_FUNC);
+
+    // r14 register slot on stack has user SP
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 8), ==, TEST_SYS_SP);
+
+    munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
+    munit_assert_ptr(task->this.next, ==, NULL);
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_sched_init_with_high_prio(const MunitParameter params[],
+                                                  void *page_area_ptr) {
+    // We must have a sys stack since the routine expects to modify it!
+    uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
+
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TASK_CLASS_HIGH);
+
+    munit_assert_true(result);
+
+    // No realtime priority tasks
+    Task *task = test_sched_prr_get_runnable_head(TASK_CLASS_REALTIME);
+    munit_assert_null(task);
+
+    // No idle tasks
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_IDLE);
+    munit_assert_null(task);
+
+    // Nothing in NORMAL class
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL);
+    munit_assert_null(task);
+
+    // Init task in high
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_HIGH);
+    munit_assert_not_null(task);
+    munit_assert_null(task->this.next);
+
+    // We should have allocated overhead (FBA + Slab), plus a slab for the blocks we needed
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
+                        PAGES_PER_SLAB + 2);
+
+    // Process (allocated first) is at the base of the slab area, plus 64 bytes (Slab* is at the base)
+    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 64);
+
+    // Task (allocated second) is at the base of the slab area, plus 128 bytes (after the Process)
+    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 128);
+
+    munit_assert_uint64(task->owner->pid, ==, 1);
+    munit_assert_uint64(task->owner->pml4, ==, TEST_PAGETABLE_ROOT);
+
+    munit_assert_uint64(task->tid, ==, 1);
+    munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
+    munit_assert_uint64(task->rsp0, ==, sys_stack);
+
+    // -128 because reg space was reserved, and func was pushed
+    munit_assert_uint64(task->ssp, ==, sys_stack - 128);
+
+    // func addr is "valid" and was pushed after reserved register space...
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==,
+                        (uint64_t)TEST_BOOT_FUNC);
+
+    // r15 register slot on stack has user function entrypoint
+    munit_assert_uint64(*(uint64_t *)(task->ssp), ==, TEST_SYS_FUNC);
+
+    // r14 register slot on stack has user SP
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 8), ==, TEST_SYS_SP);
+
+    munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
+    munit_assert_ptr(task->this.next, ==, NULL);
+
+    return MUNIT_OK;
+}
+
+static MunitResult test_sched_init_with_idle_prio(const MunitParameter params[],
+                                                  void *page_area_ptr) {
+    // We must have a sys stack since the routine expects to modify it!
+    uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
+
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TASK_CLASS_IDLE);
+
+    munit_assert_true(result);
+
+    // No realtime tasls
+    Task *task = test_sched_prr_get_runnable_head(TASK_CLASS_REALTIME);
+    munit_assert_null(task);
+
+    // No high-priority tasks
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_HIGH);
+    munit_assert_null(task);
+
+    // Nothing in NORMAL class
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL);
+    munit_assert_null(task);
+
+    // Init task in idle
+    task = test_sched_prr_get_runnable_head(TASK_CLASS_IDLE);
+    munit_assert_not_null(task);
+    munit_assert_null(task->this.next);
+
+    // We should have allocated overhead (FBA + Slab), plus a slab for the blocks we needed
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
+                        PAGES_PER_SLAB + 2);
+
+    // Process (allocated first) is at the base of the slab area, plus 64 bytes (Slab* is at the base)
+    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 64);
+
+    // Task (allocated second) is at the base of the slab area, plus 128 bytes (after the Process)
+    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 128);
+
+    munit_assert_uint64(task->owner->pid, ==, 1);
+    munit_assert_uint64(task->owner->pml4, ==, TEST_PAGETABLE_ROOT);
+
+    munit_assert_uint64(task->tid, ==, 1);
+    munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
+    munit_assert_uint64(task->rsp0, ==, sys_stack);
+
+    // -128 because reg space was reserved, and func was pushed
+    munit_assert_uint64(task->ssp, ==, sys_stack - 128);
+
+    // func addr is "valid" and was pushed after reserved register space...
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==,
+                        (uint64_t)TEST_BOOT_FUNC);
 
     // r15 register slot on stack has user function entrypoint
     munit_assert_uint64(*(uint64_t *)(task->ssp), ==, TEST_SYS_FUNC);
@@ -175,7 +368,8 @@ test_sched_schedule_with_no_tasks(const MunitParameter params[],
 
     task_init(NULL);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     test_sched_prr_set_runnable_head(INIT_TASK_CLASS, NULL);
@@ -197,7 +391,8 @@ static MunitResult test_sched_schedule_with_no_current_and_one_norm_queued(
 
     task_init(&mock_task);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     // Remove the init task that'll have been added...
@@ -228,7 +423,8 @@ test_sched_schedule_with_running_norm_current_and_one_norm_queued(
     Task original_task;
     task_init(&original_task);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     // Given we have one task in the NORMAL queue...
@@ -260,7 +456,8 @@ test_sched_schedule_with_expired_norm_current_and_one_norm_queued(
     Task original_task;
     task_init(&original_task);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     // Given we have one task in the NORMAL queue...
@@ -292,7 +489,8 @@ test_sched_schedule_with_blocked_norm_current_and_one_norm_queued(
     Task original_task;
     task_init(&original_task);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     // Given we have one task in the NORMAL queue...
@@ -323,7 +521,8 @@ test_sched_schedule_with_running_norm_current_and_one_high_queued(
     Task original_task;
     task_init(&original_task);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     // Given we have no tasks in the NORMAL queue...
@@ -360,7 +559,8 @@ static MunitResult test_sched_schedule_with_running_norm_current_and_two_queued(
     Task original_task;
     task_init(&original_task);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     // Given we have one task in the NORMAL queue...
@@ -402,7 +602,8 @@ test_sched_schedule_with_running_norm_current_and_two_queued_diff_prio(
     Task original_task;
     task_init(&original_task);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     // Given we have one task in the NORMAL queue...
@@ -445,7 +646,8 @@ test_sched_schedule_with_running_norm_current_and_one_idle_queued(
     Task original_task;
     task_init(&original_task);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     // Given we have no tasks in the NORMAL queue...
@@ -483,7 +685,8 @@ test_sched_schedule_with_expired_norm_current_and_one_idle_queued(
     Task original_task;
     task_init(&original_task);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     // Given we have no tasks in the NORMAL queue...
@@ -524,7 +727,8 @@ test_sched_schedule_with_blocked_norm_current_and_one_idle_queued(
     Task original_task;
     task_init(&original_task);
 
-    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC);
+    bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
+                             TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
 
     // Given we have no tasks in the NORMAL queue...
@@ -575,6 +779,12 @@ static MunitTest test_suite_tests[] = {
         {(char *)"/init_with_ssp", test_sched_init_with_ssp, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/init_with_all", test_sched_init_with_all, test_setup,
+         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_realtime", test_sched_init_with_realtime_prio,
+         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_high", test_sched_init_with_high_prio, test_setup,
+         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_idle", test_sched_init_with_idle_prio, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         // No tasks / edge cases

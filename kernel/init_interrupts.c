@@ -19,7 +19,8 @@
     } while (0)
 
 extern void pic_irq_handler(void);
-extern void timer_interrupt_handler(void);
+extern void bsp_timer_interrupt_handler(void);
+extern void ap_timer_interrupt_handler(void);
 extern void unknown_interrupt_handler(void);
 extern void syscall_69_handler(void);
 
@@ -78,9 +79,11 @@ void idt_install(uint16_t kernel_cs) {
                   idt_attr(1, 0, IDT_TYPE_IRQ));
     }
 
-    // Set up the handler for the LAPIC Timer vector...
-    idt_entry(idt + LAPIC_TIMER_VECTOR, timer_interrupt_handler, kernel_cs, 0,
-              idt_attr(1, 0, IDT_TYPE_IRQ));
+    // Set up the handlers for the LAPIC Timer vectors...
+    idt_entry(idt + LAPIC_TIMER_BSP_VECTOR, bsp_timer_interrupt_handler,
+              kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
+    idt_entry(idt + LAPIC_TIMER_AP_VECTOR, ap_timer_interrupt_handler,
+              kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
 
     // Set up the handler for the 0x69 syscall...
     idt_entry(idt + SYSCALL_VECTOR, syscall_69_handler, kernel_cs, 0,
