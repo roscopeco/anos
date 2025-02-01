@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include "gdt.h"
+#include "kdrivers/cpu.h"
 
 // Function to create a GDT entry
 void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
@@ -32,4 +33,22 @@ GDTEntry *get_gdt_entry(GDTR *gdtr, int index) {
 
     GDTEntry *gdt = (GDTEntry *)(gdtr->base);
     return &gdt[index];
+}
+
+inline void *gdt_entry_to_tss(GDTEntry *tss_entry) {
+    return (void *)(0ULL | (tss_entry->base_high << 24) |
+                    (tss_entry->base_middle << 16) | tss_entry->base_low);
+}
+
+void *gdt_per_cpu_tss(uint8_t cpu_id) {
+    if (cpu_id > 15) {
+        return (void *)0;
+    } else {
+        GDTR gdtr;
+        cpu_store_gdtr(&gdtr);
+        GDTEntry *tss_entry =
+                get_gdt_entry(&gdtr, 5 + (cpu_id * CPU_TSS_ENTRY_SIZE_MULT));
+
+        return gdt_entry_to_tss(tss_entry);
+    }
 }

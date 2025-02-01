@@ -373,10 +373,9 @@ GDT_DESC:
   dw  GDT_DESC-GDT-1      ; Size (computed from here - start)
   dd  GDT                 ; Address (GDT, above)
 
-; Define the actual TSSes - only the first gets an RSP0 
-; at this point, the rest are set up for their individual 
-; CPUs later...
-define_tss 0, 0xFFFFFFFF80110000
+; Define the actual TSSes - but don't set RSP0 up yet,
+; we'll sort those out in the kernel...
+define_tss 0, 0
 define_tss 1, 0
 define_tss 2, 0
 define_tss 3, 0

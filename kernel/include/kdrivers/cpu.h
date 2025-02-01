@@ -18,6 +18,8 @@
 #define MSR_GSBase ((0xC0000101))
 #define MSR_KernelGSBase ((0xC0000102))
 
+#define CPU_TSS_ENTRY_SIZE_MULT ((2))
+
 bool cpu_init_this(void);
 
 uint64_t cpu_read_local_apic_id(void);
@@ -56,7 +58,7 @@ static inline void cpu_load_gdtr(GDTR *gdtr) {
 
 // Execute `sgdt` to load GDTR from a variable
 static inline void cpu_store_gdtr(GDTR *gdtr) {
-    __asm__ __volatile__("sgdt (%0)" : : "r"(gdtr));
+    __asm__ __volatile__("sgdt (%0)" : : "r"(gdtr) : "memory");
 }
 
 // Execute `lidt` to load a variable with the IDTR

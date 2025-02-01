@@ -23,11 +23,11 @@
 #define NANOS_IN_20MS (((uint64_t)20000000))
 
 static void start_timer(uint32_t volatile *lapic, uint8_t mode,
-                        uint32_t init_count) {
+                        uint32_t init_count, uint8_t vector) {
     // Set up timer
     *REG_LAPIC_DIVIDE(lapic) = mode;
     *REG_LAPIC_INITIAL_COUNT(lapic) = init_count;
-    *REG_LAPIC_LVT_TIMER(lapic) = 0x20000 | LAPIC_TIMER_VECTOR;
+    *REG_LAPIC_LVT_TIMER(lapic) = 0x20000 | vector;
 }
 
 static uint64_t local_apic_calibrate_count(KernelTimer *calibrated_timer,
@@ -42,13 +42,13 @@ static uint64_t local_apic_calibrate_count(KernelTimer *calibrated_timer,
 
     *REG_LAPIC_DIVIDE(lapic) = 0x03;
     *REG_LAPIC_INITIAL_COUNT(lapic) = 0xffffffff;
-    *REG_LAPIC_LVT_TIMER(lapic) = 0x20000 | LAPIC_TIMER_VECTOR;
+    *REG_LAPIC_LVT_TIMER(lapic) = 0x20000 | LAPIC_TIMER_BSP_VECTOR;
 
     while (calib_start < calib_end) {
         calib_start = calibrated_timer->current_ticks();
     }
 
-    *REG_LAPIC_LVT_TIMER(lapic) = 0x10000 | LAPIC_TIMER_VECTOR;
+    *REG_LAPIC_LVT_TIMER(lapic) = 0x10000 | LAPIC_TIMER_BSP_VECTOR;
 
     uint64_t ticks_in_20ms = 0xffffffff - *REG_LAPIC_CURRENT_COUNT(lapic);
 
@@ -105,7 +105,9 @@ uint32_t volatile *init_local_apic(ACPI_MADT *madt, bool bsp) {
     if (bsp) {
         // Can't start AP timer ticks yet, we don't have everything set up
         // to handle them...
-        start_timer(lapic, 0x03, hz_ticks);
+        start_timer(lapic, 0x03, hz_ticks, LAPIC_TIMER_BSP_VECTOR);
+    } else {
+        start_timer(lapic, 0x03, hz_ticks, LAPIC_TIMER_AP_VECTOR);
     }
 
     return lapic;

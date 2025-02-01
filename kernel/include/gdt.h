@@ -53,4 +53,10 @@ GDTEntry *get_gdt_entry(GDTR *gdtr, int index);
 void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
                     uint8_t access, uint8_t flags_limit_h);
 
+// Get a TSS pointer from a TSS GDT entry
+void *gdt_entry_to_tss(GDTEntry *tss_entry);
+
+// Get a per-CPU TSS pointer (statically allocated in Stage 2)
+void *gdt_per_cpu_tss(uint8_t cpu_id);
+
 #endif //__ANOS_KERNEL_GDT_H

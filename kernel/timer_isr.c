@@ -22,7 +22,16 @@ volatile uint64_t lapic_timer_upticks;
 
 uint64_t get_lapic_timer_upticks(void) { return lapic_timer_upticks; }
 
-void handle_timer_interrupt(void) {
+void handle_ap_timer_interrupt(void) {
+    local_apic_eoe();
+
+    sched_lock();
+    check_sleepers();
+    sched_schedule();
+    sched_unlock();
+}
+
+void handle_bsp_timer_interrupt(void) {
     lapic_timer_upticks += 1;
 
     if (counter++ == (KERNEL_HZ / 2)) /* one full cycle / sec */ {

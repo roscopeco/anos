@@ -122,9 +122,6 @@ kernel/tests/build/slab/alloc: kernel/tests/munit.o kernel/tests/slab/alloc.o ke
 kernel/tests/build/vmm/recursive: kernel/tests/munit.o kernel/tests/vmm/recursive.o $(TEST_BUILD_DIRS)
 	$(CC) $(TEST_CFLAGS) -o $@ kernel/tests/munit.o kernel/tests/vmm/recursive.o
 
-kernel/tests/build/sched/rr: kernel/tests/munit.o kernel/tests/sched/rr.o kernel/tests/build/sched/rr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/mock_task.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_task.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
-
 kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/build/structs/pq.o kernel/tests/mock_task.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_task.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
@@ -159,7 +156,6 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/slab/alloc										\
 			kernel/tests/build/vmm/recursive									\
 			kernel/tests/build/sched/lock										\
-			kernel/tests/build/sched/rr											\
 			kernel/tests/build/sched/prr										\
 			kernel/tests/build/printdec											\
 			kernel/tests/build/kdrivers/drivers									\
