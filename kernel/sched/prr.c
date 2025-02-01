@@ -48,6 +48,10 @@ static_assert_sizeof(PerCPUSchedState, <=, STATE_SCHED_DATA_MAX);
 #define vdbgx64(...)
 #endif
 
+static Process *system_process;
+
+void sched_idle_thread(void);
+
 static inline PerCPUSchedState *get_cpu_sched_state(void) {
     PerCPUState *cpu_state = state_get_per_cpu();
     return (PerCPUSchedState *)cpu_state->sched_data;
@@ -110,6 +114,7 @@ Task *test_sched_prr_set_runnable_head(TaskClass level, Task *task) {
 }
 #endif
 
+// This should only be called on the BSP
 bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
                 uintptr_t bootstrap_func, TaskClass task_class) {
     if (sys_ssp == 0) {
@@ -178,6 +183,52 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     new_task->this.type = KTYPE_TASK;
 
     task_pq_push(queue, new_task);
+
+    system_process = new_process;
+
+    return true;
+}
+
+bool sched_init_idle(uintptr_t sys_ssp, uintptr_t bootstrap_func) {
+
+    if (!system_process) {
+        return false;
+    }
+
+    PerCPUSchedState *state = get_cpu_sched_state();
+
+    // System also needs to own the idle thread
+
+    Task *idle_task = slab_alloc_block();
+
+    idle_task->rsp0 = sys_ssp;
+    sys_ssp -= 8;
+    *((uint64_t *)sys_ssp) = (uint64_t)bootstrap_func;
+
+    // space for initial registers except rsi, rdi, values don't care...
+    sys_ssp -= 104;
+
+    // push address of thread user stack, this will get popped into rsi...
+    sys_ssp -= 8;
+    *((uint64_t *)sys_ssp) = sys_ssp;
+
+    // push address of thread func, this will get popped into rdi...
+    sys_ssp -= 8;
+    *((uint64_t *)sys_ssp) = (uint64_t)sched_idle_thread;
+
+    idle_task->ssp = sys_ssp;
+    idle_task->owner = system_process;
+    idle_task->pml4 = system_process->pml4;
+    idle_task->tid = 1;
+    idle_task->ts_remain = DEFAULT_TIMESLICE;
+    idle_task->state = TASK_STATE_READY;
+    idle_task->prio = 0;
+    idle_task->class = TASK_CLASS_IDLE;
+
+    idle_task->this.next = NULL;
+    idle_task->this.type = KTYPE_TASK;
+
+    task_pq_push(&state->idle_head, idle_task);
 
     return true;
 }

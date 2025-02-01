@@ -18,6 +18,8 @@
 #define MSR_GSBase ((0xC0000101))
 #define MSR_KernelGSBase ((0xC0000102))
 
+#define MAX_CPU_COUNT ((16))
+
 #define CPU_TSS_ENTRY_SIZE_MULT ((2))
 
 bool cpu_init_this(void);

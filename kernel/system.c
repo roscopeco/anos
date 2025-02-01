@@ -1,0 +1,135 @@
+/*
+ * stage3 - User-mode supervisor start-up
+ * anos - An Operating System
+ *
+ * Copyright (c) 2025 Ross Bamford
+ */
+
+#include <stdint.h>
+#include <stdnoreturn.h>
+
+#include "fba/alloc.h"
+#include "kdrivers/cpu.h"
+#include "pmm/pagealloc.h"
+#include "sched.h"
+#include "slab/alloc.h"
+#include "vmm/vmconfig.h"
+#include "vmm/vmmapper.h"
+
+#ifdef CONSERVATIVE_BUILD
+#include "panic.h"
+#endif
+
+#define SYSTEM_BSS_PAGE_COUNT 4
+#define SYSTEM_KERNEL_STACK_PAGE_COUNT 4
+#define SYSTEM_USER_STACK_PAGE_COUNT 4
+
+#define SYSTEM_USER_STACK_BYTES ((SYSTEM_USER_STACK_PAGE_COUNT * VM_PAGE_SIZE))
+#define SYSTEM_KERNEL_STACK_BYTES                                              \
+    ((SYSTEM_KERNEL_STACK_PAGE_COUNT * VM_PAGE_SIZE))
+
+extern MemoryRegion *physical_region;
+
+extern void *_system_bin_start;
+extern void *_system_bin_end;
+
+static void *idle_stack_page;
+
+void user_thread_entrypoint(void);
+void kernel_thread_entrypoint(void);
+
+static inline uintptr_t idle_stack_top(uint8_t cpu_id) {
+    return (KERNEL_FBA_BLOCK_SIZE / MAX_CPU_COUNT) * cpu_id +
+           (KERNEL_FBA_BLOCK_SIZE / MAX_CPU_COUNT);
+}
+
+noreturn void start_system_ap(uint8_t cpu_id) {
+#ifdef CONSERVATIVE_BUILD
+    // invariant checks...
+    if (cpu_id >= MAX_CPU_COUNT) {
+        panic("start_system_ap cpu_id beyond MAX_CPU_COUNT");
+    }
+    if (!idle_stack_page) {
+        panic("start_system_ap called before start_system");
+    }
+#endif
+
+    // create a process and task for idle
+    sched_init_idle((uintptr_t)idle_stack_page + idle_stack_top(cpu_id),
+                    (uintptr_t)kernel_thread_entrypoint);
+
+    // We can just get away with disabling here, no need to save/restore flags
+    // because we know we're currently the only thread on this CPU...
+    __asm__ volatile("cli");
+
+    // Kick off scheduling...
+    sched_schedule();
+
+    // ... which will never return to here.
+    __builtin_unreachable();
+}
+
+noreturn void start_system(void) {
+    const uint64_t system_start_virt = 0x1000000;
+    const uint64_t system_start_phys =
+            (uint64_t)&_system_bin_start & ~(0xFFFFFFFF80000000);
+    const uint64_t system_len_bytes =
+            (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
+    const uint64_t system_len_pages = system_len_bytes >> 12;
+
+    const uint16_t flags = PRESENT | USER;
+
+    // Map pages for the user code
+    for (int i = 0; i < system_len_pages; i++) {
+        vmm_map_page(system_start_virt + (i << 12),
+                     system_start_phys + (i << 12), flags);
+    }
+
+    // TODO the way this is set up currently, there's no way to know how much
+    // BSS/Data we need... We'll just map a couple pages for now...
+
+    // Set up pages for the user bss / data
+    uint64_t user_bss = 0x0000000080000000;
+    for (int i = 0; i < SYSTEM_BSS_PAGE_COUNT; i++) {
+        uint64_t user_bss_phys = page_alloc(physical_region);
+        vmm_map_page(user_bss + (i * VM_PAGE_SIZE), user_bss_phys,
+                     flags | WRITE);
+    }
+
+    // ... and a page below that for the user stack
+    uint64_t user_stack = user_bss;
+    for (int i = 0; i < SYSTEM_USER_STACK_PAGE_COUNT; i++) {
+        user_stack -= VM_PAGE_SIZE;
+        uint64_t user_stack_phys = page_alloc(physical_region);
+        vmm_map_page(user_stack, user_stack_phys, flags | WRITE);
+    }
+
+    // ... the FBA can give us a kernel stack...
+    void *kernel_stack =
+            fba_alloc_blocks(SYSTEM_KERNEL_STACK_PAGE_COUNT); // 16KiB
+
+    // create a process and task for system
+    sched_init((uintptr_t)user_stack + SYSTEM_USER_STACK_BYTES,
+               (uintptr_t)kernel_stack + SYSTEM_KERNEL_STACK_BYTES,
+               (uintptr_t)0x0000000001000000, (uintptr_t)user_thread_entrypoint,
+               TASK_CLASS_NORMAL);
+
+    // Set up a page for idle stacks
+    //      (MAX_CPU_COUNT stacks of FBA_BLOCK_SIZE / 16 bytes each)
+    // currently this means 256 bytes stack per CPU, which should be
+    // plenty (too much, even) for idle...
+    //
+    idle_stack_page = fba_alloc_block();
+    sched_init_idle((uintptr_t)idle_stack_page + idle_stack_top(0),
+                    (uintptr_t)kernel_thread_entrypoint);
+
+    // We can just get away with disabling here, no need to save/restore flags
+    // because we know we're currently the only thread...
+    __asm__ volatile("cli");
+
+    // Kick off scheduling...
+    sched_schedule();
+
+    // ... which will never return to here.
+    __builtin_unreachable();
+}

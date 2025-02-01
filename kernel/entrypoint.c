@@ -28,13 +28,13 @@
 #include "pmm/pagealloc.h"
 #include "printdec.h"
 #include "printhex.h"
-#include "process.h"
 #include "sched.h"
 #include "slab/alloc.h"
 #include "sleep.h"
 #include "smp/startup.h"
 #include "smp/state.h"
 #include "syscalls.h"
+#include "system.h"
 #include "task.h"
 #include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
@@ -63,153 +63,19 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
-extern void *_system_bin_start;
-extern void *_system_bin_end;
-
 static char *MSG = VERSION "\n";
 
-void user_thread_entrypoint(void);
-void kernel_thread_entrypoint(void);
+MemoryRegion *physical_region;
+static ACPI_RSDT *acpi_root_table;
 
 #ifdef DEBUG_MEMMAP
-static char *MEM_TYPES[] = {"INVALID",  "AVAILABLE",  "RESERVED",
-                            "ACPI",     "NVS",        "UNUSABLE",
-                            "DISABLED", "PERSISTENT", "UNKNOWN"};
-
-void debug_memmap(E820h_MemMap *memmap) {
-    debugstr("\nThere are ");
-    printhex16(memmap->num_entries, debugchar);
-    debugstr(" memory map entries\n");
-
-    for (int i = 0; i < memmap->num_entries; i++) {
-        E820h_MemMapEntry *entry = &memmap->entries[i];
-
-        debugstr("Entry ");
-        printhex16(i, debugchar);
-        debugstr(": ");
-        printhex64(entry->base, debugchar);
-        debugstr(" -> ");
-        printhex64(entry->base + entry->length, debugchar);
-
-        if (entry->type < 8) {
-            debugstr(" (");
-            debugstr(MEM_TYPES[entry->type]);
-            debugstr(")\n");
-        } else {
-            debugstr(" (");
-            debugstr(MEM_TYPES[8]);
-            debugstr(")\n");
-        }
-    }
-}
+void debug_memmap(E820h_MemMap *memmap);
 #else
 #define debug_memmap(...)
 #endif
 
 #ifdef DEBUG_MADT
-void debug_madt(ACPI_RSDT *rsdt) {
-    ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
-
-    if (madt == NULL) {
-        debugstr("(ACPI MADT table not found)\n");
-        return;
-    }
-
-    debugstr("MADT length    : ");
-    printhex32(madt->header.length, debugchar);
-    debugstr("\n");
-
-    debugstr("LAPIC address  : ");
-    printhex32(madt->lapic_address, debugchar);
-    debugstr("\n");
-    debugstr("Flags          : ");
-    printhex32(madt->lapic_address, debugchar);
-    debugstr("\n");
-
-    uint16_t remain = madt->header.length - 0x2C;
-    uint8_t *ptr = ((uint8_t *)madt) + 0x2C;
-
-    while (remain > 0) {
-        uint8_t *type = ptr++;
-        uint8_t *len = ptr++;
-
-        uint16_t *flags16;
-        uint32_t *flags32;
-
-        switch (*type) {
-        case 0: // Processor local APIC
-            debugstr("  CPU            [ID: ");
-            printhex8(*ptr++, debugchar);
-            debugstr("; LAPIC ");
-            printhex8(*ptr++, debugchar);
-            flags32 = (uint32_t *)ptr;
-            debugstr("; Flags: ");
-            printhex32(*flags32, debugchar);
-            debugstr("]\n");
-            ptr += 4;
-            break;
-        case 1: // IO APIC
-            debugstr("  IOAPIC         [ID: ");
-            printhex8(*ptr++, debugchar);
-
-            ptr++; // skip reserved
-
-            uint32_t *apicaddr = (uint32_t *)ptr;
-            ptr += 4;
-            uint32_t *gsibase = (uint32_t *)ptr;
-            ptr += 4;
-
-            debugstr("; Addr: ");
-            printhex32(*apicaddr, debugchar);
-            debugstr("; GSIBase: ");
-            printhex32(*gsibase, debugchar);
-            debugstr("]\n");
-            break;
-        case 2: // IP APIC Source Override
-            debugstr("  IOAPIC Src O/R [Bus: ");
-            printhex8(*ptr++, debugchar);
-            debugstr("; IRQ: ");
-            printhex8(*ptr++, debugchar);
-
-            uint32_t *gsi = (uint32_t *)ptr;
-            ptr += 4;
-            debugstr("; GSI: ");
-            printhex32(*gsi, debugchar);
-
-            flags16 = (uint16_t *)ptr;
-            ptr += 2;
-            debugstr("; Flags: ");
-            printhex16(*flags16, debugchar);
-            debugstr("]\n");
-
-            break;
-        case 4: // LAPIC NMI
-            debugstr("  LAPIC NMI      [Processor: ");
-            printhex8(*ptr++, debugchar);
-
-            flags16 = (uint16_t *)ptr;
-            ptr += 2;
-            debugstr("; Flags: ");
-            printhex16(*flags16, debugchar);
-
-            debugstr("; LINT#: ");
-            printhex8(*ptr++, debugchar);
-            debugstr("]\n");
-
-            break;
-        default:
-            // Just skip over
-            debugstr("  #TODO UNKNOWN  [Type: ");
-            printhex8(*type, debugchar);
-            debugstr("; Len: ");
-            printhex8(*len, debugchar);
-            debugstr("]\n");
-            ptr += *len - 2;
-        }
-
-        remain -= *len;
-    }
-}
+void debug_madt(ACPI_RSDT *rsdt);
 #else
 #define debug_madt(...)
 #endif
@@ -301,92 +167,6 @@ static inline void *get_this_cpu_tss() {
     return gdt_per_cpu_tss(cpu_state->cpu_id);
 }
 
-MemoryRegion *physical_region;
-ACPI_RSDT *acpi_root_table;
-
-noreturn void start_system(void) {
-    const uint64_t system_start_virt = 0x1000000;
-    const uint64_t system_start_phys =
-            (uint64_t)&_system_bin_start & ~(0xFFFFFFFF80000000);
-    const uint64_t system_len_bytes =
-            (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
-    const uint64_t system_len_pages = system_len_bytes >> 12;
-
-    const uint16_t flags = PRESENT | USER;
-
-    // Map pages for the user code
-    for (int i = 0; i < system_len_pages; i++) {
-        vmm_map_page(system_start_virt + (i << 12),
-                     system_start_phys + (i << 12), flags);
-    }
-
-    // TODO the way this is set up currently, there's no way to know how much
-    // BSS/Data we need... We'll just map a couple pages for now...
-
-    // Set up four pages for the user bss / data
-    uint64_t user_bss = 0x0000000080000000;
-    uint64_t user_bss_phys = page_alloc(physical_region);
-    vmm_map_page(user_bss, user_bss_phys, flags | WRITE);
-    user_bss_phys = page_alloc(physical_region);
-    vmm_map_page(user_bss + 0x1000, user_bss_phys, flags | WRITE);
-    user_bss_phys = page_alloc(physical_region);
-    vmm_map_page(user_bss + 0x2000, user_bss_phys, flags | WRITE);
-    user_bss_phys = page_alloc(physical_region);
-    vmm_map_page(user_bss + 0x3000, user_bss_phys, flags | WRITE);
-
-    // ... and a page below that for the user stack
-    uint64_t user_stack = user_bss - 0x1000;
-    uint64_t user_stack_phys = page_alloc(physical_region);
-    vmm_map_page(user_stack, user_stack_phys, flags | WRITE);
-
-    // ... the FBA can give us a kernel stack...
-    void *kernel_stack = fba_alloc_blocks(4); // 16KiB
-
-    // create a process and task for system
-    sched_init((uintptr_t)user_stack + 0x1000, (uintptr_t)kernel_stack + 0x4000,
-               (uintptr_t)0x0000000001000000, (uintptr_t)user_thread_entrypoint,
-               TASK_CLASS_NORMAL);
-
-    // We can just get away with disabling here, no need to save/restore flags
-    // because we know we're currently the only thread...
-    __asm__ volatile("cli");
-
-    // Kick off scheduling...
-    sched_schedule();
-
-    // ... which will never return to here.
-    __builtin_unreachable();
-}
-
-static noreturn void idle() {
-    while (1) {
-        __asm__ volatile("hlt");
-    }
-
-    __builtin_unreachable();
-}
-
-noreturn void start_idle(void) {
-    // ... the FBA can give us runtime and kernel stacks...
-    void *runtime_stack = fba_alloc_block(); // 4KiB
-    void *kernel_stack = fba_alloc_block();  // 4KiB
-
-    // create a process and task for idle
-    sched_init((uintptr_t)runtime_stack + 0x1000,
-               (uintptr_t)kernel_stack + 0x1000, (uintptr_t)idle,
-               (uintptr_t)kernel_thread_entrypoint, TASK_CLASS_IDLE);
-
-    // We can just get away with disabling here, no need to save/restore flags
-    // because we know we're currently the only thread on this CPU...
-    __asm__ volatile("cli");
-
-    // Kick off scheduling...
-    sched_schedule();
-
-    // ... which will never return to here.
-    __builtin_unreachable();
-}
-
 noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
 #ifdef DEBUG_SMP_STARTUP
 #ifdef VERY_NOISY_SMP_STARTUP
@@ -409,7 +189,7 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
     task_init(get_this_cpu_tss());
     sleep_init();
 
-    start_idle();
+    start_system_ap(ap_num);
 
     panic("Somehow ended up back in AP entrypoint. This is a bad thing...");
 }
