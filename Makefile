@@ -28,6 +28,7 @@ endif
 #
 #	DEBUG_PMM				Enable debugging of the PMM
 #	VERY_NOISY_PMM			Enable *lots* of debugging of the PMM (requires DEBUG_PMM)
+#	DEBUG_MEMMAP			Enable debugging of the BIOS memory map
 #	DEBUG_VMM				Enable debugging of the VMM
 #	VERY_NOISY_VMM			Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT		Enable debugging in page fault handler
@@ -57,6 +58,7 @@ endif
 #
 # And these will selectively disable features
 #
+#	WITH_KERNEL_HEART		Enable the old visual heartbeat in the top-right of the console
 #	NO_SMP					Disable SMP (don't spin-up any of the APs)
 #	SMP_TWO_SIPI_ATTEMPTS	Try a second SIPI if an AP doesn't respond to the first
 #
@@ -129,6 +131,7 @@ STAGE2_OBJS=$(STAGE2_DIR)/$(STAGE2).o 											\
 			
 STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/entrypoint.o											\
+			$(STAGE3_DIR)/debuginfo.o											\
 			$(STAGE3_DIR)/debugprint.o											\
 			$(STAGE3_DIR)/printhex.o											\
 			$(STAGE3_DIR)/printdec.o											\
@@ -173,6 +176,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/panic.o												\
 			$(STAGE3_DIR)/task_kernel_entrypoint.o								\
 			$(STAGE3_DIR)/kdrivers/serial.o										\
+			$(STAGE3_DIR)/system.o												\
+			$(STAGE3_DIR)/sched/idle.o											\
 			$(STAGE3_DIR)/$(REALMODE)_linkable.o								\
 			$(SYSTEM)_linkable.o
 		
