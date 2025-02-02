@@ -82,18 +82,18 @@ syscall_init:
 syscall_enter:
 %ifndef NO_USER_GS
     cli
-    nop
     swapgs
 
-    mov     r11,[gs:0]                      ; Load per-CPU data pointer
-    mov     r11,[r11]                       ; Dereference it
-    mov     [r11+CPU_RSP_STASH],rsp         ; Stash the user stack pointer
-    mov     r11,[r11+CPU_TASK_CURRENT]      ; ... and load task pointer
-    mov     rsp,[r11+TASK_RSP0]             ; ... so we can switch to kernel stack
+    ; TODO syscalls are still using user stack, the following doesn't quite work
+    ;      (specifically tasks crash when waking from sleep, so I think we're 
+    ;      missing an equivalent stack switch somewhere in that path...)
+    ;   
+    ; mov     [gs:CPU_RSP_STASH+16],rsp      ; Stash the user stack pointer
+    ; mov     r8,[gs:CPU_TASK_CURRENT]       ; ... and load task pointer
+    ; mov     rsp,[r8+TASK_RSP0]             ; ... so we can switch to kernel stack
 %endif
 
     push rbp
-    mov rbp, rsp
     push rcx        ; Return addr
     push rbx
     push r11        ; syscall clobbers this...
@@ -116,9 +116,7 @@ syscall_enter:
     pop rbp
 %ifndef NO_USER_GS
     cli
-    mov     r11,[gs:0]                      ; Load per-CPU data pointer
-    mov     r11,[r11]                       ; Dereference it
-    mov     rsp,[r11+CPU_RSP_STASH]         ; ... and restore the user stack pointer
+    ; mov     rsp,[gs:CPU_RSP_STASH+16]          ; ... and restore the user stack pointer
 
     swapgs
 %endif

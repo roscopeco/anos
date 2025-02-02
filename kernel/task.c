@@ -105,6 +105,10 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
         task->rsp0 = task->ssp =
                 ((uintptr_t)fba_alloc_block()) +
                 0x1000; // default 4KiB kernel stack should be enough...?
+
+        debugstr("Created kernel stack for 0 thread @ ");
+        printhex64(task->rsp0, debugchar);
+        debugstr("\n");
     }
 
     // push address of entrypoint func as first place this task will "return" to...
