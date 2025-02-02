@@ -3,6 +3,8 @@
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
+ * 
+ * Be sure to keep this in-sync with state.inc!
  */
 
 #ifndef __ANOS_SMP_STATE_H
@@ -21,6 +23,7 @@
 // This is just a marker define for information purposes...
 #define per_cpu
 
+// TODO should probably rejig this to be more cache friendly...
 typedef struct PerCPUState {
     struct PerCPUState *self; // 8
     uint64_t cpu_id;          // 16
@@ -40,8 +43,9 @@ typedef struct PerCPUState {
     uint8_t task_data[STATE_TASK_DATA_MAX];   // takes us to 960 bytes
 
     SleepQueue sleep_queue; // takes us to 1024 bytes
+    uint64_t usp_stash;     // 1032
 
-    uint8_t reserved3[3072]; // takes us to 4096 bytes
+    uint8_t reserved3[3064]; // takes us to 4096 bytes
 } PerCPUState;
 
 static_assert_sizeof(PerCPUState, ==, VM_PAGE_SIZE);

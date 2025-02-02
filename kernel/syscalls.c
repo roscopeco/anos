@@ -57,8 +57,8 @@ static SyscallResult handle_debugchar(char chr) {
 
 static SyscallResult handle_create_thread(ThreadFunc func,
                                           uintptr_t user_stack) {
-    Task *task =
-            task_create_new(task_current()->owner, user_stack, (uintptr_t)func);
+    Task *task = task_create_user(task_current()->owner, user_stack, 0,
+                                  (uintptr_t)func, TASK_CLASS_NORMAL);
 
     sched_lock();
     sched_unblock(task);

@@ -306,6 +306,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     task_init(get_this_cpu_tss());
     sleep_init();
 
+    prepare_system();
     start_system();
     debugstr("Somehow ended up back in entrypoint, that's probably not good - "
              "halting.  ..\n");

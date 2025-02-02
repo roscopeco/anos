@@ -30,3 +30,10 @@ void task_switch(Task *next) {
 
     current_task = next;
 }
+
+static Task new_task;
+
+Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
+                      uintptr_t bootstrap, uintptr_t func, TaskClass class) {
+    return &new_task;
+}
