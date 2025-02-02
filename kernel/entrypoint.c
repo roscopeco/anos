@@ -420,7 +420,15 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
 
     init_kernel_gdt();
 
+    debugstr("GDT Initialised\n");
+
+    install_interrupts();
+
+    debugstr("Interrupts initialised\n");
+
     pagetables_init();
+
+    debugstr("Page tables initialised\n");
 
     physical_region =
             page_alloc_init(memmap, PMM_PHYS_BASE, STATIC_PMM_VREGION);
@@ -430,12 +438,21 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
         panic("FBA init failed");
     }
 
+    debugstr("FBA initialised\n");
+
     if (!slab_alloc_init()) {
         panic("Slab init failed");
     }
 
-    install_interrupts();
+    debugstr("Slab initialised\n");
+
+    // install_interrupts();
+
+    // debugstr("Interrupts initialised\n");
+
     syscall_init();
+
+    debugstr("Syscalls initialised\n");
 
 #ifdef DEBUG_ACPI
     debugstr("RSDP at ");

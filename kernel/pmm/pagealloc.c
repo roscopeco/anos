@@ -11,6 +11,10 @@
 #include "pmm/pagealloc.h"
 #include "spinlock.h"
 
+#include "debugprint.h"
+#include "printdec.h"
+#include "printhex.h"
+
 #ifdef HOSTED_PMM_PRINTF_DEBUGGING
 #include <stdio.h>
 #define hprintf(...) printf(__VA_ARGS__)
@@ -27,10 +31,22 @@ MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
 
     region->size = region->free = 0;
 
+    debugstr("Managed base: ");
+    printdec(managed_base, debugchar);
+    debugstr("]\n");
+
     for (int i = 0; i < memmap->num_entries; i++) {
         E820h_MemMapEntry *entry = &memmap->entries[i];
 
         if (entry->type == MEM_MAP_ENTRY_AVAILABLE && entry->length > 0) {
+            debugstr(" ====> Mapping available region ");
+            printhex64(entry->base, debugchar);
+            debugstr(" of length ");
+            printdec(entry->length, debugchar);
+            debugstr(" [type ");
+            printdec(entry->type, debugchar);
+            debugstr("]\n");
+
             // Ensure start is page aligned
             uint64_t start = entry->base & 0xFFFFFFFFFFFFF000;
 
@@ -48,13 +64,25 @@ MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
                 if (end <= managed_base) {
                     // This block is entirely below the managed base, just skip
                     // it
+                    debugstr(" ==== ----> Ignoring, entirely below base\n");
                     continue;
                 } else {
                     // This block extends beyond the managed base, so adjust the
                     // start
+                    debugstr(" ==== ----> Adjusting, partially below base\n");
                     start = managed_base;
                 }
             }
+
+            // if (start >= 0x10000000) {
+            //         debugstr(" ==== ----> HACK: Ignoring > 4GiB based\n");
+            //     continue;
+            // }
+
+            // if (entry->length <= 0x40000) {
+            //         debugstr(" ==== ----> HACK: Ignoring < 256KiB long\n");
+            //     continue;
+            // }
 
             // Calculate number of bytes remaining...
             uint64_t total_bytes = end - start;
@@ -71,6 +99,14 @@ MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
             region->sp++;
             region->sp->base = start;
             region->sp->size = total_bytes >> 12; // size is pages, not bytes...
+        } else {
+            // debugstr(" ====> Skipping unavailable region ");
+            // printhex64(entry->base, debugchar);
+            // debugstr(" of length ");
+            // printdec(entry->length, debugchar);
+            // debugstr(" [type ");
+            // printdec(entry->type, debugchar);
+            // debugstr("]\n");
         }
     }
 

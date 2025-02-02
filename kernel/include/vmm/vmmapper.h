@@ -69,8 +69,8 @@
  *
  * This function invalidates the TLB automatically.
  */
-bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
-                     uint16_t flags);
+bool vmm_map_page_in(uint64_t volatile *pml4, uintptr_t virt_addr,
+                     uint64_t page, uint16_t flags);
 
 /*
  * Map the given page-aligned physical address into virtual memory 
@@ -99,7 +99,7 @@ bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
  * Simple wrapper around `map_page` - see documentation for that function
  * for specifics.
  */
-bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
+bool vmm_map_page_containing_in(uint64_t volatile *pml4, uintptr_t virt_addr,
                                 uint64_t phys_addr, uint16_t flags);
 
 /*
@@ -132,7 +132,7 @@ uintptr_t vmm_unmap_page(uintptr_t virt_addr);
  * Returns the physical address that was previously mapped, or
  * 0 for none.
  */
-uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr);
+uintptr_t vmm_unmap_page_in(uint64_t volatile *pml4, uintptr_t virt_addr);
 
 /*
  * Invalidate the TLB for the page containing the given virtual address.

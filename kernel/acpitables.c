@@ -12,6 +12,7 @@
 #include "acpitables.h"
 #include "debugprint.h"
 #include "machine.h"
+#include "printdec.h"
 #include "printhex.h"
 #include "vmm/vmmapper.h"
 
@@ -52,6 +53,12 @@ static bool checksum_rsdp(ACPI_RSDP *rsdp) {
 }
 
 static bool checksum_sdt(ACPI_SDTHeader *sdt) {
+    debugstr("### ACPI SDT CHECKSUM: ");
+    printhex64((uintptr_t)sdt, debugchar);
+    debugstr(" [len ");
+    printdec(sdt->length, debugchar);
+    debugstr("]\n");
+
     uint8_t *byteptr = (uint8_t *)sdt;
     uint8_t sum = 0;
 
@@ -90,13 +97,26 @@ static uint64_t get_mapping_for(uint64_t phys) {
         }
 
         // not found, map new
-        if (next_vaddr == ACPI_TABLES_VADDR_LIMIT) {
+        // HACK HACK HACK
+        // This is currently expanded by 0x8000 which pushes it into MMIO space
+        // (which luckily we don't use just yet)
+        if (next_vaddr == (ACPI_TABLES_VADDR_LIMIT + 0x18000)) {
             return 0;
         }
 
         uint64_t vaddr = next_vaddr;
-        next_vaddr += 0x1000;
+
+        /// HACK HACK HACK
+        // Mapping eight at a time to side-step the tables-crossing-boundaries issue :D
+        next_vaddr += 0x8000;
         vmm_map_page_containing(vaddr, phys, PRESENT);
+        vmm_map_page_containing(vaddr + 0x1000, phys + 0x1000, PRESENT);
+        vmm_map_page_containing(vaddr + 0x2000, phys + 0x3000, PRESENT);
+        vmm_map_page_containing(vaddr + 0x3000, phys + 0x4000, PRESENT);
+        vmm_map_page_containing(vaddr + 0x4000, phys + 0x5000, PRESENT);
+        vmm_map_page_containing(vaddr + 0x5000, phys + 0x6000, PRESENT);
+        vmm_map_page_containing(vaddr + 0x6000, phys + 0x7000, PRESENT);
+        vmm_map_page_containing(vaddr + 0x7000, phys + 0x8000, PRESENT);
 
 #ifdef DEBUG_ACPI
 #ifdef VERY_NOISY_ACPI

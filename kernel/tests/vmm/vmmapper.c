@@ -195,6 +195,22 @@ static MunitResult test_map_page_complete_pml4_0(const MunitParameter params[],
 }
 
 static MunitResult
+test_map_page_complete_pml4_phys_4G(const MunitParameter params[],
+                                    void *param) {
+    munit_assert_uint64(complete_pt[0], !=, 0x100000000);
+
+    vmm_map_page_in(complete_pml4, 0x0, 0x100000000, 0);
+
+    // Correct page was mapped
+    munit_assert_uint64(complete_pt[0], ==, 0x100000000);
+
+    // No pages were allocated
+    munit_assert_uint8(mock_pmm_get_total_page_allocs(), ==, 0);
+
+    return MUNIT_OK;
+}
+
+static MunitResult
 test_map_page_containing_already(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt[0], !=, 0x1000);
 
@@ -334,6 +350,9 @@ static MunitTest test_suite_tests[] = {
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/map/complete_pml4_0M", test_map_page_complete_pml4_0, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/map/complete_pml4_phys_4G",
+         test_map_page_complete_pml4_phys_4G, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/map/containing_already", test_map_page_containing_already,
          setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/map/containing_within", test_map_page_containing_within,

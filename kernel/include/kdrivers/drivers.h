@@ -21,8 +21,11 @@
 
 // See MemoryMap.md for details on the size and purpose of these...
 #define KERNEL_HARDWARE_VADDR_BASE 0xffffffa000000000
-#define KERNEL_DRIVER_VADDR_BASE 0xffffffff81008000
-#define KERNEL_DRIVER_VADDR_SIZE 0x00000000000f8000
+
+// HACK HACK HACK
+// This should be 0xffffffff81008000 (and 0xf8000 len), moved to give ACPI more room...
+#define KERNEL_DRIVER_VADDR_BASE 0xffffffff81020000
+#define KERNEL_DRIVER_VADDR_SIZE 0x00000000000e0000
 
 typedef uint64_t (*KDriverEntrypoint)(void *arg);
 

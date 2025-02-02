@@ -35,7 +35,7 @@ void cpu_debug_info(void);
 
 static inline uint64_t cpu_read_msr(uint32_t msr) {
     uint32_t eax, edx;
-    __asm__ volatile("rdmsr" : "=a"(eax), "=d"(edx) : "c"(msr));
+    __asm__ volatile("rdmsr" : "=a"(eax), "=d"(edx) : "c"(msr) : "memory");
     return ((uint64_t)edx << 32) | eax;
 }
 
@@ -47,7 +47,7 @@ static inline void cpu_write_msr(uint64_t msr, uint64_t value) {
 
 static inline uint64_t cpu_read_tsc(void) {
     uint32_t edx, eax;
-    __asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx));
+    __asm__ volatile("rdtsc" : "=a"(eax), "=d"(edx) : : "memory");
     return ((uint64_t)edx << 32) | eax;
 }
 

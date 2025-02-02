@@ -57,7 +57,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU
+CDEFS=-DDEBUG_CPU -DNO_SMP
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -276,7 +276,7 @@ $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
 
-QEMU_OPTS=-smp cpus=4 -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -monitor stdio
+QEMU_OPTS=-smp cpus=4 -m 8G -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -monitor stdio
 QEMU_DEBUG_OPTS=$(QEMU_OPTS) -gdb tcp::9666 -S
 
 qemu: $(FLOPPY_IMG)

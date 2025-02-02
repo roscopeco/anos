@@ -11,11 +11,17 @@
 #include "debugprint.h"
 #include "fba/alloc.h"
 #include "pmm/pagealloc.h"
+#include "pmm/sys.h"
 #include "printhex.h"
 #include "spinlock.h"
 #include "structs/bitmap.h"
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
+
+#include "kdrivers/cpu.h"
+#include "pmm/sys.h"
+#include "printdec.h"
+#include "printhex.h"
 
 #define tprintf(...)
 
@@ -59,6 +65,7 @@ uint64_t *test_fba_bitmap_end() { return _fba_bitmap_end; }
 extern MemoryRegion *physical_region;
 
 bool fba_init(uint64_t *pml4, uintptr_t fba_begin, uint64_t fba_size_blocks) {
+    debugstr(" ===> INIT FBA\n");
     if ((fba_begin & 0xfff) != 0) { // begin must be page aligned
         return false;
     }
@@ -76,6 +83,14 @@ bool fba_init(uint64_t *pml4, uintptr_t fba_begin, uint64_t fba_size_blocks) {
     uint64_t bitmap_page_count = fba_size_blocks >> 15;
     uint64_t bitmap_page_end = fba_begin + (bitmap_page_count << 12);
 
+    debugstr(" ===> Will alloc bitmap\n");
+    debugstr(" ===> in PML4 @ ");
+    printhex64((uintptr_t)pml4, debugchar);
+    debugstr("\n");
+    debugstr(" === ====> (Sys PML4 @ ");
+    printhex64((uintptr_t)get_pagetable_root(), debugchar);
+    debugstr(")\n");
+
     for (uintptr_t virt = fba_begin; virt < bitmap_page_end; virt += 0x1000) {
         uint64_t phys = page_alloc(physical_region);
 
@@ -88,8 +103,20 @@ bool fba_init(uint64_t *pml4, uintptr_t fba_begin, uint64_t fba_size_blocks) {
             return false;
         }
 
+        debugstr("==== ----> Mapping ");
+        printhex64(virt, debugchar);
+        debugstr(" to phys ");
+        printhex64(phys, debugchar);
+        debugstr("\n");
+
         vmm_map_page_in(pml4, virt, phys, PRESENT | WRITE);
     }
+
+    debugstr(" ===> Reload CR3...\n");
+    // set_pagetable_root(get_pagetable_root());
+    cpu_invalidate_page((uintptr_t)pml4);
+
+    debugstr(" ===> Alloc done\n");
 
     _fba_begin = fba_begin;
     _fba_size_blocks = fba_size_blocks;
@@ -97,15 +124,29 @@ bool fba_init(uint64_t *pml4, uintptr_t fba_begin, uint64_t fba_size_blocks) {
     _fba_bitmap_size_quads = bitmap_page_count << 9;
     _fba_bitmap_size_bits = _fba_bitmap_size_quads << 6;
 
+    debugstr(" ===> About to set bitmap up @");
+    printhex64(fba_begin, debugchar);
+    debugstr(" - page count is ");
+    printdec(bitmap_page_count, debugchar);
+    debugstr("\n");
+
+    // cpu_tsc_delay(10000000000);
+
+    // debugstr("Also delay works...\n");
+
     // Mark blocks used by the bitmap as in-use
     for (int i = 0; i < bitmap_page_count; i++) {
         bitmap_set((uint64_t *)fba_begin, i);
     }
 
+    debugstr(" <=== Bitmap setup done\n");
+
     _fba_bitmap = (uint64_t *)_fba_begin;
     _fba_bitmap_end = _fba_bitmap + (bitmap_page_count << 9);
 
     _pml4 = pml4;
+
+    debugstr(" <=== FBA init done\n");
 
     return true;
 }

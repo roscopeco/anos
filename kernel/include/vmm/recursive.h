@@ -36,16 +36,24 @@ static const uintptr_t L3_LSHIFT = 21;
 static const uintptr_t L4_LSHIFT = 12;
 
 // Amount to shift a vaddr right when extracting L1
-static const uintptr_t L1_RSHIFT = 9;
+// 3 more than you'd expect, we shift back by 3 to
+// fix up the offset to a direct address.
+static const uintptr_t L1_RSHIFT = 12;
 
 // Amount to shift a vaddr right when extracting L2
-static const uintptr_t L2_RSHIFT = 18;
+// 3 more than you'd expect, we shift back by 3 to
+// fix up the offset to a direct address.
+static const uintptr_t L2_RSHIFT = 21;
 
 // Amount to shift a vaddr right when extracting L3
-static const uintptr_t L3_RSHIFT = 27;
+// 3 more than you'd expect, we shift back by 3 to
+// fix up the offset to a direct address.
+static const uintptr_t L3_RSHIFT = 30;
 
 // Amount to shift a vaddr right when extracting L4
-static const uintptr_t L4_RSHIFT = 36;
+// 3 more than you'd expect, we shift back by 3 to
+// fix up the offset to a direct address.
+static const uintptr_t L4_RSHIFT = 39;
 
 // Index of recursive mapping entry in PML4
 // `0xffff800000000000`-> `0xffff807fffffffff` : 512GB Recursive mapping area when @ PML4[256]
@@ -174,7 +182,7 @@ static inline uint64_t *vmm_virt_to_pte(uintptr_t virt_addr) {
     // 0xffff800040403020 :: 0b1111111111111111 100000000 000000001 000000010 000000011 000000100000
 
     return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L1 |
-                        ((virt_addr & TABLE_BIT_MASK) >> L1_RSHIFT));
+                        ((virt_addr & TABLE_BIT_MASK) >> L1_RSHIFT << 3));
 }
 
 /*
@@ -197,7 +205,7 @@ static inline uint64_t *vmm_virt_to_pde(uintptr_t virt_addr) {
     // 0xffffffffc0202018 :: 0b1111111111111111 111111111 111111111 000000001 000000010 000000011000
 
     return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L1 | RECURSIVE_L2 |
-                        ((virt_addr & TABLE_BIT_MASK) >> L2_RSHIFT));
+                        ((virt_addr & TABLE_BIT_MASK) >> L2_RSHIFT << 3));
 }
 
 /*
@@ -221,7 +229,7 @@ static inline uint64_t *vmm_virt_to_pdpte(uintptr_t virt_addr) {
 
     return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L1 | RECURSIVE_L2 |
                         RECURSIVE_L3 |
-                        ((virt_addr & TABLE_BIT_MASK) >> L3_RSHIFT));
+                        ((virt_addr & TABLE_BIT_MASK) >> L3_RSHIFT << 3));
 }
 
 /*
@@ -245,7 +253,7 @@ static inline uint64_t *vmm_virt_to_pml4e(uintptr_t virt_addr) {
 
     return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L1 | RECURSIVE_L2 |
                         RECURSIVE_L3 | RECURSIVE_L4 |
-                        ((virt_addr & TABLE_BIT_MASK) >> L4_RSHIFT));
+                        ((virt_addr & TABLE_BIT_MASK) >> L4_RSHIFT << 3));
 }
 
 /*
