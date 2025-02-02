@@ -49,11 +49,15 @@ extern handle_syscall_69
 %endmacro
 
 %macro conditional_swapgs 0
-	cmp byte [rsp+0x8], 0x8                 ; TODO race condition here, if entered via a 
-                                          ; non-interrupt gate (i.e. if interrupts are enabled).
-	je %%.noswap
-	swapgs  
+  pushfq
+  cli
+%ifndef NO_USER_GS
+	test byte [rsp+0x10], 3
+	jz %%.noswap
+	swapgs
 %%.noswap:
+  popfq
+%endif
 %endmacro
 
 %macro trap_dispatcher_with_code 1        ; General handler for traps that stack an error code

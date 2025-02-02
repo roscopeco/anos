@@ -6,7 +6,7 @@ QEMU?=qemu-system-x86_64
 XCC?=x86_64-elf-gcc
 BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
-CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23										\
+CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23	\
 		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=kernel															\
@@ -51,6 +51,7 @@ endif
 #	DEBUG_FORCE_UNHANDLED_PAGE_FAULT	Force an unhandled page-fault at boot
 #	DEBUG_TASK_SWITCH					Dump debug info when switching tasks
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
+#	DEBUG_SLEEPY_KERNEL_TASK			Start a noisy kernel task that sleeps on all CPUs
 #
 # These set option you might feel like configuring
 #
@@ -61,12 +62,13 @@ endif
 #	WITH_KERNEL_HEART		Enable the old visual heartbeat in the top-right of the console
 #	NO_SMP					Disable SMP (don't spin-up any of the APs)
 #	SMP_TWO_SIPI_ATTEMPTS	Try a second SIPI if an AP doesn't respond to the first
+#	NO_USER_GS				Disable user-mode GS swap at kernel entry/exit (debugging only)
 #
 # Additionally:
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU
+CDEFS=-DDEBUG_CPU -DDEBUG_SLEEPY_KERNEL_TASK
 
 ifeq ($(SERIALTERM),true)
 QEMU_OPTS=$(QEMU_BASEOPTS) -display none -serial stdio
@@ -220,6 +222,8 @@ include kernel/tests/include.mk
 	-DVERSTR=$(SHORT_HASH) 														\
 	-DSTAGE_2_ADDR=$(STAGE_2_ADDR)												\
 	-DSTAGE_3_LO_ADDR=$(STAGE_3_LO_ADDR) -DSTAGE_3_HI_ADDR=$(STAGE_3_HI_ADDR)	\
+	-i$(STAGE3_INC)																\
+	$(CDEFS)																	\
 	$(ASFLAGS) 																	\
 	-o $@ $<
 
@@ -296,7 +300,7 @@ $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
 
-QEMU_BASEOPTS=-smp cpus=4 -m 8G -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
+QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
 QEMU_DEBUG_OPTS=$(QEMU_BASEOPTS) -gdb tcp::9666 -S
 
 qemu: $(FLOPPY_IMG)

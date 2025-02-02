@@ -33,10 +33,23 @@ extern MemoryRegion *physical_region;
 extern void *_system_bin_start;
 extern void *_system_bin_end;
 
-static void *idle_stack_page;
+static void *idle_sstack_page;
+static void *idle_ustack_page;
 
 void user_thread_entrypoint(void);
 void kernel_thread_entrypoint(void);
+
+static void init_idle_stacks(void) {
+    // Set up pages for idle stacks ('user' and 'kernel' (really run, and interrupt...))
+    //      (MAX_CPU_COUNT stacks of FBA_BLOCK_SIZE / 16 bytes each)
+    // currently this means 256 bytes stack per CPU, which should be
+    // plenty (too much, even) for idle...
+    //
+    idle_ustack_page = fba_alloc_block();
+    idle_sstack_page = fba_alloc_block();
+}
+
+void prepare_system(void) { init_idle_stacks(); }
 
 static inline uintptr_t idle_stack_top(uint8_t cpu_id) {
     return (KERNEL_FBA_BLOCK_SIZE / MAX_CPU_COUNT) * cpu_id +
@@ -55,7 +68,8 @@ noreturn void start_system_ap(uint8_t cpu_id) {
 #endif
 
     // create a process and task for idle
-    sched_init_idle((uintptr_t)idle_stack_page + idle_stack_top(cpu_id),
+    sched_init_idle((uintptr_t)idle_ustack_page + idle_stack_top(cpu_id),
+                    (uintptr_t)idle_sstack_page + idle_stack_top(cpu_id),
                     (uintptr_t)kernel_thread_entrypoint);
 
     // We can just get away with disabling here, no need to save/restore flags
@@ -114,13 +128,10 @@ noreturn void start_system(void) {
                (uintptr_t)0x0000000001000000, (uintptr_t)user_thread_entrypoint,
                TASK_CLASS_NORMAL);
 
-    // Set up a page for idle stacks
-    //      (MAX_CPU_COUNT stacks of FBA_BLOCK_SIZE / 16 bytes each)
-    // currently this means 256 bytes stack per CPU, which should be
-    // plenty (too much, even) for idle...
-    //
-    idle_stack_page = fba_alloc_block();
-    sched_init_idle((uintptr_t)idle_stack_page + idle_stack_top(0),
+    // TODO check allocations...
+
+    sched_init_idle((uintptr_t)idle_ustack_page + idle_stack_top(0),
+                    (uintptr_t)idle_sstack_page + idle_stack_top(0),
                     (uintptr_t)kernel_thread_entrypoint);
 
     // We can just get away with disabling here, no need to save/restore flags

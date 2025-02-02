@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+void prepare_system(void);
+
 noreturn void start_system(void);
 noreturn void start_system_ap(uint8_t cpu_id);
 

@@ -78,7 +78,9 @@ static inline void cpu_invalidate_page(uintptr_t virt_addr) {
 }
 
 static inline void cpu_swapgs(void) {
+#ifndef NO_USER_GS
     __asm__ volatile("swapgs" : : : "memory");
+#endif
 }
 
 #endif //__ANOS_KERNEL_DRIVERS_CPU_H

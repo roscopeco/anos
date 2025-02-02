@@ -54,6 +54,19 @@ static_assert_sizeof(Task, ==, 64);
 void task_init(void *tss);
 Task *task_current();
 void task_switch(Task *next);
-Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t func);
+
+/* 
+ * Create a new user task with the specified process, stacks and entrypoint.
+ *
+ * NOTE: sys_ssp may be 0, which will cause a new stack to be allocated.
+ */
+Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
+                      uintptr_t bootstrap, uintptr_t func, TaskClass class);
+
+Task *task_create_user(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
+                       uintptr_t func, TaskClass class);
+
+Task *task_create_kernel(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
+                         uintptr_t func, TaskClass class);
 
 #endif //__ANOS_KERNEL_TASK_H
