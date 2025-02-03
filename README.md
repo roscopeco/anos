@@ -211,7 +211,8 @@ pre-commit install
 
 ### Status & Pics
 
-> [!NOTE] These probably aren't up to date enough to represent where it's 
+> [!NOTE]
+> These probably aren't up to date enough to represent where it's 
 > at _today_, but it should be relatively recent.
 
 Anos now runs on real hardware (with a sample size of exactly one).
