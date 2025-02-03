@@ -5,17 +5,7 @@
 
 > **Note**: This is not yet an operating system, but _has_ just about 
 > reached toy status, since it now supports user mode preemptive 
-> multitasking.
-
-A toy operating system I'm using as a vehicle for learning more about
-long mode and experimenting with some ideas for different ways to do 
-things.
-
-I'm _trying_ to not even _look_ at other people's code, or patchy and 
-outdated wikis etc - as much as possible I'm just going from official 
-reference materials (like the Intel manuals).
-
-  - Updated mission statement, January 2025
+> multitasking & runs on real hardware.
 
 ### High-level overview
 
@@ -219,10 +209,28 @@ pip install pre-commit
 pre-commit install
 ```
 
-### Recent screenshot
+### Status & Pics
 
-This probably isn't up to date enough to represent where it's at, but
-it should be relatively recent.
+> [!NOTE] These probably aren't up to date enough to represent where it's 
+> at _today_, but it should be relatively recent.
+
+Anos now runs on real hardware (with a sample size of exactly one).
+
+Here, it's running on an old i5 4th-gen (Haswell) with 16GiB RAM. Haswell
+is the oldest architecture that Anos "officially" supports.
+
+<img src="images/IMG_2428.jpg" alt="ANOS running on a real-life computer">
+
+You can see in this image that there's still some issues with AP spinup, 
+as well as with the "atomic" assignment of IDs to processors. By the time
+you read this, those issues are _probably_ fixed.
+
+It also runs in emulators, of course - like VirtualBox here, just for a change
+from qemu...
+
+<img src="images/Screenshot 2025-01-28 at 22.09.42.png" alt="ANOS running in VirtualBox">
+
+Broadly, this is happening here:
 
 * Boot from real to long mode
 * Set up a RLE stack-based PMM
@@ -239,11 +247,6 @@ it should be relatively recent.
   * Thread #3 - Same as thread 2, but printing `3`s instead
   * Thread #4 - Looping as the others, but also sleeping every time it prints
 
-It's running in VirtualBox here, just for a change from qemu...
-
-<img src="images/Screenshot 2025-01-28 at 22.09.42.png" alt="ANOS running in VirtualBox">
-
 The following things are not shown in this shot, but are still happening under the hood:
 
 * Enumerate PCI bus (including bridges)
-
