@@ -26,6 +26,8 @@ endif
 #
 #   CONSERVATIVE_BUILD	Will build a (slow) kernel with various invariant checks
 #
+#	DEBUG_PMM				Enable debugging of the PMM
+#	VERY_NOISY_PMM			Enable *lots* of debugging of the PMM (requires DEBUG_PMM)
 #	DEBUG_VMM				Enable debugging of the VMM
 #	VERY_NOISY_VMM			Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT		Enable debugging in page fault handler
@@ -57,7 +59,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU -DNO_SMP
+CDEFS=-DDEBUG_CPU
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 

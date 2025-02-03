@@ -7,10 +7,8 @@
 
 #include <stdint.h>
 
-#include "debugprint.h"
 #include "interrupts.h"
 #include "kdrivers/local_apic.h" // TODO this shouldn't be used here...
-#include "machine.h"
 #include "syscalls.h"
 
 // This is a bit messy, but it works and is "good enough" for now 😅
@@ -34,7 +32,6 @@ static IdtEntry idt[256];
 static IDTR idtr;
 
 void idt_install(uint16_t kernel_cs) {
-    debugstr("Installing traps...\n");
     install_trap(0);
     install_trap(1);
     install_trap(2);
@@ -68,16 +65,12 @@ void idt_install(uint16_t kernel_cs) {
     install_trap(30);
     install_trap(31);
 
-    debugstr("Traps installed...\n");
-
     // Entries 0x20 - 0x2F are the PIC handlers - when disabled, they should
     // only ever be spurious (except NMI I suppose)...
     for (int i = 0x20; i < 0x30; i++) {
         idt_entry(idt + i, pic_irq_handler, kernel_cs, 0,
                   idt_attr(1, 0, IDT_TYPE_IRQ));
     }
-
-    debugstr("Traps installed...\n");
 
     // Just fill the rest of the table with generic / unknown handlers for now,
     // Use IRQ type since these don't return and that'll disable interrupts for
@@ -97,23 +90,15 @@ void idt_install(uint16_t kernel_cs) {
     idt_entry(idt + SYSCALL_VECTOR, syscall_69_handler, kernel_cs, 0,
               idt_attr(1, 3, IDT_TYPE_TRAP));
 
-    debugstr("Set IDTR...\n");
-
     // Setup the IDTR
     idt_r(&idtr, (uint64_t)idt, (uint16_t)sizeof(IdtEntry) * 256 - 1);
-
-    debugstr("IDTR created, disabling PIC...\n");
 
     // Init (i.e. disable) the PICs
     pic_init();
 
-    debugstr("PIC disabled, loading IDTR...\n");
-
     // And load it!
     __asm__ volatile("lidt %0" : : "m"(idtr));
 
-    debugstr("IDTR loaded, Enable interrupts...\n");
-
     // Enable interrupts
-    __asm__ volatile("sti\n\t");
+    __asm__ volatile("sti");
 }

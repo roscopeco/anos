@@ -11,15 +11,37 @@
 #include "pmm/pagealloc.h"
 #include "spinlock.h"
 
-#include "debugprint.h"
-#include "printdec.h"
-#include "printhex.h"
-
 #ifdef HOSTED_PMM_PRINTF_DEBUGGING
 #include <stdio.h>
 #define hprintf(...) printf(__VA_ARGS__)
 #else
 #define hprintf(...)
+#endif
+
+#ifdef DEBUG_PMM
+#include "debugprint.h"
+#include "printdec.h"
+#include "printhex.h"
+
+#define C_DEBUGSTR debugstr
+#define C_PRINTHEX64 printhex64
+#define C_PRINTDEC printdec
+#ifdef VERY_NOISY_PMM
+#define V_DEBUGSTR debugstr
+#define V_PRINTHEX64 printhex64
+#define V_PRINTDEC printdec
+#else
+#define V_DEBUGSTR(...)
+#define V_PRINTHEX64(...)
+#define V_PRINTDEC(...)
+#endif
+#else
+#define C_DEBUGSTR(...)
+#define C_PRINTHEX64(...)
+#define C_PRINTDEC(...)
+#define V_DEBUGSTR(...)
+#define V_PRINTHEX64(...)
+#define V_PRINTDEC(...)
 #endif
 
 MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
@@ -31,21 +53,21 @@ MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
 
     region->size = region->free = 0;
 
-    debugstr("Managed base: ");
-    printdec(managed_base, debugchar);
-    debugstr("]\n");
+    C_DEBUGSTR("PMM Managed base: ");
+    C_PRINTDEC(managed_base, debugchar);
+    C_DEBUGSTR("\n");
 
     for (int i = 0; i < memmap->num_entries; i++) {
         E820h_MemMapEntry *entry = &memmap->entries[i];
 
         if (entry->type == MEM_MAP_ENTRY_AVAILABLE && entry->length > 0) {
-            debugstr(" ====> Mapping available region ");
-            printhex64(entry->base, debugchar);
-            debugstr(" of length ");
-            printdec(entry->length, debugchar);
-            debugstr(" [type ");
-            printdec(entry->type, debugchar);
-            debugstr("]\n");
+            C_DEBUGSTR(" ====> Mapping available region ");
+            C_PRINTHEX64(entry->base, debugchar);
+            C_DEBUGSTR(" of length ");
+            C_PRINTDEC(entry->length, debugchar);
+            C_DEBUGSTR(" [type ");
+            C_PRINTDEC(entry->type, debugchar);
+            C_DEBUGSTR("]\n");
 
             // Ensure start is page aligned
             uint64_t start = entry->base & 0xFFFFFFFFFFFFF000;
@@ -64,25 +86,15 @@ MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
                 if (end <= managed_base) {
                     // This block is entirely below the managed base, just skip
                     // it
-                    debugstr(" ==== ----> Ignoring, entirely below base\n");
+                    C_DEBUGSTR(" ==== ----> Ignoring, entirely below base\n");
                     continue;
                 } else {
                     // This block extends beyond the managed base, so adjust the
                     // start
-                    debugstr(" ==== ----> Adjusting, partially below base\n");
+                    C_DEBUGSTR(" ==== ----> Adjusting, partially below base\n");
                     start = managed_base;
                 }
             }
-
-            // if (start >= 0x10000000) {
-            //         debugstr(" ==== ----> HACK: Ignoring > 4GiB based\n");
-            //     continue;
-            // }
-
-            // if (entry->length <= 0x40000) {
-            //         debugstr(" ==== ----> HACK: Ignoring < 256KiB long\n");
-            //     continue;
-            // }
 
             // Calculate number of bytes remaining...
             uint64_t total_bytes = end - start;
@@ -100,13 +112,13 @@ MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
             region->sp->base = start;
             region->sp->size = total_bytes >> 12; // size is pages, not bytes...
         } else {
-            // debugstr(" ====> Skipping unavailable region ");
-            // printhex64(entry->base, debugchar);
-            // debugstr(" of length ");
-            // printdec(entry->length, debugchar);
-            // debugstr(" [type ");
-            // printdec(entry->type, debugchar);
-            // debugstr("]\n");
+            C_DEBUGSTR(" ====> Skipping unavailable region ");
+            C_PRINTHEX64(entry->base, debugchar);
+            C_DEBUGSTR(" of length ");
+            C_PRINTDEC(entry->length, debugchar);
+            C_DEBUGSTR(" [type ");
+            C_PRINTDEC(entry->type, debugchar);
+            C_DEBUGSTR("]\n");
         }
     }
 

@@ -12,9 +12,12 @@
 #include "acpitables.h"
 #include "debugprint.h"
 #include "machine.h"
+#include "vmm/vmmapper.h"
+
+#ifdef DEBUG_ACPI
 #include "printdec.h"
 #include "printhex.h"
-#include "vmm/vmmapper.h"
+#endif
 
 typedef struct {
     uint64_t phys;
@@ -35,6 +38,16 @@ static inline uint32_t XSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
 }
 
 static bool checksum_rsdp(ACPI_RSDP *rsdp) {
+#ifdef DEBUG_ACPI
+#ifdef VERY_NOISY_ACPI
+    debugstr("### ACPI RSDP CHECKSUM: ");
+    printhex64((uintptr_t)rsdp, debugchar);
+    debugstr(" [len ");
+    printdec(rsdp->length, debugchar);
+    debugstr("]\n");
+#endif
+#endif
+
     uint8_t *byteptr = (uint8_t *)rsdp;
     uint8_t sum = 0;
 
@@ -53,11 +66,15 @@ static bool checksum_rsdp(ACPI_RSDP *rsdp) {
 }
 
 static bool checksum_sdt(ACPI_SDTHeader *sdt) {
+#ifdef DEBUG_ACPI
+#ifdef VERY_NOISY_ACPI
     debugstr("### ACPI SDT CHECKSUM: ");
     printhex64((uintptr_t)sdt, debugchar);
     debugstr(" [len ");
     printdec(sdt->length, debugchar);
     debugstr("]\n");
+#endif
+#endif
 
     uint8_t *byteptr = (uint8_t *)sdt;
     uint8_t sum = 0;
@@ -96,18 +113,18 @@ static uint64_t get_mapping_for(uint64_t phys) {
             }
         }
 
-        // not found, map new
-        // HACK HACK HACK
-        // This is currently expanded by 0x8000 which pushes it into MMIO space
-        // (which luckily we don't use just yet)
-        if (next_vaddr == (ACPI_TABLES_VADDR_LIMIT + 0x18000)) {
+        // not found, map next 32KiB
+        if (next_vaddr == (ACPI_TABLES_VADDR_LIMIT)) {
             return 0;
         }
 
         uint64_t vaddr = next_vaddr;
 
-        /// HACK HACK HACK
+        /// TODO HACK HACK HACK
         // Mapping eight at a time to side-step the tables-crossing-boundaries issue :D
+        //
+        // This doesn't _fix_ things though - we really need to map based on the table
+        // position and size relative to end of the page as we run through them...
         next_vaddr += 0x8000;
         vmm_map_page_containing(vaddr, phys, PRESENT);
         vmm_map_page_containing(vaddr + 0x1000, phys + 0x1000, PRESENT);
