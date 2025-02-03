@@ -419,7 +419,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     banner();
 
     init_kernel_gdt();
-
+    install_interrupts();
     pagetables_init();
 
     physical_region =
@@ -434,7 +434,6 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
         panic("Slab init failed");
     }
 
-    install_interrupts();
     syscall_init();
 
 #ifdef DEBUG_ACPI

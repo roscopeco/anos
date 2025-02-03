@@ -5,10 +5,11 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
+#include <stdint.h>
+
 #include "interrupts.h"
 #include "kdrivers/local_apic.h" // TODO this shouldn't be used here...
 #include "syscalls.h"
-#include <stdint.h>
 
 // This is a bit messy, but it works and is "good enough" for now 😅
 #define install_trap(N)                                                        \
@@ -99,5 +100,5 @@ void idt_install(uint16_t kernel_cs) {
     __asm__ volatile("lidt %0" : : "m"(idtr));
 
     // Enable interrupts
-    __asm__ volatile("sti\n\t");
+    __asm__ volatile("sti");
 }

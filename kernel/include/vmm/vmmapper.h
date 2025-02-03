@@ -69,7 +69,7 @@
  *
  * This function invalidates the TLB automatically.
  */
-bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
+bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page,
                      uint16_t flags);
 
 /*

@@ -8,23 +8,35 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "kdrivers/cpu.h"
-
 #include "pmm/pagealloc.h"
-#include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
+
+#ifdef UNIT_TESTS
+#include "mock_cpu.h"
+#include "mock_recursive.h"
+#else
+#include "kdrivers/cpu.h"
+#include "vmm/recursive.h"
+#endif
 
 #ifdef DEBUG_VMM
 #include "debugprint.h"
 #include "printhex.h"
-#endif
 
-#ifdef DEBUG_VMM
 #define C_DEBUGSTR debugstr
 #define C_PRINTHEX64 printhex64
+#ifdef VERY_NOISY_VMM
+#define V_DEBUGSTR debugstr
+#define V_PRINTHEX64 printhex64
+#else
+#define V_DEBUGSTR(...)
+#define V_PRINTHEX64(...)
+#endif
 #else
 #define C_DEBUGSTR(...)
 #define C_PRINTHEX64(...)
+#define V_DEBUGSTR(...)
+#define V_PRINTHEX64(...)
 #endif
 
 #ifdef UNIT_TESTS
@@ -47,7 +59,9 @@
         return (retval);                                                       \
     } while (0)
 
+#ifndef NULL
 #define NULL (((void *)0))
+#endif
 
 extern MemoryRegion *physical_region;
 static SpinLock vmm_map_lock;
@@ -56,126 +70,154 @@ static SpinLock vmm_map_lock;
 //      on the top-level table instead, for example...
 //
 
-static inline uint64_t *ensure_table_entry(uint64_t *table, uint16_t index,
-                                           uint16_t flags) {
-    uint64_t entry = table[index];
-    if ((entry & PRESENT) == 0) {
-        uint64_t page = page_alloc(physical_region);
+inline void vmm_invalidate_page(uintptr_t virt_addr) {
+#ifndef UNIT_TESTS
+#ifdef VERY_NOISY_VMM
+    C_DEBUGSTR("INVALIDATE PAGE ");
+    C_PRINTHEX64(virt_addr, debugchar);
+    C_DEBUGSTR("\n");
+#endif
+    cpu_invalidate_page(virt_addr);
+#endif
+}
 
-        if (page & 0xff) {
-            // No page alloc - fail
-            C_DEBUGSTR("===> FAIL to allocate new table\n");
+static inline void clear_table(uint64_t *table) {
+    for (int i = 0; i < 512; i++) {
+        table[i] = 0;
+    }
+}
+
+static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
+                               bool is_user) {
+    // TODO this shouldn't leave the new tables as WRITE,
+    // and also needs to handle the case where they exist but
+    // are not WRITE....
+
+    C_DEBUGSTR("   pml4 @ ");
+    C_PRINTHEX64((uintptr_t)pml4, debugchar);
+    C_DEBUGSTR("\n");
+
+    uint64_t *pml4e = vmm_virt_to_pml4e(virt_addr);
+
+    C_DEBUGSTR("  pml4e @ ");
+    C_PRINTHEX64((uintptr_t)pml4e, debugchar);
+    C_DEBUGSTR(" = [");
+    C_PRINTHEX64(*pml4e, debugchar);
+    C_DEBUGSTR("]\n");
+
+    if ((*pml4e & PRESENT) == 0) {
+        // not present, needs mapping from pdpt down
+        V_DEBUGSTR("    !! Page not present (PML4E) ...");
+
+        uint64_t new_pdpt = page_alloc(physical_region) | PRESENT | WRITE |
+                            (is_user ? USER : 0);
+
+        if (!new_pdpt) {
+            C_DEBUGSTR("WARN: Failed to allocate page directory pointer table");
             return NULL;
         }
 
-#ifdef VERY_NOISY_VMM
-        C_DEBUGSTR("===> New table at ");
-        C_PRINTHEX64(pdpte_page, debugchar);
-        C_DEBUGSTR("\n");
-#endif
+        // Map the page
+        *pml4e = new_pdpt;
+        uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pdpt(virt_addr));
+        cpu_invalidate_page((uint64_t)base);
 
-        uint64_t *page_v = PAGE_TO_V(page);
-        for (int i = 0; i < 0x200; i++) {
-            page_v[i] = 0;
-        }
-        table[index] = page | flags |
-                       PRESENT; // Force present since we allocated a page...
-    } else {
-        // Table already mapped, but flags might not be correct, so let's merge
-        // TODO I'm not certain this is a good idea but it'll work for now...
-        table[index] = entry | flags | PRESENT;
+        clear_table(base);
+
+        V_DEBUGSTR(" mapped\n");
     }
 
-    return ENTRY_TO_V(table[index]);
+    uint64_t *pdpte = vmm_virt_to_pdpte(virt_addr);
+
+    C_DEBUGSTR("  pdpte @ ");
+    C_PRINTHEX64((uintptr_t)pdpte, debugchar);
+    C_DEBUGSTR(" = [");
+    C_PRINTHEX64(*pdpte, debugchar);
+    C_DEBUGSTR("]\n");
+
+    if ((*pdpte & PRESENT) == 0) {
+        // not present, needs mapping from pd down
+        V_DEBUGSTR("    !! Page not present (PDPTE) ...");
+
+        uint64_t new_pd = page_alloc(physical_region) | PRESENT | WRITE |
+                          (is_user ? USER : 0);
+
+        if (!new_pd) {
+            C_DEBUGSTR("WARN: Failed to allocate page directory");
+            return NULL;
+        }
+
+        // Map the page
+        *pdpte = new_pd;
+        uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pd(virt_addr));
+        cpu_invalidate_page((uint64_t)base);
+
+        clear_table(base);
+
+        V_DEBUGSTR(" mapped\n");
+    }
+
+    uint64_t *pde = vmm_virt_to_pde(virt_addr);
+
+    C_DEBUGSTR("    pde @ ");
+    C_PRINTHEX64((uintptr_t)pde, debugchar);
+    C_DEBUGSTR(" = [");
+    C_PRINTHEX64(*pde, debugchar);
+    C_DEBUGSTR("]\n");
+
+    if ((*pde & PRESENT) == 0) {
+        // not present, needs mapping from pt
+        V_DEBUGSTR("    !! Page not present (PDE) ...");
+
+        uint64_t new_pt = page_alloc(physical_region) | PRESENT | WRITE |
+                          (is_user ? USER : 0);
+
+        if (!new_pt) {
+            C_DEBUGSTR("WARN: Failed to allocate page table");
+            return NULL;
+        }
+
+        // Map the page
+        *pde = new_pt;
+        uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pt(virt_addr));
+        cpu_invalidate_page((uint64_t)base);
+
+        clear_table(base);
+
+        V_DEBUGSTR(" mapped\n");
+    }
+
+    uint64_t *pte = vmm_virt_to_pte(virt_addr);
+
+    C_DEBUGSTR("    pte @ ");
+    C_PRINTHEX64((uintptr_t)pde, debugchar);
+    C_DEBUGSTR(" = [");
+    C_PRINTHEX64(*pte, debugchar);
+    C_DEBUGSTR("]\n");
+
+    return pte;
 }
 
-inline bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
+inline bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page,
                             uint16_t flags) {
 
     SPIN_LOCK();
 
-    C_DEBUGSTR("PML4 @ ");
-    C_PRINTHEX64((uint64_t)pml4, debugchar);
-    C_DEBUGSTR(" [Entry ");
-    C_PRINTHEX64(PML4ENTRY(virt_addr), debugchar);
-    C_DEBUGSTR("]\n");
-
-    // If we don't have a PML4 entry at this index - create one, and a PDPT for
-    // it to point to
-    uint64_t *pdpt = ensure_table_entry(pml4, PML4ENTRY(virt_addr), flags);
-    if (pdpt == NULL) {
-        C_DEBUGSTR("===> vmm_map_page failed [PDPT alloc] for\n");
-        C_PRINTHEX64(virt_addr, debugchar);
-        C_DEBUGSTR(" => ");
-        C_PRINTHEX64(page, debugchar);
-        C_DEBUGSTR("\n");
-
-        SPIN_UNLOCK_RET(false);
-    }
-
-    C_DEBUGSTR("PDPT @ ");
-    C_PRINTHEX64((uint64_t)pdpt, debugchar);
-    C_DEBUGSTR(" [Entry ");
-    C_PRINTHEX64(PDPTENTRY(virt_addr), debugchar);
-    C_DEBUGSTR("]\n");
-
-    // If we don't have a PDPT entry at this index - create one, and a PD for it
-    // to point to
-    uint64_t *pd = ensure_table_entry(pdpt, PDPTENTRY(virt_addr), flags);
-    if (pd == NULL) {
-        C_DEBUGSTR("===> vmm_map_page failed [PD alloc] for\n");
-        C_PRINTHEX64(virt_addr, debugchar);
-        C_DEBUGSTR(" => ");
-        C_PRINTHEX64(page, debugchar);
-        C_DEBUGSTR("\n");
-
-        SPIN_UNLOCK_RET(false);
-    }
-
-    C_DEBUGSTR("PD   @ ");
-    C_PRINTHEX64((uint64_t)pd, debugchar);
-    C_DEBUGSTR(" [Entry ");
-    C_PRINTHEX64(PDENTRY(virt_addr), debugchar);
-    C_DEBUGSTR("]\n");
-
-    // If we don't have a PD entry at this index - create one, and a PT for it
-    // to point to
-    uint64_t *pt = ensure_table_entry(pd, PDENTRY(virt_addr), flags);
-    if (pt == NULL) {
-        C_DEBUGSTR("===> vmm_map_page failed [PT alloc] for\n");
-        C_PRINTHEX64(virt_addr, debugchar);
-        C_DEBUGSTR(" => ");
-        C_PRINTHEX64(page, debugchar);
-        C_DEBUGSTR("\n");
-
-        SPIN_UNLOCK_RET(false);
-    }
-
-    C_DEBUGSTR("PT   @ ");
-    C_PRINTHEX64((uint64_t)pt, debugchar);
-    C_DEBUGSTR(" [Entry ");
-    C_PRINTHEX64(PTENTRY(virt_addr), debugchar);
-    C_DEBUGSTR("]\n");
-
-#ifdef VERY_NOISY_VMM
-    C_DEBUGSTR("Mapping PT entry ");
-    C_PRINTHEX16(PTENTRY(virt_addr), debugchar);
-    C_DEBUGSTR(" in page table at ");
-    C_PRINTHEX64((uint64_t)pt, debugchar);
-    C_DEBUGSTR(" to phys ");
+    C_DEBUGSTR("==> MAP: ");
+    C_PRINTHEX64(virt_addr, debugchar);
+    C_DEBUGSTR(" = ");
     C_PRINTHEX64(page, debugchar);
     C_DEBUGSTR("\n");
-#endif
 
-    pt[PTENTRY(virt_addr)] = page | flags;
+    uint64_t *pte = ensure_tables((uintptr_t)pml4, virt_addr, flags);
+    *pte = page | flags;
     vmm_invalidate_page(virt_addr);
 
     SPIN_UNLOCK_RET(true);
 }
 
 bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags) {
-    return vmm_map_page_in((uint64_t *)vmm_recursive_find_pml4(), virt_addr,
-                           page, flags);
+    return vmm_map_page_in(vmm_recursive_find_pml4(), virt_addr, page, flags);
 }
 
 bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
@@ -188,6 +230,8 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
     return vmm_map_page_in(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }
 
+// TODO this should be reworked to fit in with the new map_page_in implementation...
+//
 uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     SPIN_LOCK();
 
@@ -270,15 +314,4 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
 
 uintptr_t vmm_unmap_page(uintptr_t virt_addr) {
     return vmm_unmap_page_in((uint64_t *)vmm_recursive_find_pml4(), virt_addr);
-}
-
-void vmm_invalidate_page(uintptr_t virt_addr) {
-#ifndef UNIT_TESTS
-#ifdef VERY_NOISY_VMM
-    C_DEBUGSTR("INVALIDATE PAGE ");
-    C_PRINTHEX64(virt_addr, debugchar);
-    C_DEBUGSTR("\n");
-#endif
-    cpu_invalidate_page(virt_addr);
-#endif
 }

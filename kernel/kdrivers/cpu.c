@@ -32,12 +32,12 @@ inline void cpu_tsc_delay(uint64_t cycles) {
 
 void cpu_tsc_mdelay(int n) {
     // TODO actually calibrate?
-    cpu_tsc_delay(n * 1000000);
+    cpu_tsc_delay(n * 10000000);
 }
 
 void cpu_tsc_udelay(int n) {
     // TODO actually calibrate?
-    cpu_tsc_delay(n * 1000000);
+    cpu_tsc_delay(n * 1000);
 }
 
 void cpu_get_brand_str(char *buffer) {

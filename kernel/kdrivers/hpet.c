@@ -64,6 +64,14 @@ static uint64_t current_ticks(void) {
     }
 }
 
+static void delay_nanos(uint64_t nanos) {
+    uint64_t start = current_ticks();
+    uint64_t end = start + (nanos / nanos_per_tick());
+
+    while (current_ticks() < end)
+        ;
+}
+
 KernelTimer *hpet_as_timer(void) { return &timer; }
 
 bool hpet_init(ACPI_RSDT *rsdt) {
@@ -91,6 +99,7 @@ bool hpet_init(ACPI_RSDT *rsdt) {
         regs = (HPETRegs *)vaddr;
         timer.current_ticks = current_ticks;
         timer.nanos_per_tick = nanos_per_tick;
+        timer.delay_nanos = delay_nanos;
         regs->counter_value = 10;
         regs->flags = 1;
 
