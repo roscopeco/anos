@@ -39,8 +39,6 @@ extern void *_binary_kernel_realmode_bin_start,
 #define AP_TRAMPOLINE_CPU_STK_SIZE ((0x800))
 #define AP_TRAMPOLINE_STK_TOTAL_SIZE ((0x8000))
 
-// TODO these are "unitless" at the moment since we haven't calibrated
-//      how fast the TSC is...
 #define INT_LEVEL_DELAY 1000000        // 1ms
 #define POST_INIT_DELAY 10000000       // 10ms
 #define FIRST_SIPI_TIMEOUT 10000000    // 10ms
