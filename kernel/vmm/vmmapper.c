@@ -8,11 +8,16 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "kdrivers/cpu.h"
-
 #include "pmm/pagealloc.h"
-#include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
+
+#ifdef UNIT_TESTS
+#include "mock_cpu.h"
+#include "mock_recursive.h"
+#else
+#include "kdrivers/cpu.h"
+#include "vmm/recursive.h"
+#endif
 
 #ifdef DEBUG_VMM
 #include "debugprint.h"
@@ -54,7 +59,9 @@
         return (retval);                                                       \
     } while (0)
 
+#ifndef NULL
 #define NULL (((void *)0))
+#endif
 
 extern MemoryRegion *physical_region;
 static SpinLock vmm_map_lock;
@@ -74,6 +81,12 @@ inline void vmm_invalidate_page(uintptr_t virt_addr) {
 #endif
 }
 
+static inline void clear_table(uint64_t *table) {
+    for (int i = 0; i < 512; i++) {
+        table[i] = 0;
+    }
+}
+
 static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
                                bool is_user) {
     // TODO this shouldn't leave the new tables as WRITE,
@@ -85,6 +98,7 @@ static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
     C_DEBUGSTR("\n");
 
     uint64_t *pml4e = vmm_virt_to_pml4e(virt_addr);
+
     C_DEBUGSTR("  pml4e @ ");
     C_PRINTHEX64((uintptr_t)pml4e, debugchar);
     C_DEBUGSTR(" = [");
@@ -108,10 +122,7 @@ static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
         uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pdpt(virt_addr));
         cpu_invalidate_page((uint64_t)base);
 
-        // Zero it
-        for (int i = 0; i < 512; i++) {
-            base[i] = 0;
-        }
+        clear_table(base);
 
         V_DEBUGSTR(" mapped\n");
     }
@@ -141,9 +152,7 @@ static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
         uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pd(virt_addr));
         cpu_invalidate_page((uint64_t)base);
 
-        for (int i = 0; i < 512; i++) {
-            base[i] = 0;
-        }
+        clear_table(base);
 
         V_DEBUGSTR(" mapped\n");
     }
@@ -173,9 +182,7 @@ static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
         uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pt(virt_addr));
         cpu_invalidate_page((uint64_t)base);
 
-        for (int i = 0; i < 512; i++) {
-            base[i] = 0;
-        }
+        clear_table(base);
 
         V_DEBUGSTR(" mapped\n");
     }

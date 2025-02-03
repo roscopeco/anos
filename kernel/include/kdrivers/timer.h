@@ -14,11 +14,13 @@
 
 typedef uint64_t (*KernelTimerNanosPerTickFunc)(void);
 typedef uint64_t (*KernelCurrentTicksFunc)(void);
+typedef void (*KernelTimerBusyDelayNanosFunc)(uint64_t);
 
 typedef struct {
     KernelCurrentTicksFunc current_ticks;
     KernelTimerNanosPerTickFunc nanos_per_tick;
-    uint64_t reserved[6];
+    KernelTimerBusyDelayNanosFunc delay_nanos;
+    uint64_t reserved[5];
 } KernelTimer;
 
 static_assert_sizeof(KernelTimer, ==, 64);

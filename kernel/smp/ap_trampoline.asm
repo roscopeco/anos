@@ -51,8 +51,9 @@ _start:
   cli
   cld
 
-.get_id:                                  ; Each AP gets a unique ID...
   mov ax, WORD [ap_count]                 ; There's a counter in the (shared) BSS,
+  
+.get_id:                                  ; Each AP gets a unique ID...
   mov bx, ax                              ; each AP just atomically grabs the next
   inc bx                                  ; number and uses that...
   lock cmpxchg WORD [ap_count], bx        ; NOTE that it doesn't necessarily match

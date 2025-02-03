@@ -10,16 +10,17 @@
 
 #include "acpitables.h"
 #include "cpuid.h"
+#include "debugprint.h"
 #include "gdt.h"
 #include "interrupts.h"
 #include "kdrivers/cpu.h"
+#include "kdrivers/hpet.h"
 #include "kdrivers/local_apic.h"
+#include "printdec.h"
 #include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
 
 #ifdef DEBUG_SMP_STARTUP
-#include "debugprint.h"
-#include "printdec.h"
 #include "printhex.h"
 #include "spinlock.h"
 
@@ -37,6 +38,13 @@ extern void *_binary_kernel_realmode_bin_start,
 #define AP_TRAMPOLINE_STK_PADDR ((0x6000))
 #define AP_TRAMPOLINE_CPU_STK_SIZE ((0x800))
 #define AP_TRAMPOLINE_STK_TOTAL_SIZE ((0x8000))
+
+// TODO these are "unitless" at the moment since we haven't calibrated
+//      how fast the TSC is...
+#define INT_LEVEL_DELAY 1000000        // 1ms
+#define POST_INIT_DELAY 10000000       // 10ms
+#define FIRST_SIPI_TIMEOUT 10000000    // 10ms
+#define SECOND_SIPI_TIMEOUT 1000000000 // 1000ms
 
 // All these are derived from the two above :)
 //
@@ -94,22 +102,54 @@ static inline void memclr(volatile void *dest, uint64_t count) {
  * Must only be called by the BSP for now!
  */
 static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
+    KernelTimer volatile *hpet = hpet_as_timer();
+
     // Clear the "alive" flag
     *(AP_TRAMPOLINE_BSS_FLAG) = 0;
 
     // Send INIT
     *(REG_LAPIC_ICR_HIGH(lapic)) = ap_id << 24;
+    hpet->delay_nanos(INT_LEVEL_DELAY);
     *(REG_LAPIC_ICR_LOW(lapic)) = 0x4500;
 
-    cpu_tsc_mdelay(10);
+    hpet->delay_nanos(POST_INIT_DELAY);
 
     // Send SIPI
     *(REG_LAPIC_ICR_HIGH(lapic)) = ap_id << 24;
+    hpet->delay_nanos(INT_LEVEL_DELAY);
     *(REG_LAPIC_ICR_LOW(lapic)) = 0x4600 | (AP_TRAMPOLINE_RUN_PADDR >> 12);
 
     // Wait for the "alive" flag
-    while (!*AP_TRAMPOLINE_BSS_FLAG)
-        ;
+    uint64_t end = hpet->current_ticks() +
+                   (SECOND_SIPI_TIMEOUT / hpet->nanos_per_tick());
+
+    while (hpet->current_ticks() < end) {
+        if (*AP_TRAMPOLINE_BSS_FLAG) {
+            break;
+        }
+    }
+
+    if (!*AP_TRAMPOLINE_BSS_FLAG) {
+        // One more try... Send another SIPI
+        *(REG_LAPIC_ICR_HIGH(lapic)) = ap_id << 24;
+        hpet->delay_nanos(INT_LEVEL_DELAY);
+        *(REG_LAPIC_ICR_LOW(lapic)) = 0x4600 | (AP_TRAMPOLINE_RUN_PADDR >> 12);
+
+        uint64_t end = hpet->current_ticks() +
+                       (SECOND_SIPI_TIMEOUT / hpet->nanos_per_tick());
+
+        while (hpet->current_ticks() < end) {
+            if (*AP_TRAMPOLINE_BSS_FLAG) {
+                break;
+            }
+        }
+    }
+
+    if (!*AP_TRAMPOLINE_BSS_FLAG) {
+        debugstr("WARN: CPU #");
+        printdec(ap_id, debugchar);
+        debugstr(" failed to respond - will disable it\n");
+    }
 
 #ifdef DEBUG_SMP_STARTUP
     spinlock_lock(&debug_output_lock);
