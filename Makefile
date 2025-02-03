@@ -26,12 +26,9 @@ endif
 #
 #   CONSERVATIVE_BUILD	Will build a (slow) kernel with various invariant checks
 #
-<<<<<<< HEAD
 #	DEBUG_PMM				Enable debugging of the PMM
 #	VERY_NOISY_PMM			Enable *lots* of debugging of the PMM (requires DEBUG_PMM)
-=======
 #	DEBUG_MEMMAP			Enable debugging of the BIOS memory map
->>>>>>> f7b1e1f (Idle task on all CPUs)
 #	DEBUG_VMM				Enable debugging of the VMM
 #	VERY_NOISY_VMM			Enable *lots* of debugging in the VMM (requires DEBUG_VMM)
 #	DEBUG_PAGE_FAULT		Enable debugging in page fault handler
