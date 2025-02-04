@@ -54,6 +54,7 @@ endif
 # And these will selectively disable features
 #
 #	NO_SMP					Disable SMP (don't spin-up any of the APs)
+#	SMP_TWO_SIPI_ATTEMPTS	Try a second SIPI if an AP doesn't respond to the first
 #
 # Additionally:
 #
