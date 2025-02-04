@@ -39,10 +39,12 @@ extern void *_binary_kernel_realmode_bin_start,
 #define AP_TRAMPOLINE_CPU_STK_SIZE ((0x800))
 #define AP_TRAMPOLINE_STK_TOTAL_SIZE ((0x8000))
 
-#define INT_LEVEL_DELAY 1000000        // 1ms
-#define POST_INIT_DELAY 10000000       // 10ms
-#define FIRST_SIPI_TIMEOUT 10000000    // 10ms
+#define POST_INIT_DELAY 10000000    // 10ms
+#define FIRST_SIPI_TIMEOUT 10000000 // 10ms
+
+#ifdef SMP_TWO_SIPI_ATTEMPTS
 #define SECOND_SIPI_TIMEOUT 1000000000 // 1000ms
+#endif
 
 // All these are derived from the two above :)
 //
@@ -105,21 +107,23 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
     // Clear the "alive" flag
     *(AP_TRAMPOLINE_BSS_FLAG) = 0;
 
+    __asm__ volatile("" ::: "memory");
+
     // Send INIT
     *(REG_LAPIC_ICR_HIGH(lapic)) = ap_id << 24;
-    hpet->delay_nanos(INT_LEVEL_DELAY);
     *(REG_LAPIC_ICR_LOW(lapic)) = 0x4500;
 
     hpet->delay_nanos(POST_INIT_DELAY);
 
     // Send SIPI
     *(REG_LAPIC_ICR_HIGH(lapic)) = ap_id << 24;
-    hpet->delay_nanos(INT_LEVEL_DELAY);
     *(REG_LAPIC_ICR_LOW(lapic)) = 0x4600 | (AP_TRAMPOLINE_RUN_PADDR >> 12);
+
+    hpet->delay_nanos(POST_INIT_DELAY);
 
     // Wait for the "alive" flag
     uint64_t end = hpet->current_ticks() +
-                   (SECOND_SIPI_TIMEOUT / hpet->nanos_per_tick());
+                   (FIRST_SIPI_TIMEOUT / hpet->nanos_per_tick());
 
     while (hpet->current_ticks() < end) {
         if (*AP_TRAMPOLINE_BSS_FLAG) {
@@ -127,10 +131,10 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
         }
     }
 
+#ifdef SMP_TWO_SIPI_ATTEMPTS
     if (!*AP_TRAMPOLINE_BSS_FLAG) {
         // One more try... Send another SIPI
         *(REG_LAPIC_ICR_HIGH(lapic)) = ap_id << 24;
-        hpet->delay_nanos(INT_LEVEL_DELAY);
         *(REG_LAPIC_ICR_LOW(lapic)) = 0x4600 | (AP_TRAMPOLINE_RUN_PADDR >> 12);
 
         uint64_t end = hpet->current_ticks() +
@@ -142,6 +146,7 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
             }
         }
     }
+#endif
 
     if (!*AP_TRAMPOLINE_BSS_FLAG) {
         debugstr("WARN: CPU #");
@@ -209,7 +214,8 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
                 uint32_t *flags32 = (uint32_t *)ptr;
                 uint32_t flags = *flags32;
 
-                if (lapic_id != bsp_local_apic_id && (flags & 0x03) == 0x1) {
+                if (lapic_id != bsp_local_apic_id &&
+                    (flags & 1) ^ ((flags >> 1) & 1)) {
                     // can enable!
 #ifdef DEBUG_SMP_STARTUP
 #ifdef VERY_NOISY_SMP_STARTUP
@@ -224,7 +230,7 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
                     spinlock_unlock(&debug_output_lock);
 #endif
 #endif
-                    smp_bsp_start_ap(cpu_id, lapic);
+                    smp_bsp_start_ap(lapic_id, lapic);
                 } else {
 #ifdef DEBUG_SMP_STARTUP
 #ifdef VERY_NOISY_SMP_STARTUP
