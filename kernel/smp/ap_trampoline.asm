@@ -51,16 +51,6 @@ _start:
   cli
   cld
 
-  mov ax, WORD [ap_count]                 ; There's a counter in the (shared) BSS,
-  
-.get_id:                                  ; Each AP gets a unique ID...
-  mov bx, ax                              ; each AP just atomically grabs the next
-  inc bx                                  ; number and uses that...
-  lock cmpxchg WORD [ap_count], bx        ; NOTE that it doesn't necessarily match
-  jnz .get_id                             ; LAPIC or CPU IDs!
-
-  mov cx, ax                              ; Stash the unique ID in cx for now...
-
   lgdt  [AP_GDT_DESC]                     ; Load GDT reg with the (temporary) descriptor
 
   ; Jump to protected mode
@@ -76,19 +66,6 @@ main32:
   mov   ds,ax                             ; and set DS to that..
   mov   es,ax                             ; and ES too...
   mov   ss,ax                             ; as well as SS.
-
-  xor   eax,eax                           ; Set up a stack for protected mode
-  mov   ax,cx                             ; CX still has this AP's unique ID
-  shl   eax,STACK_SHIFT                   ; ... which we'll shift left by 4
-  or    eax,STACKS_BASE                   ; ... and OR in the stack base
-  add   eax,STACK_START_OFS               ; ... then add 8 to point to stack top, minus the return address already stacked...
-  mov   esp,eax                           ; ... and we're good!
-
-  push  0                                 ; Stack the BSP unique id
-  push  ecx                               ; ... as 64-bit
-
-
-;;; GO LONG
 
   mov   eax,0b10100000                    ; Set PAE and PGE bits
   mov   cr4,eax
@@ -108,18 +85,8 @@ main32:
 
   jmp   0x08:main64                       ; Go go go
 
-
-; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; 64-bit section
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 bits 64
 main64:
-  or  rsp,0xffffffff80000000              ; Fix up stack for long mode
-
-  pop rdi                                 ; Pop the unique ID we pushed earlier,
-                                          ; and set it up as argument to the 
-                                          ; entrypoint we're about to "return" to...
-
   lgdt  [k_gdtr]                          ; Load the kernel GDT we were given
 
   mov   ax,0x10                           ; Set ax to 0x10 - offset of segment 2, the kernel's 64-bit data segment...
@@ -127,14 +94,31 @@ main64:
   mov   es,ax                             ; and ES too...
   mov   ss,ax                             ; as well as SS.
 
+  mov rax, qword [ap_count]               ; There's a counter in the (shared) BSS,
+  
+.get_id:                                  ; Each AP gets a unique ID...
+  mov rbx, rax                            ; each AP just atomically grabs the next
+  inc rbx                                 ; number and uses that...
+  lock cmpxchg qword [ap_count], rbx      ; NOTE that it doesn't necessarily match
+  jnz .get_id                             ; LAPIC or CPU IDs!
+
+  mov rax,rax                             ; CX still has this AP's unique ID
+  shl rax,STACK_SHIFT                     ; ... which we'll shift left by 4
+  or  rax,STACKS_BASE                     ; ... and OR in the stack base
+  add rax,STACK_START_OFS                 ; ... then add 8 to point to stack top, minus the return address already stacked...
+  mov rsp,rax                             ; ... and we're good!
+
+  or  rsp,0xffffffff80000000              ; Fix up stack for long mode
+
+  mov rdi,rbx                             ; Set up the unique ID as argument to the 
+                                          ; entrypoint we're about to "return" to...
+
   mov rcx,rdi                             ; Set up the TSS for this specific core,
   shl rcx,4                               ; based on the unique ID we grabbed at
   add rcx,0x28                            ; the beginning. NOTE: This may differ
   ltr cx                                  ; from the CPU / LAPIC ID for this CPU!
 
   lidt  [k_idtr]                          ; Load the kernel IDT we were given
-
-  mov qword [ap_flag], 1                  ; We made it to long mode, let the bsp know
 
   xor rax, rax                            ; Zero out the rest of the GP registers...
   xor rbx, rbx
@@ -150,6 +134,8 @@ main64:
   xor r13, r13
   xor r14, r14
   xor r15, r15
+
+  mov qword [ap_flag], 1                  ; We made it to long mode, let the bsp know
 
   ret                                     ; And "return" to the AP entrypoint
 
@@ -233,8 +219,7 @@ AP_TSS:
 
 section .bss
 
-ap_count  resw  1         ; Unique ID flag
-reserved  resb  6
+ap_count  resq  1         ; Unique ID flag
 k_pml4    resq  1         ; Kernel PML4 (physical)
 ap_flag   resq  1         ; AP booted flag
 k_gdtr    resd  3         ; Kernel GDT
