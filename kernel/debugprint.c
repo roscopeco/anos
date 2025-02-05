@@ -7,6 +7,45 @@
 
 #include <stdint.h>
 
+#include "kdrivers/serial.h"
+
+#ifdef SERIAL_TERMINAL
+
+// *********************************
+// Serial
+//
+
+static SerialPort port;
+
+void debugterm_init(char *vram_addr) {
+    if (serial_init(SERIAL_PORT_COM1)) {
+        port = SERIAL_PORT_COM1;
+    } else {
+        port = SERIAL_PORT_DUMMY;
+    }
+}
+
+void debugchar(char chr) { serial_sendchar(port, chr); }
+
+void debugstr(char *str) {
+    while (*str) {
+        debugchar(*str++);
+    }
+}
+
+void debugstr_len(char *str, int len) {
+    for (int i = 0; i < len; i++) {
+        debugchar(*str++);
+    }
+}
+
+void debugattr(uint8_t new_attr) { /* noop */ }
+#else
+
+// *********************************
+// VGA Terminal
+//
+
 #define PHYSICAL(x, y) (((x << 1) + (y * 160)))
 
 static char *vram;
@@ -67,3 +106,5 @@ void debugstr_len(char *str, int len) {
 }
 
 void debugattr(uint8_t new_attr) { attr = new_attr; }
+
+#endif
