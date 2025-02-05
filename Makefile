@@ -51,6 +51,10 @@ endif
 #	DEBUG_TASK_SWITCH					Dump debug info when switching tasks
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #
+# These set option you might feel like configuring
+#
+#	SERIAL_TERMINAL			Disable VGA terminal and use COM1 instead (see also SERIALTERM=true make option)
+#
 # And these will selectively disable features
 #
 #	NO_SMP					Disable SMP (don't spin-up any of the APs)
@@ -61,6 +65,13 @@ endif
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
 CDEFS=-DDEBUG_CPU
+
+ifeq ($(SERIALTERM),true)
+QEMU_OPTS=$(QEMU_BASEOPTS) -display none -serial stdio
+CDEFS+=-DSERIAL_TERMINAL
+else
+QEMU_OPTS=$(QEMU_BASEOPTS) -monitor stdio
+endif
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
@@ -161,6 +172,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
 			$(STAGE3_DIR)/smp/startup.o											\
 			$(STAGE3_DIR)/panic.o												\
 			$(STAGE3_DIR)/task_kernel_entrypoint.o								\
+			$(STAGE3_DIR)/kdrivers/serial.o										\
 			$(STAGE3_DIR)/$(REALMODE)_linkable.o								\
 			$(SYSTEM)_linkable.o
 		
@@ -279,8 +291,8 @@ $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
 
-QEMU_OPTS=-smp cpus=4 -m 8G -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -monitor stdio
-QEMU_DEBUG_OPTS=$(QEMU_OPTS) -gdb tcp::9666 -S
+QEMU_BASEOPTS=-smp cpus=4 -m 8G -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
+QEMU_DEBUG_OPTS=$(QEMU_BASEOPTS) -gdb tcp::9666 -S
 
 qemu: $(FLOPPY_IMG)
 	$(QEMU) $(QEMU_OPTS)

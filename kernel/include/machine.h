@@ -47,6 +47,8 @@ noreturn void halt_and_catch_fire(void);
 
 void outl(uint16_t port, uint32_t value);
 uint32_t inl(uint16_t port);
+void outb(uint16_t port, uint8_t value);
+uint8_t inb(uint16_t port);
 
 void disable_interrupts();
 void enable_interrupts();
