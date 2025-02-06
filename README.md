@@ -3,9 +3,10 @@
 ![workflow status](https://github.com/roscopeco/anos/actions/workflows/compile_test.yaml/badge.svg)
 ![code coverage](coverage.svg)
 
-> **Note**: This is not yet an operating system, but _has_ just about 
-> reached toy status, since it now supports user mode preemptive 
-> multitasking & runs on real hardware.
+> ![NOTE]
+> This is not yet an operating system, but _definitely has_  reached 
+> "toy kernel" status, since it now supports user mode preemptive 
+> multitasking on up to 16 CPUs & runs on real hardware 🥳.
 
 ### High-level overview
 
@@ -220,11 +221,12 @@ Anos now runs on real hardware (with a sample size of exactly one).
 Here, it's running on an old i5 4th-gen (Haswell) with 16GiB RAM. Haswell
 is the oldest architecture that Anos "officially" supports.
 
-<img src="images/IMG_2428.jpg" alt="ANOS running on a real-life computer">
+<img src="images/IMG_2432.jpg" alt="ANOS running on a real-life computer">
 
-You can see in this image that there's still some issues with AP spinup, 
-as well as with the "atomic" assignment of IDs to processors. By the time
-you read this, those issues are _probably_ fixed.
+The output being slightly garbled is expected, since I don't currently have 
+any locking on the terminal - so the threads running on each core can randomly
+preempt one-another (even during the printing happening inside the kernel) and
+cause the garbled output.
 
 It also runs in emulators, of course - like VirtualBox here, just for a change
 from qemu...
@@ -239,14 +241,14 @@ Broadly, this is happening here:
 * Set up fixed block & slab allocators
 * _Just enough_ ACPI to initialise basic platform devices (HPET & LAPICs)
 * Init LAPICs and calibrate with HPET
-* Spin up the APs and park them in long-mode kernel code (for now)
 * Set everything up for usermode startup
-* Start a simple round-robin scheduler & drop to user mode
+* Start a prioritised round-robin scheduler on all CPUs
 * User-mode supervisor ("`SYSTEM`") starts some threads with a `syscall`, and then
   * Thread #1 - Loop from usermode, printing periodic `1`'s with syscall
   * Thread #2 - Start, sleep for 5secs, then loop printing periodic `2`s with syscall 
   * Thread #3 - Same as thread 2, but printing `3`s instead
   * Thread #4 - Looping as the others, but also sleeping every time it prints
+  * One kernel thread pinned to each AP, printing "Hello from [cpu ID]" periodically
 
 The following things are not shown in this shot, but are still happening under the hood:
 
