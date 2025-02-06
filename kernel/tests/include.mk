@@ -122,7 +122,10 @@ kernel/tests/build/slab/alloc: kernel/tests/munit.o kernel/tests/slab/alloc.o ke
 kernel/tests/build/vmm/recursive: kernel/tests/munit.o kernel/tests/vmm/recursive.o $(TEST_BUILD_DIRS)
 	$(CC) $(TEST_CFLAGS) -o $@ kernel/tests/munit.o kernel/tests/vmm/recursive.o
 
-kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/build/structs/pq.o kernel/tests/build/sched/idle.o kernel/tests/mock_task.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_task.o
+kernel/tests/build/task: kernel/tests/munit.o kernel/tests/task.o kernel/tests/build/task.o kernel/tests/build/structs/list.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_spinlock.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
+kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/build/structs/pq.o kernel/tests/build/sched/idle.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_task.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/sched/lock: kernel/tests/munit.o kernel/tests/sched/lock.o kernel/tests/build/sched/lock.o kernel/tests/mock_spinlock.o kernel/tests/mock_machine.o
