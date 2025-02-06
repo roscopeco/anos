@@ -33,7 +33,7 @@ void cpu_tsc_udelay(int n);
 // Buffer must have space for 49 characters!
 void cpu_get_brand_str(char *buffer);
 
-void cpu_debug_info(void);
+void cpu_debug_info(uint8_t cpu_num);
 
 static inline uint64_t cpu_read_msr(uint32_t msr) {
     uint32_t eax, edx;

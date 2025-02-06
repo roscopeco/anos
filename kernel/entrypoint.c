@@ -108,7 +108,7 @@ static inline void install_interrupts() { idt_install(0x08); }
 static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
                                                uint8_t cpu_num) {
     cpu_init_this();
-    cpu_debug_info();
+    cpu_debug_info(cpu_num);
 
     // Allocate our per-CPU data
     uint64_t *state_block = fba_alloc_block();
@@ -129,6 +129,7 @@ static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
     cpu_get_brand_str(cpu_state->cpu_brand);
 
     cpu_write_msr(MSR_KernelGSBase, (uint64_t)cpu_state);
+    cpu_write_msr(MSR_GSBase, 0);
     cpu_swapgs();
 
     // Init local APIC on this CPU

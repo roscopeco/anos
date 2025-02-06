@@ -1,11 +1,8 @@
 ;
 ; TODO: per recent experiments
 ;
-;   * TSS per CPU
-;   * Figure out double-increment-only-on-real-hardware
 ;   * Don't bother with stack or atomic ID until long mode
 ;
-
 
 bits 16
 

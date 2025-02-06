@@ -59,12 +59,12 @@ void cpu_get_brand_str(char *buffer) {
 }
 
 #ifdef DEBUG_CPU
-static void debug_cpu_brand(void) {
+static void debug_cpu_brand(uint8_t cpu_num) {
     char brand[49];
     cpu_get_brand_str(brand);
 
     debugstr("CPU #");
-    printdec(cpu_read_local_apic_id(), debugchar);
+    printdec(cpu_num, debugchar);
     debugstr(": ");
     debugstr(&brand[0]);
     debugstr("\n");
@@ -113,8 +113,8 @@ static void debug_tsc_frequency_msr(void) {
 #define debug_tsc_frequency_msr()
 #endif
 
-void cpu_debug_info(void) {
-    debug_cpu_brand();
+void cpu_debug_info(uint8_t cpu_num) {
+    debug_cpu_brand(cpu_num);
     debug_tsc_frequency_cpuid();
     debug_tsc_frequency_msr();
 }

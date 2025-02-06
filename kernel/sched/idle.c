@@ -18,8 +18,6 @@
 #include "debugprint.h"
 
 noreturn void sched_idle_thread(void) {
-    debugstr("!!!!!!!!!!!!! Going idle...\n");
-
     while (1) {
         __asm__ volatile("hlt");
     }

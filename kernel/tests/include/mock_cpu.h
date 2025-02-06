@@ -55,7 +55,7 @@ static void cpu_tsc_udelay(int n) {
 // Buffer must have space for 49 characters!
 static void cpu_get_brand_str(char *buffer) { strncpy(buffer, brand, 49); }
 
-static void cpu_debug_info(void) {
+static void cpu_debug_info(uint8_t cpu_num) {
     // noop
 }
 
