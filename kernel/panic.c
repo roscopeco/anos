@@ -3,6 +3,9 @@
  * anos - An Operating System
  *
  * Copyright (c) 2023 Ross Bamford
+ * 
+ * TODO this needs to report CPU number.
+ *      It should probably also have a dedicated stack...
  */
 
 #include <stdint.h>

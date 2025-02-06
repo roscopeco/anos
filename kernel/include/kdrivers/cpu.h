@@ -18,6 +18,8 @@
 #define MSR_GSBase ((0xC0000101))
 #define MSR_KernelGSBase ((0xC0000102))
 
+#define MAX_CPU_COUNT ((16))
+
 #define CPU_TSS_ENTRY_SIZE_MULT ((2))
 
 bool cpu_init_this(void);
@@ -31,7 +33,7 @@ void cpu_tsc_udelay(int n);
 // Buffer must have space for 49 characters!
 void cpu_get_brand_str(char *buffer);
 
-void cpu_debug_info(void);
+void cpu_debug_info(uint8_t cpu_num);
 
 static inline uint64_t cpu_read_msr(uint32_t msr) {
     uint32_t eax, edx;
@@ -76,7 +78,9 @@ static inline void cpu_invalidate_page(uintptr_t virt_addr) {
 }
 
 static inline void cpu_swapgs(void) {
+#ifndef NO_USER_GS
     __asm__ volatile("swapgs" : : : "memory");
+#endif
 }
 
 #endif //__ANOS_KERNEL_DRIVERS_CPU_H

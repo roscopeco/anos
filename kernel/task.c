@@ -61,6 +61,15 @@ static inline PerCPUTaskState *init_cpu_task_state(void *tss) {
     return state;
 }
 
+#ifdef UNIT_TESTS
+void task_do_switch(Task *next) {
+    get_cpu_task_state()->task_current_ptr = next;
+}
+#else
+// See task_switch.asm
+void task_do_switch(Task *next);
+#endif
+
 void task_init(void *tss) {
     PerCPUTaskState *cpu_state = init_cpu_task_state(tss);
 
@@ -79,9 +88,6 @@ void task_init(void *tss) {
 
 Task *task_current() { return get_cpu_task_state()->task_current_ptr; }
 
-// See task_switch.asm
-void task_do_switch(Task *next);
-
 void task_switch(Task *next) {
     tdebug("Switching task: ");
     tdbgx64((uint64_t)next);
@@ -91,17 +97,29 @@ void task_switch(Task *next) {
 }
 
 void user_thread_entrypoint(void);
+void kernel_thread_entrypoint(void);
 
-Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t func) {
+Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
+                      uintptr_t bootstrap, uintptr_t func, TaskClass class) {
     Task *task = slab_alloc_block();
 
     task->tid = next_tid++;
-    task->rsp0 = task->ssp = ((uintptr_t)fba_alloc_block()) +
-                             0x1000; // 4KiB kernel stack should be enough...?
+
+    if (sys_ssp) {
+        task->rsp0 = task->ssp = sys_ssp;
+    } else {
+        task->rsp0 = task->ssp =
+                ((uintptr_t)fba_alloc_block()) +
+                0x1000; // default 4KiB kernel stack should be enough...?
+
+        vdebug("Created kernel stack for 0 thread @ ");
+        vdbgx64(task->rsp0, debugchar);
+        vdebug("\n");
+    }
 
     // push address of entrypoint func as first place this task will "return" to...
     task->ssp -= 8;
-    *((uint64_t *)task->ssp) = (uint64_t)user_thread_entrypoint;
+    *((uint64_t *)task->ssp) = bootstrap;
 
     // space for initial registers except rdi, rsi, values don't care...
     task->ssp -= 104;
@@ -121,11 +139,23 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t func) {
 
     // TODO pass these in, or inherit from owner
     //      if the latter, have a separate call to change them...
-    task->class = TASK_CLASS_NORMAL;
+    task->class = class;
     task->prio = 0;
 
     task->this.next = (void *)0;
     task->this.type = KTYPE_TASK;
 
     return task;
+}
+
+Task *task_create_user(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
+                       uintptr_t func, TaskClass class) {
+    return task_create_new(owner, sp, sys_ssp,
+                           (uintptr_t)user_thread_entrypoint, func, class);
+}
+
+Task *task_create_kernel(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
+                         uintptr_t func, TaskClass class) {
+    return task_create_new(owner, sp, sys_ssp,
+                           (uintptr_t)kernel_thread_entrypoint, func, class);
 }

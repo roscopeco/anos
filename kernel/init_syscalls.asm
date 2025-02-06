@@ -11,20 +11,24 @@ bits 64
 global syscall_init
 extern handle_syscall_69
 
-MSR_EFER    equ     0xc0000080
-MSR_STAR    equ     0xc0000081
-MSR_LSTAR   equ     0xc0000082
-MSR_SFMASK  equ     0xc0000084
+%define MSR_EFER    0xc0000080
+%define MSR_STAR    0xc0000081
+%define MSR_LSTAR   0xc0000082
+%define MSR_SFMASK  0xc0000084
 
-EFLAGS_IF    equ  1 << 9
-EFLAGS_IOPL  equ  3 << 12
-EFLAGS_NT    equ  1 << 14
-EFLAGS_RF    equ  1 << 16
-EFLAGS_VM    equ  1 << 17
-EFLAGS_AC    equ  1 << 18
-EFLAGS_VIF   equ  1 << 19
-EFLAGS_VIP   equ  1 << 20
-EFLAGS_ID    equ  1 << 21
+%define EFLAGS_IF   1 << 9
+%define EFLAGS_IOPL 3 << 12
+%define EFLAGS_NT   1 << 14
+%define EFLAGS_RF   1 << 16
+%define EFLAGS_VM   1 << 17
+%define EFLAGS_AC   1 << 18
+%define EFLAGS_VIF  1 << 19
+%define EFLAGS_VIP  1 << 20
+%define EFLAGS_ID   1 << 21
+
+%include "smp/state.inc"
+
+%define TASK_RSP0   24
 
 %macro write_msr 2
    mov rcx, %1
@@ -76,9 +80,20 @@ syscall_init:
 
 ; Entry point for SYSCALLs
 syscall_enter:
+%ifndef NO_USER_GS
+    cli
     swapgs
+
+    ; TODO syscalls are still using user stack, the following doesn't quite work
+    ;      (specifically tasks crash when waking from sleep, so I think we're 
+    ;      missing an equivalent stack switch somewhere in that path...)
+    ;   
+    ; mov     [gs:CPU_RSP_STASH+16],rsp      ; Stash the user stack pointer
+    ; mov     r8,[gs:CPU_TASK_CURRENT]       ; ... and load task pointer
+    ; mov     rsp,[r8+TASK_RSP0]             ; ... so we can switch to kernel stack
+%endif
+
     push rbp
-    mov rbp, rsp
     push rcx        ; Return addr
     push rbx
     push r11        ; syscall clobbers this...
@@ -88,7 +103,7 @@ syscall_enter:
     push r15
     
     mov rcx, r10    ; 4th arg from r10
-
+    sti
     call handle_syscall_69
     
     pop r15
@@ -99,5 +114,10 @@ syscall_enter:
     pop rbx
     pop rcx
     pop rbp
+%ifndef NO_USER_GS
+    cli
+    ; mov     rsp,[gs:CPU_RSP_STASH+16]          ; ... and restore the user stack pointer
+
     swapgs
+%endif
     o64 sysret

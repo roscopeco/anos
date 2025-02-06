@@ -74,8 +74,10 @@ noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
             "pushf\n\t"         // Push EFLAGS
             "push $0x23\n\t"    // Push user code segment selector (GDT entry 4)
             "push %1\n\t"       // Push user code entry point
-            "swapgs\n\t"        // Swap to user-mode GS
-            "iretq\n\t"         // "Return" to user mode
+#ifndef NO_USER_GS
+            "swapgs\n\t" // Swap to user-mode GS
+#endif
+            "iretq\n\t" // "Return" to user mode
             :
             : "r"(thread_userstack), "r"(thread_entrypoint)
             : "memory");

@@ -13,10 +13,23 @@
 #include "structs/pq.h"
 #include "task.h"
 
+#include "debugprint.h"
+#include "fba/alloc.h"
+#include "printhex.h"
+
+#ifdef UNIT_TESTS
 #ifdef DEBUG_UNIT_TESTS
 #include <stdio.h>
 #else
+#ifndef NULL
 #define NULL (((void *)0))
+#endif
+#define printf(...)
+#endif
+#else
+#ifndef NULL
+#define NULL (((void *)0))
+#endif
 #define printf(...)
 #endif
 
@@ -48,6 +61,10 @@ static_assert_sizeof(PerCPUSchedState, <=, STATE_SCHED_DATA_MAX);
 #define vdbgx64(...)
 #endif
 
+static Process *system_process;
+
+void sched_idle_thread(void);
+
 static inline PerCPUSchedState *get_cpu_sched_state(void) {
     PerCPUState *cpu_state = state_get_per_cpu();
     return (PerCPUSchedState *)cpu_state->sched_data;
@@ -65,6 +82,8 @@ static inline PerCPUSchedState *init_cpu_sched_state(void) {
 }
 
 #ifdef UNIT_TESTS
+// TODO there's too much test code leaking into prod code...
+//
 Task *test_sched_prr_get_runnable_head(TaskClass level) {
     switch (level) {
     case TASK_CLASS_REALTIME:
@@ -110,8 +129,10 @@ Task *test_sched_prr_set_runnable_head(TaskClass level, Task *task) {
 }
 #endif
 
+// This should only be called on the BSP
 bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
                 uintptr_t bootstrap_func, TaskClass task_class) {
+
     if (sys_ssp == 0) {
         return false;
     }
@@ -146,40 +167,120 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     new_process->pid = 1;
     new_process->pml4 = get_pagetable_root();
 
-    Task *new_task = slab_alloc_block();
+    if (new_process == NULL) {
+        return false;
+    }
 
-    new_task->rsp0 = sys_ssp;
-
-    // push address of init func as first place this task will return to...
-    sys_ssp -= 8;
-    *((uint64_t *)sys_ssp) = (uint64_t)bootstrap_func;
-
-    // space for initial registers except rsi, rdi, values don't care...
-    sys_ssp -= 104;
-
-    // push address of thread user stack, this will get popped into rsi...
-    sys_ssp -= 8;
-    *((uint64_t *)sys_ssp) = sys_sp;
-
-    // push address of thread func, this will get popped into rdi...
-    sys_ssp -= 8;
-    *((uint64_t *)sys_ssp) = start_func;
-
-    new_task->ssp = sys_ssp;
-    new_task->owner = new_process;
-    new_task->pml4 = new_process->pml4;
-    new_task->tid = 1;
-    new_task->ts_remain = DEFAULT_TIMESLICE;
-    new_task->state = TASK_STATE_READY;
-    new_task->prio = 0;
-    new_task->class = task_class;
-
-    new_task->this.next = NULL;
-    new_task->this.type = KTYPE_TASK;
+    Task *new_task = task_create_new(new_process, sys_sp, sys_ssp,
+                                     bootstrap_func, start_func, task_class);
 
     task_pq_push(queue, new_task);
 
+    system_process = new_process;
+
     return true;
+}
+
+#ifdef DEBUG_SLEEPY_KERNEL_TASK
+#include "debugprint.h"
+#include "fba/alloc.h"
+#include "printdec.h"
+#include "sleep.h"
+#include "spinlock.h"
+#include "task.h"
+
+static SpinLock helo_lock;
+
+void sleepy_kernel_task(void) {
+    PerCPUState *state = state_get_per_cpu();
+
+    while (1) {
+        spinlock_lock(&helo_lock);
+        debugstr("    Hello from #");
+        printdec(state->cpu_id, debugchar);
+        debugstr("    ");
+        spinlock_unlock(&helo_lock);
+        sleep_task(task_current(), 5000000000 + (1000000000 * state->cpu_id));
+    }
+
+    __builtin_unreachable();
+}
+
+static bool init_sleepy_kernel_task(PerCPUSchedState *state,
+                                    uintptr_t bootstrap_func) {
+    uintptr_t sleepy_sstack = (uintptr_t)fba_alloc_block();
+    if (!sleepy_sstack) {
+        return false;
+    }
+
+    uintptr_t sleepy_ustack = (uintptr_t)fba_alloc_block();
+    if (!sleepy_ustack) {
+        fba_free((void *)sleepy_sstack);
+        return false;
+    }
+
+    Task *sleepy_task = slab_alloc_block();
+
+    if (!sleepy_task) {
+        fba_free((void *)sleepy_sstack);
+        fba_free((void *)sleepy_ustack);
+        return false;
+    }
+
+    sleepy_sstack += 0x1000;
+    sleepy_ustack += 0x1000;
+
+    sleepy_task->rsp0 = sleepy_sstack;
+    sleepy_sstack -= 8;
+    *((uint64_t *)sleepy_sstack) = (uint64_t)bootstrap_func;
+
+    // space for initial registers except rsi, rdi, values don't care...
+    sleepy_sstack -= 104;
+
+    // push address of thread user stack, this will get popped into rsi...
+    sleepy_sstack -= 8;
+    *((uint64_t *)sleepy_sstack) = sleepy_ustack;
+
+    // push address of thread func, this will get popped into rdi...
+    sleepy_sstack -= 8;
+    *((uint64_t *)sleepy_sstack) = (uint64_t)sleepy_kernel_task;
+
+    sleepy_task->ssp = sleepy_sstack;
+    sleepy_task->owner = system_process;
+    sleepy_task->pml4 = system_process->pml4;
+    sleepy_task->tid = 1;
+    sleepy_task->ts_remain = DEFAULT_TIMESLICE;
+    sleepy_task->state = TASK_STATE_READY;
+    sleepy_task->prio = 0;
+    sleepy_task->class = TASK_CLASS_NORMAL;
+
+    sleepy_task->this.next = NULL;
+    sleepy_task->this.type = KTYPE_TASK;
+
+    task_pq_push(&state->normal_head, sleepy_task);
+
+    return true;
+}
+#else
+#define init_sleepy_kernel_task(...) true
+#endif
+
+bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp,
+                     uintptr_t bootstrap_func) {
+
+    if (!system_process) {
+        return false;
+    }
+
+    PerCPUSchedState *state = get_cpu_sched_state();
+
+    Task *idle_task =
+            task_create_new(system_process, sp, sys_ssp, bootstrap_func,
+                            (uintptr_t)sched_idle_thread, TASK_CLASS_IDLE);
+
+    task_pq_push(&state->idle_head, idle_task);
+
+    return init_sleepy_kernel_task(state, bootstrap_func);
 }
 
 static void sched_enqueue(Task *task) {
@@ -232,9 +333,6 @@ void sched_schedule(void) {
     } else if ((candidate_next = task_pq_peek(&state->idle_head))) {
         printf("Have an idle candidate\n");
         candidate_queue = &state->idle_head;
-    } else {
-        printf("No candidate! Always current class is %d; Normal head is %p\n",
-               always_current->class, normal_head.head);
     }
 
     printf("Candidate is %p\n", candidate_next);
