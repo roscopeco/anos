@@ -3,7 +3,7 @@
 ![workflow status](https://github.com/roscopeco/anos/actions/workflows/compile_test.yaml/badge.svg)
 ![code coverage](coverage.svg)
 
-> ![NOTE]
+> [!NOTE]
 > This is not yet an operating system, but _definitely has_  reached 
 > "toy kernel" status, since it now supports user mode preemptive 
 > multitasking on up to 16 CPUs & runs on real hardware 🥳.
