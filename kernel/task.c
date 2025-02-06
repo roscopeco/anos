@@ -61,6 +61,15 @@ static inline PerCPUTaskState *init_cpu_task_state(void *tss) {
     return state;
 }
 
+#ifdef UNIT_TESTS
+void task_do_switch(Task *next) {
+    get_cpu_task_state()->task_current_ptr = next;
+}
+#else
+// See task_switch.asm
+void task_do_switch(Task *next);
+#endif
+
 void task_init(void *tss) {
     PerCPUTaskState *cpu_state = init_cpu_task_state(tss);
 
@@ -78,9 +87,6 @@ void task_init(void *tss) {
 }
 
 Task *task_current() { return get_cpu_task_state()->task_current_ptr; }
-
-// See task_switch.asm
-void task_do_switch(Task *next);
 
 void task_switch(Task *next) {
     tdebug("Switching task: ");
@@ -106,9 +112,9 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                 ((uintptr_t)fba_alloc_block()) +
                 0x1000; // default 4KiB kernel stack should be enough...?
 
-        debugstr("Created kernel stack for 0 thread @ ");
-        printhex64(task->rsp0, debugchar);
-        debugstr("\n");
+        vdebug("Created kernel stack for 0 thread @ ");
+        vdbgx64(task->rsp0, debugchar);
+        vdebug("\n");
     }
 
     // push address of entrypoint func as first place this task will "return" to...

@@ -65,8 +65,19 @@
 
 static char *MSG = VERSION "\n";
 
-MemoryRegion *physical_region;
 static ACPI_RSDT *acpi_root_table;
+
+/* Globals */
+MemoryRegion *physical_region;
+
+// We set this at startup, and once the APs are started up,
+// they'll wait for this to go false before they start
+// their own system schedulers.
+//
+// This way, we can ensure the main one is started and
+// everything's initialized before we let them start
+// theirs...
+volatile bool ap_startup_wait;
 
 #ifdef DEBUG_MEMMAP
 void debug_memmap(E820h_MemMap *memmap);
@@ -189,6 +200,10 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
     task_init(get_this_cpu_tss());
     sleep_init();
 
+    while (ap_startup_wait) {
+        // just busy right now, but should hlt and wait for an IPI or something...?
+    }
+
     start_system_ap(ap_num);
 
     panic("Somehow ended up back in AP entrypoint. This is a bad thing...");
@@ -252,6 +267,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table, 0);
 
 #ifndef NO_SMP
+    ap_startup_wait = true;
     smp_bsp_start_aps(acpi_root_table, lapic);
 #endif
 

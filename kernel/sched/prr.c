@@ -17,8 +17,15 @@
 #include "fba/alloc.h"
 #include "printhex.h"
 
+#ifdef UNIT_TESTS
 #ifdef DEBUG_UNIT_TESTS
 #include <stdio.h>
+#else
+#ifndef NULL
+#define NULL (((void *)0))
+#endif
+#define printf(...)
+#endif
 #else
 #ifndef NULL
 #define NULL (((void *)0))
@@ -75,6 +82,8 @@ static inline PerCPUSchedState *init_cpu_sched_state(void) {
 }
 
 #ifdef UNIT_TESTS
+// TODO there's too much test code leaking into prod code...
+//
 Task *test_sched_prr_get_runnable_head(TaskClass level) {
     switch (level) {
     case TASK_CLASS_REALTIME:
@@ -123,6 +132,7 @@ Task *test_sched_prr_set_runnable_head(TaskClass level, Task *task) {
 // This should only be called on the BSP
 bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
                 uintptr_t bootstrap_func, TaskClass task_class) {
+
     if (sys_ssp == 0) {
         return false;
     }
@@ -157,36 +167,9 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     new_process->pid = 1;
     new_process->pml4 = get_pagetable_root();
 
-    // Task *new_task = slab_alloc_block();
-
-    // new_task->rsp0 = sys_ssp;
-
-    // // push address of init func as first place this task will return to...
-    // sys_ssp -= 8;
-    // *((uint64_t *)sys_ssp) = (uint64_t)bootstrap_func;
-
-    // // space for initial registers except rsi, rdi, values don't care...
-    // sys_ssp -= 104;
-
-    // // push address of thread user stack, this will get popped into rsi...
-    // sys_ssp -= 8;
-    // *((uint64_t *)sys_ssp) = sys_sp;
-
-    // // push address of thread func, this will get popped into rdi...
-    // sys_ssp -= 8;
-    // *((uint64_t *)sys_ssp) = start_func;
-
-    // new_task->ssp = sys_ssp;
-    // new_task->owner = new_process;
-    // new_task->pml4 = new_process->pml4;
-    // new_task->tid = 1;
-    // new_task->ts_remain = DEFAULT_TIMESLICE;
-    // new_task->state = TASK_STATE_READY;
-    // new_task->prio = 0;
-    // new_task->class = task_class;
-
-    // new_task->this.next = NULL;
-    // new_task->this.type = KTYPE_TASK;
+    if (new_process == NULL) {
+        return false;
+    }
 
     Task *new_task = task_create_new(new_process, sys_sp, sys_ssp,
                                      bootstrap_func, start_func, task_class);
@@ -206,18 +189,18 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
 #include "spinlock.h"
 #include "task.h"
 
-static SpinLock yolo_lock;
+static SpinLock helo_lock;
 
 void sleepy_kernel_task(void) {
     PerCPUState *state = state_get_per_cpu();
 
     while (1) {
-        spinlock_lock(&yolo_lock);
-        debugstr("    HAHAYOLO#");
+        spinlock_lock(&helo_lock);
+        debugstr("    Hello from #");
         printdec(state->cpu_id, debugchar);
         debugstr("    ");
-        spinlock_unlock(&yolo_lock);
-        sleep_task(task_current(), 5000000000);
+        spinlock_unlock(&helo_lock);
+        sleep_task(task_current(), 5000000000 + (1000000000 * state->cpu_id));
     }
 
     __builtin_unreachable();
@@ -291,37 +274,6 @@ bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp,
 
     PerCPUSchedState *state = get_cpu_sched_state();
 
-    // System also needs to own the idle thread
-
-    // Task *idle_task = slab_alloc_block();
-
-    // idle_task->rsp0 = sys_ssp;
-    // sys_ssp -= 8;
-    // *((uint64_t *)sys_ssp) = (uint64_t)bootstrap_func;
-
-    // // space for initial registers except rsi, rdi, values don't care...
-    // sys_ssp -= 104;
-
-    // // push address of thread user stack, this will get popped into rsi...
-    // sys_ssp -= 8;
-    // *((uint64_t *)sys_ssp) = sys_sp;
-
-    // // push address of thread func, this will get popped into rdi...
-    // sys_ssp -= 8;
-    // *((uint64_t *)sys_ssp) = (uint64_t)sched_idle_thread;
-
-    // idle_task->ssp = sys_ssp;
-    // idle_task->owner = system_process;
-    // idle_task->pml4 = system_process->pml4;
-    // idle_task->tid = 1;
-    // idle_task->ts_remain = DEFAULT_TIMESLICE;
-    // idle_task->state = TASK_STATE_READY;
-    // idle_task->prio = 0;
-    // idle_task->class = TASK_CLASS_IDLE;
-
-    // idle_task->this.next = NULL;
-    // idle_task->this.type = KTYPE_TASK;
-
     Task *idle_task =
             task_create_new(system_process, sp, sys_ssp, bootstrap_func,
                             (uintptr_t)sched_idle_thread, TASK_CLASS_IDLE);
@@ -381,9 +333,6 @@ void sched_schedule(void) {
     } else if ((candidate_next = task_pq_peek(&state->idle_head))) {
         printf("Have an idle candidate\n");
         candidate_queue = &state->idle_head;
-    } else {
-        printf("No candidate! Always current class is %d; Normal head is %p\n",
-               always_current->class, normal_head.head);
     }
 
     printf("Candidate is %p\n", candidate_next);

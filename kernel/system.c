@@ -36,6 +36,8 @@ extern void *_system_bin_end;
 static void *idle_sstack_page;
 static void *idle_ustack_page;
 
+extern volatile bool ap_startup_wait;
+
 void user_thread_entrypoint(void);
 void kernel_thread_entrypoint(void);
 
@@ -137,6 +139,10 @@ noreturn void start_system(void) {
     // We can just get away with disabling here, no need to save/restore flags
     // because we know we're currently the only thread...
     __asm__ volatile("cli");
+
+    // Just one more thing.... release the APs now the main scheduler
+    // structs and system process are set up.
+    ap_startup_wait = false;
 
     // Kick off scheduling...
     sched_schedule();

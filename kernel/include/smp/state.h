@@ -53,14 +53,10 @@ static_assert_sizeof(PerCPUState, ==, VM_PAGE_SIZE);
 #ifdef UNIT_TESTS
 #ifdef MUNIT_H
 PerCPUState __test_cpu_state;
+#else
+extern PerCPUState __test_cpu_state;
+static inline PerCPUState *state_get_per_cpu(void) { return &__test_cpu_state; }
 #endif
-
-static inline PerCPUState *state_get_per_cpu(void) {
-#ifndef MUNIT_H
-    extern PerCPUState __test_cpu_state;
-#endif
-    return &__test_cpu_state;
-}
 #else
 // Assumes GS is already swapped to KernelGSBase...
 static inline PerCPUState *state_get_per_cpu(void) {
