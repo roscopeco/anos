@@ -48,11 +48,11 @@ extern handle_syscall_69
   pop   rax
 %endmacro
 
-%macro conditional_swapgs 0
+%macro conditional_swapgs 1
   pushfq
-  cli
-%ifndef NO_USER_GS
-	test byte [rsp+0x10], 3
+  cli                                     ; Still cli even for IRQ gates, this is used at the
+%ifndef NO_USER_GS                        ; end of the handlers as well (when interrupts
+	test byte [rsp+0x10+%1], 3              ; might've been re-enabled...)
 	jz %%.noswap
 	swapgs
 %%.noswap:
@@ -60,10 +60,22 @@ extern handle_syscall_69
 %endif
 %endmacro
 
+%macro trap_conditional_swapgs_no_code 0
+  conditional_swapgs 0x00                 ; No additional offset to stack
+%endmacro
+
+%macro trap_conditional_swapgs_with_code 0
+  conditional_swapgs 0x08                 ; Extra 8 bytes offset to stack, because error code...
+%endmacro
+
+%macro irq_conditional_swapgs 0
+  conditional_swapgs 0x00                 ; No additional offset to stack
+%endmacro
+
 %macro trap_dispatcher_with_code 1        ; General handler for traps that stack an error code
 global trap_dispatcher_%+%1               ; Ensure declared global
 trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
-  conditional_swapgs
+  trap_conditional_swapgs_with_code
   pusha_sysv
   
   mov   rdi,%1                            ; Put the trap number in the first C argument
@@ -75,14 +87,14 @@ trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
 
   add   rsp,8                             ; Discard the error code
 
-  conditional_swapgs
+  trap_conditional_swapgs_no_code         ; We already discarded the code 👆
   iretq                                   ; And done...
 %endmacro
 
 %macro trap_dispatcher_no_code 1          ; General handler for traps that stack an error code
 global trap_dispatcher_%+%1               ; Ensure declared global
 trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_1`
-  conditional_swapgs
+  trap_conditional_swapgs_no_code
   pusha_sysv
   
   mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
@@ -90,7 +102,7 @@ trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_1`
   call  handle_exception_nc               ; Call the no-code handler
 
   popa_sysv
-  conditional_swapgs
+  trap_conditional_swapgs_no_code
 
   iretq                                    ; And done...
 %endmacro
@@ -141,7 +153,7 @@ pic_irq_handler:
 ; (vector 0x2f) because we should be sending EOI to the master PIC in that case...
 
 bsp_timer_interrupt_handler:
-  conditional_swapgs
+  irq_conditional_swapgs
   pusha_sysv
 
   ; TODO stack alignment?
@@ -149,11 +161,11 @@ bsp_timer_interrupt_handler:
   call  handle_bsp_timer_interrupt        ; Just call directly to C handler
 
   popa_sysv
-  conditional_swapgs
+  irq_conditional_swapgs
   iretq
 
 ap_timer_interrupt_handler:
-  conditional_swapgs
+  irq_conditional_swapgs
   pusha_sysv
 
   ; TODO stack alignment?
@@ -161,11 +173,11 @@ ap_timer_interrupt_handler:
   call  handle_ap_timer_interrupt         ; Just call directly to C handler
 
   popa_sysv
-  conditional_swapgs
+  irq_conditional_swapgs
   iretq
 
 syscall_69_handler:
-  conditional_swapgs
+  irq_conditional_swapgs                  ; Syscalls are set up to mask interrupts...
   pusha_sysv_not_rax
   add   rsp,$8
 
@@ -174,12 +186,12 @@ syscall_69_handler:
 
   sub   rsp,$8
   popa_sysv_not_rax
-  conditional_swapgs
+  irq_conditional_swapgs
   iretq
 
 ; ISR dispatcher for Unknown (unhandled) IRQs
 unknown_interrupt_handler:
-  conditional_swapgs
+  irq_conditional_swapgs
   pusha_sysv
 
   ; TODO stack alignment?
@@ -187,7 +199,7 @@ unknown_interrupt_handler:
   call  handle_unknown_interrupt          ; Just call directly to C handler
   
   popa_sysv
-  conditional_swapgs
+  irq_conditional_swapgs
   iretq
 
 ; Running count of spurious PIC IRQs
