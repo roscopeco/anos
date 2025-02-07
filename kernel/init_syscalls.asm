@@ -88,9 +88,9 @@ syscall_enter:
     ;      (specifically tasks crash when waking from sleep, so I think we're 
     ;      missing an equivalent stack switch somewhere in that path...)
     ;   
-    ; mov     [gs:CPU_RSP_STASH+16],rsp      ; Stash the user stack pointer
-    ; mov     r8,[gs:CPU_TASK_CURRENT]       ; ... and load task pointer
-    ; mov     rsp,[r8+TASK_RSP0]             ; ... so we can switch to kernel stack
+    mov     r8,[gs:CPU_TASK_CURRENT]       ; ... and load task pointer
+    mov     [r8+8],rsp         ; Stash the user stack pointer
+    mov     rsp,[r8+TASK_RSP0]             ; ... so we can switch to kernel stack
 %endif
 
     push rbp
@@ -116,7 +116,8 @@ syscall_enter:
     pop rbp
 %ifndef NO_USER_GS
     cli
-    ; mov     rsp,[gs:CPU_RSP_STASH+16]          ; ... and restore the user stack pointer
+    mov     r8,[gs:CPU_TASK_CURRENT]       ; ... and load task pointer
+    mov     rsp,[r8+8]          ; ... and restore the user stack pointer
 
     swapgs
 %endif
