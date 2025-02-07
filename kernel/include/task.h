@@ -28,28 +28,40 @@ typedef enum {
     TASK_STATE_RUNNING,
 } __attribute__((packed)) TaskState;
 
+/**
+ * Task scheduler data - Stuff not needed in best-case fast
+ * path (e.g. syscalls).
+ */
+typedef struct {
+    uintptr_t tid;      // 8
+    uint16_t ts_remain; // 10
+    TaskState state;    // 11
+    TaskClass class;    // 12
+    uint8_t prio;       // 13
+    uint8_t res1;       // 14
+    uint16_t res2;      // 16
+    uint64_t reserved[6];
+} __attribute__((packed)) TaskSched;
+
 /*
- * task_switch.asm depends on the exact layout of this!
+ * task_switch.asm (and init_syscalls.asm) depends on the 
+ * exact layout of this!
  */
 typedef struct Task {
-    ListNode this;  // 16 bytes
-    uintptr_t tid;  // 24
-    uintptr_t rsp0; // 32
-    uintptr_t ssp;  // 40
-    Process *owner; // 48
+    ListNode this;    // 16 bytes
+    TaskSched *sched; // 24
+    uintptr_t rsp0;   // 32
+    uintptr_t ssp;    // 40
+    Process *owner;   // 48
 
     // duplicated from process to avoid cache miss on naive switch
     uintptr_t pml4; // 56
 
-    uint16_t ts_remain; // 58
-    TaskState state;    // 59
-    TaskClass class;    // 60
-    uint8_t prio;       // 61
-    uint8_t res1;       // 62
-    uint16_t res2;      // 64
+    uintptr_t usp_stash; // 64
 } __attribute__((packed)) Task;
 
 static_assert_sizeof(Task, ==, 64);
+static_assert_sizeof(TaskSched, ==, 64);
 
 void task_init(void *tss);
 Task *task_current();

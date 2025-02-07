@@ -219,43 +219,15 @@ static bool init_sleepy_kernel_task(PerCPUSchedState *state,
         return false;
     }
 
-    Task *sleepy_task = slab_alloc_block();
+    Task *sleepy_task = task_create_kernel(
+            system_process, sleepy_ustack + 0x1000, sleepy_sstack + 0x1000,
+            (uint64_t)sleepy_kernel_task, TASK_CLASS_NORMAL);
 
     if (!sleepy_task) {
         fba_free((void *)sleepy_sstack);
         fba_free((void *)sleepy_ustack);
         return false;
     }
-
-    sleepy_sstack += 0x1000;
-    sleepy_ustack += 0x1000;
-
-    sleepy_task->rsp0 = sleepy_sstack;
-    sleepy_sstack -= 8;
-    *((uint64_t *)sleepy_sstack) = (uint64_t)bootstrap_func;
-
-    // space for initial registers except rsi, rdi, values don't care...
-    sleepy_sstack -= 104;
-
-    // push address of thread user stack, this will get popped into rsi...
-    sleepy_sstack -= 8;
-    *((uint64_t *)sleepy_sstack) = sleepy_ustack;
-
-    // push address of thread func, this will get popped into rdi...
-    sleepy_sstack -= 8;
-    *((uint64_t *)sleepy_sstack) = (uint64_t)sleepy_kernel_task;
-
-    sleepy_task->ssp = sleepy_sstack;
-    sleepy_task->owner = system_process;
-    sleepy_task->pml4 = system_process->pml4;
-    sleepy_task->tid = 1;
-    sleepy_task->ts_remain = DEFAULT_TIMESLICE;
-    sleepy_task->state = TASK_STATE_READY;
-    sleepy_task->prio = 0;
-    sleepy_task->class = TASK_CLASS_NORMAL;
-
-    sleepy_task->this.next = NULL;
-    sleepy_task->this.type = KTYPE_TASK;
 
     task_pq_push(&state->normal_head, sleepy_task);
 
@@ -289,7 +261,7 @@ static void sched_enqueue(Task *task) {
 
     printf("REQUEUE\n");
 
-    switch (task->class) {
+    switch (task->sched->class) {
     case TASK_CLASS_REALTIME:
         candidate_queue = &state->realtime_head;
         break;
@@ -346,20 +318,21 @@ void sched_schedule(void) {
 
     // Decrement timeslice
     if (current) {
-        if (current->ts_remain > 0) {
-            --current->ts_remain;
+        if (current->sched->ts_remain > 0) {
+            --current->sched->ts_remain;
         }
 
-        if (current->state != TASK_STATE_BLOCKED && current->ts_remain > 0 &&
-            (candidate_next->class <= current->class ||
-             (candidate_next->class == current->class &&
-              candidate_next->prio >= current->prio))) {
+        if (current->sched->state != TASK_STATE_BLOCKED &&
+            current->sched->ts_remain > 0 &&
+            (candidate_next->sched->class <= current->sched->class ||
+             (candidate_next->sched->class == current->sched->class &&
+              candidate_next->sched->prio >= current->sched->prio))) {
             printf("TIMESLICE CONTINUES\n");
             // timeslice continues, and nothing higher priority is preempting, so stick with it
             vdebug("No preempting task, and  ");
             vdbgx64((uint64_t)current);
             vdebug(" still has ");
-            vdbgx64((uint64_t)current->ts_remain);
+            vdbgx64((uint64_t)current->sched->ts_remain);
             vdebug(" ticks left to run...\n");
             return;
         }
@@ -371,23 +344,23 @@ void sched_schedule(void) {
     tdebug("Switch to ");
     tdbgx64((uintptr_t)next);
     tdebug(" [TID = ");
-    tdbgx64((uint64_t)next->tid);
+    tdbgx64((uint64_t)next->extra->tid);
     tdebug("]\n");
 
-    if (current && current->state == TASK_STATE_RUNNING) {
-        current->state = TASK_STATE_READY;
+    if (current && current->sched->state == TASK_STATE_RUNNING) {
+        current->sched->state = TASK_STATE_READY;
         sched_enqueue(current);
     }
 
-    next->ts_remain = DEFAULT_TIMESLICE;
-    next->state = TASK_STATE_RUNNING;
+    next->sched->ts_remain = DEFAULT_TIMESLICE;
+    next->sched->state = TASK_STATE_RUNNING;
 
     task_switch(next);
 }
 
 void sched_unblock(Task *task) {
-    task->state = TASK_STATE_READY;
+    task->sched->state = TASK_STATE_READY;
     sched_enqueue(task);
 }
 
-void sched_block(Task *task) { task->state = TASK_STATE_BLOCKED; }
+void sched_block(Task *task) { task->sched->state = TASK_STATE_BLOCKED; }

@@ -64,7 +64,7 @@ static SyscallResult handle_create_thread(ThreadFunc func,
     sched_unblock(task);
     sched_unlock();
 
-    return task->tid;
+    return task->sched->tid;
 }
 
 static SyscallResult handle_memstats(AnosMemInfo *mem_info) {

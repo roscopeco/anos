@@ -28,6 +28,7 @@ extern handle_syscall_69
 
 %include "smp/state.inc"
 
+%define TASK_USP    56
 %define TASK_RSP0   24
 
 %macro write_msr 2
@@ -88,9 +89,9 @@ syscall_enter:
     ;      (specifically tasks crash when waking from sleep, so I think we're 
     ;      missing an equivalent stack switch somewhere in that path...)
     ;   
-    mov     r8,[gs:CPU_TASK_CURRENT]       ; ... and load task pointer
-    mov     [r8+8],rsp         ; Stash the user stack pointer
-    mov     rsp,[r8+TASK_RSP0]             ; ... so we can switch to kernel stack
+    mov     r8,[gs:CPU_TASK_CURRENT]        ; Load current task from CPU data
+    mov     [r8+TASK_USP],rsp               ; And stash rsp there
+    mov     rsp,[r8+TASK_RSP0]              ; ... so we can switch to kernel stack
 %endif
 
     push rbp
@@ -116,8 +117,8 @@ syscall_enter:
     pop rbp
 %ifndef NO_USER_GS
     cli
-    mov     r8,[gs:CPU_TASK_CURRENT]       ; ... and load task pointer
-    mov     rsp,[r8+8]          ; ... and restore the user stack pointer
+    mov     r8,[gs:CPU_TASK_CURRENT]        ; Load current task from CPU data
+    mov     rsp,[r8+TASK_USP]               ; ... and restore the user stack pointer
 
     swapgs
 %endif
