@@ -51,11 +51,11 @@ static bool check_invariants(TaskPriorityQueue *pq) {
         }
 
         // priority ordering
-        if (slow->prio > ((Task *)slow->this.next)->prio) {
+        if (slow->sched->prio > ((Task *)slow->this.next)->sched->prio) {
             debugstr("Error: Priority ordering violation: ");
-            printdec(slow->prio, debugchar);
+            printdec(slow->sched->prio, debugchar);
             debugstr(" > ");
-            printdec(((Task *)slow->this.next)->prio, debugchar);
+            printdec(((Task *)slow->this.next)->sched->prio, debugchar);
             debugstr("\n");
             return false;
         }

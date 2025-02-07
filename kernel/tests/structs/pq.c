@@ -13,6 +13,7 @@
 typedef struct {
     TaskPriorityQueue pq;
     Task nodes[10]; // Pre-allocated nodes for testing
+    TaskSched scheds[10];
 } PQFixture;
 
 static void *pq_setup(const MunitParameter params[], void *user_data) {
@@ -20,7 +21,8 @@ static void *pq_setup(const MunitParameter params[], void *user_data) {
     task_pq_init(&fixture->pq);
     // Initialize nodes with some default values
     for (int i = 0; i < 10; i++) {
-        fixture->nodes[i].prio = 0;
+        fixture->nodes[i].sched = &fixture->scheds[i];
+        fixture->nodes[i].sched->prio = 0;
         fixture->nodes[i].this.next = NULL;
     }
     return fixture;
@@ -44,12 +46,12 @@ static MunitResult test_single_element(const MunitParameter params[],
                                        void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
-    f->nodes[0].prio = 5;
+    f->nodes[0].sched->prio = 5;
     task_pq_push(&f->pq, &f->nodes[0]);
 
     munit_assert_false(task_pq_empty(&f->pq));
     munit_assert_ptr_equal(task_pq_peek(&f->pq), &f->nodes[0]);
-    munit_assert_int(task_pq_peek(&f->pq)->prio, ==, 5);
+    munit_assert_int(task_pq_peek(&f->pq)->sched->prio, ==, 5);
 
     Task *task_pq_popped = task_pq_pop(&f->pq);
     munit_assert_ptr_equal(task_pq_popped, &f->nodes[0]);
@@ -63,10 +65,10 @@ static MunitResult test_priority_ordering(const MunitParameter params[],
     PQFixture *f = (PQFixture *)fixture;
 
     // Insert in non-priority order
-    f->nodes[0].prio = 5;
-    f->nodes[1].prio = 3;
-    f->nodes[2].prio = 7;
-    f->nodes[3].prio = 1;
+    f->nodes[0].sched->prio = 5;
+    f->nodes[1].sched->prio = 3;
+    f->nodes[2].sched->prio = 7;
+    f->nodes[3].sched->prio = 1;
 
     task_pq_push(&f->pq, &f->nodes[0]); // 5
     task_pq_push(&f->pq, &f->nodes[1]); // 3
@@ -74,10 +76,10 @@ static MunitResult test_priority_ordering(const MunitParameter params[],
     task_pq_push(&f->pq, &f->nodes[3]); // 1
 
     // Should come out in priority order
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 1);
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 3);
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 5);
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 7);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 1);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 3);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 5);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 7);
     munit_assert_true(task_pq_empty(&f->pq));
 
     return MUNIT_OK;
@@ -87,10 +89,10 @@ static MunitResult test_duplicate_priorities(const MunitParameter params[],
                                              void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
-    f->nodes[0].prio = 5;
-    f->nodes[1].prio = 5;
-    f->nodes[2].prio = 3;
-    f->nodes[3].prio = 3;
+    f->nodes[0].sched->prio = 5;
+    f->nodes[1].sched->prio = 5;
+    f->nodes[2].sched->prio = 3;
+    f->nodes[3].sched->prio = 3;
 
     task_pq_push(&f->pq, &f->nodes[0]);
     task_pq_push(&f->pq, &f->nodes[1]);
@@ -98,10 +100,10 @@ static MunitResult test_duplicate_priorities(const MunitParameter params[],
     task_pq_push(&f->pq, &f->nodes[3]);
 
     // Should maintain FIFO order within same priority
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 3);
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 3);
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 5);
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 5);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 3);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 3);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 5);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 5);
 
     return MUNIT_OK;
 }
@@ -121,20 +123,20 @@ static MunitResult test_reused_node(const MunitParameter params[],
                                     void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
-    f->nodes[0].prio = 5;
+    f->nodes[0].sched->prio = 5;
     task_pq_push(&f->pq, &f->nodes[0]);
 
     Task *popped = task_pq_pop(&f->pq);
     munit_assert_ptr_equal(popped, &f->nodes[0]);
 
     // Reuse the popped node
-    popped->prio = 3; // Change priority
+    popped->sched->prio = 3; // Change priority
     task_pq_push(&f->pq, popped);
 
     // Should be able to pop it again
     Task *repopped = task_pq_pop(&f->pq);
     munit_assert_ptr_equal(repopped, &f->nodes[0]);
-    munit_assert_int(repopped->prio, ==, 3);
+    munit_assert_int(repopped->sched->prio, ==, 3);
 
     return MUNIT_OK;
 }
@@ -143,10 +145,10 @@ static MunitResult test_extreme_priorities(const MunitParameter params[],
                                            void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
-    f->nodes[0].prio = UINT8_MAX;
-    f->nodes[1].prio = 0;
-    f->nodes[2].prio = 0;
-    f->nodes[3].prio = 1;
+    f->nodes[0].sched->prio = UINT8_MAX;
+    f->nodes[1].sched->prio = 0;
+    f->nodes[2].sched->prio = 0;
+    f->nodes[3].sched->prio = 1;
 
     // Insert in random order
     task_pq_push(&f->pq, &f->nodes[0]); // UINT8_MAX
@@ -155,10 +157,10 @@ static MunitResult test_extreme_priorities(const MunitParameter params[],
     task_pq_push(&f->pq, &f->nodes[3]); // 1
 
     // Should come out in priority order
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 0);
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 0);
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 1);
-    munit_assert_int(task_pq_pop(&f->pq)->prio, ==, UINT8_MAX);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 0);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 0);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 1);
+    munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, UINT8_MAX);
 
     return MUNIT_OK;
 }
@@ -169,7 +171,7 @@ static MunitResult test_alternating_priorities(const MunitParameter params[],
 
     // Create alternating high/low priorities
     for (int i = 0; i < 8; i++) {
-        f->nodes[i].prio = (i % 2 == 0) ? 100 : 1;
+        f->nodes[i].sched->prio = (i % 2 == 0) ? 100 : 1;
     }
 
     // Push in alternating order
@@ -179,10 +181,10 @@ static MunitResult test_alternating_priorities(const MunitParameter params[],
 
     // Should come out grouped by priority
     for (int i = 0; i < 4; i++) {
-        munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 1);
+        munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 1);
     }
     for (int i = 0; i < 4; i++) {
-        munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 100);
+        munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 100);
     }
 
     return MUNIT_OK;
@@ -197,16 +199,16 @@ static MunitResult test_empty_refill(const MunitParameter params[],
         munit_assert_true(task_pq_empty(&f->pq));
 
         // Fill
-        f->nodes[0].prio = 3;
-        f->nodes[1].prio = 1;
+        f->nodes[0].sched->prio = 3;
+        f->nodes[1].sched->prio = 1;
         task_pq_push(&f->pq, &f->nodes[0]);
         task_pq_push(&f->pq, &f->nodes[1]);
 
         munit_assert_false(task_pq_empty(&f->pq));
 
         // Empty
-        munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 1);
-        munit_assert_int(task_pq_pop(&f->pq)->prio, ==, 3);
+        munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 1);
+        munit_assert_int(task_pq_pop(&f->pq)->sched->prio, ==, 3);
     }
 
     return MUNIT_OK;
