@@ -1,17 +1,20 @@
+ARCH?=x86_64
+
 ASM?=nasm
-XLD?=x86_64-elf-ld
-XOBJCOPY?=x86_64-elf-objcopy
-XOBJDUMP?=x86_64-elf-objdump
-QEMU?=qemu-system-x86_64
-XCC?=x86_64-elf-gcc
+XLD?=$(ARCH)-elf-ld
+XOBJCOPY?=$(ARCH)-elf-objcopy
+XOBJDUMP?=$(ARCH)-elf-objdump
+QEMU?=qemu-system-$(ARCH)
+XCC?=$(ARCH)-elf-gcc
 BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23	\
-		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
-		-fno-asynchronous-unwind-tables 										\
-		-mcmodel=kernel															\
-		-O3																		\
-		-g
+		-ffreestanding -fno-asynchronous-unwind-tables -mcmodel=kernel			\
+		-g -O3
+
+ifeq ($(ARCH),x86_64)
+CFLAGS+=-mno-red-zone -mno-mmx -mno-sse -mno-sse2
+endif
 
 # Setup host stuff for tests etc.
 HOST_ARCH?=$(shell uname -p)
@@ -68,7 +71,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU -DDEBUG_SLEEPY_KERNEL_TASK
+CDEFS=-DDEBUG_CPU
 
 ifeq ($(SERIALTERM),true)
 QEMU_OPTS=$(QEMU_BASEOPTS) -display none -serial stdio
@@ -84,7 +87,7 @@ STAGE2?=stage2
 STAGE3?=kernel
 SYSTEM?=system
 LIBANOS?=libanos
-REALMODE?=realmode
+ARCH_X86_64_REALMODE?=realmode
 STAGE1_DIR?=$(STAGE1)
 STAGE2_DIR?=$(STAGE2)
 STAGE3_DIR?=$(STAGE3)
@@ -94,13 +97,13 @@ STAGE1_BIN=$(STAGE1).bin
 STAGE2_BIN=$(STAGE2).bin
 STAGE3_BIN=$(STAGE3).bin
 SYSTEM_BIN=$(SYSTEM).bin
-REALMODE_BIN=$(REALMODE).bin
+ARCH_X86_64_REALMODE_BIN=$(ARCH_X86_64_REALMODE).bin
 LIBANOS_ARCHIVE=$(LIBANOS).a
 
 export LIBANOS_DIR
 export LIBANOS_ARCHIVE
 
-STAGE3_INC=$(STAGE3)/include
+STAGE3_INC=-I$(STAGE3)/include -I$(STAGE3)/arch/$(ARCH)/include
 
 # Base addresses; Stage 1
 STAGE_1_ADDR?=0x7c00
@@ -130,60 +133,74 @@ STAGE2_OBJS=$(STAGE2_DIR)/$(STAGE2).o 											\
 			$(STAGE2_DIR)/modern.o 												\
 			$(STAGE2_DIR)/fat.o 												\
 			$(STAGE2_DIR)/init_pagetables.o
-			
-STAGE3_OBJS=$(STAGE3_DIR)/init.o 												\
-			$(STAGE3_DIR)/entrypoint.o											\
+					
+STAGE3_ARCH_X86_64_DIR=$(STAGE3_DIR)/arch/x86_64
+STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/init.o								\
+					$(STAGE3_ARCH_X86_64_DIR)/init.o							\
+					$(STAGE3_ARCH_X86_64_DIR)/machine.o							\
+					$(STAGE3_ARCH_X86_64_DIR)/machine_asm.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/pic.o								\
+					$(STAGE3_ARCH_X86_64_DIR)/interrupts.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/isr_dispatch.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/init_interrupts.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/pagefault.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/init_pagetables.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/pmm/sys_asm.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/acpitables.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/gdt.o								\
+					$(STAGE3_ARCH_X86_64_DIR)/general_protection_fault.o		\
+					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/cpu.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/local_apic.o				\
+					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/hpet.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/init_syscalls.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/task_switch.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/task_user_entrypoint.o			\
+					$(STAGE3_ARCH_X86_64_DIR)/sched/lock.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/cpuid.o							\
+					$(STAGE3_ARCH_X86_64_DIR)/smp/startup.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/task_kernel_entrypoint.o			\
+					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/serial.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
+
+ifeq ($(ARCH),x86_64)
+STAGE3_ARCH_OBJS=$(STAGE3_OBJS_X86_64)
+else
+ifeq ($(ARCH),riscv64)
+$(error Arch `riscv64` is not yet supported)
+else
+$(error Arch $(ARCH) is not supported)
+endif
+endif
+
+STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/debuginfo.o											\
 			$(STAGE3_DIR)/debugprint.o											\
 			$(STAGE3_DIR)/printhex.o											\
 			$(STAGE3_DIR)/printdec.o											\
-			$(STAGE3_DIR)/machine.o												\
-			$(STAGE3_DIR)/machine_asm.o											\
-			$(STAGE3_DIR)/pic.o													\
-			$(STAGE3_DIR)/interrupts.o											\
 			$(STAGE3_DIR)/isr_handlers.o										\
-			$(STAGE3_DIR)/isr_dispatch.o										\
-			$(STAGE3_DIR)/init_interrupts.o										\
-			$(STAGE3_DIR)/pagefault.o											\
 			$(STAGE3_DIR)/structs/list.o										\
-			$(STAGE3_DIR)/init_pagetables.o										\
-			$(STAGE3_DIR)/pmm/sys_asm.o											\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/vmm/vmmapper.o										\
 			$(STAGE3_DIR)/fba/alloc.o											\
 			$(STAGE3_DIR)/slab/alloc.o											\
-			$(STAGE3_DIR)/acpitables.o											\
-			$(STAGE3_DIR)/gdt.o													\
-			$(STAGE3_DIR)/general_protection_fault.o							\
 			$(STAGE3_DIR)/timer_isr.o											\
 			$(STAGE3_DIR)/kdrivers/drivers.o									\
-			$(STAGE3_DIR)/kdrivers/cpu.o										\
-			$(STAGE3_DIR)/kdrivers/local_apic.o									\
-			$(STAGE3_DIR)/kdrivers/hpet.o										\
 			$(STAGE3_DIR)/pci/bus.o												\
 			$(STAGE3_DIR)/pci/enumerate.o										\
 			$(STAGE3_DIR)/spinlock.o											\
-			$(STAGE3_DIR)/init_syscalls.o										\
 			$(STAGE3_DIR)/syscalls.o											\
 			$(STAGE3_DIR)/task.o												\
-			$(STAGE3_DIR)/task_switch.o											\
-			$(STAGE3_DIR)/task_user_entrypoint.o								\
-			$(STAGE3_DIR)/sched/lock.o											\
 			$(STAGE3_DIR)/sched/prr.o											\
 			$(STAGE3_DIR)/structs/pq.o											\
 			$(STAGE3_DIR)/sleep.o												\
-			$(STAGE3_DIR)/cpuid.o												\
 			$(STAGE3_DIR)/sleep_queue.o											\
-			$(STAGE3_DIR)/smp/startup.o											\
 			$(STAGE3_DIR)/panic.o												\
-			$(STAGE3_DIR)/task_kernel_entrypoint.o								\
-			$(STAGE3_DIR)/kdrivers/serial.o										\
 			$(STAGE3_DIR)/system.o												\
 			$(STAGE3_DIR)/sched/idle.o											\
-			$(STAGE3_DIR)/$(REALMODE)_linkable.o								\
+			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
-		
-REALMODE_OBJS=$(STAGE3_DIR)/smp/ap_trampoline.o
+
+ARCH_X86_64_REALMODE_OBJS=$(STAGE3_DIR)/arch/x86_64/smp/ap_trampoline.o
 
 ALL_TARGETS=floppy.img
 
@@ -198,11 +215,20 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
 				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
 				$(STAGE3_DIR)/structs/*.o $(STAGE3_DIR)/sched/*.o				\
-				$(STAGE3_DIR)/smp/*.o											\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
-		   		$(FLOPPY_IMG)
+		   		$(FLOPPY_IMG)													\
+	       		$(STAGE3_ARCH_X86_64_DIR)/*.dis $(STAGE3_ARCH_X86_64_DIR)/*.elf	\
+				$(STAGE3_ARCH_X86_64_DIR)/*.o $(STAGE3_ARCH_X86_64_DIR)/pmm/*.o	\
+				$(STAGE3_ARCH_X86_64_DIR)/vmm/*.o								\
+				$(STAGE3_ARCH_X86_64_DIR)/kdrivers/*.o							\
+				$(STAGE3_ARCH_X86_64_DIR)/structs/*.o							\
+				$(STAGE3_ARCH_X86_64_DIR)/sched/*.o								\
+				$(STAGE3_ARCH_X86_64_DIR)/smp/*.o								\
+				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
+				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
+
 
 .PHONY: all build clean qemu bochs test
 
@@ -222,13 +248,13 @@ include kernel/tests/include.mk
 	-DVERSTR=$(SHORT_HASH) 														\
 	-DSTAGE_2_ADDR=$(STAGE_2_ADDR)												\
 	-DSTAGE_3_LO_ADDR=$(STAGE_3_LO_ADDR) -DSTAGE_3_HI_ADDR=$(STAGE_3_HI_ADDR)	\
-	-i$(STAGE3_INC)																\
+	$(STAGE3_INC)																\
 	$(CDEFS)																	\
 	$(ASFLAGS) 																	\
 	-o $@ $<
 
 %.o: %.c
-	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -I$(STAGE3_INC) $(CFLAGS) -c -o $@ $<
+	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) $(STAGE3_INC) $(CFLAGS) -c -o $@ $<
 
 
 # ############# Stage 1 ##############
@@ -266,24 +292,26 @@ $(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile $(LIBANOS_DIR)/$(LIBANOS_ARC
 $(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
 	$(XOBJCOPY) -I binary --rename-section .data=.$(SYSTEM)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
 
+ifeq ($(ARCH),x86_64)
 # ############ Real mode #############
-$(STAGE3_DIR)/$(REALMODE).elf: $(REALMODE_OBJS)
-	$(XLD) -T $(STAGE3_DIR)/$(REALMODE).ld -o $@ $^
+$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).elf: $(ARCH_X86_64_REALMODE_OBJS)
+	$(XLD) -T $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).ld -o $@ $^
 	chmod a-x $@
 
-$(STAGE3_DIR)/$(REALMODE).dis: $(STAGE3_DIR)/$(REALMODE).elf
+$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).dis: $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).elf
 	$(XOBJDUMP) -D -S -Maddr64,data64 $< > $@
 
-$(STAGE3_DIR)/$(REALMODE_BIN): $(STAGE3_DIR)/$(REALMODE).elf $(STAGE3_DIR)/$(REALMODE).dis
+$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE_BIN): $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).elf $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).dis
 	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
 
-$(STAGE3_DIR)/$(REALMODE)_linkable.o: $(STAGE3_DIR)/$(REALMODE_BIN)
-	$(XOBJCOPY) -I binary --rename-section .data=.$(REALMODE)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o: $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE_BIN)
+	$(XOBJCOPY) -I binary --rename-section .data=.$(ARCH_X86_64_REALMODE)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+endif
 
 # ############# Stage 3 ##############
 $(STAGE3_DIR)/$(STAGE3).elf: $(STAGE3_OBJS)
-	$(XLD) -T $(STAGE3_DIR)/$(STAGE3).ld -o $@ $^
+	$(XLD) -T $(STAGE3_DIR)/arch/$(ARCH)/$(STAGE3).ld -o $@ $^
 	chmod a-x $@
 
 $(STAGE3_DIR)/$(STAGE3).dis: $(STAGE3_DIR)/$(STAGE3).elf

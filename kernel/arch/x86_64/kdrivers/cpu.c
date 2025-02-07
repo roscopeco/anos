@@ -1,3 +1,10 @@
+/*
+ * stage3 - x86_64 CPU Kernel driver
+ * anos - An Operating System
+ *
+ * Copyright (c) 2024 Ross Bamford
+ */
+
 #include <stdint.h>
 
 #include "acpitables.h"

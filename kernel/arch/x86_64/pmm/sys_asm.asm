@@ -6,6 +6,7 @@
 ; Copyright (c) 2025 Ross Bamford
 ;
 
+; TODO remove this in favour of routines in CPU...
 global get_pagetable_root, set_pagetable_root
 
 get_pagetable_root:
