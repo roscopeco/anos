@@ -101,9 +101,13 @@ void kernel_thread_entrypoint(void);
 
 Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                       uintptr_t bootstrap, uintptr_t func, TaskClass class) {
+
+    TaskSched *sched = slab_alloc_block();
     Task *task = slab_alloc_block();
 
-    task->tid = next_tid++;
+    task->sched = sched;
+
+    task->sched->tid = next_tid++;
 
     if (sys_ssp) {
         task->rsp0 = task->ssp = sys_ssp;
@@ -134,13 +138,13 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
 
     task->owner = owner;
     task->pml4 = owner->pml4;
-    task->ts_remain = DEFAULT_TIMESLICE;
-    task->state = TASK_STATE_READY;
+    task->sched->ts_remain = DEFAULT_TIMESLICE;
+    task->sched->state = TASK_STATE_READY;
 
     // TODO pass these in, or inherit from owner
     //      if the latter, have a separate call to change them...
-    task->class = class;
-    task->prio = 0;
+    task->sched->class = class;
+    task->sched->prio = 0;
 
     task->this.next = (void *)0;
     task->this.type = KTYPE_TASK;

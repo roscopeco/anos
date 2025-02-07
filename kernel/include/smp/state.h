@@ -43,9 +43,8 @@ typedef struct PerCPUState {
     uint8_t task_data[STATE_TASK_DATA_MAX];   // takes us to 960 bytes
 
     SleepQueue sleep_queue; // takes us to 1024 bytes
-    uint64_t usp_stash;     // 1032
 
-    uint8_t reserved3[3064]; // takes us to 4096 bytes
+    uint8_t reserved3[3065]; // takes us to 4096 bytes
 } PerCPUState;
 
 static_assert_sizeof(PerCPUState, ==, VM_PAGE_SIZE);

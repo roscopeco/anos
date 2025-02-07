@@ -309,8 +309,12 @@ static MunitResult test_sched_schedule_with_no_current_and_one_norm_queued(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
-    Task mock_task = {
+    TaskSched mock_task_sched = {
             .class = TASK_CLASS_NORMAL,
+    };
+
+    Task mock_task = {
+            .sched = &mock_task_sched,
     };
 
     bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
@@ -329,12 +333,14 @@ static MunitResult test_sched_schedule_with_no_current_and_one_norm_queued(
     return MUNIT_OK;
 }
 
-static void init_task_for_test(Task *task, TaskClass class, uint8_t priority,
-                               TaskState state, uint16_t ts_remain) {
-    task->state = state;
-    task->ts_remain = ts_remain;
-    task->class = class;
-    task->prio = priority;
+static void init_task_for_test(Task *task, TaskSched *sched, TaskClass class,
+                               uint8_t priority, TaskState state,
+                               uint16_t ts_remain) {
+    sched->state = state;
+    sched->ts_remain = ts_remain;
+    sched->class = class;
+    sched->prio = priority;
+    task->sched = sched;
 }
 
 static MunitResult
@@ -342,6 +348,7 @@ test_sched_schedule_with_running_norm_current_and_one_norm_queued(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
+    TaskSched original_sched, new_sched;
     Task original_task;
     mock_task_set_curent(&original_task);
 
@@ -351,10 +358,12 @@ test_sched_schedule_with_running_norm_current_and_one_norm_queued(
 
     // Given we have one task in the NORMAL queue...
     Task *new_task = test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL);
+    new_task->sched = &new_sched;
+    new_task->sched->class = TASK_CLASS_NORMAL;
 
     // ... and a NORMAL task is already running with time left in its slice
-    init_task_for_test(&original_task, TASK_CLASS_NORMAL, 0, TASK_STATE_RUNNING,
-                       100);
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+                       TASK_STATE_RUNNING, 100);
     munit_assert_ptr_equal(task_current(), &original_task);
 
     // When we schedule
@@ -375,6 +384,7 @@ test_sched_schedule_with_expired_norm_current_and_one_norm_queued(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
+    TaskSched original_sched, new_sched;
     Task original_task;
     mock_task_set_curent(&original_task);
 
@@ -384,10 +394,11 @@ test_sched_schedule_with_expired_norm_current_and_one_norm_queued(
 
     // Given we have one task in the NORMAL queue...
     Task *new_task = test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL);
+    new_task->sched = &new_sched;
 
     // ... and a NORMAL task is already running with NO time left in its slice
-    init_task_for_test(&original_task, TASK_CLASS_NORMAL, 0, TASK_STATE_RUNNING,
-                       0);
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+                       TASK_STATE_RUNNING, 0);
     munit_assert_ptr_equal(task_current(), &original_task);
 
     // When we schedule
@@ -408,6 +419,7 @@ test_sched_schedule_with_blocked_norm_current_and_one_norm_queued(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
+    TaskSched original_sched, new_sched;
     Task original_task;
     mock_task_set_curent(&original_task);
 
@@ -417,10 +429,11 @@ test_sched_schedule_with_blocked_norm_current_and_one_norm_queued(
 
     // Given we have one task in the NORMAL queue...
     Task *new_task = test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL);
+    new_task->sched = &new_sched;
 
     // ... and a NORMAL task is already running, but blocked, with time left in its slice
-    init_task_for_test(&original_task, TASK_CLASS_NORMAL, 0, TASK_STATE_BLOCKED,
-                       0);
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+                       TASK_STATE_BLOCKED, 0);
     munit_assert_ptr_equal(task_current(), &original_task);
 
     // When we schedule
@@ -440,6 +453,7 @@ test_sched_schedule_with_running_norm_current_and_one_high_queued(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
+    TaskSched original_sched;
     Task original_task;
     mock_task_set_curent(&original_task);
 
@@ -451,14 +465,15 @@ test_sched_schedule_with_running_norm_current_and_one_high_queued(
     test_sched_prr_set_runnable_head(TASK_CLASS_NORMAL, NULL);
 
     // And one in the HIGH queue
+    TaskSched high_queued_sched;
     Task high_queued_task;
-    init_task_for_test(&high_queued_task, TASK_CLASS_HIGH, 0, TASK_STATE_READY,
-                       100);
+    init_task_for_test(&high_queued_task, &high_queued_sched, TASK_CLASS_HIGH,
+                       0, TASK_STATE_READY, 100);
     test_sched_prr_set_runnable_head(TASK_CLASS_HIGH, &high_queued_task);
 
     // ... and a NORMAL task is already running with time left in its slice
-    init_task_for_test(&original_task, TASK_CLASS_NORMAL, 0, TASK_STATE_RUNNING,
-                       100);
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+                       TASK_STATE_RUNNING, 100);
     munit_assert_ptr_equal(task_current(), &original_task);
 
     // When we schedule
@@ -478,6 +493,7 @@ static MunitResult test_sched_schedule_with_running_norm_current_and_two_queued(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
+    TaskSched original_sched, norm_sched;
     Task original_task;
     mock_task_set_curent(&original_task);
 
@@ -488,16 +504,19 @@ static MunitResult test_sched_schedule_with_running_norm_current_and_two_queued(
     // Given we have one task in the NORMAL queue...
     Task *norm_queued_task =
             test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL);
+    norm_queued_task->sched = &norm_sched;
+    norm_queued_task->sched->class = TASK_CLASS_NORMAL;
 
     // And one in the HIGH queue
+    TaskSched high_queued_sched;
     Task high_queued_task;
-    init_task_for_test(&high_queued_task, TASK_CLASS_HIGH, 0, TASK_STATE_READY,
-                       100);
+    init_task_for_test(&high_queued_task, &high_queued_sched, TASK_CLASS_HIGH,
+                       0, TASK_STATE_READY, 100);
     test_sched_prr_set_runnable_head(TASK_CLASS_HIGH, &high_queued_task);
 
     // ... and a NORMAL task is already running with time left in its slice
-    init_task_for_test(&original_task, TASK_CLASS_NORMAL, 0, TASK_STATE_RUNNING,
-                       100);
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+                       TASK_STATE_RUNNING, 100);
     munit_assert_ptr_equal(task_current(), &original_task);
 
     // When we schedule
@@ -521,6 +540,7 @@ test_sched_schedule_with_running_norm_current_and_two_queued_diff_prio(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
+    TaskSched original_sched, norm_sched;
     Task original_task;
     mock_task_set_curent(&original_task);
 
@@ -531,17 +551,19 @@ test_sched_schedule_with_running_norm_current_and_two_queued_diff_prio(
     // Given we have one task in the NORMAL queue...
     Task *norm_queued_task =
             test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL);
-    norm_queued_task->prio = 127;
+    norm_queued_task->sched = &norm_sched;
+    norm_queued_task->sched->prio = 127;
 
     // And one in the HIGH queue
+    TaskSched high_queued_sched;
     Task high_queued_task;
-    init_task_for_test(&high_queued_task, TASK_CLASS_HIGH, 0, TASK_STATE_READY,
-                       100);
+    init_task_for_test(&high_queued_task, &high_queued_sched, TASK_CLASS_HIGH,
+                       0, TASK_STATE_READY, 100);
     test_sched_prr_set_runnable_head(TASK_CLASS_HIGH, &high_queued_task);
 
     // ... and a NORMAL task is already running with time left in its slice
-    init_task_for_test(&original_task, TASK_CLASS_NORMAL, 0, TASK_STATE_RUNNING,
-                       100);
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+                       TASK_STATE_RUNNING, 100);
     munit_assert_ptr_equal(task_current(), &original_task);
 
     // When we schedule
@@ -565,6 +587,7 @@ test_sched_schedule_with_running_norm_current_and_one_idle_queued(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
+    TaskSched original_sched;
     Task original_task;
     mock_task_set_curent(&original_task);
 
@@ -576,14 +599,15 @@ test_sched_schedule_with_running_norm_current_and_one_idle_queued(
     test_sched_prr_set_runnable_head(TASK_CLASS_NORMAL, NULL);
 
     // And one in the IDLE queue
+    TaskSched idle_queued_sched;
     Task idle_queued_task;
-    init_task_for_test(&idle_queued_task, TASK_CLASS_IDLE, 0, TASK_STATE_READY,
-                       100);
+    init_task_for_test(&idle_queued_task, &idle_queued_sched, TASK_CLASS_IDLE,
+                       0, TASK_STATE_READY, 100);
     test_sched_prr_set_runnable_head(TASK_CLASS_IDLE, &idle_queued_task);
 
     // ... and a NORMAL task is already running with time left in its slice
-    init_task_for_test(&original_task, TASK_CLASS_NORMAL, 0, TASK_STATE_RUNNING,
-                       100);
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+                       TASK_STATE_RUNNING, 100);
     munit_assert_ptr_equal(task_current(), &original_task);
 
     // When we schedule
@@ -604,6 +628,7 @@ test_sched_schedule_with_expired_norm_current_and_one_idle_queued(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
+    TaskSched original_sched;
     Task original_task;
     mock_task_set_curent(&original_task);
 
@@ -615,14 +640,15 @@ test_sched_schedule_with_expired_norm_current_and_one_idle_queued(
     test_sched_prr_set_runnable_head(TASK_CLASS_NORMAL, NULL);
 
     // And one in the IDLE queue
+    TaskSched idle_queued_sched;
     Task idle_queued_task;
-    init_task_for_test(&idle_queued_task, TASK_CLASS_IDLE, 0, TASK_STATE_READY,
-                       100);
+    init_task_for_test(&idle_queued_task, &idle_queued_sched, TASK_CLASS_IDLE,
+                       0, TASK_STATE_READY, 100);
     test_sched_prr_set_runnable_head(TASK_CLASS_IDLE, &idle_queued_task);
 
     // ... and a NORMAL task is already running with NO time left in its slice
-    init_task_for_test(&original_task, TASK_CLASS_NORMAL, 0, TASK_STATE_RUNNING,
-                       0);
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+                       TASK_STATE_RUNNING, 0);
     munit_assert_ptr_equal(task_current(), &original_task);
 
     // When we schedule
@@ -646,6 +672,7 @@ test_sched_schedule_with_blocked_norm_current_and_one_idle_queued(
         const MunitParameter params[], void *page_area_ptr) {
     uintptr_t sys_stack = (uintptr_t)fba_alloc_block();
 
+    TaskSched original_sched;
     Task original_task;
     mock_task_set_curent(&original_task);
 
@@ -657,14 +684,15 @@ test_sched_schedule_with_blocked_norm_current_and_one_idle_queued(
     test_sched_prr_set_runnable_head(TASK_CLASS_NORMAL, NULL);
 
     // And one in the IDLE queue
+    TaskSched idle_queued_sched;
     Task idle_queued_task;
-    init_task_for_test(&idle_queued_task, TASK_CLASS_IDLE, 0, TASK_STATE_READY,
-                       100);
+    init_task_for_test(&idle_queued_task, &idle_queued_sched, TASK_CLASS_IDLE,
+                       0, TASK_STATE_READY, 100);
     test_sched_prr_set_runnable_head(TASK_CLASS_IDLE, &idle_queued_task);
 
     // ... and a NORMAL task is already running, but blocked, with time left in its slice
-    init_task_for_test(&original_task, TASK_CLASS_NORMAL, 0, TASK_STATE_BLOCKED,
-                       100);
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+                       TASK_STATE_BLOCKED, 100);
     munit_assert_ptr_equal(task_current(), &original_task);
 
     // When we schedule

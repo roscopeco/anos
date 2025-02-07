@@ -51,11 +51,11 @@ static bool check_invariants(TaskPriorityQueue *pq) {
         }
 
         // priority ordering
-        if (slow->prio > ((Task *)slow->this.next)->prio) {
+        if (slow->sched->prio > ((Task *)slow->this.next)->sched->prio) {
             debugstr("Error: Priority ordering violation: ");
-            printdec(slow->prio, debugchar);
+            printdec(slow->sched->prio, debugchar);
             debugstr(" > ");
-            printdec(((Task *)slow->this.next)->prio, debugchar);
+            printdec(((Task *)slow->this.next)->sched->prio, debugchar);
             debugstr("\n");
             return false;
         }
@@ -75,7 +75,7 @@ void task_pq_push(TaskPriorityQueue *pq, Task *new_node) {
         return;
     }
 
-    if (pq->head == NULL || new_node->prio < pq->head->prio) {
+    if (pq->head == NULL || new_node->sched->prio < pq->head->sched->prio) {
         new_node->this.next = (ListNode *)pq->head;
         pq->head = new_node;
         return;
@@ -83,7 +83,7 @@ void task_pq_push(TaskPriorityQueue *pq, Task *new_node) {
 
     Task *current = pq->head;
     while (current->this.next != NULL &&
-           ((Task *)current->this.next)->prio <= new_node->prio) {
+           ((Task *)current->this.next)->sched->prio <= new_node->sched->prio) {
         current = (Task *)current->this.next;
     }
 
