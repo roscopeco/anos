@@ -274,8 +274,8 @@ void *fba_alloc_blocks_aligned(uint32_t count, uint8_t page_align) {
 
     for (int i = 0; i < count; i++) {
         bitmap_set(bmp, bit + i);
-        uintptr_t block_address = _fba_begin + ((bmp - _fba_bitmap) * 64 + bit +
-                                                i) * VM_PAGE_SIZE;
+        uintptr_t block_address = first_block_address + (i * VM_PAGE_SIZE);
+
         if (!do_alloc(block_address)) {
             // TODO we leak memory here if one fails - we should free whatever
             // we've allocated in that case...

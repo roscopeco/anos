@@ -150,13 +150,13 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
     }
 #endif
 
+#ifdef DEBUG_SMP_STARTUP
     if (!*AP_TRAMPOLINE_BSS_FLAG) {
         debugstr("WARN: CPU #");
         printdec(ap_id, debugchar);
         debugstr(" failed to respond - will disable it\n");
     }
 
-#ifdef DEBUG_SMP_STARTUP
     spinlock_lock(&debug_output_lock);
 
     debugstr("AP #");
@@ -216,6 +216,12 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
                 uint32_t *flags32 = (uint32_t *)ptr;
                 uint32_t flags = *flags32;
 
+#ifdef DEBUG_SMP_STARTUP
+                debugstr("ACPI : CPU ID ");
+                printhex64(cpu_id, debugchar);
+                debugstr("\n");
+#endif
+
                 if (lapic_id != bsp_local_apic_id &&
                     (flags & 1) ^ ((flags >> 1) & 1)) {
                     // can enable!
@@ -232,7 +238,15 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
                     spinlock_unlock(&debug_output_lock);
 #endif
 #endif
-                    smp_bsp_start_ap(lapic_id, lapic);
+                    if (cpu_id < MAX_CPU_COUNT) {
+                        smp_bsp_start_ap(lapic_id, lapic);
+                    } else {
+#ifdef DEBUG_SMP_STARTUP
+                        debugstr("CPU ");
+                        printhex8(cpu_id, debugchar);
+                        debugstr(" skipped; MAX_CPU_COUNT exhausted...\n");
+#endif
+                    }
                 } else {
 #ifdef DEBUG_SMP_STARTUP
 #ifdef VERY_NOISY_SMP_STARTUP

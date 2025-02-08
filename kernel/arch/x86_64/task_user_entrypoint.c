@@ -71,7 +71,7 @@ noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
             "mov %0, %%rsp\n\t" // Set stack pointer
             "push $0x1B\n\t"    // Push user data segment selector (GDT entry 3)
             "push %0\n\t"       // Push user stack pointer
-            "pushf\n\t"         // Push EFLAGS
+            "pushfq\n\t"        // Push EFLAGS
             "push $0x23\n\t"    // Push user code segment selector (GDT entry 4)
             "push %1\n\t"       // Push user code entry point
 #ifndef NO_USER_GS

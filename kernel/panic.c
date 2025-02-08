@@ -33,6 +33,7 @@
 static SpinLock panic_lock;
 
 noreturn void panic(const char *msg) {
+    disable_interrupts();
     spinlock_lock(&panic_lock);
 
     debugattr(0x0C);
@@ -66,6 +67,7 @@ static inline void debug_page_fault_code(uint8_t code) {
 
 noreturn void panic_page_fault(uintptr_t origin_addr, uintptr_t fault_addr,
                                uint64_t code) {
+    disable_interrupts();
     spinlock_lock(&panic_lock);
 
     debugattr(0x0C);
@@ -95,6 +97,7 @@ noreturn void panic_page_fault(uintptr_t origin_addr, uintptr_t fault_addr,
 
 noreturn void panic_general_protection_fault(uint64_t code,
                                              uintptr_t origin_addr) {
+    disable_interrupts();
     spinlock_lock(&panic_lock);
 
     debugattr(0x0C);
@@ -122,6 +125,7 @@ noreturn void panic_general_protection_fault(uint64_t code,
 
 noreturn void panic_exception_with_code(uint8_t vector, uint64_t code,
                                         uintptr_t origin_addr) {
+    disable_interrupts();
     spinlock_lock(&panic_lock);
 
     debugattr(0x0C);
@@ -144,6 +148,7 @@ noreturn void panic_exception_with_code(uint8_t vector, uint64_t code,
 }
 
 noreturn void panic_exception_no_code(uint8_t vector, uintptr_t origin_addr) {
+    disable_interrupts();
     spinlock_lock(&panic_lock);
 
     debugattr(0x0C);
