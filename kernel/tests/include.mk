@@ -2,17 +2,26 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/structs/*.o kernel/tests/pci/*.o kernel/tests/fba/*.o 	\
 				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/smp/*.o	\
 				kernel/tests/kdrivers/*.o											\
+				kernel/tests/arch/x86_64/*.o										\
+				kernel/tests/arch/x86_64/sched/*.o									\
+				kernel/tests/arch/x86_64/kdrivers/*.o								\
 				kernel/tests/build													\
 				kernel/tests/*.gcda kernel/tests/pmm/*.gcda kernel/tests/vmm/*.gcda	\
 				kernel/tests/structs/*.gcda kernel/tests/pci/*.gcda 				\
 				kernel/tests/fba/*.gcda kernel/tests/slab/*.gcda 					\
 				kernel/tests/sched/*.gcda kernel/tests/smp/*.gcda					\
 				kernel/tests/kdrivers/*.gcda										\
+				kernel/tests/arch/x86_64/*.gcda										\
+				kernel/tests/arch/x86_64/sched/*.gcda								\
+				kernel/tests/arch/x86_64/kdrivers/*.gcda							\
 				kernel/tests/*.gcno kernel/tests/pmm/*.gcno kernel/tests/vmm/*.gcno	\
 				kernel/tests/structs/*.gcno kernel/tests/pci/*.gcno 				\
 				kernel/tests/fba/*.gcno kernel/tests/slab/*.gcno 					\
 				kernel/tests/sched/*.gcno kernel/tests/smp/*.gcno					\
 				kernel/tests/kdrivers/*.gcno										\
+				kernel/tests/arch/x86_64/*.gcno										\
+				kernel/tests/arch/x86_64/sched/*.gcno								\
+				kernel/tests/arch/x86_64/kdrivers/*.gcno							\
 				kernel/tests/build													\
 				gcov
 
