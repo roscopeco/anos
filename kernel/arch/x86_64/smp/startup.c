@@ -27,8 +27,8 @@
 static SpinLock debug_output_lock;
 #endif
 
-extern void *_binary_kernel_realmode_bin_start,
-        *_binary_kernel_realmode_bin_end;
+extern void *_binary_kernel_arch_x86_64_realmode_bin_start,
+        *_binary_kernel_arch_x86_64_realmode_bin_end;
 
 // If you're changing any of these, you'll need to change the real-mode
 // link script as well...
@@ -53,10 +53,12 @@ extern void *_binary_kernel_realmode_bin_start,
 #define AP_TRAMPOLINE_BSS_VADDR                                                \
     (((void *)(0xffffffff80000000 | AP_TRAMPOLINE_BSS_PADDR)))
 
-#define AP_TRAMPOLINE_BIN_START (((void *)&_binary_kernel_realmode_bin_start))
+#define AP_TRAMPOLINE_BIN_START                                                \
+    (((void *)&_binary_kernel_arch_x86_64_realmode_bin_start))
+
 #define AP_TRAMPOLINE_BIN_LENGTH                                               \
-    (((((uintptr_t)&_binary_kernel_realmode_bin_end) -                         \
-       ((uintptr_t)&_binary_kernel_realmode_bin_start))))
+    (((((uintptr_t)&_binary_kernel_arch_x86_64_realmode_bin_end) -             \
+       ((uintptr_t)&_binary_kernel_arch_x86_64_realmode_bin_start))))
 
 #define AP_TRAMPOLINE_BSS_LENGTH ((0x1000))
 
