@@ -13,7 +13,7 @@
 #include "structs/list.h"
 #include <stdint.h>
 
-#define DEFAULT_TIMESLICE (((uint8_t)20))
+#define DEFAULT_TIMESLICE (((uint8_t)10))
 
 typedef enum {
     TASK_CLASS_IDLE = 0,

@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "anos_assert.h"
 #include "gdt.h"
 #include "interrupts.h"
 
@@ -18,7 +19,11 @@
 #define MSR_GSBase ((0xC0000101))
 #define MSR_KernelGSBase ((0xC0000102))
 
+#ifndef MAX_CPU_COUNT
 #define MAX_CPU_COUNT ((16))
+#endif
+
+static_assert(MAX_CPU_COUNT > 0, "Cannot build a kernel for zero CPUs!");
 
 #define CPU_TSS_ENTRY_SIZE_MULT ((2))
 

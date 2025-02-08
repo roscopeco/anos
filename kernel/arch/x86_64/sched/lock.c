@@ -19,6 +19,8 @@
 #include "spinlock.h"
 #include "task.h"
 
+#include "panic.h"
+
 void sched_lock(void) {
     disable_interrupts();
 
@@ -26,6 +28,8 @@ void sched_lock(void) {
 
     if (cpu_state->irq_disable_count == 0) {
         spinlock_lock(&cpu_state->sched_lock);
+    } else {
+        panic("Scheduler state inconsistent");
     }
 
     cpu_state->irq_disable_count++;

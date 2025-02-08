@@ -267,7 +267,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
 
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table, 0);
 
-#ifndef NO_SMP
+#if MAX_CPU_COUNT > 1
     ap_startup_wait = true;
     smp_bsp_start_aps(acpi_root_table, lapic);
 #endif

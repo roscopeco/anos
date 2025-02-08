@@ -71,7 +71,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU
+CDEFS=-DDEBUG_CPU -DDEBUG_SLEEPY_KERNEL_TASK
 
 ifeq ($(SERIALTERM),true)
 QEMU_OPTS=$(QEMU_BASEOPTS) -display none -serial stdio
