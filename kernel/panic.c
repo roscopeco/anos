@@ -77,9 +77,9 @@ noreturn void panic_page_fault(uintptr_t origin_addr, uintptr_t fault_addr,
     debugattr(0x0C);
     debugstr("         : Unhandled page fault (0x0e)");
 
-    // PerCPUState *cpu_state = state_get_per_cpu();
-    // debugstr("\nCPU           : ");
-    // printdec(cpu_state->cpu_id, debugchar);
+    PerCPUState *cpu_state = state_get_per_cpu();
+    debugstr("\nCPU           : ");
+    printdec(cpu_state->cpu_id, debugchar);
 
     debugstr("\nCode          : ");
     printhex64(code, debugchar);
