@@ -45,12 +45,15 @@ static MunitResult test_task_create_new(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
-    // Task (allocated second) is at the base of the slab area, plus 64 bytes
-    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 64);
+    // TaskSched (allocated first) is at the base of the slab area, plus 64 bytes
+    munit_assert_ptr_equal(task->sched, slab_area_base(page_area_ptr) + 64);
+
+    // Task (allocated second) is at the base of the slab area, plus 128 bytes
+    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 128);
 
     munit_assert_ptr_equal(task->owner, &mock_owner);
 
-    munit_assert_uint64(task->tid, ==, 2);
+    munit_assert_uint64(task->sched->tid, ==, 2);
     munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
     munit_assert_uint64(task->rsp0, ==, sys_stack);
 
@@ -82,12 +85,15 @@ static MunitResult test_task_create_kernel(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
-    // Task (allocated second) is at the base of the slab area, plus 64 bytes
-    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 64);
+    // TaskSched (allocated first) is at the base of the slab area, plus 64 bytes
+    munit_assert_ptr_equal(task->sched, slab_area_base(page_area_ptr) + 64);
+
+    // Task (allocated second) is at the base of the slab area, plus 128 bytes
+    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 128);
 
     munit_assert_ptr_equal(task->owner, &mock_owner);
 
-    munit_assert_uint64(task->tid, ==, 2);
+    munit_assert_uint64(task->sched->tid, ==, 2);
     munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
     munit_assert_uint64(task->rsp0, ==, sys_stack);
 
@@ -119,12 +125,15 @@ static MunitResult test_task_create_user(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
-    // Task (allocated second) is at the base of the slab area, plus 64 bytes
-    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 64);
+    // TaskSched (allocated first) is at the base of the slab area, plus 64 bytes
+    munit_assert_ptr_equal(task->sched, slab_area_base(page_area_ptr) + 64);
+
+    // Task (allocated second) is at the base of the slab area, plus 128 bytes
+    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 128);
 
     munit_assert_ptr_equal(task->owner, &mock_owner);
 
-    munit_assert_uint64(task->tid, ==, 2);
+    munit_assert_uint64(task->sched->tid, ==, 2);
     munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
     munit_assert_uint64(task->rsp0, ==, sys_stack);
 
