@@ -28,7 +28,7 @@ MEMORY {
                                                                /* (based on current MAX_CPU_COUNT 16 CPUs) */
 }
 
-PROVIDE(STACKS_BASE = ORIGIN(STACKS));
+PROVIDE(STACKS_BASE =  0xffffffff80000000 + ORIGIN(STACKS));
 PROVIDE(STACK_SHIFT = 11);
 PROVIDE(STACK_START_OFS = 0x7f8);
 

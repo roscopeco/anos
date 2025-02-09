@@ -1,9 +1,3 @@
-;
-; TODO: per recent experiments
-;
-;   * Don't bother with stack or atomic ID until long mode
-;
-
 bits 16
 
 section .text.init
@@ -23,28 +17,35 @@ extern STACKS_BASE, STACK_SHIFT, STACK_START_OFS
 ;   * k_pml4    - The physical address of the kernel page-tables
 ;   * ap_flag   - A flag the AP should set if it makes it to long mode
 ;
-; In real mode, the AP will atomically grab the next available number
-; from he `ap_count`, and stash it away. It'll then set up its 16-byte
-; stack at a suitable offset from 0x9000 based on that number.
+; The basic idea here is to get the AP from real mode to long with as
+; little fuss as possible, then set up the bare-minimum of what needs
+; setting up before we jump into the kernel code proper. 
 ;
-; On the stack there is already a qword waiting, which is the address the
+; The startup code on the BSP has already set up stacks for each possible
+; AP, and there is already a qword waiting, which is the address the
 ; AP should "return to" once it's finished setting things up.
 ;
-; The `ap_flag` is holding the BSP, currently indefinitely, but there
-; will probably need to be a timeout or something in case of a faulty
-; AP - but either way, the AP needs to set it to unblock the BSP.
+; The AP will atomically grab the next available number from the `ap_count`
+; and then select its stack at a suitable offset from 0x9000 based on that
+; number. This unique id is passed to the main kernel AP startup code
+; as the first parameter.
+;
+; The `ap_flag` is holding the BSP, which will wait 10ms for the AP to
+; set the flag before it's marked as ignored. Currently this doesn't 
+; mean much - it's possible for a "slow" AP to continue the boot and end
+; up in the scheduler, but nothing will ever get scheduled on it because
+; the kernel thinks it's failed so it'll just run its idle thread.
 ;
 ; Bear in mind the `ap_flag` is shared between APs, so we can (currently)
 ; only boot one at a time, which probably doesn't much matter...
 ;
 ; The job really then boils down to:
 ;
+;   * Get to protected mode
+;   * Set up paging & go to long mode
 ;   * Get unique ID
 ;   * Set up stack
-;   * Go to protected mode
-;   * Set up paging & go to long mode
 ;   * Set flag to unlock the BSP
-;   * Put unique ID in RDI
 ;   * Clear regs, housekeeping, then "return"
 ;
 ; Once those things are done, the regular kernel code takes over
@@ -57,17 +58,9 @@ _start:
   cli
   cld
 
-  mov ax, WORD [ap_count]                 ; There's a counter in the (shared) BSS,
-  
-.get_id:                                  ; Each AP gets a unique ID...
-  mov bx, ax                              ; each AP just atomically grabs the next
-  inc bx                                  ; number and uses that...
-  lock cmpxchg WORD [ap_count], bx        ; NOTE that it doesn't necessarily match
-  jnz .get_id                             ; LAPIC or CPU IDs!
-
-  mov cx, ax                              ; Stash the unique ID in cx for now...
-
   lgdt  [AP_GDT_DESC]                     ; Load GDT reg with the (temporary) descriptor
+                                          ; We'll replace this with the kernel's full 64 bit
+                                          ; GDT once we get to long mode...
 
   ; Jump to protected mode
   mov   eax,cr0                           ; Get control register 0 into eax
@@ -82,19 +75,6 @@ main32:
   mov   ds,ax                             ; and set DS to that..
   mov   es,ax                             ; and ES too...
   mov   ss,ax                             ; as well as SS.
-
-  xor   eax,eax                           ; Set up a stack for protected mode
-  mov   ax,cx                             ; CX still has this AP's unique ID
-  shl   eax,STACK_SHIFT                   ; ... which we'll shift left by 4
-  or    eax,STACKS_BASE                   ; ... and OR in the stack base
-  add   eax,STACK_START_OFS               ; ... then add 8 to point to stack top, minus the return address already stacked...
-  mov   esp,eax                           ; ... and we're good!
-
-  push  0                                 ; Stack the BSP unique id
-  push  ecx                               ; ... as 64-bit
-
-
-;;; GO LONG
 
   mov   eax,0b10100000                    ; Set PAE and PGE bits
   mov   cr4,eax
@@ -112,31 +92,35 @@ main32:
   or    eax,0x80000000                    ; (we're already in protected mode)
   mov   cr0,eax
 
-  jmp   0x08:main64                       ; Go go go
+  jmp   0x08:main64                       ; And go long!
 
-
-; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; 64-bit section
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 bits 64
 main64:
-  or  rsp,0xffffffff80000000              ; Fix up stack for long mode
+  lgdt  [k_gdtr]                          ; Load the fully 64 bit kernel GDT we were given.
 
-  pop rdi                                 ; Pop the unique ID we pushed earlier,
-                                          ; and set it up as argument to the 
-                                          ; entrypoint we're about to "return" to...
+  mov ax,0x10                             ; Set ax to 0x10 - offset of segment 2, the kernel's 64-bit data segment...
+  mov ds,ax                               ; and set DS to that..
+  mov es,ax                               ; and ES too...
+  mov ss,ax                               ; as well as SS.
 
-  lgdt  [k_gdtr]                          ; Load the kernel GDT we were given
+  mov rdi, qword [ap_count]               ; There's a counter in the (shared) BSS,
+  
+.get_id:                                  ; from which each AP gets a unique ID...
+  mov rbx, rdi                            ; by just atomically grabbing the next
+  inc rbx                                 ; number and using that...
+  lock cmpxchg qword [ap_count], rbx      ; NOTE that it doesn't necessarily match
+  jnz .get_id                             ; LAPIC or CPU IDs!
 
-  mov   ax,0x10                           ; Set ax to 0x10 - offset of segment 2, the kernel's 64-bit data segment...
-  mov   ds,ax                             ; and set DS to that..
-  mov   es,ax                             ; and ES too...
-  mov   ss,ax                             ; as well as SS.
+  mov rax,rdi                             ; Set up a stack for protected mode based on unique id...
+  shl rax,STACK_SHIFT                     ; ... which we'll shift left by 4
+  or  rax,STACKS_BASE                     ; ... and OR in the long-mode stack base
+  add rax,STACK_START_OFS                 ; ... then point to stack top, minus the return address already stacked...
+  mov rsp,rax                             ; ... and we're good!
 
   mov rcx,rdi                             ; Set up the TSS for this specific core,
   shl rcx,4                               ; based on the unique ID we grabbed at
   add rcx,0x28                            ; the beginning. NOTE: This may differ
-  ltr cx                                  ; from the CPU / LAPIC ID for this CPU!
+  ltr cx                                  ; from the hardware CPU / LAPIC ID for this CPU!
 
   lidt  [k_idtr]                          ; Load the kernel IDT we were given
 
@@ -200,18 +184,7 @@ AP_GDT:
   db 0b11001111           ; Flags + Limit: 1 = 4k granularity, 1 = 32-bit, 0 = Non-long mode, 0 = reserved (for our use)
   db 0                    ; Base (bits 23-31) - 0
 
-  ; segment 5 - TSS - Base is calculated in code...
-  dw 0x0067               ; 104 bytes for a TSS
-AP_TSS_BASE_LOW:
-  dw 0                    ; Base (bits 0-15) - 0 (calculated at runtime)
-AP_TSS_BASE_MID:
-  db 0                    ; Base (bits 16-23) - 0 (calculated at runtime)
-  db 0b10001001           ; Access: 1 = Present, 00 = Ring 0, 0 = Type (system), 1001 = Long mode TSS (Available)
-  db 0b00010000           ; Flags + Limit: 0 = byte granularity, 0 = 16-bit, 0 = Long mode, 1 = Available
-AP_TSS_BASE_HIGH:
-  db 0                    ; Base (bits 23-31) - 0 (calculated at runtime)
-  dd 0xFFFFFFFF           ; Base (bits 32-63) - 0xFFFFFFFF (in the identity-mapped kernel mem)
-  dd 0                    ; Reserved
+  ; We don't need a TSS in this GDT, we set tr up after switching to the kernel GDT...
 
 AP_GDT_DESC:
   ; GDT Descriptor
@@ -219,28 +192,9 @@ AP_GDT_DESC:
   dd  AP_GDT              ; Address (GDT, above)
 
 
-AP_TSS:
-  dd  0                   ; Reserved
-  dq  0xFFFFFFFF80110000  ; RSP0
-  dq  0                   ; RSP1
-  dq  0                   ; RSP2
-  dq  0                   ; Reserved
-  dq  0                   ; IST1
-  dq  0                   ; IST2
-  dq  0                   ; IST3
-  dq  0                   ; IST4
-  dq  0                   ; IST5
-  dq  0                   ; IST6
-  dq  0                   ; IST7
-  dq  0                   ; IST8
-  dw  0                   ; Reserved
-  dw  0                   ; IOPB
-
-
 section .bss
 
-ap_count  resw  1         ; Unique ID flag
-reserved  resb  6
+ap_count  resq  1         ; Unique ID flag
 k_pml4    resq  1         ; Kernel PML4 (physical)
 ap_flag   resq  1         ; AP booted flag
 k_gdtr    resd  3         ; Kernel GDT
