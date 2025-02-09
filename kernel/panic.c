@@ -15,7 +15,6 @@
 #include "machine.h"
 #include "printdec.h"
 #include "printhex.h"
-#include "smp/state.h"
 #include "spinlock.h"
 
 #define IS_KERNEL_CODE(addr) (((addr & 0xFFFFFFFF80000000) != 0))
@@ -53,16 +52,16 @@ noreturn void panic(const char *msg) {
 }
 
 static inline void debug_page_fault_code(uint8_t code) {
-    C_DEBUGSTR(" [");
-    C_DEBUGSTR(code & 0x8000 ? "SGX|" : "sgx|");
-    C_DEBUGSTR(code & 0x40 ? "SS|" : "ss|");
-    C_DEBUGSTR(code & 0x20 ? "PK|" : "pk|");
-    C_DEBUGSTR(code & 0x10 ? "I|" : "i|");
-    C_DEBUGSTR(code & 0x8 ? "R|" : "r|");
-    C_DEBUGSTR(code & 0x4 ? "U|" : "u|");
-    C_DEBUGSTR(code & 0x2 ? "W|" : "w|");
-    C_DEBUGSTR(code & 0x1 ? "P" : "p");
-    C_DEBUGSTR("]");
+    debugstr(" [");
+    debugstr(code & 0x8000 ? "SGX|" : "sgx|");
+    debugstr(code & 0x40 ? "SS|" : "ss|");
+    debugstr(code & 0x20 ? "PK|" : "pk|");
+    debugstr(code & 0x10 ? "I|" : "i|");
+    debugstr(code & 0x8 ? "R|" : "r|");
+    debugstr(code & 0x4 ? "U|" : "u|");
+    debugstr(code & 0x2 ? "W|" : "w|");
+    debugstr(code & 0x1 ? "P" : "p");
+    debugstr("]");
 }
 
 noreturn void panic_page_fault(uintptr_t origin_addr, uintptr_t fault_addr,
@@ -76,11 +75,6 @@ noreturn void panic_page_fault(uintptr_t origin_addr, uintptr_t fault_addr,
     debugstr("PANIC");
     debugattr(0x0C);
     debugstr("         : Unhandled page fault (0x0e)");
-
-    PerCPUState *cpu_state = state_get_per_cpu();
-    debugstr("\nCPU           : ");
-    printdec(cpu_state->cpu_id, debugchar);
-
     debugstr("\nCode          : ");
     printhex64(code, debugchar);
     debug_page_fault_code(code);
@@ -107,11 +101,6 @@ noreturn void panic_general_protection_fault(uint64_t code,
     debugattr(0x0C);
 
     debugstr("         : General Protection Fault (0x0d)");
-
-    PerCPUState *cpu_state = state_get_per_cpu();
-    debugstr("\nCPU           : ");
-    printdec(cpu_state->cpu_id, debugchar);
-
     debugstr("\nCode          : ");
     printhex64(code, debugchar);
     debugstr("\nOrigin IP     : ");
