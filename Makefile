@@ -165,6 +165,7 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/init.o								\
 					$(STAGE3_ARCH_X86_64_DIR)/smp/startup.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/task_kernel_entrypoint.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/serial.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/process/address_space.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
 ifeq ($(ARCH),x86_64)
