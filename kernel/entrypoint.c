@@ -192,8 +192,6 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
 #endif
 #endif
 
-    init_cpuid();
-
     syscall_init();
 
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table, ap_num);
