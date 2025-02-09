@@ -34,12 +34,59 @@ Also worth noting that the loader doesn't do **anything** at all with
 interrupt vectors - that's totally up to the kernel (and interrupts are
 left disabled throughout the load and remain so on kernel entry).
 
+#### Kernel Design (WIP, subject to change)
+
 As far as the Kernel is concerned, there's much to still be decided,
 and most of what has been decided could still change without notice.
-However, since this is being designed as 64-bit from the beginning, there's
+
+Since this is being designed as 64-bit from the beginning, there's
 a lot of things I can do that I wouldn't otherwise be able to, and
-decisions I've taken so far are, as much as possible, documented in
-the source / comments.
+I'm experimenting with a few different ideas. Decisions I've taken so
+far are, briefly:
+
+* Non-zealous microkernel providing _only_:
+  * **Bare-minimum drivers for hardware used in the kernel itself**
+    * **CPU**
+    * **HPET**
+    * **LAPIC**
+    * **Legacy serial (debug/test builds only)**
+  * **Physical / virtual memory management**
+  * **Thread** / Process management & address space primitives
+  * **Scheduling (and directly-related concurrency primitives)**
+  * IPC (just a single primitive mechanism)
+  * Small, targeted syscall interface (_started, still WIP_)
+    * **Fast channel (via `SYSCALL` and `SYSRET`)**
+    * **Slow channel (via `int 0x69`)**
+  * Delegatable capability-based syscall control
+* User-mode SYSTEM supervisor providing operating-system services
+  * **Basic userspace bootstrap**
+  * VFS
+* SYSTEM coordinates activities of other services to provide:
+  * Hardware drivers (via capability-based MMIO)
+  * Networking
+  * GUI
+  * etc.
+* Limited / no legacy support - x86_64 required, no PIC / PIT etc,
+* Minimum "supported" architecture: Haswell (4th gen)
+
+(Items in **bold** are already implemented, for some value of the term.
+If you want more detail they are, as far as possible, documented in the 
+source / comments).
+
+The basic idea is most user processes will have _very_ limited syscall
+capability - and instead will use (hopefully) fast IPC to request 
+services from the user-mode supervisor and directly from other services.
+
+The supervisor itself will be endowed with all capabilities, and will 
+be responsible for delegating said capabilities appropriately to other
+processes as they are started and depending on their requirements and trust
+level.
+
+Processes will exist in a hierarchy, with processes that have the 
+capability to start other process further be able to delegate capabilities
+_they_ hold to other processes they supervise.
+
+#### Current State
 
 Right now, it's early days, but there's a simple stack-based physical
 memory allocator and enough support for everything (page fault handling,
@@ -47,9 +94,20 @@ IDT, virtual memory management, etc) to be able to get to user mode
 and then back via a simple syscall interface (accessible via both
 `int` and `syscall` interfaces).
 
-The basics of interrupt handling is configured, with the local APIC 
-timer currently providing a "proof-of-life" heartbeat and basic 
-multitasking via the round-robin scheduler.
+Scheduling is currently handled by a simple prioritised round-robin 
+scheduler with four priority classes and 255 priority levels per
+class. The design is currently simple and rather suboptimal, and 
+there are significant opportunities for improvement in this area.
+
+SMP is supported, up to a maximum of 16 symmetric cores (one BSP
+and 15 APs). The scheduler operates on a per-CPU basis and is driven by
+each CPUs independent local APIC timer. The plan is to migrate this to
+a tickless design in the near future in order to improve power efficiency
+in the final design. Cross-CPU Balancing (and obviously _rebalancing_) 
+is not yet implemented) but again, is part of the plan.
+
+Realtime scheduling is, like realtime behaviour in general, a non-goal 
+of this project.
 
 ### Building
 
