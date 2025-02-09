@@ -3,6 +3,8 @@
 ;
 ; Copyright (c) 2025 Ross Bamford
 ;
+; TODO this currently assumes all CPUs are the same,
+; which is probably fine with SMP, but won't be later...
 
 global init_cpuid, cpuid
 global __cpuid_vendor
