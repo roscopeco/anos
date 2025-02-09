@@ -2,7 +2,7 @@ bits 16
 
 section .text.init
 global _start
-extern STACKS_BASE, STACK_SHIFT, STACK_START_OFS
+extern KERNEL_BASE, STACKS_BASE, STACK_SHIFT, STACK_START_OFS
 
 ; This is the AP trampoline.
 ;
@@ -113,8 +113,9 @@ main64:
 
   mov rax,rdi                             ; Set up a stack for protected mode based on unique id...
   shl rax,STACK_SHIFT                     ; ... which we'll shift left by 4
-  or  rax,STACKS_BASE                     ; ... and OR in the long-mode stack base
+  add rax,STACKS_BASE                     ; ... and add in the physical stack base
   add rax,STACK_START_OFS                 ; ... then point to stack top, minus the return address already stacked...
+  or  rax,KERNEL_BASE                     ; ... make it a virtual kernel address
   mov rsp,rax                             ; ... and we're good!
 
   mov rcx,rdi                             ; Set up the TSS for this specific core,

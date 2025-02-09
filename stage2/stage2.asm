@@ -77,10 +77,10 @@ TSS%1_BASE_HIGH:
   dd 0                    ; Reserved
 %endmacro
 
-%macro define_tss 2
+%macro define_tss 1
 TSS%1:
   dd  0                   ; Reserved
-  dq  %2                  ; RSP0
+  dq  0                   ; RSP0
   dq  0                   ; RSP1
   dq  0                   ; RSP2
   dq  0                   ; Reserved
@@ -374,20 +374,22 @@ GDT_DESC:
   dd  GDT                 ; Address (GDT, above)
 
 ; Define the actual TSSes - but don't set RSP0 up yet,
-; we'll sort those out in the kernel...
-define_tss 0, 0
-define_tss 1, 0
-define_tss 2, 0
-define_tss 3, 0
-define_tss 4, 0
-define_tss 5, 0
-define_tss 6, 0
-define_tss 7, 0
-define_tss 8, 0
-define_tss 9, 0
-define_tss 10, 0
-define_tss 11, 0
-define_tss 12, 0
-define_tss 13, 0
-define_tss 14, 0
-define_tss 15, 0
+; we'll sort those out in the kernel when we're actually
+; task switching...
+;
+define_tss 0
+define_tss 1
+define_tss 2
+define_tss 3
+define_tss 4
+define_tss 5
+define_tss 6
+define_tss 7
+define_tss 8
+define_tss 9
+define_tss 10
+define_tss 11
+define_tss 12
+define_tss 13
+define_tss 14
+define_tss 15
