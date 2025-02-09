@@ -39,11 +39,12 @@
 #include <stdint.h>
 
 #include "vmm/recursive.h"
-
-#define PRESENT (1 << 0)
-#define WRITE (1 << 1)
+#include "vmm/vmmapper.h"
 
 void pagetables_init() {
+    // These are the static pagetables that were set up during init.
+    // They'll become the tables that belong to the SYSTEM process...
+    //
     uint64_t *pml4 = (uint64_t *)0xFFFFFFFF8009c000;
     uint64_t *pdpt = (uint64_t *)0xFFFFFFFF8009d000;
     uint64_t *pd = (uint64_t *)0xFFFFFFFF8009e000;
@@ -96,6 +97,9 @@ void pagetables_init() {
     pml4[RECURSIVE_ENTRY] = 0x9c000 | PRESENT | WRITE;
 
     // Just load cr3 to dump the TLB...
-    __asm__ volatile("mov %cr3, %rax\n\t"
-                     "mov %rax, %cr3\n\t");
+    __asm__ volatile("mov %%cr3, %%rax\n\t"
+                     "mov %%rax, %%cr3\n\t"
+                     :
+                     :
+                     : "rax", "memory");
 }
