@@ -5,10 +5,11 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+#include "munit.h"
+
 #include "mock_machine.h"
 #include "mock_pmm.h"
 #include "mock_recursive.h"
-#include "munit.h"
 #include "pmm/pagealloc.h"
 #include "spinlock.h"
 #include "vmm/vmmapper.h"
