@@ -57,7 +57,15 @@ static const uintptr_t L4_RSHIFT = 39;
 
 // Index of recursive mapping entry in PML4
 // `0xffff800000000000`-> `0xffff807fffffffff` : 512GB Recursive mapping area when @ PML4[256]
-static const uintptr_t RECURSIVE_ENTRY = 256;
+static const uintptr_t RECURSIVE_ENTRY_MAIN = 256;
+
+// `0xffff808000000000`-> `0xffff80ffffffffff` : 512GB Recursive mapping area when @ PML4[257]
+static const uintptr_t RECURSIVE_ENTRY_OTHER = 257;
+
+// MAIN is the primary recursive entry that will be used by default...
+static const uintptr_t RECURSIVE_ENTRY = RECURSIVE_ENTRY_MAIN;
+
+static const uintptr_t KERNEL_BEGIN_ENTRY = RECURSIVE_ENTRY + 2;
 
 // Internal stuff...
 static const uintptr_t LVL_MASK = 0x1ff; // Mask to apply to a table index
@@ -111,7 +119,7 @@ typedef struct {
  *
  * If an alternative PML4 entry is being used for the recursive mapping,
  * that can be specified here too (unlike most of the rest of the functions
- * in this file, which are hardcoded to use the last entry):
+ * in this file, which are hardcoded to use RECURSIVE_ENTRY):
  *
  * ```C
  * uintptr_t pdpt1_pd2_pt3 = vmm_recursive_table_address(257, 1, 2, 3, 0);

@@ -6,16 +6,15 @@
  */
 
 #include "anos_assert.h"
+#include "debugprint.h"
+#include "fba/alloc.h"
 #include "ktypes.h"
 #include "pmm/sys.h"
+#include "printhex.h"
 #include "slab/alloc.h"
 #include "smp/state.h"
 #include "structs/pq.h"
 #include "task.h"
-
-#include "debugprint.h"
-#include "fba/alloc.h"
-#include "printhex.h"
 
 #ifdef UNIT_TESTS
 #ifdef DEBUG_UNIT_TESTS
@@ -165,6 +164,7 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     // Create a process & task to represent the init thread (which System will inherit)
     Process *new_process = slab_alloc_block();
     new_process->pid = 1;
+
     new_process->pml4 = get_pagetable_root();
 
     if (new_process == NULL) {

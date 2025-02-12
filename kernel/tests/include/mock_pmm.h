@@ -12,6 +12,7 @@
 #include <stdint.h>
 
 #define TEST_PMM_NOALLOC_START_ADDRESS ((0x1000))
+#define MOCK_PMM_MAX_PAGES 256
 
 void mock_pmm_reset();
 
