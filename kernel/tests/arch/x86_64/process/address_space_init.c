@@ -1,5 +1,5 @@
 /*
- * stage3 - Process address space handling
+ * stage3 - Process address space initialisation test
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
@@ -69,15 +69,15 @@ test_init_with_existing_entries(const MunitParameter params[], void *fixture) {
 }
 
 static MunitTest test_suite_tests[] = {
-        {"init/success", test_init_success, test_setup, test_teardown,
+        {"/success", test_init_success, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"init/existing_entries", test_init_with_existing_entries, test_setup,
+        {"/existing_entries", test_init_with_existing_entries, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/address_space", test_suite_tests, NULL,
-                                      1, MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {"/address_space/init", test_suite_tests,
+                                      NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[]) {
     return munit_suite_main(&test_suite, NULL, argc, argv);

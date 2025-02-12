@@ -22,6 +22,6 @@
 // the kernel space mappings from this PML4...
 bool address_space_init(void);
 
-uintptr_t create_address_space(void);
+uintptr_t address_space_create(void);
 
 #endif //__ANOS_KERNEL_PROCESS_ADDRESS_SPACE_H

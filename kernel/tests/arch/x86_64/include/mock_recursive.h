@@ -10,7 +10,15 @@
 
 #include <stdint.h>
 
+#ifndef RECURSIVE_ENTRY
 #define RECURSIVE_ENTRY 256
+#endif
+#ifndef RECURSIVE_ENTRY_OTHER
+#define RECURSIVE_ENTRY_OTHER (RECURSIVE_ENTRY + 1)
+#endif
+#ifndef KERNEL_BEGIN_ENTRY
+#define KERNEL_BEGIN_ENTRY ((RECURSIVE_ENTRY + 2))
+#endif
 
 typedef struct {
     uint64_t entries[512];
