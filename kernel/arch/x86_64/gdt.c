@@ -10,7 +10,6 @@
 #include "gdt.h"
 #include "kdrivers/cpu.h"
 
-// Function to create a GDT entry
 void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
                     uint8_t access, uint8_t flags_limit_h) {
     entry->limit_low = (limit & 0xFFFF);
@@ -22,7 +21,6 @@ void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
     entry->base_high = (base >> 24) & 0xFF;
 }
 
-// Function to get a GDT entry given a GDTR and index
 GDTEntry *get_gdt_entry(GDTR *gdtr, int index) {
     int num_entries = (gdtr->limit + 1) / sizeof(GDTEntry);
 
@@ -35,13 +33,15 @@ GDTEntry *get_gdt_entry(GDTR *gdtr, int index) {
     return &gdt[index];
 }
 
-inline void *gdt_entry_to_tss(GDTEntry *tss_entry) {
-    return (void *)(0ULL | (tss_entry->base_high << 24) |
-                    (tss_entry->base_middle << 16) | tss_entry->base_low);
+inline void *gdt_entry_to_tss(GDTSystemEntry *tss_entry) {
+    return (void *)((0ULL | ((uint64_t)tss_entry->base_upper << 32) |
+                     ((uint64_t)tss_entry->base_high << 24) |
+                     ((uint64_t)tss_entry->base_middle << 16) |
+                     (uint64_t)tss_entry->base_low));
 }
 
 void *gdt_per_cpu_tss(uint8_t cpu_id) {
-    if (cpu_id > 15) {
+    if (cpu_id > MAX_CPU_COUNT) {
         return (void *)0;
     } else {
         GDTR gdtr;
@@ -49,6 +49,6 @@ void *gdt_per_cpu_tss(uint8_t cpu_id) {
         GDTEntry *tss_entry =
                 get_gdt_entry(&gdtr, 5 + (cpu_id * CPU_TSS_ENTRY_SIZE_MULT));
 
-        return gdt_entry_to_tss(tss_entry);
+        return gdt_entry_to_tss((GDTSystemEntry *)tss_entry);
     }
 }

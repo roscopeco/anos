@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+#include "anos_assert.h"
+
 #define GDT_ENTRY_ACCESS_ACCESSED 0x01
 #define GDT_ENTRY_ACCESS_READ_WRITE 0x02
 #define GDT_ENTRY_ACCESS_DOWN_CONFORMING 0x04
@@ -46,6 +48,21 @@ typedef struct {
     uint8_t base_high;
 } __attribute__((packed)) GDTEntry;
 
+typedef struct {
+    uint16_t limit_low;
+    uint16_t base_low;
+    uint8_t base_middle;
+    uint8_t access;
+    uint8_t flags_limit_h;
+    uint8_t base_high;
+    uint32_t base_upper;
+    uint32_t reserved;
+} __attribute__((packed)) GDTSystemEntry;
+
+static_assert_sizeof(GDTR, ==, 10);
+static_assert_sizeof(GDTEntry, ==, 8);
+static_assert_sizeof(GDTSystemEntry, ==, 16);
+
 // Function to get a GDT entry given a GDTR and index
 GDTEntry *get_gdt_entry(GDTR *gdtr, int index);
 
@@ -54,9 +71,9 @@ void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
                     uint8_t access, uint8_t flags_limit_h);
 
 // Get a TSS pointer from a TSS GDT entry
-void *gdt_entry_to_tss(GDTEntry *tss_entry);
+void *gdt_entry_to_tss(GDTSystemEntry *tss_entry);
 
-// Get a per-CPU TSS pointer (statically allocated in Stage 2)
+// Get a per-CPU TSS pointer
 void *gdt_per_cpu_tss(uint8_t cpu_id);
 
 #endif //__ANOS_KERNEL_GDT_H

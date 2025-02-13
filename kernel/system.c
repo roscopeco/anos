@@ -83,7 +83,7 @@ noreturn void start_system_ap(uint8_t cpu_id) {
     if (cpu_id >= MAX_CPU_COUNT) {
         panic("start_system_ap cpu_id beyond MAX_CPU_COUNT");
     }
-    if (!idle_stack_page) {
+    if (!idle_sstack_page) {
         panic("start_system_ap called before start_system");
     }
 #endif

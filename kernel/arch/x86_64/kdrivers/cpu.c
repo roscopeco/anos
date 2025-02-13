@@ -47,6 +47,7 @@ void cpu_tsc_udelay(int n) {
     cpu_tsc_delay(n * 1000);
 }
 
+__attribute__((no_sanitize("alignment")))   // CPUID forces us to be unaligned here...
 void cpu_get_brand_str(char *buffer) {
     uint32_t *buf_ptr = (uint32_t *)buffer;
 

@@ -82,8 +82,9 @@ extern void *_binary_kernel_arch_x86_64_realmode_bin_start,
 
 noreturn void ap_kernel_entrypoint(uint64_t ap_num);
 
-static inline void memcpy(volatile void *dest, volatile void *src,
-                          uint64_t count) {
+__attribute__((no_sanitize("alignment")))
+__attribute__((no_sanitize("object-size"))) static inline void
+memcpy(volatile void *dest, volatile void *src, uint64_t count) {
     uint8_t volatile *s = (uint8_t *)src;
     uint8_t volatile *d = (uint8_t *)dest;
 
@@ -167,6 +168,7 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
 #endif
 }
 
+__attribute__((no_sanitize("alignment"))) // we have to go byte-wise through the ACPI tables...
 void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
     // copy the AP trampoline code to a fixed address in low conventional memory
     memcpy(AP_TRAMPOLINE_BASE_VADDR, AP_TRAMPOLINE_BIN_START,
