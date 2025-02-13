@@ -27,7 +27,12 @@ endif
 
 # The following C defines are recognised by stage3 and enable various things
 #
-#   CONSERVATIVE_BUILD	Will build a (slow) kernel with various invariant checks
+#	CONSERVATIVE_BUILD		Will build a (slow) kernel with various invariant checks
+#							You should pass this to the make command if you want it.
+#
+#	CONSERVATIVE_PANICKY	Conservative builds will panic rather than warn
+#							You should pass this to the make command if you want it.
+#							(Requires CONSERVATIVE_BUILD)
 #
 #	DEBUG_MEMMAP			Enable debugging of the BIOS memory map
 #	DEBUG_PMM				Enable debugging of the PMM
@@ -229,6 +234,16 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
+ifeq ($(CONSERVATIVE_BUILD),true)
+CDEFS+=-DCONSERVATIVE_BUILD
+CFLAGS+=-fsanitize=undefined
+STAGE3_OBJS+=$(STAGE3_DIR)/ubsan.o
+
+ifeq ($(CONSERVATIVE_PANICKY),true)
+CDEFS+=-DCONSERVATIVE_PANICKY
+endif
+
+endif
 
 .PHONY: all build clean qemu bochs test
 
