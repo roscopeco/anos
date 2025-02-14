@@ -34,6 +34,7 @@
 #include "sleep.h"
 #include "smp/startup.h"
 #include "smp/state.h"
+#include "structs/ref_count_map.h"
 #include "syscalls.h"
 #include "system.h"
 #include "task.h"
@@ -227,6 +228,10 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
 
     if (!slab_alloc_init()) {
         panic("Slab init failed");
+    }
+
+    if (!refcount_map_init()) {
+        panic("Refcount map failed");
     }
 
     syscall_init();
