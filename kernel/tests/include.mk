@@ -169,6 +169,9 @@ kernel/tests/build/arch/x86_64/kdrivers/hpet: kernel/tests/munit.o kernel/tests/
 kernel/tests/build/sleep_queue: kernel/tests/munit.o kernel/tests/sleep_queue.o kernel/tests/build/sleep_queue.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/spinlock.o kernel/tests/build/structs/list.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/structs/ref_count_map: kernel/tests/munit.o kernel/tests/structs/ref_count_map.o kernel/tests/build/structs/ref_count_map.o kernel/tests/mock_fba_malloc.o kernel/tests/mock_slab_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
@@ -189,7 +192,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/printdec											\
 			kernel/tests/build/kdrivers/drivers									\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
-			kernel/tests/build/sleep_queue
+			kernel/tests/build/sleep_queue										\
+			kernel/tests/build/structs/ref_count_map
 
 PHONY: test
 test: $(ALL_TESTS)

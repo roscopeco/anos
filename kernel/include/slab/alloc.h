@@ -45,6 +45,6 @@ bool slab_alloc_init();
 
 void *slab_alloc_block();
 
-void slab_free_block(void *block);
+void slab_free(void *block);
 
 #endif //__ANOS_KERNEL_SLAB_ALLOC_H

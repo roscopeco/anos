@@ -321,9 +321,8 @@ static MunitResult test_slab_alloc_block_x512(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_slab_free_block_not_allocated(const MunitParameter params[],
-                                   void *page_area_ptr) {
+static MunitResult test_slab_free_not_allocated(const MunitParameter params[],
+                                                void *page_area_ptr) {
     void *test_block = slab_alloc_block();
 
     // Slab allocated an FBA block
@@ -339,7 +338,7 @@ test_slab_free_block_not_allocated(const MunitParameter params[],
     munit_assert_uint64(slab->bitmap2, ==, 0x0000000000000000);
     munit_assert_uint64(slab->bitmap3, ==, 0x0000000000000000);
 
-    slab_free_block(slab + 2);
+    slab_free(slab + 2);
 
     // ... Bitmaps remain correct
     munit_assert_uint64(slab->bitmap0, ==, 0x0000000000000003);
@@ -367,7 +366,7 @@ static MunitResult test_slab_free_bitmap(const MunitParameter params[],
     munit_assert_uint64(slab->bitmap2, ==, 0x0000000000000000);
     munit_assert_uint64(slab->bitmap3, ==, 0x0000000000000000);
 
-    slab_free_block(slab);
+    slab_free(slab);
 
     // ... Nothing happened, bitmaps remain correct
     munit_assert_uint64(slab->bitmap0, ==, 0x0000000000000003);
@@ -395,7 +394,7 @@ static MunitResult test_slab_free_one(const MunitParameter params[],
     munit_assert_uint64(slab->bitmap2, ==, 0x0000000000000000);
     munit_assert_uint64(slab->bitmap3, ==, 0x0000000000000000);
 
-    slab_free_block(test_block);
+    slab_free(test_block);
 
     // ... Block freed, bitmaps remain correct
     munit_assert_uint64(slab->bitmap0, ==, 0x0000000000000001);
@@ -424,7 +423,7 @@ static MunitResult test_slab_free_two(const MunitParameter params[],
     munit_assert_uint64(slab->bitmap2, ==, 0x0000000000000000);
     munit_assert_uint64(slab->bitmap3, ==, 0x0000000000000000);
 
-    slab_free_block(test_block_1);
+    slab_free(test_block_1);
 
     // ... First block freed, bitmaps remain correct
     munit_assert_uint64(slab->bitmap0, ==, 0x0000000000000005);
@@ -432,7 +431,7 @@ static MunitResult test_slab_free_two(const MunitParameter params[],
     munit_assert_uint64(slab->bitmap2, ==, 0x0000000000000000);
     munit_assert_uint64(slab->bitmap3, ==, 0x0000000000000000);
 
-    slab_free_block(test_block_2);
+    slab_free(test_block_2);
 
     // ... First block freed, bitmaps remain correct
     munit_assert_uint64(slab->bitmap0, ==, 0x0000000000000001);
@@ -463,7 +462,7 @@ static MunitResult test_slab_free_from_full(const MunitParameter params[],
     munit_assert_uint64(slab->bitmap3, ==, 0xffffffffffffffff);
 
     // when block is freed within slab...
-    slab_free_block(results[127]);
+    slab_free(results[127]);
 
     // ... Then bitmaps remain correct - slab no longer full
     munit_assert_uint64(slab->bitmap0, ==, 0xffffffffffffffff);
@@ -503,7 +502,7 @@ static MunitTest test_suite_tests[] = {
         {(char *)"/alloc/block_x512", test_slab_alloc_block_x512, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
-        {(char *)"/alloc/free_not_alloc", test_slab_free_block_not_allocated,
+        {(char *)"/alloc/free_not_alloc", test_slab_free_not_allocated,
          test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/alloc/free_bitmap_nope", test_slab_free_bitmap, test_setup,
          test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
