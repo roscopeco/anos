@@ -3,38 +3,6 @@
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
- * 
- * A specialized hash map optimized for the use case of tracking
- * shared memory blocks and maintaining their refcounts.
- * 
- * This will have pretty poor cache locality, but for this 
- * particular use-case I think that's _probably_ okay...
- * 
- * Key features:
- * 
- * 1. Constant-time operations (O(1) average case) for all operations:
- * 
- *  Insertion (incrementing reference count)
- *  Lookup (checking reference count)
- *  Deletion (decrementing reference count)
- * 
- * 2. Space efficiency:
- * 
- *  Each entry stores the physical address, reference count, and minimal metadata
- *  Uses chaining for collision resolution but with optimized hash function for physical addresses
- *  Automatic resizing when load factor exceeds threshold
- * 
- * 3. Memory safety:
- * 
- *  Proper cleanup of resources
- *  Handles allocation failures gracefully
- *  Thread-safety can be added with minimal modifications if needed
- * 
- * 4. Optimizations:
- * 
- *  Uses multiply-shift hashing (good with memory address keys)
- *  Inline hash function for performance
- *  Efficient handling of deleted entries
  */
 
 #include <stdbool.h>
