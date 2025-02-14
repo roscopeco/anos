@@ -87,7 +87,7 @@ Task *sleep_queue_dequeue(SleepQueue *queue, uint64_t deadline) {
 
         Sleeper *to_free = curr;
         curr = (Sleeper *)curr->this.next;
-        slab_free_block(to_free);
+        slab_free(to_free);
     }
 
     if (last_task) {

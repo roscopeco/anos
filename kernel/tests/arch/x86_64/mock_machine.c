@@ -15,6 +15,8 @@
 
 #include "mock_machine.h"
 
+#include "munit.h"
+
 #define BUFFER_SIZE 1024
 #define BUFFER_MASK ((BUFFER_SIZE - 1))
 
@@ -134,6 +136,21 @@ void disable_interrupts() {
     if (intr_disable_level > max_intr_disable_level) {
         max_intr_disable_level = intr_disable_level;
     }
+}
+
+uint64_t save_disable_interrupts(void) {
+    ++intr_disable_level;
+
+    if (intr_disable_level > max_intr_disable_level) {
+        max_intr_disable_level = intr_disable_level;
+    }
+
+    return 0xdeadbeef;
+}
+
+void restore_saved_interrupts(uint64_t state) {
+    munit_assert_uint64(state, ==, 0xdeadbeef);
+    --intr_disable_level;
 }
 
 uint32_t mock_machine_intr_disable_level() { return intr_disable_level; }

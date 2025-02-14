@@ -115,7 +115,7 @@ void *slab_alloc_block() {
     SPIN_UNLOCK_RET((void *)(target + free_block));
 }
 
-void slab_free_block(void *block) {
+void slab_free(void *block) {
     Slab *slab = slab_base(block);
 
     if (!slab) {

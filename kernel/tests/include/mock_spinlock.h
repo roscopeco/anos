@@ -8,8 +8,11 @@
 #ifndef __ANOS_TESTS_TEST_SPINLOCK_H
 #define __ANOS_TESTS_TEST_SPINLOCK_H
 
-void mock_spinlock_reset();
-uint32_t mock_spinlock_get_lock_count();
-uint32_t mock_spinlock_get_unlock_count();
+#include <stdint.h>
+
+void mock_spinlock_reset(void);
+bool mock_spinlock_is_locked(void);
+uint32_t mock_spinlock_get_lock_count(void);
+uint32_t mock_spinlock_get_unlock_count(void);
 
 #endif //__ANOS_TESTS_TEST_SPINLOCK_H
