@@ -189,13 +189,22 @@ you like - I'm not one to judge.
 If you want to run this on real hardware, you'll need something
 that will either write the `img` file to a floppy as raw sectors,
 or something that can burn bootable USB sticks.
+[balenaEtcher](https://etcher.balena.io) does the job nicely, and
+[UNetbootin](https://unetbootin.github.io) will work (but is not
+a great piece of software generally, so YMMV).
 
-Full disclosure, I haven't tested this on actual hardware yet, 
-and to be honest I'd be pretty surprised if it worked. I _think_
-I've got all the basics covered (retrying disk accesses when they
-fail and enabling A20 are both unnecessary in the emulators, but 
-the code is written and tested as much as I possibly can) but 
-there's every chance things won't work right anyway...
+Full disclosure: so far, this has been tested on exactly one real
+machine, a random Haswell i5 I bought specifically for the purpose
+from a thrift store. It works well on that machine, but that doesn't
+mean it'll work on your machine necessarily.
+
+The main problem I forsee on newer machines is that they probably
+won't emulate legacy BIOS. You might need to go into the BIOS
+setting (assuming that's still a thing) and set them up to boot
+from floppy and use legacy BIOS.
+
+If that is a problem, raise a bug - I'm planning to switch to UEFI
+and knowing someone else wants it will likely help motivate me...
 
 ### Debugging
 
