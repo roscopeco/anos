@@ -243,58 +243,63 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     C_PRINTHEX64(PML4ENTRY(virt_addr), debugchar);
     C_DEBUGSTR("]\n");
 
-    uintptr_t pdpt = (uintptr_t)PAGE_TO_V(pml4[PML4ENTRY(virt_addr)]);
+    uint64_t *pml4e = vmm_virt_to_pml4e(virt_addr);
 
-    C_DEBUGSTR("PDPT @ ");
-    C_PRINTHEX64((uintptr_t)ENTRY_TO_V(pdpt), debugchar);
-    C_DEBUGSTR(" [Entry ");
-    C_PRINTHEX64(PDPTENTRY(virt_addr), debugchar);
+    C_DEBUGSTR("  pdpte @ ");
+    C_PRINTHEX64((uintptr_t)pml4e, debugchar);
+    C_DEBUGSTR(" = [");
+    C_PRINTHEX64(*pml4e, debugchar);
     C_DEBUGSTR("]\n");
 
-    if ((pdpt & PRESENT) == 0) {
-        // No present PDPT, just bail
-        C_DEBUGSTR("No PDPT (");
-        C_PRINTHEX64(pdpt, debugchar);
-        C_DEBUGSTR(") - Bailing\n");
-
+    if ((*pml4e & PRESENT) == 0) {
+        // Not present PDPT, just bail
+        C_DEBUGSTR("    No PDPT - Bailing\n");
         SPIN_UNLOCK_RET(0);
     }
 
-    uintptr_t pd = (uintptr_t)PAGE_TO_V(ENTRY_TO_V(pdpt)[PDPTENTRY(virt_addr)]);
+    uint64_t *pdpte = vmm_virt_to_pdpte(virt_addr);
 
-    C_DEBUGSTR("PD   @ ");
-    C_PRINTHEX64((uintptr_t)ENTRY_TO_V(pd), debugchar);
-    C_DEBUGSTR(" [Entry ");
-    C_PRINTHEX64(PDENTRY(virt_addr), debugchar);
+    C_DEBUGSTR("  pdpte @ ");
+    C_PRINTHEX64((uintptr_t)pdpte, debugchar);
+    C_DEBUGSTR(" = [");
+    C_PRINTHEX64(*pdpte, debugchar);
     C_DEBUGSTR("]\n");
 
-    if ((pd & PRESENT) == 0) {
-        // No present PD, just bail
-        C_DEBUGSTR("No PD (");
-        C_PRINTHEX64(pd, debugchar);
-        C_DEBUGSTR(") - Bailing\n");
-
+    if ((*pdpte & PRESENT) == 0) {
+        // Not present PDPT, just bail
+        C_DEBUGSTR("    No PD - Bailing\n");
         SPIN_UNLOCK_RET(0);
     }
 
-    uintptr_t pt = (uintptr_t)PAGE_TO_V(ENTRY_TO_V(pd)[PDENTRY(virt_addr)]);
+    uint64_t *pde = vmm_virt_to_pde(virt_addr);
 
-    C_DEBUGSTR("PT   @ ");
-    C_PRINTHEX64((uintptr_t)ENTRY_TO_V(pt), debugchar);
-    C_DEBUGSTR(" [Entry ");
-    C_PRINTHEX64(PTENTRY(virt_addr), debugchar);
+    C_DEBUGSTR("    pde @ ");
+    C_PRINTHEX64((uintptr_t)pde, debugchar);
+    C_DEBUGSTR(" = [");
+    C_PRINTHEX64(*pde, debugchar);
     C_DEBUGSTR("]\n");
 
-    if ((pt & PRESENT) == 0) {
-        // No present PT, just bail
-        C_DEBUGSTR("No PT (");
-        C_PRINTHEX64(pt, debugchar);
-        C_DEBUGSTR(") - Bailing\n");
-
+    if ((*pde & PRESENT) == 0) {
+        // Not present PDPT, just bail
+        C_DEBUGSTR("    No PT - Bailing\n");
         SPIN_UNLOCK_RET(0);
     }
 
-    uintptr_t phys = (ENTRY_TO_V(pt)[PTENTRY(virt_addr)] & PAGE_ALIGN_MASK);
+    uint64_t *pte = vmm_virt_to_pte(virt_addr);
+
+    C_DEBUGSTR("     pt @ ");
+    C_PRINTHEX64((uintptr_t)pte, debugchar);
+    C_DEBUGSTR(" = [");
+    C_PRINTHEX64(*pte, debugchar);
+    C_DEBUGSTR("]\n");
+
+    if ((*pte & PRESENT) == 0) {
+        // Not present PDPT, just bail
+        C_DEBUGSTR("    No PT - Bailing\n");
+        SPIN_UNLOCK_RET(0);
+    }
+
+    uintptr_t phys = *pte & PAGE_ALIGN_MASK;
 
 #ifdef VERY_NOISY_VMM
     C_DEBUGSTR("zeroing entry: ");
@@ -306,7 +311,7 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     C_DEBUGSTR(")\n");
 #endif
 
-    ENTRY_TO_V(pt)[PTENTRY(virt_addr)] = 0;
+    *pte = 0;
     vmm_invalidate_page(virt_addr);
 
     SPIN_UNLOCK_RET(phys);
