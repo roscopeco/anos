@@ -28,11 +28,13 @@
 #include "pmm/pagealloc.h"
 #include "printdec.h"
 #include "printhex.h"
+#include "process/address_space.h"
 #include "sched.h"
 #include "slab/alloc.h"
 #include "sleep.h"
 #include "smp/startup.h"
 #include "smp/state.h"
+#include "structs/ref_count_map.h"
 #include "syscalls.h"
 #include "system.h"
 #include "task.h"
@@ -228,6 +230,10 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
         panic("Slab init failed");
     }
 
+    if (!refcount_map_init()) {
+        panic("Refcount map init failed");
+    }
+
     syscall_init();
 
 #ifdef DEBUG_ACPI
@@ -255,8 +261,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
 
     acpi_root_table = acpi_tables_init(rsdp);
     if (acpi_root_table == NULL) {
-        debugstr("ACPI table mapping failed; halting\n");
-        halt_and_catch_fire();
+        panic("ACPI table mapping failed");
     }
 
     debug_memmap(memmap);
@@ -320,6 +325,10 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
 #else
     task_init(get_this_cpu_tss());
     sleep_init();
+
+    if (!address_space_init()) {
+        panic("Address space initialisation failed");
+    }
 
     prepare_system();
     start_system();

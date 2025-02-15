@@ -5,7 +5,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/*.o										\
 				kernel/tests/arch/x86_64/sched/*.o									\
 				kernel/tests/arch/x86_64/kdrivers/*.o								\
-				kernel/tests/build													\
+				kernel/tests/arch/x86_64/process/*.o								\
 				kernel/tests/*.gcda kernel/tests/pmm/*.gcda kernel/tests/vmm/*.gcda	\
 				kernel/tests/structs/*.gcda kernel/tests/pci/*.gcda 				\
 				kernel/tests/fba/*.gcda kernel/tests/slab/*.gcda 					\
@@ -14,6 +14,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/*.gcda										\
 				kernel/tests/arch/x86_64/sched/*.gcda								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcda							\
+				kernel/tests/arch/x86_64/process/*.gcda								\
 				kernel/tests/*.gcno kernel/tests/pmm/*.gcno kernel/tests/vmm/*.gcno	\
 				kernel/tests/structs/*.gcno kernel/tests/pci/*.gcno 				\
 				kernel/tests/fba/*.gcno kernel/tests/slab/*.gcno 					\
@@ -22,6 +23,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/*.gcno										\
 				kernel/tests/arch/x86_64/sched/*.gcno								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcno							\
+				kernel/tests/arch/x86_64/process/*.gcno								\
 				kernel/tests/build													\
 				gcov
 
@@ -46,6 +48,7 @@ TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm
 				kernel/tests/build/smp												\
 				kernel/tests/build/arch/x86_64										\
 				kernel/tests/build/arch/x86_64/sched								\
+				kernel/tests/build/arch/x86_64/process								\
 				kernel/tests/build/arch/x86_64/kdrivers
 
 ifeq (, $(shell which lcov))
@@ -93,6 +96,9 @@ kernel/tests/build/arch/x86_64/sched:
 
 kernel/tests/build/arch/x86_64/kdrivers:
 	mkdir -p kernel/tests/build/arch/x86_64/kdrivers
+
+kernel/tests/build/arch/x86_64/process:
+	mkdir -p kernel/tests/build/arch/x86_64/process
 
 kernel/tests/build/%.o: kernel/%.c $(TEST_BUILD_DIRS)
 	$(CC) -DUNIT_TESTS $(TEST_CFLAGS) -c -o $@ $<
@@ -172,6 +178,12 @@ kernel/tests/build/sleep_queue: kernel/tests/munit.o kernel/tests/sleep_queue.o 
 kernel/tests/build/structs/ref_count_map: kernel/tests/munit.o kernel/tests/structs/ref_count_map.o kernel/tests/build/structs/ref_count_map.o kernel/tests/mock_fba_malloc.o kernel/tests/mock_slab_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/arch/x86_64/process/address_space_init: kernel/tests/munit.o kernel/tests/arch/x86_64/process/address_space_init.o kernel/tests/build/arch/x86_64/process/address_space.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
+kernel/tests/build/arch/x86_64/process/address_space_create: kernel/tests/munit.o kernel/tests/arch/x86_64/process/address_space_create.o kernel/tests/build/arch/x86_64/process/address_space.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
@@ -188,12 +200,15 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/slab/alloc										\
 			kernel/tests/build/vmm/recursive									\
 			kernel/tests/build/arch/x86_64/sched/lock							\
+			kernel/tests/build/task												\
 			kernel/tests/build/sched/prr										\
 			kernel/tests/build/printdec											\
 			kernel/tests/build/kdrivers/drivers									\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/sleep_queue										\
-			kernel/tests/build/structs/ref_count_map
+			kernel/tests/build/structs/ref_count_map							\
+			kernel/tests/build/arch/x86_64/process/address_space_init			\
+			kernel/tests/build/arch/x86_64/process/address_space_create
 
 PHONY: test
 test: $(ALL_TESTS)

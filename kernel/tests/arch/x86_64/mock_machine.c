@@ -14,6 +14,7 @@
 #include <stdnoreturn.h>
 
 #include "mock_machine.h"
+#include "munit.h"
 
 #include "munit.h"
 

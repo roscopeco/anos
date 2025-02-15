@@ -52,6 +52,7 @@ endif
 #	DEBUG_CPU_FREQ			Enable debugging of CPU frequency calibration (requires DEBUG_CPU)
 #	DEBUG_SMP_STARTUP		Enable debugging of SMP AP startup
 #	VERY_NOISY_SMP_STARTUP	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
+#	DEBUG_ADDR_SPACE		Enable debugging of address-space management
 #
 # These ones enable some specific feature tests
 #
@@ -60,6 +61,10 @@ endif
 #	DEBUG_TASK_SWITCH					Dump debug info when switching tasks
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #	DEBUG_SLEEPY_KERNEL_TASK			Start a noisy kernel task that sleeps on all CPUs
+#
+#	DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL	address_space_create will copy **all** PDPT entries,
+#										not just kernel ones. This is unlikely to ever be a
+#										good idea outside some very specific startup tests!
 #
 # These set option you might feel like configuring
 #
@@ -165,6 +170,7 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/init.o								\
 					$(STAGE3_ARCH_X86_64_DIR)/smp/startup.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/task_kernel_entrypoint.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/serial.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/process/address_space.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
 ifeq ($(ARCH),x86_64)
@@ -202,6 +208,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/panic.o												\
 			$(STAGE3_DIR)/system.o												\
 			$(STAGE3_DIR)/sched/idle.o											\
+			$(STAGE3_DIR)/structs/ref_count_map.o								\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 

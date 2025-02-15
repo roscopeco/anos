@@ -9,14 +9,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "mock_pmm.h"
 #include "pmm/pagealloc.h"
-
-#define MAX_PAGES 256
 
 // Parts of the kernel extern this in directly, so we need it here...
 MemoryRegion physical_region;
 
-static uint64_t *pages[MAX_PAGES];
+static void *pages[MOCK_PMM_MAX_PAGES];
 static uint8_t page_ptr = 0;
 static uint32_t total_page_allocs = 0;
 static uint32_t total_page_frees = 0;
@@ -33,9 +32,9 @@ void mock_pmm_reset() {
 }
 
 uint64_t page_alloc(MemoryRegion *region) {
-    if (page_ptr == (MAX_PAGES - 1)) {
+    if (page_ptr == (MOCK_PMM_MAX_PAGES - 1)) {
         fprintf(stderr, "\n\nWARN: Mock page allocator is out of space 😱\n\n");
-        return 0;
+        return 0xff;
     }
 
     total_page_allocs++;

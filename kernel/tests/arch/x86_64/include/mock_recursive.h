@@ -10,6 +10,16 @@
 
 #include <stdint.h>
 
+#ifndef RECURSIVE_ENTRY
+#define RECURSIVE_ENTRY 256
+#endif
+#ifndef RECURSIVE_ENTRY_OTHER
+#define RECURSIVE_ENTRY_OTHER (RECURSIVE_ENTRY + 1)
+#endif
+#ifndef KERNEL_BEGIN_ENTRY
+#define KERNEL_BEGIN_ENTRY ((RECURSIVE_ENTRY + 2))
+#endif
+
 typedef struct {
     uint64_t entries[512];
 } PageTable;
@@ -40,7 +50,7 @@ PageTable complete_pt __attribute__((__aligned__(4096)));
 static inline PageTable *vmm_recursive_find_pml4() { return &complete_pml4; }
 
 static inline PageTable *vmm_recursive_find_pdpt(uint16_t pml4_entry) {
-    return (PageTable *)&complete_pml4.entries[pml4_entry];
+    return (PageTable *)(complete_pml4.entries[pml4_entry] & ~(0xfff));
 }
 
 static inline PageTable *vmm_recursive_find_pd(uint16_t pml4_entry,
