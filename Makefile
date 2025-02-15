@@ -209,6 +209,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/system.o												\
 			$(STAGE3_DIR)/sched/idle.o											\
 			$(STAGE3_DIR)/structs/ref_count_map.o								\
+			$(STAGE3_DIR)/process/process.o										\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 
