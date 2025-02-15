@@ -256,10 +256,10 @@ static MunitResult
 test_unmap_page_complete_pml4_0(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
-    vmm_map_page_in(&complete_pml4, 0x0, 0x1000, 0);
+    vmm_map_page_in(&complete_pml4, 0x0, 0x1000, PRESENT);
 
     // Correct page was mapped
-    munit_assert_uint64(complete_pt.entries[0], ==, 0x1000);
+    munit_assert_uint64(complete_pt.entries[0], ==, 0x1000 | PRESENT);
 
     uintptr_t unmapped_phys =
             vmm_unmap_page_in((uint64_t *)&complete_pml4, 0x0);
@@ -277,6 +277,35 @@ test_unmap_page_complete_pml4_0(const MunitParameter params[], void *param) {
 
     // Physical address of previously-mapped page was returned
     munit_assert_uint64(unmapped_phys, ==, 0x1000);
+
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_unmap_page_complete_pml4_0_np(const MunitParameter params[], void *param) {
+    munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
+
+    vmm_map_page_in(&complete_pml4, 0x0, 0x1000, 0);
+
+    // Correct page was mapped
+    munit_assert_uint64(complete_pt.entries[0], ==, 0x1000);
+
+    uintptr_t unmapped_phys =
+            vmm_unmap_page_in((uint64_t *)&complete_pml4, 0x0);
+
+    // Higher-level tables are untouched
+    munit_assert_uint64(complete_pml4.entries[0], ==,
+                        (uint64_t)&complete_pdpt | PRESENT);
+    munit_assert_uint64(complete_pdpt.entries[0], ==,
+                        (uint64_t)&complete_pd | PRESENT);
+    munit_assert_uint64(complete_pd.entries[0], ==,
+                        (uint64_t)&complete_pt | PRESENT);
+
+    // Page was not unmapped in PT, as not present
+    munit_assert_uint64(complete_pt.entries[0], ==, 0x1000);
+
+    // Zero returned as nothing was done
+    munit_assert_uint64(unmapped_phys, ==, 0);
 
     return MUNIT_OK;
 }
@@ -353,6 +382,9 @@ static MunitTest test_suite_tests[] = {
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/unmap/complete_pml4_0M", test_unmap_page_complete_pml4_0,
          setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/unmap/complete_pml4_0M_np",
+         test_unmap_page_complete_pml4_0_np, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
 
         /* TODO fix this test
         {(char *)"/unmap/complete_pml4_2M", test_unmap_page_complete_pml4_2M,
