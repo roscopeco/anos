@@ -231,7 +231,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     }
 
     if (!refcount_map_init()) {
-        panic("Refcount map failed");
+        panic("Refcount map init failed");
     }
 
     syscall_init();
