@@ -211,7 +211,6 @@ static inline uint64_t *vmm_virt_to_pde(uintptr_t virt_addr) {
     // 0x0000008080604000 :: 0b0000000000000000 000000001 000000010 000000011 000000100 000000000000
     // ... becomes ...
     // 0xffffffffc0202018 :: 0b1111111111111111 111111111 111111111 000000001 000000010 000000011000
-
     return (uint64_t *)(BASE_ADDRESS | RECURSIVE_L1 | RECURSIVE_L2 |
                         ((virt_addr & TABLE_BIT_MASK) >> L2_RSHIFT << 3));
 }
@@ -272,6 +271,67 @@ static inline uint64_t *vmm_virt_to_pml4e(uintptr_t virt_addr) {
  */
 static inline PageTable *vmm_virt_to_pml4(uintptr_t virt_addr) {
     return (PageTable *)((uintptr_t)vmm_virt_to_pml4e(virt_addr) & OFFSET_MASK);
+}
+
+/*
+ * Get the physical base address of the page containing the given virtual address, or 
+ * 0 if the page is not mapped in the _current process_ recursive mapping.
+ * 
+ * TODO if we ever start making low RAM available for mapping, this will have to change...
+ */
+static inline uintptr_t vmm_virt_to_phys_page(uintptr_t virt_addr) {
+    uint64_t pml4e = *vmm_virt_to_pml4e(virt_addr);
+    if (pml4e & 0x1) {
+        uint64_t pdpte = *vmm_virt_to_pdpte(virt_addr);
+        if (pdpte & 0x1) {
+            uint64_t pde = *vmm_virt_to_pde(virt_addr);
+            if (pde & 0x1) {
+                uint64_t pte = *vmm_virt_to_pte(virt_addr);
+                if (pte & 0x1) {
+                    return pte & OFFSET_MASK;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * Get the physical address corresponding to the given virtual address, or 
+ * 0 if the page is not mapped in the _current process_ recursive mapping.
+ * 
+ * TODO if we ever start making low RAM available for mapping, this will have to change...
+ */
+static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
+    uintptr_t page = vmm_virt_to_phys_page(virt_addr);
+
+    if (page) {
+        return page | (virt_addr & ~OFFSET_MASK);
+    } else {
+        return 0;
+    }
+}
+
+static inline uint16_t
+vmm_recursive_pml4_virt_to_recursive_entry(void *virt_pml4) {
+    return (((uintptr_t)virt_pml4) & (LVL_MASK << L4_LSHIFT)) >> L1_RSHIFT;
+}
+
+static inline uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr) {
+    return (virt_addr & (LVL_MASK << L1_LSHIFT)) >> L4_RSHIFT;
+}
+
+static inline uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr) {
+    return (virt_addr & (LVL_MASK << L2_LSHIFT)) >> L3_RSHIFT;
+}
+
+static inline uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr) {
+    return (virt_addr & (LVL_MASK << L3_LSHIFT)) >> L2_RSHIFT;
+}
+
+static inline uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr) {
+    return (virt_addr & (LVL_MASK << L4_LSHIFT)) >> L1_RSHIFT;
 }
 
 #endif //__ANOS_KERNEL_VM_RECURSIVE_H

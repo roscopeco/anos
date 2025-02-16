@@ -17,7 +17,9 @@ typedef int64_t SyscallArg;
 
 typedef enum {
     SYSCALL_OK = 0,
-    SYSCALL_BAD_NUMBER = -1,
+    SYSCALL_FAILURE = -1,
+    SYSCALL_BAD_NUMBER = -2,
+    SYSCALL_NOT_IMPL = -3,
 } SyscallResult;
 
 // TODO this is duplicated into libanos headers...

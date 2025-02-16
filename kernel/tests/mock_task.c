@@ -60,6 +60,7 @@ void task_switch(Task *next) {
     current_task = next;
 }
 
+static TaskSched new_task_sched;
 static Task new_task;
 
 Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
@@ -72,8 +73,13 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
     last_create_new_func = func;
     last_create_new_class = class;
 
+    new_task_sched.class = class;
     new_task.owner = owner;
+    new_task.sched = &new_task_sched;
+
     return &new_task;
 }
+
+void task_destroy(Task *task) { /* noop */ }
 
 void task_do_switch(void) { /* noop */ }

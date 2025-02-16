@@ -17,6 +17,10 @@
 #include "structs/pq.h"
 #include "task.h"
 
+#ifdef CONSERVATIVE_BUILD
+#include "panic.h"
+#endif
+
 #ifdef UNIT_TESTS
 #ifdef DEBUG_UNIT_TESTS
 #include <stdio.h>
@@ -89,15 +93,19 @@ static bool sched_enqueue(Task *task) {
 
     switch (task->sched->class) {
     case TASK_CLASS_REALTIME:
+        printf("ENQUEUE realtime");
         candidate_queue = &state->realtime_head;
         break;
     case TASK_CLASS_HIGH:
+        printf("ENQUEUE high");
         candidate_queue = &state->high_head;
         break;
     case TASK_CLASS_NORMAL:
+        printf("ENQUEUE normal");
         candidate_queue = &state->normal_head;
         break;
     case TASK_CLASS_IDLE:
+        printf("ENQUEUE idle");
         candidate_queue = &state->idle_head;
         break;
     default:

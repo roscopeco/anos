@@ -121,6 +121,10 @@ int main(int argc, char **argv) {
         printf("Thread 4 created with tid 0x%02x\n", t4);
     }
 
+    if (anos_create_process(0x1000000, 0x3000) < 0) {
+        printf("FAILED TO CREATE PROCESS\n");
+    }
+
     num = 1;
     int count = 0;
 

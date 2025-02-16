@@ -9,7 +9,7 @@ global kputchar_syscall, kputchar_int, kprint_int, kprint_syscall
 global anos_create_thread_syscall, anos_create_thread_int
 global anos_get_mem_info_syscall, anos_get_mem_info_int
 global anos_task_sleep_current_syscall, anos_task_sleep_current_int
-
+global anos_create_process_syscall, anos_create_process_int
 
 ; args:
 ;   rdi - arg0
@@ -189,6 +189,36 @@ anos_task_sleep_current_syscall:
 ;   
 anos_task_sleep_current_int:
     mov r9, $5
+    int 0x69
+    ret
+
+
+; args:
+;   rdi - bootstrap code start
+;   rsi - bootstrap code len
+;
+; mods:
+;   rax - result
+;   r11 - trashed
+;   rcx - trashed
+;   
+anos_create_process_syscall:
+    mov r9, $6
+    syscall
+    ret
+
+
+; args:
+;   rdi - bootstrap code start
+;   rsi - bootstrap code len
+;
+; mods:
+;   rax - result
+;   r11 - trashed
+;   rcx - trashed
+;   
+anos_create_process_int:
+    mov r9, $6
     int 0x69
     ret
 

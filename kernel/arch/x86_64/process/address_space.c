@@ -18,6 +18,7 @@
 
 #include "pmm/pagealloc.h"
 #include "spinlock.h"
+#include "structs/ref_count_map.h"
 #include "vmm/vmmapper.h"
 
 #ifdef DEBUG_ADDR_SPACE
@@ -83,7 +84,17 @@ bool address_space_init(void) {
     return true;
 }
 
-uintptr_t address_space_create(void) {
+uintptr_t address_space_create(uintptr_t shared_space_start,
+                               uint64_t shared_space_len) {
+    // align shared space start
+    shared_space_start &= ~(0xfff);
+    uintptr_t shared_space_end = shared_space_start + shared_space_len;
+
+    // Don't let them copy kernel space (even though we are anyhow)
+    if (shared_space_end >= VM_KERNEL_SPACE_START) {
+        return 0;
+    }
+
     uintptr_t new_pml4_phys = page_alloc(physical_region);
 
     if (new_pml4_phys & 0xff) {
@@ -113,6 +124,7 @@ uintptr_t address_space_create(void) {
             RECURSIVE_ENTRY_OTHER); // Not actually a PDPT, but our new PML4...
     cpu_invalidate_page((uintptr_t)new_pml4_virt);
 
+    debugstr("new_pml4_virt is ");
     printhex64((uintptr_t)new_pml4_virt, debugchar);
     debugstr("\n");
 
@@ -120,31 +132,52 @@ uintptr_t address_space_create(void) {
     for (int i = 0; i < RECURSIVE_ENTRY; i++) {
 #ifdef DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL
         new_pml4_virt->entries[i] = current_pml4->entries[i];
+    }
 #else
         new_pml4_virt->entries[i] = 0;
-#endif
     }
 
-    // Set up recursive entry
+    // Set up recursive entries - we need both while we're mapping between spaces...
+    // NOTE THIS WELL - Because you seem to forget it quite often - the mapping
+    // functions always need the other table's 'other' recursive slot to be mapped
+    // when working with an address space as the 'other' address space.
+    //
     new_pml4_virt->entries[RECURSIVE_ENTRY] = new_pml4_phys | WRITE | PRESENT;
-
-    // Zero out other recursive
-    new_pml4_virt->entries[RECURSIVE_ENTRY_OTHER] = 0;
+    new_pml4_virt->entries[RECURSIVE_ENTRY_OTHER] =
+            new_pml4_phys | WRITE | PRESENT;
 
     // copy kernel space
     for (int i = KERNEL_BEGIN_ENTRY; i < 512; i++) {
         new_pml4_virt->entries[i] = current_pml4->entries[i];
     }
 
-    printhex64((uintptr_t)new_pml4_virt->entries[RECURSIVE_ENTRY], debugchar);
-    debugstr("\n");
+    for (uintptr_t ptr = shared_space_start; ptr < shared_space_end;
+         ptr += VM_PAGE_SIZE) {
+        debugstr("Copying ");
+        printhex64(ptr, debugchar);
+        debugstr("\n");
 
-    // halt_and_catch_fire();
+        uintptr_t shared_phys = vmm_virt_to_phys_page(ptr);
 
-    // Restore the other entry we saved and invalidate TLB again
+        if (shared_phys) {
+            vmm_map_page_in(new_pml4_virt, ptr, shared_phys, PRESENT);
+
+            // TODO pmm_free_shareable(page) needs implementing to check this and handle appropriately...
+            //
+            refcount_map_increment(shared_phys);
+
+            debugstr("    Copied a page...\n");
+        } else {
+            debugstr("    [... skipped, not present]\n");
+        }
+    }
+#endif
+
+    // Zero out other recursive
+    new_pml4_virt->entries[RECURSIVE_ENTRY_OTHER] = 0;
+
     current_pml4->entries[RECURSIVE_ENTRY_OTHER] = saved_other;
     cpu_invalidate_page((uintptr_t)new_pml4_virt);
-
     spinlock_unlock(&address_space_lock);
     restore_saved_interrupts(intr);
 

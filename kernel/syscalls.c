@@ -13,6 +13,8 @@
 #include "fba/alloc.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
+#include "process.h"
+#include "process/address_space.h"
 #include "sched.h"
 #include "sleep.h"
 #include "task.h"
@@ -84,6 +86,36 @@ static SyscallResult handle_sleep(uint64_t nanos) {
     return SYSCALL_OK;
 }
 
+static SyscallResult handle_create_process(uint64_t shared_space_start,
+                                           uint64_t shared_space_len) {
+    uintptr_t new_pml4 =
+            address_space_create(shared_space_start, shared_space_len);
+
+    if (!new_pml4) {
+        debugstr("ADDRE FAIL\n");
+        return SYSCALL_FAILURE;
+    }
+
+    Process *new_process = process_create(new_pml4);
+
+    if (!new_process) {
+        // TODO LEAK address_space_destroy!
+        return SYSCALL_FAILURE;
+    }
+
+    // TODO set up memory pages as shared with current process
+
+    debugstr("Created new process ");
+    printhex8(new_process->pid, debugchar);
+    debugstr(" @ ");
+    printhex64((uintptr_t)new_process, debugchar);
+    debugstr(" with PML4 @ ");
+    printhex64(new_pml4, debugchar);
+    debugstr("\n");
+
+    return SYSCALL_OK;
+}
+
 SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
                                 SyscallArg arg2, SyscallArg arg3,
                                 SyscallArg arg4, SyscallArg syscall_num) {
@@ -100,6 +132,8 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
         return handle_memstats((AnosMemInfo *)arg0);
     case 5:
         return handle_sleep(arg0);
+    case 6:
+        return handle_create_process(arg0, arg1);
     default:
         return SYSCALL_BAD_NUMBER;
     }

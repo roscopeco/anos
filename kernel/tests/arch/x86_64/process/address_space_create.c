@@ -59,7 +59,7 @@ static MunitResult test_create_success(const MunitParameter params[],
     complete_pml4.entries[RECURSIVE_ENTRY_OTHER] = 0x1234 | PRESENT;
 
     // When
-    uintptr_t result = address_space_create();
+    uintptr_t result = address_space_create(0x0, 0x0);
 
     // Then.....
     munit_assert_not_null((void *)result);
@@ -105,7 +105,7 @@ static MunitResult test_allocation_failure(const MunitParameter params[],
         page_alloc(physical_region); // All pages are allocated...
     }
 
-    uintptr_t result = address_space_create();
+    uintptr_t result = address_space_create(0x0, 0x0);
     munit_assert_uint64(result, ==, 0);
 
     return MUNIT_OK;
