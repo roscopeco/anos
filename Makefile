@@ -53,6 +53,7 @@ endif
 #	DEBUG_SMP_STARTUP		Enable debugging of SMP AP startup
 #	VERY_NOISY_SMP_STARTUP	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
 #	DEBUG_ADDR_SPACE		Enable debugging of address-space management
+#   DEBUG_PROCESS_SYSCALLS	Enable debugging of process-related syscalls
 #
 # These ones enable some specific feature tests
 #
@@ -228,6 +229,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
 				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
 				$(STAGE3_DIR)/structs/*.o $(STAGE3_DIR)/sched/*.o				\
+				$(STAGE3_DIR)/process/*.o										\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
@@ -239,6 +241,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/structs/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/sched/*.o								\
 				$(STAGE3_ARCH_X86_64_DIR)/smp/*.o								\
+				$(STAGE3_ARCH_X86_64_DIR)/process/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 

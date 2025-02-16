@@ -278,6 +278,8 @@ static inline PageTable *vmm_virt_to_pml4(uintptr_t virt_addr) {
  * 0 if the page is not mapped in the _current process_ recursive mapping.
  * 
  * TODO if we ever start making low RAM available for mapping, this will have to change...
+ * 
+ * TODO we're gonna need this for the 'other' address space too...
  */
 static inline uintptr_t vmm_virt_to_phys_page(uintptr_t virt_addr) {
     uint64_t pml4e = *vmm_virt_to_pml4e(virt_addr);
