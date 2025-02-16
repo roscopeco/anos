@@ -95,121 +95,6 @@ static inline void clear_table(uint64_t *table) {
 #endif
 }
 
-#if 0
-// This is the old way, it doesn't work for address spaces except the 
-// currently mapped one (in RECURSIVE_MAPPING).
-//
-static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
-                               bool is_user) {
-    // TODO this shouldn't leave the new tables as WRITE,
-    // and also needs to handle the case where they exist but
-    // are not WRITE....
-
-    C_DEBUGSTR("   pml4 @ ");
-    C_PRINTHEX64((uintptr_t)pml4, debugchar);
-    C_DEBUGSTR("\n");
-
-    uint64_t *pml4e = vmm_virt_to_pml4e(virt_addr);
-
-    C_DEBUGSTR("  pml4e @ ");
-    C_PRINTHEX64((uintptr_t)pml4e, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pml4e, debugchar);
-    C_DEBUGSTR("]\n");
-
-    if ((*pml4e & PRESENT) == 0) {
-        // not present, needs mapping from pdpt down
-        V_DEBUGSTR("    !! Page not present (PML4E) ...");
-
-        uint64_t new_pdpt = page_alloc(physical_region) | PRESENT | WRITE |
-                            (is_user ? USER : 0);
-
-        if (!new_pdpt) {
-            C_DEBUGSTR("WARN: Failed to allocate page directory pointer table");
-            return NULL;
-        }
-
-        // Map the page
-        *pml4e = new_pdpt;
-        uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pdpt(virt_addr));
-        cpu_invalidate_page((uint64_t)base);
-
-        clear_table(base);
-
-        V_DEBUGSTR(" mapped\n");
-    }
-
-    uint64_t *pdpte = vmm_virt_to_pdpte(virt_addr);
-
-    C_DEBUGSTR("  pdpte @ ");
-    C_PRINTHEX64((uintptr_t)pdpte, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pdpte, debugchar);
-    C_DEBUGSTR("]\n");
-
-    if ((*pdpte & PRESENT) == 0) {
-        // not present, needs mapping from pd down
-        V_DEBUGSTR("    !! Page not present (PDPTE) ...");
-
-        uint64_t new_pd = page_alloc(physical_region) | PRESENT | WRITE |
-                          (is_user ? USER : 0);
-
-        if (!new_pd) {
-            C_DEBUGSTR("WARN: Failed to allocate page directory");
-            return NULL;
-        }
-
-        // Map the page
-        *pdpte = new_pd;
-        uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pd(virt_addr));
-        cpu_invalidate_page((uint64_t)base);
-
-        clear_table(base);
-
-        V_DEBUGSTR(" mapped\n");
-    }
-
-    uint64_t *pde = vmm_virt_to_pde(virt_addr);
-
-    C_DEBUGSTR("    pde @ ");
-    C_PRINTHEX64((uintptr_t)pde, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pde, debugchar);
-    C_DEBUGSTR("]\n");
-
-    if ((*pde & PRESENT) == 0) {
-        // not present, needs mapping from pt
-        V_DEBUGSTR("    !! Page not present (PDE) ...");
-
-        uint64_t new_pt = page_alloc(physical_region) | PRESENT | WRITE |
-                          (is_user ? USER : 0);
-
-        if (!new_pt) {
-            C_DEBUGSTR("WARN: Failed to allocate page table");
-            return NULL;
-        }
-
-        // Map the page
-        *pde = new_pt;
-        uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pt(virt_addr));
-        cpu_invalidate_page((uint64_t)base);
-
-        clear_table(base);
-
-        V_DEBUGSTR(" mapped\n");
-    }
-
-    uint64_t *pte = vmm_virt_to_pte(virt_addr);
-
-    C_DEBUGSTR("    pte @ ");
-    C_PRINTHEX64((uintptr_t)pde, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pte, debugchar);
-    C_DEBUGSTR("]\n");
-
-    return pte;
-}
-#else
 // TODO this has become a bit of a mess lately - because of additional address
 //      spaces at the other recursive mapping, we're having to go with direct
 //      calls to vmm_recursive_table_address, and also relying on any second
@@ -378,7 +263,6 @@ static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
 
     return pte;
 }
-#endif
 
 inline bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page,
                             uint16_t flags) {
