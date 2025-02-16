@@ -144,16 +144,20 @@ noreturn void start_system(void) {
             fba_alloc_blocks(SYSTEM_KERNEL_STACK_PAGE_COUNT); // 16KiB
 
     // create a process and task for system
-    sched_init((uintptr_t)user_stack + SYSTEM_USER_STACK_BYTES,
-               (uintptr_t)kernel_stack + SYSTEM_KERNEL_STACK_BYTES,
-               (uintptr_t)0x0000000001000000, (uintptr_t)user_thread_entrypoint,
-               TASK_CLASS_NORMAL);
+    if (!sched_init((uintptr_t)user_stack + SYSTEM_USER_STACK_BYTES,
+                    (uintptr_t)kernel_stack + SYSTEM_KERNEL_STACK_BYTES,
+                    (uintptr_t)0x0000000001000000,
+                    (uintptr_t)user_thread_entrypoint, TASK_CLASS_NORMAL)) {
+        panic("Scheduler initialisation failed");
+    }
 
     // TODO check allocations...
 
-    sched_init_idle((uintptr_t)idle_ustack_page + idle_stack_top(0),
-                    (uintptr_t)idle_sstack_page + idle_stack_top(0),
-                    (uintptr_t)kernel_thread_entrypoint);
+    if (!sched_init_idle((uintptr_t)idle_ustack_page + idle_stack_top(0),
+                         (uintptr_t)idle_sstack_page + idle_stack_top(0),
+                         (uintptr_t)kernel_thread_entrypoint)) {
+        panic("Scheduler idle thread initialisation failed");
+    }
 
     // We can just get away with disabling here, no need to save/restore flags
     // because we know we're currently the only thread...

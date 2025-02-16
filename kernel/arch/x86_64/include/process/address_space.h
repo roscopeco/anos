@@ -11,6 +11,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+typedef struct {
+    uintptr_t start;
+    uint64_t len_bytes;
+} AddressSpaceRegion;
+
 // This **must** be called **after** basic kernel init is complete, and
 // fixed areas are set up and the PMM and VMM initialized.
 //
@@ -22,6 +27,21 @@
 // the kernel space mappings from this PML4...
 bool address_space_init(void);
 
-uintptr_t address_space_create(void);
+/*
+ * Create a new address space, based on the current one. This will
+ *
+ * * Allocate a new address space
+ * * Copy all kernel PDPTs into it
+ * * Map the space covered by `shared_space_start` / `shared_space_start` as readonly shared
+ * * Allocate pages to cover `init_stack_len` bytes and map it at `init_stack_vaddr`.
+ * 
+ * Currently, on failure, this will leak some memory - that'll be fixed once
+ * I put a proper address space destroy function in.
+ * 
+ * Returns the physical address of the new PML4.
+ */
+uintptr_t address_space_create(uintptr_t init_stack_vaddr,
+                               uint64_t init_stack_len, uint64_t region_count,
+                               AddressSpaceRegion regions[]);
 
 #endif //__ANOS_KERNEL_PROCESS_ADDRESS_SPACE_H

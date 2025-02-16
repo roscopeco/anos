@@ -3,6 +3,9 @@
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
+ * 
+ * TODO these tests suck, need to cover the set-up of the 
+ * shared regions and stack!
  */
 
 #include "munit.h"
@@ -59,7 +62,7 @@ static MunitResult test_create_success(const MunitParameter params[],
     complete_pml4.entries[RECURSIVE_ENTRY_OTHER] = 0x1234 | PRESENT;
 
     // When
-    uintptr_t result = address_space_create();
+    uintptr_t result = address_space_create(0x0, 0x0, 0, (void *)0);
 
     // Then.....
     munit_assert_not_null((void *)result);
@@ -105,7 +108,7 @@ static MunitResult test_allocation_failure(const MunitParameter params[],
         page_alloc(physical_region); // All pages are allocated...
     }
 
-    uintptr_t result = address_space_create();
+    uintptr_t result = address_space_create(0x0, 0x0, 0, (void *)0);
     munit_assert_uint64(result, ==, 0);
 
     return MUNIT_OK;

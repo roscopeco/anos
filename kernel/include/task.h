@@ -75,6 +75,8 @@ void task_switch(Task *next);
 Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                       uintptr_t bootstrap, uintptr_t func, TaskClass class);
 
+void task_destroy(Task *task);
+
 Task *task_create_user(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                        uintptr_t func, TaskClass class);
 

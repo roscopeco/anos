@@ -36,6 +36,8 @@ uintptr_t get_pagetable_root() { return TEST_PAGETABLE_ROOT; }
 
 static char *mock_tss[256];
 
+void panic_sloc(char *msg) { /* nothing*/ }
+
 static inline void *slab_area_base(void *page_area_ptr) {
     // skip one page used by FBA, and three unused by slab alignment
     return (void *)((uint64_t)page_area_ptr + 0x4000);
@@ -50,7 +52,6 @@ static MunitResult test_sched_init_zeroes(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-#include <stdio.h>
 static MunitResult test_sched_init_with_ssp(const MunitParameter params[],
                                             void *page_area_ptr) {
     // We must have a sys stack since the routine expects to modify it!

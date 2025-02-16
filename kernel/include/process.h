@@ -22,4 +22,10 @@ typedef struct {
 
 static_assert_sizeof(Process, ==, 64);
 
+void process_init(void);
+
+Process *process_create(uintptr_t pml4);
+
+void process_destroy(Process *process);
+
 #endif

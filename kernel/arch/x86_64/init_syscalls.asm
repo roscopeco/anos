@@ -89,9 +89,9 @@ syscall_enter:
     ;      (specifically tasks crash when waking from sleep, so I think we're 
     ;      missing an equivalent stack switch somewhere in that path...)
     ;   
-    mov     r8,[gs:CPU_TASK_CURRENT]        ; Load current task from CPU data
-    mov     [r8+TASK_USP],rsp               ; And stash rsp there
-    mov     rsp,[r8+TASK_RSP0]              ; ... so we can switch to kernel stack
+    mov     rax,[gs:CPU_TASK_CURRENT]       ; Load current task from CPU data
+    mov     [rax+TASK_USP],rsp              ; And stash rsp there
+    mov     rsp,[rax+TASK_RSP0]             ; ... so we can switch to kernel stack
 %endif
 
     push rbp

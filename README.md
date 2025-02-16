@@ -298,7 +298,7 @@ cause the garbled output.
 It also runs in emulators, of course - like VirtualBox here, just for a change
 from qemu...
 
-<img src="images/Screenshot 2025-01-28 at 22.09.42.png" alt="ANOS running in VirtualBox">
+<img src="images/Screenshot 2025-02-16 at 19.42.12.png" alt="ANOS running in VirtualBox">
 
 Broadly, this is happening here:
 
@@ -310,12 +310,15 @@ Broadly, this is happening here:
 * Init LAPICs and calibrate with HPET
 * Set everything up for usermode startup
 * Start a prioritised round-robin scheduler on all CPUs
-* User-mode supervisor ("`SYSTEM`") starts some threads with a `syscall`, and then
+* User-mode supervisor ("`SYSTEM`") starts some threads with a `syscall`
+* Supervisor also creates a new process with another `syscall`
+* And then...
   * Thread #1 - Loop from usermode, printing periodic `1`'s with syscall
   * Thread #2 - Start, sleep for 5secs, then loop printing periodic `2`s with syscall 
   * Thread #3 - Same as thread 2, but printing `3`s instead
   * Thread #4 - Looping as the others, but also sleeping every time it prints
   * One kernel thread pinned to each AP, printing "Hello from [cpu ID]" periodically
+  * Separate process prints alternate `beep` and `boop`, sleeping for 10 secs between each
 
 The following things are not shown in this shot, but are still happening under the hood:
 

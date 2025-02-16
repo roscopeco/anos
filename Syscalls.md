@@ -30,7 +30,7 @@ A (simplified) example of a C-callable syscall shim for call #0
 (currently implemented as `TESTCALL`) might be:
 
 ```
-testcall:
+anos_testcall:
     xor r9, r9              ; Zero syscall number in r9
     mov r10, rcx            ; Fourth arg in SysV is rcx, but r10 in syscalls
     syscall                 ; Make the call
@@ -40,7 +40,7 @@ testcall:
 for the `syscall` interface, or:
 
 ```
-testcall:
+anos_testcall:
     xor r9, r9              ; Zero syscall number in r9
     mov r10, rcx            ; Fourth arg in SysV is rcx, but r10 in syscalls
     int 0x69                ; Make the call
@@ -74,7 +74,7 @@ Using the examples in the `Syscall Argument Passing` section, above, if called
 from C with the prototype:
 
 ```C
-int64_t testcall(int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3, int64_t arg4);
+int64_t anos_testcall(int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3, int64_t arg4);
 ```
 
 It would routed through the dispatch layer and wind up calling into 

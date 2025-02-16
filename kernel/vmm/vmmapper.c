@@ -19,6 +19,8 @@
 #include "vmm/recursive.h"
 #endif
 
+#include "debugprint.h"
+#include "printhex.h"
 #ifdef DEBUG_VMM
 #include "debugprint.h"
 #include "printhex.h"
@@ -82,22 +84,44 @@ inline void vmm_invalidate_page(uintptr_t virt_addr) {
 }
 
 static inline void clear_table(uint64_t *table) {
+#ifndef UNIT_TESTS
+    V_DEBUGSTR("!! CLEAR TABLE @ ");
+    V_PRINTHEX64(table, debugchar);
+    V_DEBUGSTR("\n");
+
     for (int i = 0; i < 512; i++) {
         table[i] = 0;
     }
+#endif
 }
 
-static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
+// TODO this has become a bit of a mess lately - because of additional address
+//      spaces at the other recursive mapping, we're having to go with direct
+//      calls to vmm_recursive_table_address, and also relying on any second
+//      address spaces also having their own temporary mapping in the other
+//      spot (257).
+//
+//      We should move some of the logic back to recursive.h and tidy it up
+//      so this isn't so tightly coupled.
+//
+static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
                                bool is_user) {
     // TODO this shouldn't leave the new tables as WRITE,
     // and also needs to handle the case where they exist but
     // are not WRITE....
 
-    C_DEBUGSTR("   pml4 @ ");
-    C_PRINTHEX64((uintptr_t)pml4, debugchar);
-    C_DEBUGSTR("\n");
+    uint16_t pml4n = vmm_virt_to_pml4_index(virt_addr);
+    uint64_t *pml4e = (uint64_t *)vmm_recursive_table_address(
+            recursive_entry, recursive_entry, recursive_entry, recursive_entry,
+            pml4n << 3);
 
-    uint64_t *pml4e = vmm_virt_to_pml4e(virt_addr);
+    C_DEBUGSTR("MAP @ ");
+    C_PRINTHEX64(recursive_entry, debugchar);
+    C_DEBUGSTR("[");
+    C_PRINTHEX64(pml4n, debugchar);
+    C_DEBUGSTR("] = ");
+    C_PRINTHEX64((uintptr_t)pml4e, debugchar);
+    C_DEBUGSTR("\n");
 
     C_DEBUGSTR("  pml4e @ ");
     C_PRINTHEX64((uintptr_t)pml4e, debugchar);
@@ -107,7 +131,7 @@ static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
 
     if ((*pml4e & PRESENT) == 0) {
         // not present, needs mapping from pdpt down
-        V_DEBUGSTR("    !! Page not present (PML4E) ...");
+        V_DEBUGSTR("    !! PML4E not present (no PDPT) - will allocate ...\n");
 
         uint64_t new_pdpt = page_alloc(physical_region) | PRESENT | WRITE |
                             (is_user ? USER : 0);
@@ -118,16 +142,30 @@ static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
         }
 
         // Map the page
+        C_DEBUGSTR("        map new PDPT ");
+        C_PRINTHEX64((uintptr_t)new_pdpt, debugchar);
+        C_DEBUGSTR(" into PML4E @ ");
+        C_PRINTHEX64((uintptr_t)pml4e, debugchar);
+        C_DEBUGSTR(" old = [");
+        C_PRINTHEX64(*pml4e, debugchar);
+        C_DEBUGSTR("]\n");
         *pml4e = new_pdpt;
-        uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pdpt(virt_addr));
+
+        uint64_t *base = (uint64_t *)vmm_recursive_table_address(
+                recursive_entry, recursive_entry, recursive_entry, pml4n, 0);
         cpu_invalidate_page((uint64_t)base);
 
         clear_table(base);
 
         V_DEBUGSTR(" mapped\n");
+    } else {
+        V_DEBUGSTR("    !! PML4E IS present (-> PDPT)\n");
     }
 
-    uint64_t *pdpte = vmm_virt_to_pdpte(virt_addr);
+    uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
+    uint64_t *pdpte = (uint64_t *)vmm_recursive_table_address(
+            recursive_entry, recursive_entry, recursive_entry, pml4n,
+            pdptn << 3);
 
     C_DEBUGSTR("  pdpte @ ");
     C_PRINTHEX64((uintptr_t)pdpte, debugchar);
@@ -137,7 +175,7 @@ static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
 
     if ((*pdpte & PRESENT) == 0) {
         // not present, needs mapping from pd down
-        V_DEBUGSTR("    !! Page not present (PDPTE) ...");
+        V_DEBUGSTR("    !! PDPTE not present (no PD) - will allocate ...\n");
 
         uint64_t new_pd = page_alloc(physical_region) | PRESENT | WRITE |
                           (is_user ? USER : 0);
@@ -148,16 +186,30 @@ static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
         }
 
         // Map the page
+        C_DEBUGSTR("        map new PD ");
+        C_PRINTHEX64((uintptr_t)new_pd, debugchar);
+        C_DEBUGSTR(" into PDPTE @ ");
+        C_PRINTHEX64((uintptr_t)pdpte, debugchar);
+        C_DEBUGSTR(" old = [");
+        C_PRINTHEX64(*pdpte, debugchar);
+        C_DEBUGSTR("]\n");
+
         *pdpte = new_pd;
-        uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pd(virt_addr));
+
+        uint64_t *base = (uint64_t *)vmm_recursive_table_address(
+                recursive_entry, recursive_entry, pml4n, pdptn, 0);
         cpu_invalidate_page((uint64_t)base);
 
         clear_table(base);
 
         V_DEBUGSTR(" mapped\n");
+    } else {
+        V_DEBUGSTR("    !! PDPTE IS present (-> PD)\n");
     }
 
-    uint64_t *pde = vmm_virt_to_pde(virt_addr);
+    uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
+    uint64_t *pde = (uint64_t *)vmm_recursive_table_address(
+            recursive_entry, recursive_entry, pml4n, pdptn, pdn << 3);
 
     C_DEBUGSTR("    pde @ ");
     C_PRINTHEX64((uintptr_t)pde, debugchar);
@@ -167,7 +219,7 @@ static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
 
     if ((*pde & PRESENT) == 0) {
         // not present, needs mapping from pt
-        V_DEBUGSTR("    !! Page not present (PDE) ...");
+        V_DEBUGSTR("    !! PDE not present (no PT) - will allocate ...\n");
 
         uint64_t new_pt = page_alloc(physical_region) | PRESENT | WRITE |
                           (is_user ? USER : 0);
@@ -178,16 +230,30 @@ static uint64_t *ensure_tables(uintptr_t pml4, uintptr_t virt_addr,
         }
 
         // Map the page
+        C_DEBUGSTR("        map new PT ");
+        C_PRINTHEX64((uintptr_t)new_pt, debugchar);
+        C_DEBUGSTR(" into PDE @ ");
+        C_PRINTHEX64((uintptr_t)pde, debugchar);
+        C_DEBUGSTR(" old = [");
+        C_PRINTHEX64(*pde, debugchar);
+        C_DEBUGSTR("]\n");
+
         *pde = new_pt;
-        uint64_t *base = (uint64_t *)((uint64_t)vmm_virt_to_pt(virt_addr));
+
+        uint64_t *base = (uint64_t *)vmm_recursive_table_address(
+                recursive_entry, pml4n, pdptn, pdn, 0);
         cpu_invalidate_page((uint64_t)base);
 
         clear_table(base);
 
         V_DEBUGSTR(" mapped\n");
+    } else {
+        V_DEBUGSTR("    !! PDE IS present (-> PT)\n");
     }
 
-    uint64_t *pte = vmm_virt_to_pte(virt_addr);
+    uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
+    uint64_t *pte = (uint64_t *)vmm_recursive_table_address(
+            recursive_entry, pml4n, pdptn, pdn, ptn << 3);
 
     C_DEBUGSTR("    pte @ ");
     C_PRINTHEX64((uintptr_t)pde, debugchar);
@@ -209,7 +275,15 @@ inline bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page,
     C_PRINTHEX64(page, debugchar);
     C_DEBUGSTR("\n");
 
-    uint64_t *pte = ensure_tables((uintptr_t)pml4, virt_addr, flags);
+    // This finds the PML4 entry that the PML4 we were given is referring to.
+    // it's kind of a mess, but gives us the recursive entry in use.
+    //
+    uint16_t recursive_entry = vmm_recursive_pml4_virt_to_recursive_entry(pml4);
+    uint64_t *pte = ensure_tables(recursive_entry, virt_addr, flags);
+
+    V_DEBUGSTR("==> Ensured PTE @ ");
+    V_PRINTHEX64((uintptr_t)pte, debugchar);
+    V_DEBUGSTR("\n");
     *pte = page | flags;
     vmm_invalidate_page(virt_addr);
 
@@ -230,7 +304,8 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
     return vmm_map_page_in(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }
 
-// TODO this should be reworked to fit in with the new map_page_in implementation...
+// Don't forget this requires a proper recursive mapping at whichever
+// spot we're using as recursive in the given PML4!
 //
 uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     SPIN_LOCK();
@@ -243,7 +318,11 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     C_PRINTHEX64(PML4ENTRY(virt_addr), debugchar);
     C_DEBUGSTR("]\n");
 
-    uint64_t *pml4e = vmm_virt_to_pml4e(virt_addr);
+    uint16_t recursive_entry = vmm_recursive_pml4_virt_to_recursive_entry(pml4);
+    uint16_t pml4n = vmm_virt_to_pml4_index(virt_addr);
+    uint64_t *pml4e = (uint64_t *)vmm_recursive_table_address(
+            recursive_entry, recursive_entry, recursive_entry, recursive_entry,
+            pml4n << 3);
 
     C_DEBUGSTR("  pdpte @ ");
     C_PRINTHEX64((uintptr_t)pml4e, debugchar);
@@ -257,7 +336,10 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
         SPIN_UNLOCK_RET(0);
     }
 
-    uint64_t *pdpte = vmm_virt_to_pdpte(virt_addr);
+    uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
+    uint64_t *pdpte = (uint64_t *)vmm_recursive_table_address(
+            recursive_entry, recursive_entry, recursive_entry, pml4n,
+            pdptn << 3);
 
     C_DEBUGSTR("  pdpte @ ");
     C_PRINTHEX64((uintptr_t)pdpte, debugchar);
@@ -271,7 +353,9 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
         SPIN_UNLOCK_RET(0);
     }
 
-    uint64_t *pde = vmm_virt_to_pde(virt_addr);
+    uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
+    uint64_t *pde = (uint64_t *)vmm_recursive_table_address(
+            recursive_entry, recursive_entry, pml4n, pdptn, pdn << 3);
 
     C_DEBUGSTR("    pde @ ");
     C_PRINTHEX64((uintptr_t)pde, debugchar);
@@ -285,7 +369,9 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
         SPIN_UNLOCK_RET(0);
     }
 
-    uint64_t *pte = vmm_virt_to_pte(virt_addr);
+    uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
+    uint64_t *pte = (uint64_t *)vmm_recursive_table_address(
+            recursive_entry, pml4n, pdptn, pdn, ptn << 3);
 
     C_DEBUGSTR("     pt @ ");
     C_PRINTHEX64((uintptr_t)pte, debugchar);
@@ -305,9 +391,9 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     C_DEBUGSTR("zeroing entry: ");
     C_PRINTHEX64(PTENTRY(virt_addr), debugchar);
     C_DEBUGSTR(" @ ");
-    C_PRINTHEX64((uintptr_t)&ENTRY_TO_V(pt)[PTENTRY(virt_addr)], debugchar);
+    C_PRINTHEX64((uintptr_t)pte, debugchar);
     C_DEBUGSTR(" (== ");
-    C_PRINTHEX64((uintptr_t)ENTRY_TO_V(pt)[PTENTRY(virt_addr)], debugchar);
+    C_PRINTHEX64((uintptr_t)*pte, debugchar);
     C_DEBUGSTR(")\n");
 #endif
 

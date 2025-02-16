@@ -11,10 +11,15 @@
 #include "ktypes.h"
 #include "pmm/sys.h"
 #include "printhex.h"
+#include "process.h"
 #include "slab/alloc.h"
 #include "smp/state.h"
 #include "structs/pq.h"
 #include "task.h"
+
+#ifdef CONSERVATIVE_BUILD
+#include "panic.h"
+#endif
 
 #ifdef UNIT_TESTS
 #ifdef DEBUG_UNIT_TESTS
@@ -80,6 +85,38 @@ static inline PerCPUSchedState *init_cpu_sched_state(void) {
     return state;
 }
 
+static bool sched_enqueue(Task *task) {
+    PerCPUSchedState *state = get_cpu_sched_state();
+    TaskPriorityQueue *candidate_queue = NULL;
+
+    printf("REQUEUE\n");
+
+    switch (task->sched->class) {
+    case TASK_CLASS_REALTIME:
+        printf("ENQUEUE realtime");
+        candidate_queue = &state->realtime_head;
+        break;
+    case TASK_CLASS_HIGH:
+        printf("ENQUEUE high");
+        candidate_queue = &state->high_head;
+        break;
+    case TASK_CLASS_NORMAL:
+        printf("ENQUEUE normal");
+        candidate_queue = &state->normal_head;
+        break;
+    case TASK_CLASS_IDLE:
+        printf("ENQUEUE idle");
+        candidate_queue = &state->idle_head;
+        break;
+    default:
+        vdebug("WARN: Attempt to enqueue task with bad class; Ignored\n");
+        return false;
+    }
+
+    task_pq_push(candidate_queue, task);
+    return true;
+}
+
 #ifdef UNIT_TESTS
 // TODO there's too much test code leaking into prod code...
 //
@@ -143,29 +180,8 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     // Set up our state...
     PerCPUSchedState *state = init_cpu_sched_state();
 
-    TaskPriorityQueue *queue;
-    switch (task_class) {
-    case TASK_CLASS_REALTIME:
-        queue = &state->realtime_head;
-        break;
-    case TASK_CLASS_HIGH:
-        queue = &state->high_head;
-        break;
-    case TASK_CLASS_NORMAL:
-        queue = &state->normal_head;
-        break;
-    case TASK_CLASS_IDLE:
-        queue = &state->idle_head;
-        break;
-    default:
-        return false;
-    }
-
     // Create a process & task to represent the init thread (which System will inherit)
-    Process *new_process = slab_alloc_block();
-    new_process->pid = 1;
-
-    new_process->pml4 = get_pagetable_root();
+    Process *new_process = process_create(get_pagetable_root());
 
     if (new_process == NULL) {
         return false;
@@ -174,7 +190,11 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     Task *new_task = task_create_new(new_process, sys_sp, sys_ssp,
                                      bootstrap_func, start_func, task_class);
 
-    task_pq_push(queue, new_task);
+    // During init it's just us, no need to lock / unlock
+    if (!sched_enqueue(new_task)) {
+        process_destroy(new_process);
+        return false;
+    }
 
     system_process = new_process;
 
@@ -250,36 +270,12 @@ bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp,
             task_create_new(system_process, sp, sys_ssp, bootstrap_func,
                             (uintptr_t)sched_idle_thread, TASK_CLASS_IDLE);
 
-    task_pq_push(&state->idle_head, idle_task);
-
-    return init_sleepy_kernel_task(state, bootstrap_func);
-}
-
-static void sched_enqueue(Task *task) {
-    PerCPUSchedState *state = get_cpu_sched_state();
-    TaskPriorityQueue *candidate_queue = NULL;
-
-    printf("REQUEUE\n");
-
-    switch (task->sched->class) {
-    case TASK_CLASS_REALTIME:
-        candidate_queue = &state->realtime_head;
-        break;
-    case TASK_CLASS_HIGH:
-        candidate_queue = &state->high_head;
-        break;
-    case TASK_CLASS_NORMAL:
-        candidate_queue = &state->normal_head;
-        break;
-    case TASK_CLASS_IDLE:
-        candidate_queue = &state->idle_head;
-        break;
-    default:
-        vdebug("WARN: Attempt to requeue task with bad class; Ignored\n");
-        return;
+    if (!sched_enqueue(idle_task)) {
+        task_destroy(idle_task);
+        return false;
     }
 
-    task_pq_push(candidate_queue, task);
+    return init_sleepy_kernel_task(state, bootstrap_func);
 }
 
 void sched_schedule(void) {
@@ -360,7 +356,16 @@ void sched_schedule(void) {
 
 void sched_unblock(Task *task) {
     task->sched->state = TASK_STATE_READY;
-    sched_enqueue(task);
+    bool result = sched_enqueue(task);
+
+    if (!result) {
+        debugstr("WARN: Failed to requeue unblocked task @");
+        printhex64((uintptr_t)task, debugchar);
+        debugstr("\n");
+#ifdef CONSERVATIVE_BUILD
+        panic("Failed to requeue unblocked task");
+#endif
+    }
 }
 
 void sched_block(Task *task) { task->sched->state = TASK_STATE_BLOCKED; }

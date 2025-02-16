@@ -5,11 +5,13 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
+#include <stdint.h>
+#include <stdnoreturn.h>
+
 #include "anos.h"
 #include "anos/anos_syscalls.h"
 #include "anos/anos_types.h"
 #include "anos/printf.h"
-#include <stdint.h>
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -41,7 +43,7 @@ static void thread2() {
 
     while (1) {
         if (count++ % 100000000 == 0) {
-            kputchar('2');
+            anos_kputchar('2');
         }
     }
 }
@@ -54,7 +56,7 @@ static void thread3() {
 
     while (1) {
         if (count++ % 100000000 == 0) {
-            kputchar('3');
+            anos_kputchar('3');
         }
     }
 }
@@ -67,10 +69,23 @@ static void thread4() {
 
     while (1) {
         if (count++ % 100000000 == 0) {
-            kputchar('4');
+            anos_kputchar('4');
             anos_task_sleep_current_secs(2);
         }
     }
+}
+
+static noreturn int other_main(void) {
+    anos_kprint("Beep Boop process is up...\n");
+
+    while (1) {
+        anos_task_sleep_current_secs(10);
+        anos_kprint("<beep>");
+        anos_task_sleep_current_secs(10);
+        anos_kprint("<boop>");
+    }
+
+    __builtin_unreachable();
 }
 
 int main(int argc, char **argv) {
@@ -87,16 +102,16 @@ int main(int argc, char **argv) {
 
 #ifdef DEBUG_TEST_SYSCALL
     uint64_t ret;
-    if ((ret = testcall_int(1, 2, 3, 4, 5)) == 42) {
-        kprint("GOOD\n");
+    if ((ret = anos_testcall_int(1, 2, 3, 4, 5)) == 42) {
+        anos_kprint("GOOD\n");
     } else {
-        kprint("BAD\n");
+        anos_kprint("BAD\n");
     }
 
-    if ((ret = testcall_syscall(1, 2, 3, 4, 5)) == 42) {
-        kprint("GOOD\n");
+    if ((ret = anos_testcall_syscall(1, 2, 3, 4, 5)) == 42) {
+        anos_kprint("GOOD\n");
     } else {
-        kprint("BAD\n");
+        anos_kprint("BAD\n");
     }
 #endif
 
@@ -121,6 +136,21 @@ int main(int argc, char **argv) {
         printf("Thread 4 created with tid 0x%02x\n", t4);
     }
 
+    ProcessMemoryRegion regions[2] = {
+            {
+                    .start = 0x1000000,
+                    .len_bytes = 0x2000,
+            },
+            {.start = 0x80000000, .len_bytes = 0x4000}};
+
+    uint64_t new_pid = anos_create_process(0x100000000, 0x1000, 2, regions,
+                                           (uintptr_t)other_main);
+    if (new_pid < 0) {
+        printf("Failed to create new process\n");
+    } else {
+        printf("Created new process with PID 0x%016lx\n", new_pid);
+    }
+
     num = 1;
     int count = 0;
 
@@ -128,7 +158,7 @@ int main(int argc, char **argv) {
         num = subroutine(num);
 
         if (count++ % 100000000 == 0) {
-            kputchar('1');
+            anos_kputchar('1');
         }
     }
 }

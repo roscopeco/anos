@@ -324,6 +324,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
              "now.\n");
 #else
     task_init(get_this_cpu_tss());
+    process_init();
     sleep_init();
 
     if (!address_space_init()) {

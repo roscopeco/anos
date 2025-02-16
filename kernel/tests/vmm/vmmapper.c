@@ -14,6 +14,9 @@
 
 static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[],
                                               void *param) {
+
+    current_recursive_pml4 = &empty_pml4;
+
     vmm_map_page_in(&empty_pml4, 0x0, 0x1000, 0);
 
     munit_assert_uint64(empty_pml4.entries[0], !=, 0);
@@ -50,6 +53,9 @@ static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[],
 
 static MunitResult test_map_page_empty_pml4_2M(const MunitParameter params[],
                                                void *param) {
+
+    current_recursive_pml4 = &empty_pml4;
+
     vmm_map_page_in(&empty_pml4, 0x200000, 0x1000, 0);
 
     munit_assert_uint64(empty_pml4.entries[0], !=, 0);
@@ -91,6 +97,8 @@ static MunitResult test_map_page_empty_pml4_2M(const MunitParameter params[],
 
 static MunitResult test_map_page_empty_pml4_1G(const MunitParameter params[],
                                                void *param) {
+
+    current_recursive_pml4 = &empty_pml4;
     vmm_map_page_in(&empty_pml4, 0x40000000, 0x1000, 0);
 
     munit_assert_uint64(empty_pml4.entries[0], !=, 0);
@@ -350,22 +358,32 @@ static void *setup(const MunitParameter params[], void *user_data) {
     complete_pd.entries[0] = ((uint64_t)&complete_pt) | PRESENT;
     complete_pt.entries[0] = 0;
 
+    complete_pml4.entries[256] = ((uint64_t)&complete_pml4) | PRESENT;
+
+    empty_pml4.entries[256] = ((uint64_t)&empty_pml4) | PRESENT;
+
+    PageTable *current_recursive_pml4 = &complete_pml4;
+
     return NULL;
 }
 
 static void teardown(void *param) { mock_pmm_reset(); }
 
 static MunitTest test_suite_tests[] = {
-        /* TODO fix these tests...
         {(char *)"/map/empty_pml4_0M", test_map_page_empty_pml4_0, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
+
+        /* TODO these tests don't currently work because the mock_recursive 
+          * hardcodes table indices to 0 - that needs fiing...
+
         {(char *)"/map/empty_pml4_2M", test_map_page_empty_pml4_2M, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/map/empty_pml4_1G", test_map_page_empty_pml4_1G, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/map/empty_pml4_512G", test_map_page_empty_pml4_512G, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
-    */
+         */
+
         {(char *)"/map/complete_pml4_0M", test_map_page_complete_pml4_0, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/map/complete_pml4_phys_4G",

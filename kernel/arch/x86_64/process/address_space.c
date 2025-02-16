@@ -17,7 +17,9 @@
 #endif
 
 #include "pmm/pagealloc.h"
+#include "process/address_space.h"
 #include "spinlock.h"
+#include "structs/ref_count_map.h"
 #include "vmm/vmmapper.h"
 
 #ifdef DEBUG_ADDR_SPACE
@@ -83,10 +85,51 @@ bool address_space_init(void) {
     return true;
 }
 
-uintptr_t address_space_create(void) {
+uintptr_t address_space_create(uintptr_t init_stack_vaddr,
+                               uint64_t init_stack_len, uint64_t region_count,
+                               AddressSpaceRegion regions[]) {
+    // align stack vaddr
+    init_stack_vaddr &= ~(0xfff);
+    uintptr_t init_stack_end = init_stack_vaddr + init_stack_len;
+
+#ifdef CONSERVATIVE_BUILD
+    // Only doing these checks in conservative build, syscall.c checks args
+    // coming from userspace anyhow...
+    //
+
+    // Don't let them explicitly map kernel space (even though we are anyhow)
+    if (init_stack_vaddr >= VM_KERNEL_SPACE_START ||
+        init_stack_end >= VM_KERNEL_SPACE_START) {
+        return 0;
+    }
+
+    // align shared regions
+    for (int i = 0; i < region_count; i++) {
+        AddressSpaceRegion *ptr = &regions[i];
+
+        if (((uintptr_t)ptr->start) > VM_KERNEL_SPACE_START) {
+            return 0;
+        }
+
+        if (((uintptr_t)ptr->start) + sizeof(AddressSpaceRegion) >
+            VM_KERNEL_SPACE_START) {
+            return 0;
+        }
+
+        if (ptr->start & 0xfff) {
+            return 0;
+        }
+
+        if (ptr->len_bytes & 0xfff) {
+            return 0;
+        }
+    }
+#endif
+
     uintptr_t new_pml4_phys = page_alloc(physical_region);
 
     if (new_pml4_phys & 0xff) {
+        debugstr("Unable to allocate new PML4");
         return 0;
     }
 
@@ -113,6 +156,7 @@ uintptr_t address_space_create(void) {
             RECURSIVE_ENTRY_OTHER); // Not actually a PDPT, but our new PML4...
     cpu_invalidate_page((uintptr_t)new_pml4_virt);
 
+    debugstr("new_pml4_virt is ");
     printhex64((uintptr_t)new_pml4_virt, debugchar);
     debugstr("\n");
 
@@ -120,31 +164,93 @@ uintptr_t address_space_create(void) {
     for (int i = 0; i < RECURSIVE_ENTRY; i++) {
 #ifdef DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL
         new_pml4_virt->entries[i] = current_pml4->entries[i];
+    }
 #else
         new_pml4_virt->entries[i] = 0;
-#endif
     }
 
-    // Set up recursive entry
+    // Set up recursive entries - we need both while we're mapping between spaces...
+    // NOTE THIS WELL - Because you seem to forget it quite often - the mapping
+    // functions always need the other table's 'other' recursive slot to be mapped
+    // when working with an address space as the 'other' address space.
+    //
     new_pml4_virt->entries[RECURSIVE_ENTRY] = new_pml4_phys | WRITE | PRESENT;
-
-    // Zero out other recursive
-    new_pml4_virt->entries[RECURSIVE_ENTRY_OTHER] = 0;
+    new_pml4_virt->entries[RECURSIVE_ENTRY_OTHER] =
+            new_pml4_phys | WRITE | PRESENT;
 
     // copy kernel space
     for (int i = KERNEL_BEGIN_ENTRY; i < 512; i++) {
         new_pml4_virt->entries[i] = current_pml4->entries[i];
     }
 
-    printhex64((uintptr_t)new_pml4_virt->entries[RECURSIVE_ENTRY], debugchar);
-    debugstr("\n");
+    // map shared regions
+    debugstr("There are ");
+    printhex8(region_count, debugchar);
+    debugstr(" shared region(s)\n");
+    for (int i = 0; i < region_count; i++) {
+        uintptr_t region_end = regions[i].start + regions[i].len_bytes;
 
-    // halt_and_catch_fire();
+        for (uintptr_t ptr = regions[i].start; ptr < region_end;
+             ptr += VM_PAGE_SIZE) {
+            debugstr("Copying ");
+            printhex64(ptr, debugchar);
+            debugstr("\n");
 
-    // Restore the other entry we saved and invalidate TLB again
+            uintptr_t shared_phys = vmm_virt_to_phys_page(ptr);
+
+            if (shared_phys) {
+                // TODO what if this fails (to alloc table pages)?
+                //
+                vmm_map_page_in(new_pml4_virt, ptr, shared_phys,
+                                PRESENT | USER);
+
+                // TODO pmm_free_shareable(page) needs implementing to check this and handle appropriately...
+                //
+                refcount_map_increment(shared_phys);
+
+                debugstr("    Copied a page...\n");
+            } else {
+                debugstr("    [... skipped, not present]\n");
+            }
+        }
+    }
+#endif
+
+    // sort out the requested initial stack
+    for (uintptr_t ptr = init_stack_vaddr; ptr < init_stack_end;
+         ptr += VM_PAGE_SIZE) {
+        uintptr_t stack_page = page_alloc(physical_region);
+
+        if (stack_page & 0xff) {
+            debugstr("Failed to allocate stack page for ");
+            printhex64(ptr, debugchar);
+            debugstr("\n");
+
+            // TODO there's a bit to sort out here...
+            //
+            //   * Free the pages we've allocated so far
+            //   * Free the page tables for the address space
+            //   * Free the address space itself
+            //
+            // This will need a proper free_address_space routine, which I don't
+            // have yet, so we'll just fail and leak the memory for now...
+
+            current_pml4->entries[RECURSIVE_ENTRY_OTHER] = saved_other;
+            cpu_invalidate_page((uintptr_t)new_pml4_virt);
+            spinlock_unlock(&address_space_lock);
+            restore_saved_interrupts(intr);
+
+            return 0;
+        }
+
+        vmm_map_page_in(new_pml4_virt, ptr, stack_page, WRITE | PRESENT | USER);
+    }
+
+    // Zero out other recursive
+    new_pml4_virt->entries[RECURSIVE_ENTRY_OTHER] = 0;
+
     current_pml4->entries[RECURSIVE_ENTRY_OTHER] = saved_other;
     cpu_invalidate_page((uintptr_t)new_pml4_virt);
-
     spinlock_unlock(&address_space_lock);
     restore_saved_interrupts(intr);
 

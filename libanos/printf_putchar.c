@@ -15,7 +15,7 @@ static int ptr;
 static void flush() {
     // flush
     buffer[ptr] = 0;
-    kprint(buffer);
+    anos_kprint(buffer);
     ptr = 0;
 }
 
