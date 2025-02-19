@@ -39,14 +39,7 @@ extern void *_binary_kernel_arch_x86_64_realmode_bin_start,
 #define AP_TRAMPOLINE_CPU_STK_SIZE ((0x800))
 #define AP_TRAMPOLINE_STK_TOTAL_SIZE ((0x8000))
 
-#define POST_INIT_DELAY 10000000    // 10ms
-#define FIRST_SIPI_TIMEOUT 10000000 // 10ms
-
-#ifdef SMP_TWO_SIPI_ATTEMPTS
-#define SECOND_SIPI_TIMEOUT 1000000000 // 1000ms
-#endif
-
-// All these are derived from the two above :)
+// All these are derived from the addresses above :)
 //
 #define AP_TRAMPOLINE_BASE_VADDR                                               \
     (((void *)(0xffffffff80000000 | AP_TRAMPOLINE_RUN_PADDR)))
@@ -79,6 +72,13 @@ extern void *_binary_kernel_arch_x86_64_realmode_bin_start,
 
 #define AP_TRAMPOLINE_BSS_IDT_VADDR ((AP_TRAMPOLINE_BSS_VADDR + 0x28))
 #define AP_TRAMPOLINE_BSS_IDT (((IDTR *)(AP_TRAMPOLINE_BSS_IDT_VADDR)))
+
+#define POST_INIT_DELAY 10000000    // 10ms
+#define FIRST_SIPI_TIMEOUT 10000000 // 10ms
+
+#ifdef SMP_TWO_SIPI_ATTEMPTS
+#define SECOND_SIPI_TIMEOUT 1000000000 // 1000ms
+#endif
 
 noreturn void ap_kernel_entrypoint(uint64_t ap_num);
 

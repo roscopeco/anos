@@ -211,6 +211,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/sched/idle.o											\
 			$(STAGE3_DIR)/structs/ref_count_map.o								\
 			$(STAGE3_DIR)/process/process.o										\
+			$(STAGE3_DIR)/smp/state.o											\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 
@@ -229,7 +230,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
 				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
 				$(STAGE3_DIR)/structs/*.o $(STAGE3_DIR)/sched/*.o				\
-				$(STAGE3_DIR)/process/*.o										\
+				$(STAGE3_DIR)/smp/*.o $(STAGE3_DIR)/process/*.o					\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
@@ -247,8 +248,11 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 
 ifeq ($(CONSERVATIVE_BUILD),true)
 CDEFS+=-DCONSERVATIVE_BUILD
+
+ifeq ($(CONSERVATIVE_UBSAN),true)
 CFLAGS+=-fsanitize=undefined
 STAGE3_OBJS+=$(STAGE3_DIR)/ubsan.o
+endif
 
 ifeq ($(CONSERVATIVE_PANICKY),true)
 CDEFS+=-DCONSERVATIVE_PANICKY
