@@ -27,14 +27,14 @@
 uint64_t get_lapic_timer_upticks(void);
 
 void sleep_init(void) {
-    PerCPUState *cpu_state = state_get_per_cpu();
+    PerCPUState *cpu_state = state_get_for_this_cpu();
     sleep_queue_init(&cpu_state->sleep_queue);
 }
 
 /* Caller MUST lock the scheduler! */
 void sleep_task(Task *task, uint64_t nanos) {
     if (task != NULL) {
-        PerCPUState *cpu_state = state_get_per_cpu();
+        PerCPUState *cpu_state = state_get_for_this_cpu();
 
         uint64_t wake_tick =
                 get_lapic_timer_upticks() + (nanos / NANOS_PER_TICK);
@@ -64,13 +64,20 @@ void check_sleepers() {
     }
 #endif
 
-    PerCPUState *cpu_state = state_get_per_cpu();
+    PerCPUState *cpu_state = state_get_for_this_cpu();
     Task *waker = sleep_queue_dequeue(&cpu_state->sleep_queue,
                                       get_lapic_timer_upticks());
 
     while (waker) {
         Task *next = (Task *)waker->this.next;
+#ifdef SLEEP_SCHED_ONLY_THIS_CPU
         sched_unblock(waker);
+#else
+        PerCPUState *target_cpu = sched_find_target_cpu();
+        sched_lock_any_cpu(target_cpu);
+        sched_unblock_on(waker, target_cpu);
+        sched_unlock_any_cpu(target_cpu);
+#endif
         waker = next;
     }
 }

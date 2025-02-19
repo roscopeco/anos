@@ -28,10 +28,10 @@ uint64_t get_lapic_timer_upticks(void) { return lapic_timer_upticks; }
 void handle_ap_timer_interrupt(void) {
     local_apic_eoe();
 
-    sched_lock();
+    sched_lock_this_cpu();
     check_sleepers();
     sched_schedule();
-    sched_unlock();
+    sched_unlock_this_cpu();
 }
 
 void handle_bsp_timer_interrupt(void) {
@@ -57,8 +57,8 @@ void handle_bsp_timer_interrupt(void) {
 
     local_apic_eoe();
 
-    sched_lock();
+    sched_lock_this_cpu();
     check_sleepers();
     sched_schedule();
-    sched_unlock();
+    sched_unlock_this_cpu();
 }

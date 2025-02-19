@@ -84,7 +84,6 @@ inline void vmm_invalidate_page(uintptr_t virt_addr) {
 }
 
 static inline void clear_table(uint64_t *table) {
-#ifndef UNIT_TESTS
     V_DEBUGSTR("!! CLEAR TABLE @ ");
     V_PRINTHEX64(table, debugchar);
     V_DEBUGSTR("\n");
@@ -92,7 +91,6 @@ static inline void clear_table(uint64_t *table) {
     for (int i = 0; i < 512; i++) {
         table[i] = 0;
     }
-#endif
 }
 
 // TODO this has become a bit of a mess lately - because of additional address

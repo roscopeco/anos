@@ -19,26 +19,51 @@
 #include "spinlock.h"
 #include "task.h"
 
-void sched_lock(void) {
-    disable_interrupts();
+#ifdef DEBUG_SCHED_LOCKS
+#include "debugprint.h"
+#define debuglog debugstr
+#else
+#define debuglog(...)
+#endif
 
-    PerCPUState *cpu_state = state_get_per_cpu();
+void sched_lock_any_cpu(PerCPUState *cpu_state) {
+    if (cpu_state == state_get_for_this_cpu()) {
+        debuglog("==> LOCK THIS\n");
+        // If target is this CPU, we need to disable interrupts and lock
+        disable_interrupts();
 
-    if (cpu_state->irq_disable_count == 0) {
-        spinlock_lock(&cpu_state->sched_lock);
+        if (cpu_state->irq_disable_count == 0) {
+            spinlock_lock(&cpu_state->sched_lock_this_cpu);
+        }
+
+        cpu_state->irq_disable_count++;
+    } else {
+        debuglog("==> LOCK OTHER\n");
+        // But for any other CPU, we can just lock...
+        spinlock_lock(&cpu_state->sched_lock_this_cpu);
     }
-
-    cpu_state->irq_disable_count++;
 }
 
-void sched_unlock() {
-    PerCPUState *cpu_state = state_get_per_cpu();
+void sched_lock_this_cpu(void) { sched_lock_any_cpu(state_get_for_this_cpu()); }
 
-    if (cpu_state->irq_disable_count <= 1) {
-        cpu_state->irq_disable_count = 0;
-        spinlock_unlock(&cpu_state->sched_lock);
-        enable_interrupts();
+void sched_unlock_any_cpu(PerCPUState *cpu_state) {
+    if (cpu_state == state_get_for_this_cpu()) {
+        debuglog("==> UNLOCK THIS\n");
+        // If target is this CPU, we need to unlock and reenable interrupts
+        if (cpu_state->irq_disable_count <= 1) {
+            cpu_state->irq_disable_count = 0;
+            spinlock_unlock(&cpu_state->sched_lock_this_cpu);
+            enable_interrupts();
+        } else {
+            cpu_state->irq_disable_count--;
+        }
     } else {
-        cpu_state->irq_disable_count--;
+        // But for any other CPU, we can just unlock
+        debuglog("==> UNLOCK OTHER\n");
+        spinlock_unlock(&cpu_state->sched_lock_this_cpu);
     }
+}
+
+void sched_unlock_this_cpu(void) {
+    sched_unlock_any_cpu(state_get_for_this_cpu());
 }

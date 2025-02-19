@@ -134,6 +134,8 @@ static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
     cpu_write_msr(MSR_GSBase, 0);
     cpu_swapgs();
 
+    state_register_cpu(cpu_num, cpu_state);
+
     // Init local APIC on this CPU
     ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
 
@@ -177,7 +179,7 @@ static inline void init_kernel_gdt() {
 }
 
 static inline void *get_this_cpu_tss() {
-    PerCPUState *cpu_state = state_get_per_cpu();
+    PerCPUState *cpu_state = state_get_for_this_cpu();
     return gdt_per_cpu_tss(cpu_state->cpu_id);
 }
 

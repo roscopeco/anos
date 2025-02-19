@@ -498,6 +498,8 @@ static MunitResult test_sched_schedule_with_running_norm_current_and_two_queued(
     Task original_task;
     mock_task_set_curent(&original_task);
 
+    __asm__ volatile("" : : : "memory");
+
     bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
                              TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
@@ -529,6 +531,7 @@ static MunitResult test_sched_schedule_with_running_norm_current_and_two_queued(
     // And the original task is now queued at the end, after the norm task that was already there
     munit_assert_ptr_equal(test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL),
                            norm_queued_task);
+
     munit_assert_ptr_equal(
             test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL)->this.next,
             &original_task);

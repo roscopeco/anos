@@ -18,6 +18,7 @@
 #include "process/address_space.h"
 #include "sched.h"
 #include "sleep.h"
+#include "smp/state.h"
 #include "syscalls.h"
 #include "task.h"
 #include "vmm/vmconfig.h"
@@ -63,9 +64,16 @@ static SyscallResult handle_create_thread(ThreadFunc func,
     Task *task = task_create_user(task_current()->owner, user_stack, 0,
                                   (uintptr_t)func, TASK_CLASS_NORMAL);
 
-    sched_lock();
+#ifdef SYSCALL_SCHED_ONLY_THIS_CPU
+    sched_lock_this_cpu();
     sched_unblock(task);
-    sched_unlock();
+    sched_unlock_this_cpu();
+#else
+    PerCPUState *target_cpu = sched_find_target_cpu();
+    sched_lock_any_cpu(target_cpu);
+    sched_unblock_on(task, target_cpu);
+    sched_unlock_any_cpu(target_cpu);
+#endif
 
     return task->sched->tid;
 }
@@ -80,9 +88,9 @@ static SyscallResult handle_memstats(AnosMemInfo *mem_info) {
 }
 
 static SyscallResult handle_sleep(uint64_t nanos) {
-    sched_lock();
+    sched_lock_this_cpu();
     sleep_task(task_current(), nanos);
-    sched_unlock();
+    sched_unlock_this_cpu();
 
     return SYSCALL_OK;
 }
@@ -176,9 +184,16 @@ static SyscallResult handle_create_process(uintptr_t stack_base,
     debugstr("\n");
 #endif
 
-    sched_lock();
-    sched_unblock(new_task);
-    sched_unlock();
+#ifdef SYSCALL_SCHED_ONLY_THIS_CPU
+    sched_lock_this_cpu();
+    sched_unblock(task);
+    sched_unlock_this_cpu();
+#else
+    PerCPUState *target_cpu = sched_find_target_cpu();
+    sched_lock_any_cpu(target_cpu);
+    sched_unblock_on(new_task, target_cpu);
+    sched_unlock_any_cpu(target_cpu);
+#endif
 
     return new_process->pid;
 }

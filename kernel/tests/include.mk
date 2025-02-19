@@ -27,7 +27,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/build													\
 				gcov
 
-UBSAN_CFLAGS=-fsanitize=undefined -fno-sanitize-recover=all
+UBSAN_CFLAGS=-fsanitize=undefined,address -fno-sanitize-recover=all
 TEST_CFLAGS=-g 																		\
 	-Ikernel/include 																\
 	-Ikernel/arch/$(ARCH)/include 													\

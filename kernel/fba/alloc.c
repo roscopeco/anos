@@ -97,6 +97,14 @@ bool fba_init(uint64_t *pml4, uintptr_t fba_begin, uint64_t fba_size_blocks) {
     _fba_bitmap_size_quads = bitmap_page_count << 9;
     _fba_bitmap_size_bits = _fba_bitmap_size_quads << 6;
 
+    // Zero out the bitmap
+    for (int i = 0; i < bitmap_page_count; i++) {
+        uint64_t *ptr = (uint64_t *)(_fba_begin + (i * 0x1000));
+        for (int i = 0; i < VM_PAGE_SIZE / sizeof(uint64_t); i++) {
+            *ptr++ = 0;
+        }
+    }
+
     // Mark blocks used by the bitmap as in-use
     for (int i = 0; i < bitmap_page_count; i++) {
         bitmap_set((uint64_t *)fba_begin, i);

@@ -48,7 +48,7 @@ static_assert_sizeof(PerCPUTaskState, <=, STATE_TASK_DATA_MAX);
 static _Atomic volatile uint64_t next_tid;
 
 static inline PerCPUTaskState *get_cpu_task_state(void) {
-    PerCPUState *cpu_state = state_get_per_cpu();
+    PerCPUState *cpu_state = state_get_for_this_cpu();
     return (PerCPUTaskState *)cpu_state->task_data;
 }
 
