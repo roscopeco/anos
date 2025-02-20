@@ -34,7 +34,8 @@ typedef struct PerCPUState {
     char cpu_brand[49];
     uint8_t reserved1[15]; // takes us to 128 bytes
 
-    SpinLock sched_lock; // 192 (keep this aligned on 64-byte for cache line!)
+    SpinLock
+            sched_lock_this_cpu; // 192 (keep this aligned on 64-byte for cache line!)
     uint8_t irq_disable_count; // 196
 
     uint8_t reserved2[63]; // takes us to 256 bytes
@@ -54,15 +55,26 @@ static_assert_sizeof(PerCPUState, ==, VM_PAGE_SIZE);
 PerCPUState __test_cpu_state;
 #else
 extern PerCPUState __test_cpu_state;
-static inline PerCPUState *state_get_per_cpu(void) { return &__test_cpu_state; }
+static inline PerCPUState *state_get_for_this_cpu(void) {
+    return &__test_cpu_state;
+}
+static inline uint8_t state_get_cpu_count(void) { return 1; }
+static inline PerCPUState *state_get_for_any_cpu(uint8_t cpu_num) {
+    return &__test_cpu_state;
+}
 #endif
 #else
 // Assumes GS is already swapped to KernelGSBase...
-static inline PerCPUState *state_get_per_cpu(void) {
+static inline PerCPUState *state_get_for_this_cpu(void) {
     PerCPUState *ptr;
     __asm__ volatile("mov %%gs:0, %0" : "=r"(ptr));
     return ptr;
 }
 #endif
+
+void state_register_cpu(uint8_t cpu_num, PerCPUState *state);
+
+uint8_t state_get_cpu_count(void);
+PerCPUState *state_get_for_any_cpu(uint8_t cpu_num);
 
 #endif //__ANOS_SMP_STATE_H

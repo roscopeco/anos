@@ -516,7 +516,7 @@ static MunitResult test_sched_schedule_with_running_norm_current_and_two_queued(
     test_sched_prr_set_runnable_head(TASK_CLASS_HIGH, &high_queued_task);
 
     // ... and a NORMAL task is already running with time left in its slice
-    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 255,
                        TASK_STATE_RUNNING, 100);
     munit_assert_ptr_equal(task_current(), &original_task);
 
@@ -529,6 +529,7 @@ static MunitResult test_sched_schedule_with_running_norm_current_and_two_queued(
     // And the original task is now queued at the end, after the norm task that was already there
     munit_assert_ptr_equal(test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL),
                            norm_queued_task);
+
     munit_assert_ptr_equal(
             test_sched_prr_get_runnable_head(TASK_CLASS_NORMAL)->this.next,
             &original_task);

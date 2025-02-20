@@ -60,7 +60,7 @@
 noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
                                      uintptr_t thread_userstack) {
     // Scheduler will **always** be locked when we get here!
-    sched_unlock();
+    sched_unlock_this_cpu();
 
     tdebug("Starting new user thread with func @ ");
     tdbgx8(thread_entrypoint);

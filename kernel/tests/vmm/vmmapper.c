@@ -350,7 +350,6 @@ test_unmap_page_complete_pml4_2M(const MunitParameter params[], void *param) {
 }
 
 static void *setup(const MunitParameter params[], void *user_data) {
-    posix_memalign((void **)&empty_pml4, 0x1000, 0x1000);
     memset(&empty_pml4, 0, 0x1000);
 
     complete_pml4.entries[0] = ((uint64_t)&complete_pdpt) | PRESENT;
@@ -374,7 +373,7 @@ static MunitTest test_suite_tests[] = {
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         /* TODO these tests don't currently work because the mock_recursive 
-          * hardcodes table indices to 0 - that needs fiing...
+          * hardcodes table indices to 0 - that needs fixing...
 
         {(char *)"/map/empty_pml4_2M", test_map_page_empty_pml4_2M, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},

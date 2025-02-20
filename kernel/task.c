@@ -48,7 +48,7 @@ static_assert_sizeof(PerCPUTaskState, <=, STATE_TASK_DATA_MAX);
 static _Atomic volatile uint64_t next_tid;
 
 static inline PerCPUTaskState *get_cpu_task_state(void) {
-    PerCPUState *cpu_state = state_get_per_cpu();
+    PerCPUState *cpu_state = state_get_for_this_cpu();
     return (PerCPUTaskState *)cpu_state->task_data;
 }
 
@@ -117,7 +117,7 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                 0x1000; // default 4KiB kernel stack should be enough...?
 
         vdebug("Created kernel stack for 0 thread @ ");
-        vdbgx64(task->rsp0, debugchar);
+        vdbgx64(task->rsp0);
         vdebug("\n");
     }
 

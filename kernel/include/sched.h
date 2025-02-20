@@ -8,9 +8,11 @@
 #ifndef __ANOS_KERNEL_SCHED_H
 #define __ANOS_KERNEL_SCHED_H
 
-#include "task.h"
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "smp/state.h"
+#include "task.h"
 
 // This **must** only be called on the BSP
 bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
@@ -21,16 +23,23 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
 bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp, uintptr_t bootstrap_func);
 
 // This **must** be called with the scheduler locked and interrupts disabled!
-// sched_lock / sched_unlock will take care of that.
+// sched_lock_this_cpu / sched_unlock_this_cpu will take care of that.
 void sched_schedule(void);
 
-// This **must** be called with the scheduler locked and interrupts disabled!
 void sched_block(Task *task);
 
-// This **must** be called with the scheduler locked and interrupts disabled!
+// This **must** be called with this CPU's scheduler locked and interrupts disabled!
 void sched_unblock(Task *task);
 
-void sched_lock(void);
-void sched_unlock(void);
+// This **must** be called with the target CPU's scheduler locked and interrupts disabled!
+void sched_unblock_on(Task *task, PerCPUState *state);
+
+PerCPUState *sched_find_target_cpu(void);
+
+void sched_lock_this_cpu(void);
+void sched_lock_any_cpu(PerCPUState *cpu);
+
+void sched_unlock_this_cpu(void);
+void sched_unlock_any_cpu(PerCPUState *cpu);
 
 #endif //__ANOS_KERNEL_SCHED_H

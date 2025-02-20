@@ -134,6 +134,8 @@ static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
     cpu_write_msr(MSR_GSBase, 0);
     cpu_swapgs();
 
+    state_register_cpu(cpu_num, cpu_state);
+
     // Init local APIC on this CPU
     ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
 
@@ -177,7 +179,7 @@ static inline void init_kernel_gdt() {
 }
 
 static inline void *get_this_cpu_tss() {
-    PerCPUState *cpu_state = state_get_per_cpu();
+    PerCPUState *cpu_state = state_get_for_this_cpu();
     return gdt_per_cpu_tss(cpu_state->cpu_id);
 }
 
@@ -203,6 +205,23 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
 
     while (ap_startup_wait) {
         // just busy right now, but should hlt and wait for an IPI or something...?
+
+        // NOTE: The soft barrier **is** necessary - without it, under certain
+        //       conditions, the optimizer will assume the value doesn't change
+        //       (even with the volatile) and end up sending _some_ of the APs into
+        //       an infinite loop here.
+        //
+        //       I'm not 100% certain _why_ this happens (and especially why it
+        //       _only_ happens when building a kernel with UBSAN), but it does,
+        //       so this is here to fix it.
+        //
+        //       We could also just go with making `ap_startup_wait` an `_Atomic` I
+        //       imagine, but as far as I understand right now, we don't need a
+        //       hard barrier, the soft barrier is good enough.
+        //
+        //       The pause hint is really just here because this is a spin loop...
+        //
+        __asm__ volatile("pause" : : : "memory");
     }
 
     start_system_ap(ap_num);
