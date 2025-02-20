@@ -205,6 +205,23 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
 
     while (ap_startup_wait) {
         // just busy right now, but should hlt and wait for an IPI or something...?
+
+        // NOTE: The soft barrier **is** necessary - without it, under certain
+        //       conditions, the optimizer will assume the value doesn't change
+        //       (even with the volatile) and end up sending _some_ of the APs into
+        //       an infinite loop here.
+        //
+        //       I'm not 100% certain _why_ this happens (and especially why it
+        //       _only_ happens when building a kernel with UBSAN), but it does,
+        //       so this is here to fix it.
+        //
+        //       We could also just go with making `ap_startup_wait` an `_Atomic` I
+        //       imagine, but as far as I understand right now, we don't need a
+        //       hard barrier, the soft barrier is good enough.
+        //
+        //       The pause hint is really just here because this is a spin loop...
+        //
+        __asm__ volatile("pause" : : : "memory");
     }
 
     start_system_ap(ap_num);

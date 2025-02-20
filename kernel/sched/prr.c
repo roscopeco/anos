@@ -359,7 +359,7 @@ void sched_schedule(void) {
     tdebug("Switch to ");
     tdbgx64((uintptr_t)next);
     tdebug(" [TID = ");
-    tdbgx64((uint64_t)next->extra->tid);
+    tdbgx64((uint64_t)next->sched->tid);
     tdebug("]\n");
 
     if (current && current->sched->state == TASK_STATE_RUNNING) {
@@ -405,9 +405,9 @@ PerCPUState *sched_find_target_cpu() {
             // short-circuit for a candidate with only the idle thread
 
             vdebug("WILL UNBLOCK ON CPU #");
-            vdbgx8(candidate->cpu_id, debugchar);
+            vdbgx8(candidate->cpu_id);
             vdebug(" which has ");
-            vdbgx8(candidate_sched->all_queue_total, debugchar);
+            vdbgx8(candidate_sched->all_queue_total);
             vdebug(" queued tasks\n");
 
             return candidate;
@@ -432,9 +432,9 @@ PerCPUState *sched_find_target_cpu() {
 
     PerCPUSchedState *target_sched = (PerCPUSchedState *)target->sched_data;
     tdebug("WILL UNBLOCK ON CPU #");
-    tdbgx8(target->cpu_id, debugchar);
+    tdbgx8(target->cpu_id);
     tdebug(" which has ");
-    tdbgx8(target_sched->all_queue_total, debugchar);
+    tdbgx8(target_sched->all_queue_total);
     tdebug(" queued tasks\n");
 
     return target;

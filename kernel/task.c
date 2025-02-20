@@ -117,7 +117,7 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                 0x1000; // default 4KiB kernel stack should be enough...?
 
         vdebug("Created kernel stack for 0 thread @ ");
-        vdbgx64(task->rsp0, debugchar);
+        vdbgx64(task->rsp0);
         vdebug("\n");
     }
 
