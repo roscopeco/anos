@@ -54,20 +54,22 @@ endif
 #	VERY_NOISY_SMP_STARTUP	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
 #	DEBUG_ADDR_SPACE		Enable debugging of address-space management
 #   DEBUG_PROCESS_SYSCALLS	Enable debugging of process-related syscalls
+#	DEBUG_TASK_SWITCH		Enable debugging info when switching tasks
+#	VERY_NOISY_TASK_SWITCH	Enable *lots* of debugging info when switching tasks (requires DEBUG_TASK_SWITCH)
 #
 # These ones enable some specific feature tests
 #
 #	DEBUG_FORCE_HANDLED_PAGE_FAULT		Force a handled page-fault at boot
 #	DEBUG_FORCE_UNHANDLED_PAGE_FAULT	Force an unhandled page-fault at boot
-#	DEBUG_TASK_SWITCH					Dump debug info when switching tasks
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #	DEBUG_SLEEPY_KERNEL_TASK			Start a noisy kernel task that sleeps on all CPUs
+#	SYSCALL_SCHED_ONLY_THIS_CPU			Syscalls will only schedule things on the current CPU
 #
 #	DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL	address_space_create will copy **all** PDPT entries,
 #										not just kernel ones. This is unlikely to ever be a
 #										good idea outside some very specific startup tests!
 #
-# These set option you might feel like configuring
+# These set options you might feel like configuring
 #
 #	SERIAL_TERMINAL			Disable VGA terminal and use COM1 instead (see also SERIALTERM=true make option)
 #
