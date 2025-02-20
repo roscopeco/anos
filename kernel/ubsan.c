@@ -114,6 +114,11 @@ void __ubsan_handle_add_overflow(void) {
                       "debug not yet implemented)");
 }
 
+void __ubsan_handle_sub_overflow(void) {
+    conditional_panic("[BUG] Undefined behaviour encountered (sub_overflow: "
+                      "debug not yet implemented)");
+}
+
 void __ubsan_handle_mul_overflow(void) {
     conditional_panic("[BUG] Undefined behaviour encountered (mul_overflow: "
                       "debug not yet implemented)");
@@ -123,6 +128,11 @@ void __ubsan_handle_divrem_overflow(void) {
     conditional_panic(
             "[BUG] Undefined behaviour encountered (divrem_overflow: debug not "
             "yet implemented)");
+}
+
+void __ubsan_handle_negate_overflow(void) {
+    conditional_panic("[BUG] Undefined behaviour encountered (negate_overflow: "
+                      "debug not yet implemented)");
 }
 
 void __ubsan_handle_out_of_bounds(void) {
