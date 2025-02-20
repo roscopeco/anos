@@ -498,8 +498,6 @@ static MunitResult test_sched_schedule_with_running_norm_current_and_two_queued(
     Task original_task;
     mock_task_set_curent(&original_task);
 
-    __asm__ volatile("" : : : "memory");
-
     bool result = sched_init(TEST_SYS_SP, sys_stack, TEST_SYS_FUNC,
                              TEST_BOOT_FUNC, TEST_TASK_CLASS);
     munit_assert_true(result);
@@ -518,7 +516,7 @@ static MunitResult test_sched_schedule_with_running_norm_current_and_two_queued(
     test_sched_prr_set_runnable_head(TASK_CLASS_HIGH, &high_queued_task);
 
     // ... and a NORMAL task is already running with time left in its slice
-    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 0,
+    init_task_for_test(&original_task, &original_sched, TASK_CLASS_NORMAL, 255,
                        TASK_STATE_RUNNING, 100);
     munit_assert_ptr_equal(task_current(), &original_task);
 
