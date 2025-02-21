@@ -87,10 +87,10 @@ endif
 CDEFS=-DDEBUG_CPU -DDEBUG_SLEEPY_KERNEL_TASK
 
 ifeq ($(SERIALTERM),true)
-QEMU_OPTS=$(QEMU_BASEOPTS) -display none -serial stdio
+QEMU_BASEOPTS+=-display none -serial stdio
 CDEFS+=-DSERIAL_TERMINAL
 else
-QEMU_OPTS=$(QEMU_BASEOPTS) -monitor stdio
+QEMU_BASEOPTS+=-monitor stdio
 endif
 
 SHORT_HASH?=`git rev-parse --short HEAD`
@@ -237,6 +237,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
 		   		$(FLOPPY_IMG)													\
+				$(UEFI_IMG)														\
 	       		$(STAGE3_ARCH_X86_64_DIR)/*.dis $(STAGE3_ARCH_X86_64_DIR)/*.elf	\
 				$(STAGE3_ARCH_X86_64_DIR)/*.o $(STAGE3_ARCH_X86_64_DIR)/pmm/*.o	\
 				$(STAGE3_ARCH_X86_64_DIR)/vmm/*.o								\
@@ -353,24 +354,45 @@ $(STAGE3_DIR)/$(STAGE3_BIN): $(STAGE3_DIR)/$(STAGE3).elf $(STAGE3_DIR)/$(STAGE3)
 	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
 
-# ############## Image ###############
+UEFI_IMG=anos_uefi.img
+UEFI_APPLICATION=uefi/limine/BOOTX64.EFI
+UEFI_CONF?=uefi/limine.conf
+UEFI_BOOT_WALLPAPER?=uefi/anoschip2-glass.jpg
+
+# ############ UEFI Image ############
+$(UEFI_IMG): $(STAGE3_DIR)/$(STAGE3).elf $(UEFI_CONF) $(UEFI_BOOT_WALLPAPER) $(UEFI_APPLICATION)
+	dd of=$@ if=/dev/zero bs=4M count=1
+	mformat -T 8192 -v ANOSDISK002 -i $@ ::
+	mmd -i $@ EFI
+	mmd -i $@ EFI/BOOT
+	mcopy -i $@ $(UEFI_CONF) ::/EFI/BOOT/limine.conf
+	mcopy -i $@ $(UEFI_BOOT_WALLPAPER) ::/EFI/BOOT/anos.jpg
+	mcopy -i $@ $(UEFI_APPLICATION) ::/EFI/BOOT
+	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3).elf ::
+
+# ####### Legacy Floppy Image ########
 $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	dd of=$@ if=/dev/zero bs=1440k count=1
 	mformat -f 1440 -B $(STAGE1_DIR)/$(STAGE1_BIN) -v ANOSDISK001 -k -i $@ ::
 	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
 
-QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
-QEMU_DEBUG_OPTS=$(QEMU_BASEOPTS) -gdb tcp::9666 -S
+QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
+QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
+QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly,file=uefi/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/ovmf/OVMF_VARS-pure-efi.fd
+QEMU_DEBUG_OPTS=-gdb tcp::9666 -S
 
 qemu: $(FLOPPY_IMG)
-	$(QEMU) $(QEMU_OPTS)
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS)
+
+qemu-uefi: $(UEFI_IMG)
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_UEFI_OPTS)
 
 debug-qemu-start: $(FLOPPY_IMG)
-	$(QEMU) $(QEMU_DEBUG_OPTS)
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS) $(QEMU_DEBUG_OPTS)
 
 debug-qemu-start-terminal: $(FLOPPY_IMG)
-	$(QEMU) $(QEMU_DEBUG_OPTS) &
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS) $(QEMU_DEBUG_OPTS) &
 
 debug-qemu: debug-qemu-start-terminal
 	gdb -ex 'target remote localhost:9666'
