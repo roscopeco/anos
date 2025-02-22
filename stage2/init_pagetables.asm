@@ -89,14 +89,11 @@ init_page_tables:
   pop   ecx
   pop   eax
 
-  ; Now, set up the tables for the 
-  mov   [PM4_START+0xFF0], eax            ; And PMM stack stack (second-to-last PM4 entry)
-
   ret
 
 
 ; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Data section
+; Equates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Start of the page tables / top of stack
 PM4_START   equ 0x9c000
