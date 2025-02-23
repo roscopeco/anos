@@ -19,6 +19,7 @@
 #include "init_pagetables.h"
 #include "kdrivers/cpu.h"
 #include "pmm/config.h"
+#include "std/string.h"
 #include "vmm/vmmapper.h"
 
 #define MAX_MEMMAP_ENTRIES 64
@@ -228,18 +229,16 @@ noreturn void bsp_kernel_entrypoint_limine() {
     // BSS first...
     uint64_t *new_base = (uint64_t *)(limine_hhdm_request.response->offset +
                                       KERNEL_BSS_PHYS);
-    for (uint64_t *src = &_kernel_vma_start, *dest = new_base; src < &_bss_end;
-         src++, dest++) {
-        *dest = *src;
-    }
+
+    memcpy(new_base, &_kernel_vma_start,
+           ((uintptr_t)&_bss_end) - ((uintptr_t)&_kernel_vma_start));
+
     //
     // ... then code and data...
     new_base = (uint64_t *)(limine_hhdm_request.response->offset +
                             KERNEL_CODE_PHYS);
-    for (uint64_t *src = &_code, *dest = new_base; src < &_kernel_vma_end;
-         src++, dest++) {
-        *dest = *src;
-    }
+    memcpy(new_base, &_code,
+           ((uintptr_t)&_kernel_vma_end) - ((uintptr_t)&_code));
 
     // Set up the static pagetables the kernel expects to exist...
     uint64_t volatile *new_pml4 =
