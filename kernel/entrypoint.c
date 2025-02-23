@@ -15,14 +15,10 @@
 #include "cpuid.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
-#include "gdt.h"
-#include "init_pagetables.h"
-#include "interrupts.h"
 #include "kdrivers/cpu.h"
 #include "kdrivers/drivers.h"
 #include "kdrivers/local_apic.h"
 #include "ktypes.h"
-#include "machine.h"
 #include "panic.h"
 #include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
@@ -40,32 +36,6 @@
 #include "task.h"
 #include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
-
-#ifndef VERSTR
-#warning Version String not defined (-DVERSTR); Using default
-#define VERSTR #unknown
-#endif
-
-// This is the static virtual address region (128GB from this base)
-// that is reserved for PMM structures and stack.
-#ifndef STATIC_PMM_VREGION
-#define STATIC_PMM_VREGION ((void *)0xFFFFFF8000000000)
-#endif
-
-// The base address of the physical region this allocator should manage.
-#ifndef PMM_PHYS_BASE
-#define PMM_PHYS_BASE 0x200000
-#endif
-
-#ifndef VRAM_VIRT_BASE
-#define VRAM_VIRT_BASE ((char *const)0xffffffff800b8000)
-#endif
-
-#define XSTRVER(verstr) #verstr
-#define STRVER(xstrver) XSTRVER(xstrver)
-#define VERSION STRVER(VERSTR)
-
-static char *MSG = VERSION "\n";
 
 static ACPI_RSDT *acpi_root_table;
 
@@ -92,20 +62,6 @@ void debug_madt(ACPI_RSDT *rsdt);
 #else
 #define debug_madt(...)
 #endif
-
-static inline void banner() {
-    debugattr(0x0B);
-    debugstr("STAGE");
-    debugattr(0x03);
-    debugchar('3');
-    debugattr(0x08);
-    debugstr(" #");
-    debugattr(0x0F);
-    debugstr(MSG);
-    debugattr(0x07);
-}
-
-static inline void install_interrupts() { idt_install(0x08); }
 
 static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
                                                uint8_t cpu_num) {
@@ -147,38 +103,7 @@ static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
     return init_local_apic(madt, cpu_num == 0);
 }
 
-// Replace the bootstrap 32-bit pages with 64-bit user pages.
-//
-// TODO we should remap the memory as read-only after this since they
-// won't be changing again, accessed bit is already set ready for this...
-//
-static inline void init_kernel_gdt() {
-    GDTR gdtr;
-    GDTEntry *user_code;
-    GDTEntry *user_data;
-
-    cpu_store_gdtr(&gdtr);
-
-    // Reverse ordered because SYSRET is fucking weird...
-    user_data = get_gdt_entry(&gdtr, 3);
-    user_code = get_gdt_entry(&gdtr, 4);
-
-    init_gdt_entry(
-            user_code, 0, 0,
-            GDT_ENTRY_ACCESS_PRESENT | GDT_ENTRY_ACCESS_DPL(3) |
-                    GDT_ENTRY_ACCESS_NON_SYSTEM | GDT_ENTRY_ACCESS_EXECUTABLE |
-                    GDT_ENTRY_ACCESS_READ_WRITE | GDT_ENTRY_ACCESS_ACCESSED,
-            GDT_ENTRY_FLAGS_64BIT);
-
-    init_gdt_entry(user_data, 0, 0,
-                   GDT_ENTRY_ACCESS_PRESENT | GDT_ENTRY_ACCESS_DPL(3) |
-                           GDT_ENTRY_ACCESS_NON_SYSTEM |
-                           GDT_ENTRY_ACCESS_READ_WRITE |
-                           GDT_ENTRY_ACCESS_ACCESSED,
-                   GDT_ENTRY_FLAGS_64BIT);
-}
-
-static inline void *get_this_cpu_tss() {
+static inline void *get_this_cpu_tss(void) {
     PerCPUState *cpu_state = state_get_for_this_cpu();
     return gdt_per_cpu_tss(cpu_state->cpu_id);
 }
@@ -229,17 +154,8 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
     panic("Somehow ended up back in AP entrypoint. This is a bad thing...");
 }
 
-noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
-    debugterm_init(VRAM_VIRT_BASE);
-    banner();
-
-    init_kernel_gdt();
-    install_interrupts();
-    pagetables_init();
-
-    physical_region =
-            page_alloc_init(memmap, PMM_PHYS_BASE, STATIC_PMM_VREGION);
-
+// Common entrypoint once bootloader-specific stuff is handled
+noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
     if (!fba_init((uint64_t *)vmm_recursive_find_pml4(), KERNEL_FBA_BEGIN,
                   KERNEL_FBA_SIZE_BLOCKS)) {
         panic("FBA init failed");
@@ -261,7 +177,7 @@ noreturn void bsp_kernel_entrypoint(ACPI_RSDP *rsdp, E820h_MemMap *memmap) {
     debugstr(" (physical): OEM is ");
 #endif
 
-    rsdp = (ACPI_RSDP *)(((uint64_t)rsdp) | 0xFFFFFFFF80000000);
+    ACPI_RSDP *rsdp = (ACPI_RSDP *)(rsdp_phys + 0xFFFFFFFF80000000);
 
 #ifdef DEBUG_ACPI
     debugstr_len(rsdp->oem_id, 6);

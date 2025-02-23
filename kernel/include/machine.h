@@ -43,6 +43,35 @@ typedef struct {
     E820h_MemMapEntry entries[];
 } __attribute__((packed)) E820h_MemMap;
 
+typedef enum {
+    LIMINE_MEMMAP_USABLE = 0,
+    LIMINE_MEMMAP_RESERVED = 1,
+    LIMINE_MEMMAP_ACPI_RECLAIMABLE = 2,
+    LIMINE_MEMMAP_ACPI_NVS = 3,
+    LIMINE_MEMMAP_BAD_MEMORY = 4,
+    LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE = 5,
+    LIMINE_MEMMAP_EXECUTABLE_AND_MODULES = 6,
+    LIMINE_MEMMAP_FRAMEBUFFER = 7,
+} Limine_MemMapEntry_Type;
+
+/*
+ * Limine Bootloader memory map entry.
+ */
+typedef struct {
+    uint64_t base;
+    uint64_t length;
+    uint64_t type;
+} __attribute__((packed)) Limine_MemMapEntry;
+
+/*
+ * Limine Bootloader memory map.
+ */
+typedef struct {
+    uint64_t revision;
+    uint64_t entry_count;
+    Limine_MemMapEntry **entries;
+} __attribute__((packed)) Limine_MemMap;
+
 noreturn void halt_and_catch_fire(void);
 
 void outl(uint16_t port, uint32_t value);

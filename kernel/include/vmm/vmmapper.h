@@ -36,17 +36,22 @@
 /*
  * Page present attribute
  */
-#define PRESENT (1 << 0)
+#define PRESENT ((1 << 0))
 
 /*
  * Page writeable attribute
  */
-#define WRITE (1 << 1)
+#define WRITE ((1 << 1))
 
 /*
  * Page user attribute
  */
-#define USER (1 << 2)
+#define USER ((1 << 2))
+
+/*
+ * Page size attribute (for large pages)
+ */
+#define PAGESIZE ((1 << 7))
 
 // Again, for now, all physical memory used must be mapped
 // here, the mapper expects to be able to access pages

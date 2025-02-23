@@ -7,7 +7,7 @@
  */
 
 OUTPUT_FORMAT("elf64-x86-64")
-ENTRY(_start)
+ENTRY(_start_limine)
 
 MEMORY {
     CODE    : org = 0xFFFFFFFF80120000,  l = 0x000e0000     /* 896KiB for Stage 3 code */
@@ -16,6 +16,16 @@ MEMORY {
 
 SECTIONS
 {
+  .bss (NOLOAD) :
+  {
+   _kernel_vma_start = .;
+   _bss_start = .;
+    *(.bss*)
+    *(COMMON)
+    . = ALIGN(16);
+    _bss_end = .;
+  } > DATA AT > CODE
+
   .text :
   {
     _code = .;
@@ -41,14 +51,5 @@ SECTIONS
     _system_bin_end = .;
   } > CODE
 
-  .bss (NOLOAD) :
-  {
-    _bss_start = .;
-    *(.bss*)
-    *(COMMON)
-    . = ALIGN(16);
-    _bss_end = .;
-  } > DATA AT > CODE
-
-  _end = .;
+  _kernel_vma_end = .;
 }

@@ -89,13 +89,13 @@ CDEFS=-DDEBUG_CPU -DDEBUG_SLEEPY_KERNEL_TASK
 QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
 QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
 QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/ovmf/OVMF_VARS-pure-efi.fd
-QEMU_DEBUG_OPTS=-gdb tcp::9666 -S
+QEMU_DEBUG_OPTS=-gdb tcp::9666 -S -monitor telnet:127.0.0.1:1234,server,nowait
 
 ifeq ($(SERIALTERM),true)
-QEMU_BASEOPTS+=-display none -serial stdio
+# QEMU_BASEOPTS+=-display none -serial stdio
 CDEFS+=-DSERIAL_TERMINAL
 else
-QEMU_BASEOPTS+=-monitor stdio
+# QEMU_BASEOPTS+=-monitor stdio
 endif
 
 SHORT_HASH?=`git rev-parse --short HEAD`
@@ -153,8 +153,11 @@ STAGE2_OBJS=$(STAGE2_DIR)/$(STAGE2).o 											\
 			$(STAGE2_DIR)/init_pagetables.o
 					
 STAGE3_ARCH_X86_64_DIR=$(STAGE3_DIR)/arch/x86_64
-STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/init_bios.o						\
-					$(STAGE3_ARCH_X86_64_DIR)/init_limine.o						\
+STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
+					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_init.o			\
+					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_entrypoint.o	\
+					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_entrypoint.o	\
+					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/common.o				\
 					$(STAGE3_ARCH_X86_64_DIR)/machine.o							\
 					$(STAGE3_ARCH_X86_64_DIR)/machine_asm.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/pic.o								\
@@ -193,7 +196,6 @@ endif
 
 STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/debuginfo.o											\
-			$(STAGE3_DIR)/debugprint.o											\
 			$(STAGE3_DIR)/printhex.o											\
 			$(STAGE3_DIR)/printdec.o											\
 			$(STAGE3_DIR)/isr_handlers.o										\
@@ -221,6 +223,12 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/smp/state.o											\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
+
+ifeq ($(LEGACY_TERMINAL),true)
+STAGE3_OBJS+=$(STAGE3_DIR)/debugprint.o
+else
+STAGE3_OBJS+=$(STAGE3_DIR)/gdebugterm.o
+endif
 
 ARCH_X86_64_REALMODE_OBJS=$(STAGE3_DIR)/arch/x86_64/smp/ap_trampoline.o
 
@@ -251,6 +259,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/sched/*.o								\
 				$(STAGE3_ARCH_X86_64_DIR)/smp/*.o								\
 				$(STAGE3_ARCH_X86_64_DIR)/process/*.o							\
+				$(STAGE3_ARCH_X86_64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
