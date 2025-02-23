@@ -141,57 +141,73 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
     for (int i = 0; i < memmap->entry_count; i++) {
         Limine_MemMapEntry *entry = memmap->entries[i];
 
-        if (entry->type == LIMINE_MEMMAP_USABLE && entry->length > 0) {
-            C_DEBUGSTR(" ====> Mapping available region ");
-            C_PRINTHEX64(entry->base, debugchar);
-            C_DEBUGSTR(" of length ");
-            C_PRINTDEC(entry->length, debugchar);
-            C_DEBUGSTR(" [type ");
-            C_PRINTDEC(entry->type, debugchar);
-            C_DEBUGSTR("]\n");
+        if (entry->length > 0) {
+            switch (entry->type) {
+            case LIMINE_MEMMAP_USABLE:
+            case LIMINE_MEMMAP_EXECUTABLE_AND_MODULES:
+            case LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE: // TODO make sure this is actually safe,
+                    // i.e. ACPI tables are in ACPI_RESERVED?
 
-            // Ensure start is page aligned
-            uint64_t start = entry->base & 0xFFFFFFFFFFFFF000;
+                C_DEBUGSTR(" ====> Mapping available region ");
+                C_PRINTHEX64(entry->base, debugchar);
+                C_DEBUGSTR(" of length ");
+                C_PRINTDEC(entry->length, debugchar);
+                C_DEBUGSTR(" [type ");
+                C_PRINTDEC(entry->type, debugchar);
+                C_DEBUGSTR("]\n");
 
-            // Grab end, and align that too
-            uint64_t end = (entry->base + entry->length) & 0xFFFFFFFFFFFFF000;
+                // Ensure start is page aligned - Limine _does_ guarantee alignment
+                // for USABLE and BOOTLOADER_RECLAIMABLE, but we want to reclaim
+                // the EXECUTABLE_AND_MODULES memory as well for which there's no
+                // such guarantee...
+                uint64_t start = entry->base & 0xFFFFFFFFFFFFF000;
 
-            // Is the aligned base below the actual base for this block?
-            if (entry->base > start) {
-                // Round up to next page boundary if so...
-                start += 0x1000;
-            }
+                // Grab end, and align that too
+                uint64_t end =
+                        (entry->base + entry->length) & 0xFFFFFFFFFFFFF000;
 
-            // Cut off any memory below the supplied managed base.
-            if (start < managed_base) {
-                if (end <= managed_base) {
-                    // This block is entirely below the managed base, just skip
-                    // it
-                    C_DEBUGSTR(" ==== ----> Ignoring, entirely below base\n");
-                    continue;
-                } else {
-                    // This block extends beyond the managed base, so adjust the
-                    // start
-                    C_DEBUGSTR(" ==== ----> Adjusting, partially below base\n");
-                    start = managed_base;
+                // Is the aligned base below the actual base for this block?
+                if (entry->base > start) {
+                    // Round up to next page boundary if so...
+                    start += 0x1000;
                 }
+
+                // Cut off any memory below the supplied managed base.
+                if (start < managed_base) {
+                    if (end <= managed_base) {
+                        // This block is entirely below the managed base, just skip
+                        // it
+                        C_DEBUGSTR(
+                                " ==== ----> Ignoring, entirely below base\n");
+                        continue;
+                    } else {
+                        // This block extends beyond the managed base, so adjust the
+                        // start
+                        C_DEBUGSTR(" ==== ----> Adjusting, partially below "
+                                   "base\n");
+                        start = managed_base;
+                    }
+                }
+
+                // Calculate number of bytes remaining...
+                uint64_t total_bytes = end - start;
+
+                // Just in case we get a block < 4KiB
+                if (total_bytes == 0) {
+                    continue;
+                }
+
+                region->size += total_bytes;
+                region->free += total_bytes;
+
+                // Stack this block
+                region->sp++;
+                region->sp->base = start;
+                region->sp->size =
+                        total_bytes >> 12; // size is pages, not bytes...
+
+                break;
             }
-
-            // Calculate number of bytes remaining...
-            uint64_t total_bytes = end - start;
-
-            // Just in case we get a block < 4KiB
-            if (total_bytes == 0) {
-                continue;
-            }
-
-            region->size += total_bytes;
-            region->free += total_bytes;
-
-            // Stack this block
-            region->sp++;
-            region->sp->base = start;
-            region->sp->size = total_bytes >> 12; // size is pages, not bytes...
         } else {
             C_DEBUGSTR(" ====> Skipping unavailable region ");
             C_PRINTHEX64(entry->base, debugchar);

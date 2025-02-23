@@ -221,8 +221,9 @@ noreturn void bsp_kernel_entrypoint_limine() {
     static_rsdp.rsdt_address = limine_rsdp_request.rsdp->address->rsdt_address;
     static_rsdp.xsdt_address = limine_rsdp_request.rsdp->address->xsdt_address;
 
-    // copy kernel (yep, we're doing that - we want a known environment and phys layout)
-    // TODO we never actually release the memory Limine loaded it into originally!
+    // copy kernel (yep, we're doing that - we want a known environment and phys
+    // layout, though do see comment at the top of this file about assumptions
+    // about low phys memory...)
     //
     // BSS first...
     uint64_t *new_base = (uint64_t *)(limine_hhdm_request.response->offset +
@@ -268,12 +269,19 @@ noreturn void bsp_kernel_entrypoint_limine() {
     // TODO write-combining!
     new_pd[0x10] = fb_phys | PRESENT | WRITE | PAGESIZE;
     new_pd[0x11] = (fb_phys + 0x200000) | PRESENT | WRITE | PAGESIZE;
+    new_pd[0x12] = (fb_phys + 0x400000) | PRESENT | WRITE | PAGESIZE;
+    new_pd[0x13] = (fb_phys + 0x600000) | PRESENT | WRITE | PAGESIZE;
 
     bootstrap_trampoline(fb_width, fb_height, KERNEL_INIT_STACK_TOP, PM4_START,
                          bootstrap_continue);
 }
 
 static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
+    // We're now on our own pagetables, and have essentially the same setup as
+    // we do on entry from STAGE2 when BIOS booting.
+    //
+    // IOW we have a baseline environment.
+    //
     debugterm_init((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
 
     banner();
