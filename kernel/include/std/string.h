@@ -11,7 +11,8 @@
 #include <stddef.h>
 
 void *memcpy(void *restrict dest, const void *restrict src, size_t count);
-
-void memclr(void *restrict dest, size_t count);
+void *memmove(void *dest, const void *src, size_t count);
+void *memset(void *dest, int val, size_t count);
+void *memclr(void *dest, size_t count);
 
 #endif //__ANOS_KERNEL_STD_STRING_H
