@@ -12,9 +12,15 @@
 
 > **Note** this is still evolving!
 
-Right now, there's a two-stage bootloader (I know there are existing,
-better options, but one of my goals is to figure legacy bootloaders out)
-that will load from FAT floppy (and only floppy - no hard-disk support yet).
+Right now, there's two boot options - a hand-rolled two-stage BIOS bootloader
+(I know there are existing,better options, but one of my goals was to figure
+legacy bootloaders out), and modern UEFI boot (using the Limine boot protocol).
+
+The legacy BIOS loaded will load from FAT floppy (and only floppy - no hard-disk
+support yet). UEFI is from FAT also, as usual, with the appropriate layout of
+files on the partition.
+
+#### Legacy Bootloader
 
 The bootloader does enough basic set up to load a (flat binary, ELF might
 be supported eventually) kernel at 0x120000 (physical), set up long mode
@@ -51,7 +57,7 @@ far are, briefly:
     * **LAPIC**
     * **Legacy serial (debug/test builds only)**
   * **Physical / virtual memory management**
-  * **Thread** / Process management & address space primitives
+  * **Thread / Process management & address space primitives**
   * **Scheduling (and directly-related concurrency primitives)**
   * IPC (just a single primitive mechanism)
   * Small, targeted syscall interface (_started, still WIP_)
@@ -160,20 +166,32 @@ the `gcov/kernel` directory as HTML.
 #### In an emulator
 
 You can use either qemu or Bochs. Obviously you'll need them
-installed. 
+installed.
 
-> **Note** If you're on Mac and want to use Bochs, it's best to 
+> [!NOTE]
+> If you're on Mac and want to use Bochs, it's best to 
 > build your own from source. The one in brew is kinda broken, 
 > in that the display doesn't always work right and the debugger
 > has bad keyboard support (no history etc).
 
+The recommended way now is to use UEFI. Everything you need (except
+qemu-system-x86_64 itself) should be in the repo. Assuming qemu is
+installed, you should just need to do:
+
 To run in qemu:
 
 ```shell
-make qemu
+make qemu-uefi
 ```
 
-Or Bochs:
+Or, if you want to run the BIOS version:
+
+```shell
+LEGACY_TERMINAL=true make qemu
+```
+
+Or Bochs (you may need to manually build the terminal with the 
+legacy `LEGACY_TERMINAL=true` option for this to work):
 
 ```shell
 make bochs
@@ -183,6 +201,14 @@ This latter one is really just running `bochs` directly, but will
 also handle building the code and floppy image automatically for 
 you. Of course, you can just run `bochs` directly yourself if 
 you like - I'm not one to judge.
+
+#### VirtualBox
+
+You _can_ use Virtualbox (and it's faster than e.g. qemu). There's
+a machine setup in the repo that might work for it.
+
+So far, I've not been able to get the UEFI boot working - only 
+BIOS for Virtualbox right now.
 
 #### On real hardware
 
@@ -217,7 +243,14 @@ loading the symbols and connecting to qemu. This can be easily
 kicked off with:
 
 ```shell
-make debug-qemu
+make debug-qemu-uefi
+```
+
+Or, if you want to debug the legacy BIOS loader (or kernel built for
+it) you can do:
+
+```shell
+LEGACY_TERMINAL=true make debug-qemu
 ```
 
 This will build what needs to be built, start qemu with debugging,
@@ -232,8 +265,8 @@ Because symbols and sources are loaded, you can set breakpoints
 easily based on labels or line numbers, e.g:
 
 ```gdb
-b stage2.asm:_start
-b stage1.asm:35
+b entrypoint.c:bsp_kernel_entrypoint
+b startup.c:35
 ```
 
 If you prefer to use debugging in an IDE or have some other alternative
@@ -245,6 +278,18 @@ make debug-qemu-start
 
 which will skip starting GDB for you, allowing you to launch 
 your frontend and connect (`localhost:9666` by default).
+
+If you're debugging the legacy loader, it's worth noting that 
+we no longer load the symbol files by default - you'll need to
+do e.g:
+
+```
+add-symbol-file stage1/stage1.elf
+add-symbol-file stage2/stage2.elf
+```
+
+if you want them. They are still in the `.gdbinit`, just commented
+out, so if you find yourself doing this a lot, just uncomment those.
 
 #### Debugging in VSCode
 
