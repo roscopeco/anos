@@ -18,6 +18,7 @@
 #include "kdrivers/cpu.h"
 #include "kdrivers/drivers.h"
 #include "kdrivers/local_apic.h"
+#include "kprintf.h"
 #include "ktypes.h"
 #include "panic.h"
 #include "pci/enumerate.h"
@@ -90,7 +91,7 @@ static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
     ACPI_MADT *madt = acpi_tables_find_madt(rsdt);
 
     if (madt == NULL) {
-        debugstr("No MADT; Halting\n");
+        kprintf("No MADT; Halting\n");
         halt_and_catch_fire();
     }
 
@@ -105,13 +106,7 @@ static inline void *get_this_cpu_tss(void) {
 noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
 #ifdef DEBUG_SMP_STARTUP
 #ifdef VERY_NOISY_SMP_STARTUP
-    spinlock_lock(&debug_output_lock);
-
-    debugstr("AP #");
-    printdec(ap_num, debugchar);
-    debugstr(" has entered the chat...\n");
-
-    spinlock_unlock(&debug_output_lock);
+    kprintf("AP #%d  has entered the chat...\n", ap_num);
 #endif
 #endif
 

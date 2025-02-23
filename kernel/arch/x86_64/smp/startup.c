@@ -22,10 +22,7 @@
 #include "vmm/vmmapper.h"
 
 #ifdef DEBUG_SMP_STARTUP
-#include "printhex.h"
-#include "spinlock.h"
-
-static SpinLock debug_output_lock;
+#include "kprintf.h"
 #endif
 
 extern void *_binary_kernel_arch_x86_64_realmode_bin_start,
@@ -134,19 +131,11 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
 #endif
 
 #ifdef DEBUG_SMP_STARTUP
-    spinlock_lock(&debug_output_lock);
-
     if (!*AP_TRAMPOLINE_BSS_FLAG) {
-        debugstr("WARN: CPU #");
-        printdec(ap_id, debugchar);
-        debugstr(" failed to respond - will disable it\n");
+        kprintf("WARN: CPU #%d failed to respond - will disable it\n", ap_id);
     } else {
-        debugstr("AP #");
-        printdec(ap_id, debugchar);
-        debugstr(" is up...\n");
+        kprintf("AP #%d is up...\n", ap_id);
     }
-
-    spinlock_unlock(&debug_output_lock);
 #endif
 }
 
@@ -201,9 +190,7 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
                 uint32_t flags = *flags32;
 
 #ifdef DEBUG_SMP_STARTUP
-                debugstr("ACPI : CPU ID ");
-                printhex64(cpu_id, debugchar);
-                debugstr("\n");
+                kprintf("ACPI : CPU ID 0x%02x\n", cpu_id);
 #endif
 
                 if (lapic_id != bsp_local_apic_id &&
@@ -211,45 +198,30 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
                     // can enable!
 #ifdef DEBUG_SMP_STARTUP
 #ifdef VERY_NOISY_SMP_STARTUP
-                    spinlock_lock(&debug_output_lock);
-                    debugstr("Will enable CPU ID  ");
-                    printhex8(cpu_id, debugchar);
-                    debugstr(" [LAPIC ");
-                    printhex8(lapic_id, debugchar);
-                    debugstr("; Flags: ");
-                    printhex32(flags, debugchar);
-                    debugstr("]\n");
-                    spinlock_unlock(&debug_output_lock);
+                    kprintf("Will enable CPU ID 0x%02x [LAPIC 0x%02x; Flags: "
+                            "0x%08x]\n",
+                            cpu_id, lapic_id, flags);
 #endif
 #endif
                     if (cpu_id < MAX_CPU_COUNT) {
                         smp_bsp_start_ap(lapic_id, lapic);
                     } else {
 #ifdef DEBUG_SMP_STARTUP
-                        debugstr("CPU ");
-                        printhex8(cpu_id, debugchar);
-                        debugstr(" skipped; MAX_CPU_COUNT exhausted...\n");
+                        kprintf("CPU 0x%02x skipped; MAX_CPU_COUNT "
+                                "exhausted...\n",
+                                cpu_id);
 #endif
                     }
                 } else {
 #ifdef DEBUG_SMP_STARTUP
 #ifdef VERY_NOISY_SMP_STARTUP
                     if (lapic_id == bsp_local_apic_id) {
-                        spinlock_lock(&debug_output_lock);
-                        debugstr("Skipping CPU ID  ");
-                        printhex8(cpu_id, debugchar);
-                        debugstr(" - it is the BSP\n");
-                        spinlock_unlock(&debug_output_lock);
+                        kprintf("Skipping CPU ID 0x%02x - it is the BSP\n",
+                                cpu_id);
                     } else {
-                        spinlock_lock(&debug_output_lock);
-                        debugstr("Cannot enable CPU ID  ");
-                        printhex8(cpu_id, debugchar);
-                        debugstr(" [LAPIC ");
-                        printhex8(lapic_id, debugchar);
-                        debugstr("; Flags: ");
-                        printhex32(flags, debugchar);
-                        debugstr("]\n");
-                        spinlock_unlock(&debug_output_lock);
+                        kprintf("Cannot enable CPU ID 0x%02x [LAPIC 0x%02x; "
+                                "Flags: 0x%08x]\n",
+                                cpu_id, lapic_id, flags);
                     }
 #endif
 #endif

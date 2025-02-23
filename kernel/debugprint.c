@@ -25,7 +25,17 @@ void debugterm_init(char *vram_addr, int unused1, int unused2) {
     }
 }
 
-void debugchar(char chr) { serial_sendchar(port, chr); }
+void debugchar(char chr) {
+    if (chr) {
+        serial_sendchar(port, chr);
+    }
+}
+
+void debugchar_np(char chr) {
+    if (chr) {
+        serial_sendchar(port, chr);
+    }
+}
 
 void debugstr(char *str) {
     while (*str) {
@@ -94,6 +104,8 @@ void debugchar(char chr) {
         break;
     }
 }
+
+void debugchar_np(char chr) { debugchar(chr); }
 
 void debugstr(char *str) {
     while (*str) {
