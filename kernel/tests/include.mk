@@ -122,6 +122,9 @@ kernel/tests/build/structs/bitmap: kernel/tests/munit.o kernel/tests/structs/bit
 kernel/tests/build/pmm/pagealloc: kernel/tests/munit.o kernel/tests/pmm/pagealloc.o kernel/tests/build/pmm/pagealloc.o kernel/tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/pmm/pagealloc_limine: kernel/tests/munit.o kernel/tests/pmm/pagealloc_limine.o kernel/tests/build/pmm/pagealloc.o kernel/tests/build/spinlock.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/vmm/vmmapper: kernel/tests/munit.o kernel/tests/vmm/vmmapper.o kernel/tests/build/vmm/vmmapper.o kernel/tests/mock_pmm_malloc.o kernel/tests/build/spinlock.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
@@ -191,6 +194,7 @@ kernel/tests/build/arch/x86_64/process/address_space_create: kernel/tests/munit.
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
+			kernel/tests/build/pmm/pagealloc_limine								\
 			kernel/tests/build/vmm/vmmapper										\
 			kernel/tests/build/vmm/vmalloc_linkedlist							\
 			kernel/tests/build/debugprint										\
