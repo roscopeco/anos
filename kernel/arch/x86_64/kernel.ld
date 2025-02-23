@@ -51,5 +51,14 @@ SECTIONS
     _system_bin_end = .;
   } > CODE
 
+  .realmode :
+  {
+    . = ALIGN(4096);
+    _realmode_bin_start = .;
+    *(.realmode_bin*)
+    . = ALIGN(4096);
+    _realmode_bin_end = .;
+  } > CODE
+
   _kernel_vma_end = .;
 }
