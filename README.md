@@ -283,10 +283,15 @@ pre-commit install
 > These probably aren't up to date enough to represent where it's 
 > at _today_, but it should be relatively recent.
 
-Anos now runs on real hardware (with a sample size of exactly one).
+Anos now runs on real hardware (with a sample size of exactly one) and
+supports UEFI boot (with the Limine bootloader).
 
 Here, it's running on an old i5 4th-gen (Haswell) with 16GiB RAM. Haswell
 is the oldest architecture that Anos "officially" supports.
+
+<img src="images/IMG_2453.jpg" alt="UEFI-booted ANOS running on a real-life computer">
+
+And the same computer, but booted with legacy BIOS boot (and VGA text mode):
 
 <img src="images/IMG_2432.jpg" alt="ANOS running on a real-life computer">
 
@@ -295,14 +300,20 @@ any locking on the terminal - so the threads running on each core can randomly
 preempt one-another (even during the printing happening inside the kernel) and
 cause the garbled output.
 
-It also runs in emulators, of course - like VirtualBox here, just for a change
-from qemu...
+It also runs in emulators, of course - here's Qemu booted via UEFI, using the
+graphical debug terminal at 1280x800 resolution:
+
+<img src="images/Screenshot 2025-02-23 at 11.32.30.png" alt="UEFI-booted ANOS running in Qemu">
+
+Or legacy BIOS boot in VirtualBox, just for a change from qemu...
 
 <img src="images/Screenshot 2025-02-16 at 19.42.12.png" alt="ANOS running in VirtualBox">
 
 Broadly, this is happening here:
 
-* Boot from real to long mode
+* Boot
+  * With our BIOS bootloader - fully boot from real to long mode
+  * With Limine (UEFI) - Take over from Limine and set everything up for Kernel  
 * Set up a RLE stack-based PMM
 * Set up VMM & recursive paging (for now, will likely change later)
 * Set up fixed block & slab allocators
