@@ -24,7 +24,7 @@ static MemoryBlock *stack_base(MemoryRegion *region) {
 static MunitResult test_init_empty(const MunitParameter params[], void *param) {
     E820h_MemMap map = {.num_entries = 0};
 
-    MemoryRegion *region = page_alloc_init(&map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(&map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -39,7 +39,7 @@ static MunitResult test_init_all_invalid(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -55,7 +55,7 @@ static MunitResult test_init_all_reserved(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -71,7 +71,7 @@ static MunitResult test_init_all_acpi(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -87,7 +87,7 @@ static MunitResult test_init_all_acpi_nvs(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -103,7 +103,7 @@ static MunitResult test_init_all_unusable(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -119,7 +119,7 @@ static MunitResult test_init_all_disabled(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -135,7 +135,7 @@ static MunitResult test_init_all_persistent(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -151,7 +151,7 @@ static MunitResult test_init_all_unknown(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -167,7 +167,7 @@ static MunitResult test_init_all_illegal(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -186,7 +186,7 @@ static MunitResult test_init_zero_length(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -205,7 +205,7 @@ static MunitResult test_init_too_small(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -224,7 +224,7 @@ static MunitResult test_init_one_available(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0x100000);
 
     // One entry on stack
@@ -246,7 +246,7 @@ static MunitResult test_init_unaligned_zero(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0x0);
 
     // empty stack
@@ -266,7 +266,7 @@ static MunitResult test_init_unaligned_one(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0x1000);
 
     // One entry on stack
@@ -292,7 +292,7 @@ static MunitResult test_init_some_available(const MunitParameter params[],
     map->entries[0] = entry0;
     map->entries[1] = entry1;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     munit_assert_uint64(region->size, ==, 0x100000);
 
     // One entry on stack
@@ -318,7 +318,7 @@ static MunitResult test_init_1M_at_zero(const MunitParameter params[],
     map->entries[0] = entry0;
     map->entries[1] = entry1;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     munit_assert_uint64(region->size, ==, 0x100000);
     munit_assert_uint64(region->free, ==, 0x100000);
@@ -342,7 +342,7 @@ static MunitResult test_init_large_region(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     munit_assert_uint64(region->size, ==, 0x10000000);
     munit_assert_uint64(region->free, ==, 0x10000000);
@@ -375,7 +375,7 @@ static MunitResult test_init_two_regions(const MunitParameter params[],
     map->entries[1] = entry1;
     map->entries[2] = entry2;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     munit_assert_uint64(region->size, ==, 0x00120000);
     munit_assert_uint64(region->free, ==, 0x00120000);
@@ -410,7 +410,7 @@ static MunitResult test_init_two_large_regions(const MunitParameter params[],
     map->entries[0] = entry0;
     map->entries[1] = entry1;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     munit_assert_uint64(region->size, ==, 0x20000000);
     munit_assert_uint64(region->free, ==, 0x20000000);
@@ -445,7 +445,7 @@ test_init_two_noncontig_regions(const MunitParameter params[], void *param) {
     map->entries[0] = entry0;
     map->entries[1] = entry1;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     munit_assert_uint64(region->size, ==, 0x20000000);
     munit_assert_uint64(region->free, ==, 0x20000000);
@@ -480,7 +480,7 @@ static MunitResult test_init_two_unequal_regions(const MunitParameter params[],
     map->entries[0] = entry0;
     map->entries[1] = entry1;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     munit_assert_uint64(region->size, ==, 0x10100000);
     munit_assert_uint64(region->free, ==, 0x10100000);
@@ -509,7 +509,7 @@ static MunitResult test_alloc_page_empty(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     uint64_t page = page_alloc(region);
 
@@ -527,7 +527,7 @@ static MunitResult test_alloc_page(const MunitParameter params[], void *param) {
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     // Can allocate the one available page
     uint64_t page = page_alloc(region);
@@ -550,7 +550,7 @@ static MunitResult test_alloc_two_pages(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     // Two pages total, two free
     munit_assert_uint64(region->size, ==, 0x2000);
@@ -606,7 +606,7 @@ static MunitResult test_alloc_two_blocks(const MunitParameter params[],
     map->entries[1] = entry1;
     map->entries[2] = entry2;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     // Two pages total, two free
     munit_assert_uint64(region->size, ==, 0x3000);
@@ -664,7 +664,7 @@ static MunitResult test_alloc_page_m_empty_one(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     uint64_t page = page_alloc_m(region, 1);
 
@@ -683,7 +683,7 @@ static MunitResult test_alloc_page_m_one(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     // Can allocate the one available page
     uint64_t page = page_alloc_m(region, 1);
@@ -706,7 +706,7 @@ static MunitResult test_alloc_page_m_empty_two(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     uint64_t page = page_alloc_m(region, 2);
 
@@ -725,7 +725,7 @@ static MunitResult test_alloc_page_m_one_from_one(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     // Can allocate the one available page
     uint64_t page = page_alloc_m(region, 1);
@@ -748,7 +748,7 @@ static MunitResult test_alloc_page_m_two_from_one(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     // Can't allocate two pages from the one available page
     uint64_t page = page_alloc_m(region, 2);
@@ -767,7 +767,7 @@ static MunitResult test_alloc_page_m_two_from_two(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     // Can allocate the two available pages
     uint64_t page = page_alloc_m(region, 2);
@@ -801,7 +801,7 @@ test_alloc_page_m_not_top_split(const MunitParameter params[], void *param) {
     map->entries[1] = entry1;
     map->entries[2] = entry2;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     // Can allocate the one available page
     uint64_t page = page_alloc_m(region, 2);
@@ -847,7 +847,7 @@ test_alloc_page_m_not_top_remove(const MunitParameter params[], void *param) {
     map->entries[1] = entry1;
     map->entries[2] = entry2;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     // Can allocate the one available page
     uint64_t page = page_alloc_m(region, 2);
@@ -890,7 +890,7 @@ static MunitResult test_alloc_page_m_top_remove(const MunitParameter params[],
     map->entries[1] = entry1;
     map->entries[2] = entry2;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
 
     // Can allocate the one available page
     uint64_t page = page_alloc_m(region, 2);
@@ -921,7 +921,7 @@ static MunitResult test_free_page(const MunitParameter params[], void *param) {
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     uint64_t page = page_alloc(region);
 
     // Stack is now empty
@@ -958,7 +958,7 @@ static MunitResult test_free_unaligned_page(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     uint64_t page = page_alloc(region);
 
     // Stack is now empty
@@ -993,7 +993,7 @@ static MunitResult test_free_contig_pages_forward(const MunitParameter params[],
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     uint64_t page1 = page_alloc(region); // will be at 0x1000
     uint64_t page2 = page_alloc(region); // will be at 0x2000
 
@@ -1048,7 +1048,7 @@ test_free_contig_pages_backward(const MunitParameter params[], void *param) {
     E820h_MemMap *map = create_mem_map(1);
     map->entries[0] = entry0;
 
-    MemoryRegion *region = page_alloc_init(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_e820(map, 0, region_buffer);
     uint64_t page1 = page_alloc(region); // will be at 0x1000
     uint64_t page2 = page_alloc(region); // will be at 0x2000
 
