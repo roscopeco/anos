@@ -17,6 +17,7 @@
 #include "kdrivers/hpet.h"
 #include "kdrivers/local_apic.h"
 #include "printdec.h"
+#include "std/string.h"
 #include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
 
@@ -82,25 +83,6 @@ extern void *_binary_kernel_arch_x86_64_realmode_bin_start,
 
 noreturn void ap_kernel_entrypoint(uint64_t ap_num);
 
-__attribute__((no_sanitize("alignment")))
-__attribute__((no_sanitize("object-size"))) static inline void
-memcpy(volatile void *dest, volatile void *src, uint64_t count) {
-    uint8_t volatile *s = (uint8_t *)src;
-    uint8_t volatile *d = (uint8_t *)dest;
-
-    for (int i = 0; i < count; i++) {
-        *d++ = *s++;
-    }
-}
-
-static inline void memclr(volatile void *dest, uint64_t count) {
-    uint64_t volatile *d = (uint64_t *)dest;
-
-    for (int i = 0; i < count / 8; i++) {
-        *d++ = 0;
-    }
-}
-
 /*
  * Must only be called by the BSP for now!
  */
@@ -152,17 +134,17 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
 #endif
 
 #ifdef DEBUG_SMP_STARTUP
+    spinlock_lock(&debug_output_lock);
+
     if (!*AP_TRAMPOLINE_BSS_FLAG) {
         debugstr("WARN: CPU #");
         printdec(ap_id, debugchar);
         debugstr(" failed to respond - will disable it\n");
+    } else {
+        debugstr("AP #");
+        printdec(ap_id, debugchar);
+        debugstr(" is up...\n");
     }
-
-    spinlock_lock(&debug_output_lock);
-
-    debugstr("AP #");
-    printdec(ap_id, debugchar);
-    debugstr(" is up...\n");
 
     spinlock_unlock(&debug_output_lock);
 #endif

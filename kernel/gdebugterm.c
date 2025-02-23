@@ -11,7 +11,17 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "printdec.h"
+#include "printhex.h"
+
+#if USE_BIZCAT_FONT
+#include "gdebugterm/bizcat_font.h"
+#else
 #include "gdebugterm/font.h"
+#endif
+
+#define ZERO 48
+#define EX 120
 
 #define BACKBUF_PHYSICAL(x, y) (((x << 1) + (y * line_width_bytes)))
 #define FRAMEBUF_PHYSICAL(x, y) (((x) + ((y) * fb_phys_width)))
@@ -34,6 +44,9 @@ static uint16_t logical_y;
 
 static uint8_t attr;
 
+static int chars_per_row;
+static int font_area;
+
 static uint32_t const colors[] = {
         0x00000000, // COLOR_BLACK
         0x000000aa, // COLOR_BLUE
@@ -53,6 +66,9 @@ static uint32_t const colors[] = {
         0x00eeeeee, // COLOR_BRIGHT_WHITE
 };
 
+static const uint8_t bit_masks[8] = {0x80, 0x40, 0x20, 0x10,
+                                     0x08, 0x04, 0x02, 0x01};
+
 bool debugterm_init(void *_fb, uint16_t phys_width, uint16_t phys_height) {
     fb = _fb;
     fb_phys_width = phys_width;
@@ -67,42 +83,70 @@ bool debugterm_init(void *_fb, uint16_t phys_width, uint16_t phys_height) {
 
     attr = 7;
 
+    font_area = gdebugterm_font_height * gdebugterm_font_width;
+
     return true;
 }
 
-static inline void backend_draw_pixel(int x, int y, uint32_t color) {}
+#define WRITE_PIXEL(n)                                                         \
+    *fb_ptr++ = (font_byte & bit_masks[n]) ? fg_color : bg_color
 
-static inline void repaint_char(char c, uint8_t attr, int x, int y) {
+/*
+ * Note! This expects the framebuffer is page aligned!
+ *
+ * It's not the fastest we can do by a long stretch, but the way this
+ * whole thing works needs redoing anyhow so I'm not going to over-egg
+ * this just now...
+ */
+static void repaint(void) {
+    const int chars_per_row = col_count;
+    const int bytes_per_row = chars_per_row << 1; // char + attribute
+    const int fb_char_width = gdebugterm_font_width;
+    const int fb_char_height = gdebugterm_font_height;
+    const int fb_row_stride = fb_phys_width;
 
-    const uint8_t *font_ptr =
-            ((uint8_t *)gdebugterm_font) + (c * gdebugterm_font_height);
+    const uint8_t *buf_ptr = backbuf;
 
-    for (int dy = 0; dy < gdebugterm_font_height; dy++) {
-        for (int dx = 0; dx < gdebugterm_font_width; dx++) {
-            if ((*font_ptr & (1 << (gdebugterm_font_width - 1 - dx))) != 0) {
-                fb[FRAMEBUF_PHYSICAL(x + dx, y + dy)] = colors[attr & 0xf];
-            } else {
-                fb[FRAMEBUF_PHYSICAL(x + dx, y + dy)] =
-                        colors[(attr & 0xf0) >> 4];
+    // pre-calculate base framebuffer positions for each character row,
+    // taking advantage of page alignment for optimal cache line usage
+    uint32_t fb_row_base = 0;
+
+    for (int row = 0; row < display_max / bytes_per_row; row++) {
+        // base Y pos for this row of characters
+        const int fb_y_base = row * fb_char_height;
+
+        // process whole row...
+        for (int col = 0; col < chars_per_row; col++) {
+            const char c = *buf_ptr++;
+            const uint8_t attr = *buf_ptr++;
+
+            const uint32_t fg_color = colors[attr & 0xf];
+            const uint32_t bg_color = colors[attr >> 4];
+
+            const int fb_x_base = col * fb_char_width;
+
+            const uint8_t *font_ptr =
+                    ((uint8_t *)gdebugterm_font) + (c * fb_char_height);
+
+            uint32_t *fb_char_base =
+                    &fb[fb_x_base + (fb_y_base * fb_row_stride)];
+
+            for (int dy = 0; dy < fb_char_height; dy++) {
+                const uint8_t font_byte = *font_ptr++;
+                uint32_t *fb_ptr = fb_char_base;
+
+                WRITE_PIXEL(0);
+                WRITE_PIXEL(1);
+                WRITE_PIXEL(2);
+                WRITE_PIXEL(3);
+                WRITE_PIXEL(4);
+                WRITE_PIXEL(5);
+                WRITE_PIXEL(6);
+                WRITE_PIXEL(7);
+
+                fb_char_base += fb_row_stride;
             }
         }
-
-        font_ptr++;
-    }
-}
-
-static void repaint() {
-    int x = 0;
-    int y = 0;
-
-    for (int i = 0; i < display_max; i += 2) {
-        char c = backbuf[i];
-        uint8_t attr = backbuf[i + 1];
-
-        y = i / 2 / col_count * gdebugterm_font_height;
-        x = i / 2 % col_count * gdebugterm_font_width;
-
-        repaint_char(c, attr, x, y);
     }
 }
 
@@ -127,6 +171,8 @@ static inline void debugchar_np(char chr) {
     }
 
     switch (chr) {
+    case 0:
+        break;
     case 10:
         // TODO scrolling etc!
         logical_y += 1;
@@ -160,7 +206,121 @@ static inline void debugstr_np(const char *str) {
     }
 }
 
-void debugstr(const char *str) {
-    debugstr_np(str);
-    // repaint();
+void debugstr(const char *str) { debugstr_np(str); }
+
+/* printhex */
+
+static inline void hex_preamble(PrintHexCharHandler printfunc) {
+    printfunc(ZERO);
+    printfunc(EX);
+}
+
+static inline void digitprint(uint8_t digit) {
+    if (digit < 10) {
+        digit += 48;
+    } else {
+        digit += 87;
+    }
+
+    debugchar_np(digit);
+}
+
+void printhex64(uint64_t num, PrintHexCharHandler __ignored) {
+    debugchar_np(ZERO);
+    debugchar_np(EX);
+
+    for (int i = 0; i < 64; i += 4) {
+        char digit = (num & 0xF000000000000000) >> 60;
+        num <<= 4;
+        digitprint(digit);
+    }
+
+    debugchar(0);
+}
+
+void printhex32(uint64_t num, PrintHexCharHandler __ignored) {
+    debugchar_np(ZERO);
+    debugchar_np(EX);
+
+    for (int i = 0; i < 32; i += 4) {
+        char digit = (num & 0xF0000000) >> 28;
+        num <<= 4;
+        digitprint(digit);
+    }
+
+    debugchar(0);
+}
+
+void printhex16(uint64_t num, PrintHexCharHandler __ignored) {
+    debugchar_np(ZERO);
+    debugchar_np(EX);
+
+    for (int i = 0; i < 16; i += 4) {
+        char digit = (num & 0xF000) >> 12;
+        num <<= 4;
+        digitprint(digit);
+    }
+
+    debugchar(0);
+}
+
+void printhex8(uint64_t num, PrintHexCharHandler __ignored) {
+    debugchar_np(ZERO);
+    debugchar_np(EX);
+
+    for (int i = 0; i < 8; i += 4) {
+        char digit = (num & 0xF0) >> 4;
+        num <<= 4;
+        digitprint(digit);
+    }
+
+    debugchar(0);
+}
+
+/* printdec */
+
+static const char *llmin = "9223372036854775808";
+
+static void print_llong_min(void) {
+    const char *c = llmin;
+
+    while (*c) {
+        debugchar_np(*c++);
+    }
+}
+
+void printdec(int64_t num, PrintDecCharHandler __ignored) {
+    // Handle negative numbers
+    if (num < 0) {
+        debugchar_np('-');
+        // Handle LLONG_MIN (-9223372036854775808) specially
+        if (num == -9223372036854775807LL - 1) {
+            print_llong_min();
+            return;
+        }
+        num = -num;
+    }
+
+    // Handle case when n is 0
+    if (num == 0) {
+        debugchar_np('0');
+        return;
+    }
+
+    // Buffer to store digits in reverse
+    char buf[20]; // Max 20 digits for 64-bit int
+    char *p = buf;
+
+    // Extract digits in reverse order
+    while (num > 0) {
+        *p++ = num % 10 + '0';
+        num /= 10;
+    }
+
+    // Print digits in correct order
+    while (p > buf) {
+        debugchar_np(*--p);
+    }
+
+    debugchar(0);
 }

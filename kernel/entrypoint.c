@@ -51,12 +51,6 @@ MemoryRegion *physical_region;
 // theirs...
 volatile bool ap_startup_wait;
 
-#ifdef DEBUG_MEMMAP
-void debug_memmap(E820h_MemMap *memmap);
-#else
-#define debug_memmap(...)
-#endif
-
 #ifdef DEBUG_MADT
 void debug_madt(ACPI_RSDT *rsdt);
 #else
@@ -199,7 +193,6 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
         panic("ACPI table mapping failed");
     }
 
-    debug_memmap(memmap);
     debug_madt(acpi_root_table);
     kernel_drivers_init(acpi_root_table);
 

@@ -72,6 +72,7 @@ endif
 # These set options you might feel like configuring
 #
 #	SERIAL_TERMINAL			Disable VGA terminal and use COM1 instead (see also SERIALTERM=true make option)
+#	USE_BIZCAT_FONT			Use BIZCAT font instead of the default (only for graphical terminal)
 #
 # And these will selectively disable features
 #
@@ -79,6 +80,7 @@ endif
 #	NO_SMP					Disable SMP (don't spin-up any of the APs)
 #	SMP_TWO_SIPI_ATTEMPTS	Try a second SIPI if an AP doesn't respond to the first
 #	NO_USER_GS				Disable user-mode GS swap at kernel entry/exit (debugging only)
+#	NAIVE_MEMCPY			Use a naive (byte-wise only) memcpy
 #
 # Additionally:
 #
@@ -92,10 +94,10 @@ QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format
 QEMU_DEBUG_OPTS=-gdb tcp::9666 -S -monitor telnet:127.0.0.1:1234,server,nowait
 
 ifeq ($(SERIALTERM),true)
-# QEMU_BASEOPTS+=-display none -serial stdio
+QEMU_BASEOPTS+=-display none -serial stdio
 CDEFS+=-DSERIAL_TERMINAL
 else
-# QEMU_BASEOPTS+=-monitor stdio
+QEMU_BASEOPTS+=-monitor stdio
 endif
 
 SHORT_HASH?=`git rev-parse --short HEAD`
@@ -182,6 +184,7 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/task_kernel_entrypoint.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/serial.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/process/address_space.o			\
+					$(STAGE3_ARCH_X86_64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
 ifeq ($(ARCH),x86_64)
@@ -196,8 +199,6 @@ endif
 
 STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/debuginfo.o											\
-			$(STAGE3_DIR)/printhex.o											\
-			$(STAGE3_DIR)/printdec.o											\
 			$(STAGE3_DIR)/isr_handlers.o										\
 			$(STAGE3_DIR)/structs/list.o										\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
@@ -225,7 +226,9 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(SYSTEM)_linkable.o
 
 ifeq ($(LEGACY_TERMINAL),true)
-STAGE3_OBJS+=$(STAGE3_DIR)/debugprint.o
+STAGE3_OBJS+=$(STAGE3_DIR)/debugprint.o											\
+			$(STAGE3_DIR)/printhex.o											\
+			$(STAGE3_DIR)/printdec.o
 else
 STAGE3_OBJS+=$(STAGE3_DIR)/gdebugterm.o
 endif

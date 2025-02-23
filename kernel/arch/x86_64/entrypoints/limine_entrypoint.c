@@ -42,6 +42,12 @@
 #define LIMINE_HHDM_REQUEST                                                    \
     {LIMINE_COMMON_MAGIC, 0x48dcf1cb8ad2b852, 0x63984e959a98244b}
 
+#ifdef DEBUG_MEMMAP
+void debug_memmap_limine(Limine_MemMap *memmap);
+#else
+#define debug_memmap_limine(...)
+#endif
+
 typedef struct {
     uint64_t id[4];
     uint64_t revision;
@@ -255,6 +261,7 @@ noreturn void bsp_kernel_entrypoint_limine() {
     new_pd[0] = PT_START | PRESENT | WRITE;
 
     // map framebuffer, as two 2MiB large pages at 0xffffffff82000000 - 0xffffffff82400000
+    // TODO write-combining!
     new_pd[0x10] = fb_phys | PRESENT | WRITE | PAGESIZE;
     new_pd[0x11] = (fb_phys + 0x200000) | PRESENT | WRITE | PAGESIZE;
 
@@ -274,6 +281,8 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
 
     physical_region = page_alloc_init_limine(&static_memmap, PMM_PHYS_BASE,
                                              STATIC_PMM_VREGION);
+
+    debug_memmap_limine(&static_memmap);
 
     bsp_kernel_entrypoint(((uintptr_t)&static_rsdp) - STATIC_KERNEL_SPACE);
 }
