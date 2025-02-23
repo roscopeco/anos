@@ -72,6 +72,7 @@ endif
 # These set options you might feel like configuring
 #
 #	SERIAL_TERMINAL			Disable VGA terminal and use COM1 instead (see also SERIALTERM=true make option)
+#	USE_BIZCAT_FONT			Use BIZCAT font instead of the default (only for graphical terminal)
 #
 # And these will selectively disable features
 #
@@ -79,6 +80,7 @@ endif
 #	NO_SMP					Disable SMP (don't spin-up any of the APs)
 #	SMP_TWO_SIPI_ATTEMPTS	Try a second SIPI if an AP doesn't respond to the first
 #	NO_USER_GS				Disable user-mode GS swap at kernel entry/exit (debugging only)
+#	NAIVE_MEMCPY			Use a naive (byte-wise only) memcpy
 #
 # Additionally:
 #
@@ -86,11 +88,16 @@ endif
 #
 CDEFS=-DDEBUG_CPU -DDEBUG_SLEEPY_KERNEL_TASK
 
+QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
+QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
+QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/ovmf/OVMF_VARS-pure-efi.fd
+QEMU_DEBUG_OPTS=-gdb tcp::9666 -S -monitor telnet:127.0.0.1:1234,server,nowait
+
 ifeq ($(SERIALTERM),true)
-QEMU_OPTS=$(QEMU_BASEOPTS) -display none -serial stdio
+QEMU_BASEOPTS+=-display none -serial stdio
 CDEFS+=-DSERIAL_TERMINAL
 else
-QEMU_OPTS=$(QEMU_BASEOPTS) -monitor stdio
+QEMU_BASEOPTS+=-monitor stdio
 endif
 
 SHORT_HASH?=`git rev-parse --short HEAD`
@@ -148,8 +155,11 @@ STAGE2_OBJS=$(STAGE2_DIR)/$(STAGE2).o 											\
 			$(STAGE2_DIR)/init_pagetables.o
 					
 STAGE3_ARCH_X86_64_DIR=$(STAGE3_DIR)/arch/x86_64
-STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/init.o								\
-					$(STAGE3_ARCH_X86_64_DIR)/init.o							\
+STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
+					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_init.o			\
+					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_entrypoint.o	\
+					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_entrypoint.o	\
+					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/common.o				\
 					$(STAGE3_ARCH_X86_64_DIR)/machine.o							\
 					$(STAGE3_ARCH_X86_64_DIR)/machine_asm.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/pic.o								\
@@ -174,6 +184,7 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/init.o								\
 					$(STAGE3_ARCH_X86_64_DIR)/task_kernel_entrypoint.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/serial.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/process/address_space.o			\
+					$(STAGE3_ARCH_X86_64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
 ifeq ($(ARCH),x86_64)
@@ -188,9 +199,6 @@ endif
 
 STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/debuginfo.o											\
-			$(STAGE3_DIR)/debugprint.o											\
-			$(STAGE3_DIR)/printhex.o											\
-			$(STAGE3_DIR)/printdec.o											\
 			$(STAGE3_DIR)/isr_handlers.o										\
 			$(STAGE3_DIR)/structs/list.o										\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
@@ -217,6 +225,14 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 
+ifeq ($(LEGACY_TERMINAL),true)
+STAGE3_OBJS+=$(STAGE3_DIR)/debugprint.o											\
+			$(STAGE3_DIR)/printhex.o											\
+			$(STAGE3_DIR)/printdec.o
+else
+STAGE3_OBJS+=$(STAGE3_DIR)/gdebugterm.o
+endif
+
 ARCH_X86_64_REALMODE_OBJS=$(STAGE3_DIR)/arch/x86_64/smp/ap_trampoline.o
 
 ALL_TARGETS=floppy.img
@@ -237,6 +253,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
 		   		$(FLOPPY_IMG)													\
+				$(UEFI_IMG)														\
 	       		$(STAGE3_ARCH_X86_64_DIR)/*.dis $(STAGE3_ARCH_X86_64_DIR)/*.elf	\
 				$(STAGE3_ARCH_X86_64_DIR)/*.o $(STAGE3_ARCH_X86_64_DIR)/pmm/*.o	\
 				$(STAGE3_ARCH_X86_64_DIR)/vmm/*.o								\
@@ -245,6 +262,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/sched/*.o								\
 				$(STAGE3_ARCH_X86_64_DIR)/smp/*.o								\
 				$(STAGE3_ARCH_X86_64_DIR)/process/*.o							\
+				$(STAGE3_ARCH_X86_64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
@@ -353,26 +371,51 @@ $(STAGE3_DIR)/$(STAGE3_BIN): $(STAGE3_DIR)/$(STAGE3).elf $(STAGE3_DIR)/$(STAGE3)
 	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
 
-# ############## Image ###############
+UEFI_IMG=anos_uefi.img
+UEFI_APPLICATION=uefi/limine/BOOTX64.EFI
+UEFI_CONF?=uefi/limine.conf
+UEFI_BOOT_WALLPAPER?=uefi/anoschip2-glass.jpg
+
+# ############ UEFI Image ############
+$(UEFI_IMG): $(STAGE3_DIR)/$(STAGE3).elf $(UEFI_CONF) $(UEFI_BOOT_WALLPAPER) $(UEFI_APPLICATION)
+	dd of=$@ if=/dev/zero bs=4M count=1
+	mformat -T 8192 -v ANOSDISK002 -i $@ ::
+	mmd -i $@ EFI
+	mmd -i $@ EFI/BOOT
+	mcopy -i $@ $(UEFI_CONF) ::/EFI/BOOT/limine.conf
+	mcopy -i $@ $(UEFI_BOOT_WALLPAPER) ::/EFI/BOOT/anos.jpg
+	mcopy -i $@ $(UEFI_APPLICATION) ::/EFI/BOOT
+	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3).elf ::
+
+# ####### Legacy Floppy Image ########
 $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	dd of=$@ if=/dev/zero bs=1440k count=1
 	mformat -f 1440 -B $(STAGE1_DIR)/$(STAGE1_BIN) -v ANOSDISK001 -k -i $@ ::
 	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
 
-QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -drive file=$<,if=floppy,format=raw,index=0,media=disk -boot order=ac -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
-QEMU_DEBUG_OPTS=$(QEMU_BASEOPTS) -gdb tcp::9666 -S
-
 qemu: $(FLOPPY_IMG)
-	$(QEMU) $(QEMU_OPTS)
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS)
+
+qemu-uefi: $(UEFI_IMG)
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_UEFI_OPTS)
 
 debug-qemu-start: $(FLOPPY_IMG)
-	$(QEMU) $(QEMU_DEBUG_OPTS)
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS) $(QEMU_DEBUG_OPTS)
 
 debug-qemu-start-terminal: $(FLOPPY_IMG)
-	$(QEMU) $(QEMU_DEBUG_OPTS) &
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS) $(QEMU_DEBUG_OPTS) &
+
+debug-qemu-uefi-start: $(UEFI_IMG)
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_UEFI_OPTS) $(QEMU_DEBUG_OPTS)
+
+debug-qemu-uefi-start-terminal: $(UEFI_IMG)
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_UEFI_OPTS) $(QEMU_DEBUG_OPTS) &
 
 debug-qemu: debug-qemu-start-terminal
+	gdb -ex 'target remote localhost:9666'
+
+debug-qemu-uefi: debug-qemu-uefi-start-terminal
 	gdb -ex 'target remote localhost:9666'
 
 bochs: floppy.img bochsrc

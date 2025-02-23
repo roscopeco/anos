@@ -52,8 +52,10 @@ typedef struct {
  *
  * Returns a MemoryRegion pointer, created in the given buffer.
  */
-MemoryRegion *page_alloc_init(E820h_MemMap *memmap, uint64_t managed_base,
-                              void *buffer);
+MemoryRegion *page_alloc_init_e820(E820h_MemMap *memmap, uint64_t managed_base,
+                                   void *buffer);
+MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
+                                     uint64_t managed_base, void *buffer);
 
 /*
  * Allocate a contiguous block of `count` physical pages.

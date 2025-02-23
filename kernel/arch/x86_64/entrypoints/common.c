@@ -1,0 +1,68 @@
+/*
+ * stage3 - Common code used by various entry points
+ * anos - An Operating System
+ *
+ * Copyright (c) 2025 Ross Bamford
+ */
+
+#include "debugprint.h"
+#include "gdt.h"
+#include "interrupts.h"
+#include "kdrivers/cpu.h"
+#include "machine.h"
+
+#ifndef VERSTR
+#warning Version String not defined (-DVERSTR); Using default
+#define VERSTR #unknown
+#endif
+
+#define XSTRVER(verstr) #verstr
+#define STRVER(xstrver) XSTRVER(xstrver)
+#define VERSION STRVER(VERSTR)
+
+static char *MSG = VERSION "\n";
+
+// Replace the bootstrap 32-bit segments with 64-bit user segments.
+//
+// TODO we should remap the memory as read-only after this since they
+// won't be changing again, accessed bit is already set ready for this...
+//
+void init_kernel_gdt(void) {
+    GDTR gdtr;
+    GDTEntry *user_code;
+    GDTEntry *user_data;
+
+    cpu_store_gdtr(&gdtr);
+
+    // Reverse ordered because SYSRET is fucking weird...
+    user_data = get_gdt_entry(&gdtr, 3);
+    user_code = get_gdt_entry(&gdtr, 4);
+
+    init_gdt_entry(
+            user_code, 0, 0,
+            GDT_ENTRY_ACCESS_PRESENT | GDT_ENTRY_ACCESS_DPL(3) |
+                    GDT_ENTRY_ACCESS_NON_SYSTEM | GDT_ENTRY_ACCESS_EXECUTABLE |
+                    GDT_ENTRY_ACCESS_READ_WRITE | GDT_ENTRY_ACCESS_ACCESSED,
+            GDT_ENTRY_FLAGS_64BIT);
+
+    init_gdt_entry(user_data, 0, 0,
+                   GDT_ENTRY_ACCESS_PRESENT | GDT_ENTRY_ACCESS_DPL(3) |
+                           GDT_ENTRY_ACCESS_NON_SYSTEM |
+                           GDT_ENTRY_ACCESS_READ_WRITE |
+                           GDT_ENTRY_ACCESS_ACCESSED,
+                   GDT_ENTRY_FLAGS_64BIT);
+}
+
+void install_interrupts() { idt_install(0x08); }
+
+void banner(void) {
+    debugattr(0x0B);
+    debugstr("STAGE");
+    debugattr(0x03);
+    debugchar('3');
+    debugattr(0x08);
+    debugstr(" #");
+    debugattr(0x0F);
+    debugstr(MSG);
+    debugattr(0x07);
+}

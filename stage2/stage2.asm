@@ -260,7 +260,7 @@ find_acpi_tables:
                                           ; Don't bother saving rsi, we'll overwrite it after this sub anyway...
 
   ; Try searching in EBDA first...
-  xor   rdi,rdi                           ; Clear rsi  
+  xor   rdi,rdi                           ; Clear rdi  
   mov   di,word [0x040E]                  ; Get segment address from BDA
   shl   rdi,0x04                          ; Convert to linear physical address
 

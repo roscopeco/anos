@@ -13,14 +13,16 @@
 
 static char *video_buffer;
 
+#define IGNORED ((0))
+
 static MunitResult test_init_empty(const MunitParameter params[], void *param) {
-    debugterm_init(video_buffer);
+    debugterm_init(video_buffer, IGNORED, IGNORED);
 
     return MUNIT_OK;
 }
 
 static MunitResult test_debug_str(const MunitParameter params[], void *param) {
-    debugterm_init(video_buffer);
+    debugterm_init(video_buffer, IGNORED, IGNORED);
 
     debugstr("Hello, World");
 
@@ -35,7 +37,7 @@ static MunitResult test_debug_str(const MunitParameter params[], void *param) {
 
 static MunitResult test_debug_str_newline(const MunitParameter params[],
                                           void *param) {
-    debugterm_init(video_buffer);
+    debugterm_init(video_buffer, IGNORED, IGNORED);
 
     debugstr("Hello, World\nNew!");
 
@@ -52,7 +54,7 @@ static MunitResult test_debug_str_newline(const MunitParameter params[],
 }
 
 static MunitResult test_debug_attr(const MunitParameter params[], void *param) {
-    debugterm_init(video_buffer);
+    debugterm_init(video_buffer, IGNORED, IGNORED);
 
     debugattr(0x1C);
     debugstr("Hello, World\n");

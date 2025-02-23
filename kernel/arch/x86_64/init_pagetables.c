@@ -45,9 +45,9 @@ void pagetables_init() {
     // These are the static pagetables that were set up during init.
     // They'll become the tables that belong to the SYSTEM process...
     //
-    uint64_t *pml4 = (uint64_t *)0xFFFFFFFF8009c000;
-    uint64_t *pdpt = (uint64_t *)0xFFFFFFFF8009d000;
-    uint64_t *pd = (uint64_t *)0xFFFFFFFF8009e000;
+    uint64_t *pml4 = (uint64_t *)(STATIC_KERNEL_SPACE + 0x9c000);
+    uint64_t *pdpt = (uint64_t *)(STATIC_KERNEL_SPACE + 0x9d000);
+    uint64_t *pd = (uint64_t *)(STATIC_KERNEL_SPACE + 0x9e000);
 
     // Remove the bottom of the address-space identity mapping that
     // was set up by the bootloader, it's no longer needed...
@@ -61,7 +61,7 @@ void pagetables_init() {
     // that bit of RAM during kernel init...
     //
     // Use 0x98000 as the page table
-    uint64_t *newpt = (uint64_t *)0xFFFFFFFF80098000;
+    uint64_t *newpt = (uint64_t *)(STATIC_KERNEL_SPACE + 0x98000);
     for (int i = 0; i < 0x200; i++) {
         newpt[i] = ((i << 12) + 0x200000) | PRESENT | WRITE;
     }
@@ -74,8 +74,8 @@ void pagetables_init() {
     // and only mapping one page for now, just to give the PMM
     // room to start - once it's running additional mapping will be
     // done by the page fault handler as needed...
-    uint64_t *pmm_pd = (uint64_t *)0xFFFFFFFF8009a000;
-    uint64_t *pmm_pt = (uint64_t *)0xFFFFFFFF8009b000;
+    uint64_t *pmm_pd = (uint64_t *)(STATIC_KERNEL_SPACE + 0x9a000);
+    uint64_t *pmm_pt = (uint64_t *)(STATIC_KERNEL_SPACE + 0x9b000);
 
     // Zero them out
     for (int i = 0; i < 0x400; i++) {

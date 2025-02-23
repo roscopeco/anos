@@ -1,5 +1,11 @@
 ## Memory Map for Anos
 
+> [!NOTE]
+> The low memory and early boot information here applies **only when booted via STAGE2**.
+> When booted with Limine (or other such loader as we may support from time to time)
+> the kernel entrypoint code for that loader is responsible for making the bootloader's
+> environment into something palatable for the kernel proper.
+
 ### Low Memory
 
 Various bits of low memory are used. Some of them are only used
@@ -85,6 +91,9 @@ identity-mapped space), up until it jumps directly to the kernel at it's
 
 ### Long Mode Page Table Layout After Kernel Bootstrap
 
+> [!NOTE]
+> From this point on, the map is the same regardless of how we were booted.
+
 Once stage 2 has exited and we're in the kernel proper, the identity mapping of low RAM 
 is dropped (the first 2MB physical mapping into the top 2GiB is retained).
 
@@ -109,7 +118,9 @@ at this point, leaving us with:
 * `0xffffffff80400000` -> `0xffffffff80ffffff` : 1MiB Kernel "Automap" space, **for testing only**
 * `0xffffffff81000000` -> `0xffffffff8101ffff` : (Temporary) Reserved space for ACPI tables
 * `0xffffffff81020000` -> `0xffffffff810fffff` : Kernel driver MMIO mapping space (895KiB, 224 pages)
-* `0xffffffff81100000` -> `0xffffffffbfffffff` : [_Currently unused, ~1006MiB_]
+* `0xffffffff81100000` -> `0xffffffff81ffffff` : [_Currently unused, 15MiB_]
+* `0xffffffff82000000` -> `0xffffffff823fffff` : Bootup terminal framebuffer (4MiB)
+* `0xffffffff82400000` -> `0xffffffffbfffffff` : [_Currently unused, 988MiB_]
 * `0xffffffffc0000000` -> `0xffffffffffffffff` : 1GiB FBA space
 
 #### Notes on specific areas
