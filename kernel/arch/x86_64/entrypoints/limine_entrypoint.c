@@ -3,6 +3,10 @@
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
+ * 
+ * TODO neither BIOS nor UEFI boot should really be making the assumptions
+ * we make about low physical memory layout... This'll undoubtedly need
+ * to be redone in the future...
  */
 
 #include <stddef.h>
