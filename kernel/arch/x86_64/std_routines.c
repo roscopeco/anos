@@ -1,21 +1,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef NAIVE_MEMCPY
-__attribute__((no_sanitize("alignment")))
-__attribute__((no_sanitize("object-size"))) void *
-memcpy(void *restrict dest, const void *restrict src, size_t count) {
-    uint8_t volatile *s = (uint8_t *)src;
-    uint8_t volatile *d = (uint8_t *)dest;
-
-    for (int i = 0; i < count; i++) {
-        *d++ = *s++;
-    }
-
-    return dest;
-}
+__attribute__((no_sanitize(
+        "alignment"))) // Can't align both src and dest in the general case..
+#ifdef UNIT_TESTS
+void *
+anos_std_memcpy(void *restrict dest, const void *restrict src, size_t count)
 #else
-void *memcpy(void *restrict dest, const void *restrict src, size_t count) {
+void *
+memcpy(void *restrict dest, const void *restrict src, size_t count)
+#endif
+{
     char *d = (char *)dest;
     const char *s = (const char *)src;
 
@@ -178,14 +173,23 @@ void *memcpy(void *restrict dest, const void *restrict src, size_t count) {
 
     return dest;
 }
-#endif
 
-void *memmove(void *dest, const void *src, size_t count) {
+__attribute__((no_sanitize(
+        "alignment"))) // Can't align both src and dest in the general case..
+#ifdef UNIT_TESTS
+void *
+anos_std_memmove(void *dest, const void *src, size_t count)
+#else
+void *
+memmove(void *dest, const void *src, size_t count)
+#endif
+{
     unsigned char *d = (unsigned char *)dest;
     const unsigned char *s = (const unsigned char *)src;
 
-    if (d == s)
+    if (d == s) {
         return dest;
+    }
 
     if (d < s || d >= s + count) {
         while (((uintptr_t)d & 7) && count) {
@@ -272,7 +276,12 @@ void *memmove(void *dest, const void *src, size_t count) {
     return dest;
 }
 
-void *memset(void *dest, int val, size_t count) {
+#ifdef UNIT_TESTS
+void *anos_std_memset(void *dest, int val, size_t count)
+#else
+void *memset(void *dest, int val, size_t count)
+#endif
+{
     unsigned char *d = (unsigned char *)dest;
     uint64_t fill = (uint8_t)val;
     fill |= fill << 8;
@@ -309,4 +318,15 @@ void *memset(void *dest, int val, size_t count) {
     return dest;
 }
 
-void *memclr(void *dest, size_t count) { return memset(dest, 0, count); }
+#ifdef UNIT_TESTS
+void *anos_std_memclr(void *dest, size_t count)
+#else
+void *memclr(void *dest, size_t count)
+#endif
+{
+#ifdef UNIT_TESTS
+    return anos_std_memset(dest, 0, count);
+#else
+    return memset(dest, 0, count);
+#endif
+}
