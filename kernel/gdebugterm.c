@@ -13,6 +13,7 @@
 
 #include "printdec.h"
 #include "printhex.h"
+#include "std/string.h"
 
 #if USE_BIZCAT_FONT
 #include "gdebugterm/bizcat_font.h"
@@ -151,19 +152,27 @@ static void repaint(void) {
 }
 
 static inline uint16_t scroll() {
-    for (int i = line_width_bytes; i < display_max; i++) {
-        backbuf[i - line_width_bytes] = backbuf[i];
+    memmove(backbuf, &backbuf[line_width_bytes],
+            display_max - line_width_bytes);
+
+    uint64_t *p64 = (uint64_t *)(backbuf + display_max - line_width_bytes);
+    uint64_t fill64 = (uint64_t)(' ' | (0x08 << 8)) *
+                      0x0001000100010001ULL; // Repeat pattern
+
+    for (size_t i = 0; i < line_width_bytes / 8; ++i) {
+        p64[i] = fill64;
     }
-    for (int i = display_max - line_width_bytes; i < display_max; i += 2) {
-        backbuf[i] = ' ';
-        backbuf[i + 1] = 0x07;
-    }
+
     logical_x = 0;
     logical_y = row_count - 1;
     return BACKBUF_PHYSICAL(logical_x, logical_y);
 }
 
-static inline void debugchar_np(char chr) {
+void debugchar_np(char chr) {
+    // TODO maybe should redo this such that writing a single char writes
+    // to both backbuffer **and** directly to frontbuffer, and then we only
+    // use backbuffer on full-repaint (scroll etc), like on rosco_m68k...
+    //
     uint16_t phys = BACKBUF_PHYSICAL(logical_x, logical_y);
 
     if (phys >= display_max || logical_y > row_count) {

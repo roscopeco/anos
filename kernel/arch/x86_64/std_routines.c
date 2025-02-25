@@ -1,21 +1,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef NAIVE_MEMCPY
-__attribute__((no_sanitize("alignment")))
-__attribute__((no_sanitize("object-size"))) void *
-memcpy(void *restrict dest, const void *restrict src, size_t count) {
-    uint8_t volatile *s = (uint8_t *)src;
-    uint8_t volatile *d = (uint8_t *)dest;
-
-    for (int i = 0; i < count; i++) {
-        *d++ = *s++;
-    }
-
-    return dest;
-}
+__attribute__((no_sanitize(
+        "alignment"))) // Can't align both src and dest in the general case..
+#ifdef UNIT_TESTS
+void *
+anos_std_memcpy(void *restrict dest, const void *restrict src, size_t count)
 #else
-void *memcpy(void *restrict dest, const void *restrict src, size_t count) {
+void *
+memcpy(void *restrict dest, const void *restrict src, size_t count)
+#endif
+{
     char *d = (char *)dest;
     const char *s = (const char *)src;
 
@@ -178,12 +173,160 @@ void *memcpy(void *restrict dest, const void *restrict src, size_t count) {
 
     return dest;
 }
+
+__attribute__((no_sanitize(
+        "alignment"))) // Can't align both src and dest in the general case..
+#ifdef UNIT_TESTS
+void *
+anos_std_memmove(void *dest, const void *src, size_t count)
+#else
+void *
+memmove(void *dest, const void *src, size_t count)
 #endif
+{
+    unsigned char *d = (unsigned char *)dest;
+    const unsigned char *s = (const unsigned char *)src;
 
-void memclr(void *restrict dest, size_t count) {
-    uint64_t volatile *d = (uint64_t *)dest;
-
-    for (int i = 0; i < count / 8; i++) {
-        *d++ = 0;
+    if (d == s) {
+        return dest;
     }
+
+    if (d < s || d >= s + count) {
+        while (((uintptr_t)d & 7) && count) {
+            *d++ = *s++;
+            count--;
+        }
+
+        uint64_t *d64 = (uint64_t *)d;
+        const uint64_t *s64 = (const uint64_t *)s;
+        while (count >= 64) {
+            __asm__ volatile("movq (%1), %%r8;\n"
+                             "movq 8(%1), %%r9;\n"
+                             "movq 16(%1), %%r10;\n"
+                             "movq 24(%1), %%r11;\n"
+                             "movnti %%r8, (%0);\n"
+                             "movnti %%r9, 8(%0);\n"
+                             "movnti %%r10, 16(%0);\n"
+                             "movnti %%r11, 24(%0);\n"
+                             "movq 32(%1), %%r8;\n"
+                             "movq 40(%1), %%r9;\n"
+                             "movq 48(%1), %%r10;\n"
+                             "movq 56(%1), %%r11;\n"
+                             "movnti %%r8, 32(%0);\n"
+                             "movnti %%r9, 40(%0);\n"
+                             "movnti %%r10, 48(%0);\n"
+                             "movnti %%r11, 56(%0);\n"
+                             : "=r"(d64), "=r"(s64)
+                             : "0"(d64), "1"(s64)
+                             : "r8", "r9", "r10", "r11", "memory");
+            d64 += 8;
+            s64 += 8;
+            count -= 64;
+        }
+        __asm__ volatile("sfence" ::: "memory");
+
+        d = (unsigned char *)d64;
+        s = (const unsigned char *)s64;
+        while (count--) {
+            *d++ = *s++;
+        }
+    } else {
+        d += count;
+        s += count;
+
+        while ((uintptr_t)d & 7 && count) {
+            *--d = *--s;
+            count--;
+        }
+
+        uint64_t *d64 = (uint64_t *)d;
+        const uint64_t *s64 = (const uint64_t *)s;
+        while (count >= 64) {
+            __asm__ volatile("movq -8(%1), %%r8;\n"
+                             "movq -16(%1), %%r9;\n"
+                             "movq -24(%1), %%r10;\n"
+                             "movq -32(%1), %%r11;\n"
+                             "movq %%r8, -8(%0);\n"
+                             "movq %%r9, -16(%0);\n"
+                             "movq %%r10, -24(%0);\n"
+                             "movq %%r11, -32(%0);\n"
+                             "movq -40(%1), %%r8;\n"
+                             "movq -48(%1), %%r9;\n"
+                             "movq -56(%1), %%r10;\n"
+                             "movq -64(%1), %%r11;\n"
+                             "movq %%r8, -40(%0);\n"
+                             "movq %%r9, -48(%0);\n"
+                             "movq %%r10, -56(%0);\n"
+                             "movq %%r11, -64(%0);\n"
+                             : "=r"(d64), "=r"(s64)
+                             : "0"(d64), "1"(s64)
+                             : "r8", "r9", "r10", "r11", "memory");
+            d64 -= 8;
+            s64 -= 8;
+            count -= 64;
+        }
+
+        d = (unsigned char *)d64;
+        s = (const unsigned char *)s64;
+        while (count--) {
+            *--d = *--s;
+        }
+    }
+
+    return dest;
+}
+
+#ifdef UNIT_TESTS
+void *anos_std_memset(void *dest, int val, size_t count)
+#else
+void *memset(void *dest, int val, size_t count)
+#endif
+{
+    unsigned char *d = (unsigned char *)dest;
+    uint64_t fill = (uint8_t)val;
+    fill |= fill << 8;
+    fill |= fill << 16;
+    fill |= fill << 32;
+
+    while (((uintptr_t)d & 7) && count) {
+        *d++ = (unsigned char)val;
+        count--;
+    }
+
+    uint64_t *d64 = (uint64_t *)d;
+    while (count >= 64) {
+        __asm__ volatile("movnti %1, (%0);\n"
+                         "movnti %1, 8(%0);\n"
+                         "movnti %1, 16(%0);\n"
+                         "movnti %1, 24(%0);\n"
+                         "movnti %1, 32(%0);\n"
+                         "movnti %1, 40(%0);\n"
+                         "movnti %1, 48(%0);\n"
+                         "movnti %1, 56(%0);\n"
+                         : "=r"(d64)
+                         : "r"(fill), "0"(d64)
+                         : "memory");
+        d64 += 8;
+        count -= 64;
+    }
+    __asm__ volatile("sfence" ::: "memory");
+
+    d = (unsigned char *)d64;
+    while (count--) {
+        *d++ = (unsigned char)val;
+    }
+    return dest;
+}
+
+#ifdef UNIT_TESTS
+void *anos_std_memclr(void *dest, size_t count)
+#else
+void *memclr(void *dest, size_t count)
+#endif
+{
+#ifdef UNIT_TESTS
+    return anos_std_memset(dest, 0, count);
+#else
+    return memset(dest, 0, count);
+#endif
 }

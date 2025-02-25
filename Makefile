@@ -199,6 +199,7 @@ endif
 
 STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/debuginfo.o											\
+			$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/isr_handlers.o										\
 			$(STAGE3_DIR)/structs/list.o										\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\

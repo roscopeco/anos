@@ -191,6 +191,9 @@ kernel/tests/build/arch/x86_64/process/address_space_init: kernel/tests/munit.o 
 kernel/tests/build/arch/x86_64/process/address_space_create: kernel/tests/munit.o kernel/tests/arch/x86_64/process/address_space_create.o kernel/tests/build/arch/x86_64/process/address_space.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o kernel/tests/mock_vmm.o
 	$(CC) $(TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/arch/x86_64/std_routines: kernel/tests/munit.o kernel/tests/arch/x86_64/std_routines.o kernel/tests/build/arch/x86_64/std_routines.o
+	$(CC) $(TEST_CFLAGS) -o $@ $^
+
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
@@ -216,7 +219,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/sleep_queue										\
 			kernel/tests/build/structs/ref_count_map							\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
-			kernel/tests/build/arch/x86_64/process/address_space_create
+			kernel/tests/build/arch/x86_64/process/address_space_create			\
+			kernel/tests/build/arch/x86_64/std_routines
 
 PHONY: test
 test: $(ALL_TESTS)

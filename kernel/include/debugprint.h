@@ -16,12 +16,22 @@ void debugterm_init(char *vram_addr, int arg1, int arg2);
 #include <stdio.h>
 #define debugstr(str) printf("%s", str)
 #define debugattr(...)
+#define debugchsr_np debugchar
 static void debugchar(char ch) { printf("%c", ch); }
 #else
 void debugchar(char chr);
 void debugstr(char *str);
 void debugstr_len(char *str, int len);
 void debugattr(uint8_t new_attr);
+
+// This is a variant of debugchar that won't do any "repaint"
+// type activity immediately. How that is interpreted is up
+// to the specific implementation.
+//
+// If you're using this, you can use `debugchar(0)` to "flush"
+// when you're done...
+//
+void debugchar_np(char chr);
 #endif
 
 #endif //__ANOS_KERNEL_DEBUGPRINT_H
