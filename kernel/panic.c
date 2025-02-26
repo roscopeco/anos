@@ -209,13 +209,13 @@ static inline void print_footer(void) {
 noreturn void panic_sloc(const char *msg, const char *filename,
                          const uint64_t line) {
     disable_interrupts();
-    spinlock_lock(&panic_lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
     print_header_no_vec(msg);
     print_loc(filename, line);
     print_footer();
 
-    spinlock_unlock(&panic_lock);
+    spinlock_unlock_irqrestore(&panic_lock, lock_flags);
     halt_and_catch_fire();
 }
 
@@ -223,7 +223,7 @@ noreturn void panic_page_fault_sloc(uintptr_t origin_addr, uintptr_t fault_addr,
                                     uint64_t code, const char *filename,
                                     const uint64_t line) {
     disable_interrupts();
-    spinlock_lock(&panic_lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
     print_header_vec("Page fault", 0x0e);
     print_loc(filename, line);
@@ -233,7 +233,7 @@ noreturn void panic_page_fault_sloc(uintptr_t origin_addr, uintptr_t fault_addr,
     print_fault_addr(fault_addr);
     print_footer();
 
-    spinlock_unlock(&panic_lock);
+    spinlock_unlock_irqrestore(&panic_lock, lock_flags);
     halt_and_catch_fire();
 }
 
@@ -242,7 +242,7 @@ noreturn void panic_general_protection_fault_sloc(uint64_t code,
                                                   const char *filename,
                                                   const uint64_t line) {
     disable_interrupts();
-    spinlock_lock(&panic_lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
     print_header_vec("General protection fault", 0x0d);
     print_loc(filename, line);
@@ -250,7 +250,7 @@ noreturn void panic_general_protection_fault_sloc(uint64_t code,
     print_origin_ip(origin_addr);
     print_footer();
 
-    spinlock_unlock(&panic_lock);
+    spinlock_unlock_irqrestore(&panic_lock, lock_flags);
     halt_and_catch_fire();
 }
 
@@ -259,7 +259,7 @@ noreturn void panic_exception_with_code_sloc(uint8_t vector, uint64_t code,
                                              const char *filename,
                                              const uint64_t line) {
     disable_interrupts();
-    spinlock_lock(&panic_lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
     print_header_vec("Unhandled exception", vector);
     print_loc(filename, line);
@@ -267,7 +267,7 @@ noreturn void panic_exception_with_code_sloc(uint8_t vector, uint64_t code,
     print_origin_ip(origin_addr);
     print_footer();
 
-    spinlock_unlock(&panic_lock);
+    spinlock_unlock_irqrestore(&panic_lock, lock_flags);
     halt_and_catch_fire();
 }
 
@@ -276,13 +276,13 @@ noreturn void panic_exception_no_code_sloc(uint8_t vector,
                                            const char *filename,
                                            const uint64_t line) {
     disable_interrupts();
-    spinlock_lock(&panic_lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
     print_header_vec("Unhandled exception", vector);
     print_loc(filename, line);
     print_origin_ip(origin_addr);
     print_footer();
 
-    spinlock_unlock(&panic_lock);
+    spinlock_unlock_irqrestore(&panic_lock, lock_flags);
     halt_and_catch_fire();
 }

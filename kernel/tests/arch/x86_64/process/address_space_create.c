@@ -50,8 +50,6 @@ static void *test_setup(const MunitParameter params[], void *user_data) {
 }
 
 static void test_teardown(void *page_area_ptr) {
-    munit_assert_uint32(mock_machine_intr_disable_level(), ==, 0);
-
     free(page_area_ptr);
     mock_pmm_reset();
 }
@@ -95,9 +93,6 @@ static MunitResult test_create_success(const MunitParameter params[],
     // Verify original PML4 was restored
     munit_assert_uint64(complete_pml4.entries[RECURSIVE_ENTRY_OTHER], ==,
                         0x1234 | PRESENT);
-
-    // Verify we disabled interrupts
-    munit_assert_uint32(mock_machine_max_intr_disable_level(), ==, 1);
 
     return MUNIT_OK;
 }

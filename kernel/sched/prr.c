@@ -232,11 +232,11 @@ void sleepy_kernel_task(void) {
     PerCPUState *state = state_get_for_this_cpu();
 
     while (1) {
-        spinlock_lock(&helo_lock);
+        uint64_t lock_flags = spinlock_lock_irqsave(&helo_lock);
         debugstr("    Hello from #");
         printdec(state->cpu_id, debugchar);
         debugstr("    ");
-        spinlock_unlock(&helo_lock);
+        spinlock_unlock_irqrestore(&helo_lock, lock_flags);
         sleep_task(task_current(), 5000000000 + (1000000000 * state->cpu_id));
     }
 

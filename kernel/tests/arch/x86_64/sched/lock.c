@@ -13,45 +13,38 @@
 
 static MunitResult
 test_sched_lock_this_cpu_unlocked(const MunitParameter params[], void *param) {
-    sched_lock_this_cpu();
+    uint64_t flags = sched_lock_this_cpu();
 
     munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 1);
     munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 0);
-
-    munit_assert_uint32(mock_machine_intr_disable_level(), ==, 1);
 
     return MUNIT_OK;
 }
 
 static MunitResult
 test_sched_lock_this_cpu_locked(const MunitParameter params[], void *param) {
-    sched_lock_this_cpu();
+    uint64_t flags = sched_lock_this_cpu();
 
     munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 1);
     munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 0);
 
-    sched_lock_this_cpu();
+    flags = sched_lock_this_cpu(); // In reality this would deadlock
 
     // still only one lock, it's non-reentrant!
-    munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 1);
+    munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 2);
     munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 0);
-
-    munit_assert_uint32(mock_machine_intr_disable_level(), ==, 2);
 
     return MUNIT_OK;
 }
 
 static MunitResult
 test_sched_unlock_this_cpu_locked(const MunitParameter params[], void *param) {
-    sched_lock_this_cpu();
+    uint64_t flags = sched_lock_this_cpu();
 
-    sched_unlock_this_cpu();
+    sched_unlock_this_cpu(flags);
 
     munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 1);
     munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 1);
-
-    munit_assert_uint32(mock_machine_intr_disable_level(), ==, 0);
-    munit_assert_uint32(mock_machine_max_intr_disable_level(), ==, 1);
 
     return MUNIT_OK;
 }
@@ -59,7 +52,7 @@ test_sched_unlock_this_cpu_locked(const MunitParameter params[], void *param) {
 static MunitResult
 test_sched_unlock_this_cpu_unlocked(const MunitParameter params[],
                                     void *param) {
-    sched_unlock_this_cpu();
+    sched_unlock_this_cpu(0x200);
 
     munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 0);
     munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 1);

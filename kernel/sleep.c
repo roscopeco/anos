@@ -74,9 +74,15 @@ void check_sleepers() {
         sched_unblock(waker);
 #else
         PerCPUState *target_cpu = sched_find_target_cpu();
-        sched_lock_any_cpu(target_cpu);
-        sched_unblock_on(waker, target_cpu);
-        sched_unlock_any_cpu(target_cpu);
+
+        if (target_cpu != cpu_state) {
+            uint64_t lock_flags = sched_lock_any_cpu(target_cpu);
+            sched_unblock_on(waker, target_cpu);
+            sched_unlock_any_cpu(target_cpu, lock_flags);
+        } else {
+            // Scheduler already locked on this CPU...
+            sched_unblock_on(waker, target_cpu);
+        }
 #endif
         waker = next;
     }

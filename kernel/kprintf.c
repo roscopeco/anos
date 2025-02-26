@@ -591,7 +591,7 @@ static int _vsnprintf(out_fct_type out, char *buffer, const size_t maxlen,
     unsigned int flags, width, precision, n;
     size_t idx = 0U;
 
-    spinlock_lock(&printf_lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&printf_lock);
 
     if (!buffer) {
         // use null output function
@@ -913,7 +913,7 @@ static int _vsnprintf(out_fct_type out, char *buffer, const size_t maxlen,
     debugchar(0);
 
     // return written chars without terminating \0
-    spinlock_unlock(&printf_lock);
+    spinlock_unlock_irqrestore(&printf_lock, lock_flags);
     return (int)idx;
 }
 

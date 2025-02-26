@@ -26,44 +26,18 @@
 #define debuglog(...)
 #endif
 
-void sched_lock_any_cpu(PerCPUState *cpu_state) {
-    if (cpu_state == state_get_for_this_cpu()) {
-        debuglog("==> LOCK THIS\n");
-        // If target is this CPU, we need to disable interrupts and lock
-        disable_interrupts();
-
-        if (cpu_state->irq_disable_count == 0) {
-            spinlock_lock(&cpu_state->sched_lock_this_cpu);
-        }
-
-        cpu_state->irq_disable_count++;
-    } else {
-        debuglog("==> LOCK OTHER\n");
-        // But for any other CPU, we can just lock...
-        spinlock_lock(&cpu_state->sched_lock_this_cpu);
-    }
+uint64_t sched_lock_any_cpu(PerCPUState *cpu_state) {
+    return spinlock_lock_irqsave(&cpu_state->sched_lock_this_cpu);
 }
 
-void sched_lock_this_cpu(void) { sched_lock_any_cpu(state_get_for_this_cpu()); }
-
-void sched_unlock_any_cpu(PerCPUState *cpu_state) {
-    if (cpu_state == state_get_for_this_cpu()) {
-        debuglog("==> UNLOCK THIS\n");
-        // If target is this CPU, we need to unlock and reenable interrupts
-        if (cpu_state->irq_disable_count <= 1) {
-            cpu_state->irq_disable_count = 0;
-            spinlock_unlock(&cpu_state->sched_lock_this_cpu);
-            enable_interrupts();
-        } else {
-            cpu_state->irq_disable_count--;
-        }
-    } else {
-        // But for any other CPU, we can just unlock
-        debuglog("==> UNLOCK OTHER\n");
-        spinlock_unlock(&cpu_state->sched_lock_this_cpu);
-    }
+uint64_t sched_lock_this_cpu(void) {
+    return sched_lock_any_cpu(state_get_for_this_cpu());
 }
 
-void sched_unlock_this_cpu(void) {
-    sched_unlock_any_cpu(state_get_for_this_cpu());
+void sched_unlock_any_cpu(PerCPUState *cpu_state, uint64_t lock_flags) {
+    spinlock_unlock_irqrestore(&cpu_state->sched_lock_this_cpu, lock_flags);
+}
+
+void sched_unlock_this_cpu(uint64_t lock_flags) {
+    sched_unlock_any_cpu(state_get_for_this_cpu(), lock_flags);
 }

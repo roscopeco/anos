@@ -5,6 +5,7 @@
 ;
 
 global get_new_thread_entrypoint, get_new_thread_userstack
+global get_cpu_flags
 
 get_new_thread_entrypoint:
     mov rax, r15
@@ -12,4 +13,9 @@ get_new_thread_entrypoint:
 
 get_new_thread_userstack:
     mov rax, r14
+    ret
+
+get_cpu_flags:
+    pushfq
+    pop rax
     ret

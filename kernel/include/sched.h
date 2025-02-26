@@ -36,10 +36,10 @@ void sched_unblock_on(Task *task, PerCPUState *state);
 
 PerCPUState *sched_find_target_cpu(void);
 
-void sched_lock_this_cpu(void);
-void sched_lock_any_cpu(PerCPUState *cpu);
+uint64_t sched_lock_this_cpu(void);
+uint64_t sched_lock_any_cpu(PerCPUState *cpu);
 
-void sched_unlock_this_cpu(void);
-void sched_unlock_any_cpu(PerCPUState *cpu);
+void sched_unlock_this_cpu(uint64_t lock_flags);
+void sched_unlock_any_cpu(PerCPUState *cpu, uint64_t lock_flags);
 
 #endif //__ANOS_KERNEL_SCHED_H

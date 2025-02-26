@@ -94,12 +94,12 @@ uint32_t volatile *init_local_apic(ACPI_MADT *madt, bool bsp) {
     *(REG_LAPIC_SPURIOUS(lapic)) = 0x1FF;
 
     // if (bsp) {
-    spinlock_lock(&init_timers_spinlock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&init_timers_spinlock);
     KernelTimer *timer = hpet_as_timer();
 
     uint64_t hz_ticks;
     hz_ticks = local_apic_calibrate_count(timer, KERNEL_HZ);
-    spinlock_unlock(&init_timers_spinlock);
+    spinlock_unlock_irqrestore(&init_timers_spinlock, lock_flags);
 
     // /16 mode, init count based on caibrated kernel Hz.
     if (bsp) {
