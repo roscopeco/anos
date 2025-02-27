@@ -71,7 +71,7 @@ endif
 #
 # These set options you might feel like configuring
 #
-#	SERIAL_TERMINAL			Disable VGA terminal and use COM1 instead (see also SERIALTERM=true make option)
+#	SERIAL_TERMINAL			Disable VGA terminal and use COM1 instead (see also SERIAL_TERMINAL=true make option)
 #	USE_BIZCAT_FONT			Use BIZCAT font instead of the default (only for graphical terminal)
 #
 # And these will selectively disable features
@@ -93,9 +93,9 @@ QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk
 QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/ovmf/OVMF_VARS-pure-efi.fd
 QEMU_DEBUG_OPTS=-gdb tcp::9666 -S -monitor telnet:127.0.0.1:1234,server,nowait
 
-ifeq ($(SERIALTERM),true)
-QEMU_BASEOPTS+=-display none -serial stdio
-CDEFS+=-DSERIAL_TERMINAL
+ifeq ($(SERIAL_TERMINAL),true)
+QEMU_BASEOPTS+=-serial stdio
+CDEFS+=-DSERIAL_TERMINAL -DLEGACY_TERMINAL
 else
 QEMU_BASEOPTS+=-monitor stdio
 endif
