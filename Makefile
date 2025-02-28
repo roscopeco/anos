@@ -188,6 +188,8 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/serial.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/process/address_space.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/std_routines.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/structs/list.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/spinlock.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
 ifeq ($(ARCH),x86_64)
@@ -204,7 +206,6 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/debuginfo.o											\
 			$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/isr_handlers.o										\
-			$(STAGE3_DIR)/structs/list.o										\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/vmm/vmmapper.o										\
 			$(STAGE3_DIR)/fba/alloc.o											\
@@ -213,7 +214,6 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/kdrivers/drivers.o									\
 			$(STAGE3_DIR)/pci/bus.o												\
 			$(STAGE3_DIR)/pci/enumerate.o										\
-			$(STAGE3_DIR)/spinlock.o											\
 			$(STAGE3_DIR)/syscalls.o											\
 			$(STAGE3_DIR)/task.o												\
 			$(STAGE3_DIR)/sched/prr.o											\
