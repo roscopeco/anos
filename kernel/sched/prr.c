@@ -219,24 +219,24 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
 }
 
 #ifdef DEBUG_SLEEPY_KERNEL_TASK
-#include "debugprint.h"
 #include "fba/alloc.h"
-#include "printdec.h"
+#include "kprintf.h"
 #include "sleep.h"
-#include "spinlock.h"
 #include "task.h"
 
-static SpinLock helo_lock;
-
+// TODO It seems there's a bug here (or possibly in kernel tasks generally).
+//      When sleepy task is enabled, it _looks_ like user tasks start up
+//      multiple times. This may be true, or it may be a terminal artifact
+//      (though it does occur on the serial term too).
+//
+//      Investigate. Check the entrypoint and how we're handling the locks
+//      especially, it feels very much like a straight-up race condition...
+//
 void sleepy_kernel_task(void) {
     PerCPUState *state = state_get_for_this_cpu();
 
     while (1) {
-        uint64_t lock_flags = spinlock_lock_irqsave(&helo_lock);
-        debugstr("    Hello from #");
-        printdec(state->cpu_id, debugchar);
-        debugstr("    ");
-        spinlock_unlock_irqrestore(&helo_lock, lock_flags);
+        kprintf("    Hello from #%ld    ", state->cpu_id);
         sleep_task(task_current(), 5000000000 + (1000000000 * state->cpu_id));
     }
 
