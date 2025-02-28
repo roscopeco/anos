@@ -48,6 +48,7 @@ endif
 #	VERY_NOISY_PCI_ENUM		Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
 #	DEBUG_HPET				Enable debugging of the HPET initialisation
 #	DEBUG_SLEEP				Enable debugging of the sleep (and eventually yield etc) syscall(s)
+#	VERY_NOISY_SLEEP		Enable *lots* of debugging of sleep syscall(s)
 #	DEBUG_CPU				Enable debugging of CPU information at boot
 #	DEBUG_CPU_FREQ			Enable debugging of CPU frequency calibration (requires DEBUG_CPU)
 #	DEBUG_SMP_STARTUP		Enable debugging of SMP AP startup
@@ -68,10 +69,12 @@ endif
 #	DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL	address_space_create will copy **all** PDPT entries,
 #										not just kernel ones. This is unlikely to ever be a
 #										good idea outside some very specific startup tests!
+#	EXPERIMENTAL_SCHED_LOCK				Change the way the scheduler lock works. 
+#										The experimental way is simpler, but less well tested...
 #
 # These set options you might feel like configuring
 #
-#	SERIAL_TERMINAL			Disable VGA terminal and use COM1 instead (see also SERIALTERM=true make option)
+#	SERIAL_TERMINAL			Disable VGA terminal and use COM1 instead (see also SERIAL_TERMINAL=true make option)
 #	USE_BIZCAT_FONT			Use BIZCAT font instead of the default (only for graphical terminal)
 #
 # And these will selectively disable features
@@ -86,16 +89,16 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU -DDEBUG_SLEEPY_KERNEL_TASK
+CDEFS=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK
 
 QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
 QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
 QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/ovmf/OVMF_VARS-pure-efi.fd
 QEMU_DEBUG_OPTS=-gdb tcp::9666 -S -monitor telnet:127.0.0.1:1234,server,nowait
 
-ifeq ($(SERIALTERM),true)
-QEMU_BASEOPTS+=-display none -serial stdio
-CDEFS+=-DSERIAL_TERMINAL
+ifeq ($(SERIAL_TERMINAL),true)
+QEMU_BASEOPTS+=-serial stdio
+CDEFS+=-DSERIAL_TERMINAL -DLEGACY_TERMINAL
 else
 QEMU_BASEOPTS+=-monitor stdio
 endif

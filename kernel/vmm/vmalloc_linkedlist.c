@@ -8,21 +8,11 @@
  * It'll do the job for now...
  */
 
+#include "once.h"
 #include "spinlock.h"
 #include "vmm/vmalloc.h"
 
 #define NULL (((void *)0))
-
-#define LOCK()                                                                 \
-    do {                                                                       \
-        spinlock_lock(&vmm_lock);                                              \
-    } while (0)
-
-#define UNLOCK_RET(retval)                                                     \
-    do {                                                                       \
-        spinlock_unlock(&vmm_lock);                                            \
-        return (retval);                                                       \
-    } while (0)
 
 static SpinLock vmm_lock;
 
@@ -75,6 +65,9 @@ static uint64_t align_down(uint64_t addr) {
 // Initialize the VMM
 int vmm_init(void *metadata_start, uint64_t metadata_size,
              uint64_t managed_start, uint64_t managed_size) {
+
+    kernel_guard_once();
+
     // Basic parameter validation
     if (!metadata_start || !metadata_size || !managed_size) {
         return VMM_ERROR_INVALID_PARAMS;
@@ -120,7 +113,7 @@ uint64_t vmm_alloc_block(uint64_t num_pages) {
         return 0;
     }
 
-    LOCK();
+    uint64_t lock_flags = spinlock_lock_irqsave(&vmm_lock);
 
     uint64_t size = num_pages * VM_PAGE_SIZE;
     Range *prev = NULL;
@@ -163,10 +156,12 @@ uint64_t vmm_alloc_block(uint64_t num_pages) {
             best_fit->size -= size;
         }
 
-        UNLOCK_RET(alloc_addr);
+        spinlock_unlock_irqrestore(&vmm_lock, lock_flags);
+        return alloc_addr;
     }
 
-    UNLOCK_RET(0); // No suitable range found
+    spinlock_unlock_irqrestore(&vmm_lock, lock_flags);
+    return 0; // No suitable range found
 }
 
 // Free a block of pages
@@ -178,7 +173,7 @@ int vmm_free_block(uint64_t address, uint64_t num_pages) {
         return VMM_ERROR_INVALID_PARAMS;
     }
 
-    LOCK();
+    uint64_t lock_flags = spinlock_lock_irqsave(&vmm_lock);
 
     uint64_t size = num_pages * VM_PAGE_SIZE;
     Range *new_range = alloc_range();
@@ -224,5 +219,6 @@ int vmm_free_block(uint64_t address, uint64_t num_pages) {
         free_range(to_free);
     }
 
-    UNLOCK_RET(VMM_SUCCESS);
+    spinlock_unlock_irqrestore(&vmm_lock, lock_flags);
+    return VMM_SUCCESS;
 }

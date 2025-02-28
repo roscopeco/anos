@@ -12,6 +12,7 @@
 
 #include "debugprint.h"
 #include "fba/alloc.h"
+#include "kprintf.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
 #include "process.h"
@@ -47,7 +48,7 @@ static SyscallResult handle_anos_testcall(SyscallArg arg0, SyscallArg arg1,
 
 static SyscallResult handle_debugprint(char *message) {
     if (((uint64_t)message & 0xffffffff00000000) == 0) {
-        debugstr(message);
+        kprintf(message);
     }
 
     return SYSCALL_OK;
@@ -70,9 +71,9 @@ static SyscallResult handle_create_thread(ThreadFunc func,
     sched_unlock_this_cpu();
 #else
     PerCPUState *target_cpu = sched_find_target_cpu();
-    sched_lock_any_cpu(target_cpu);
+    uint64_t lock_flags = sched_lock_any_cpu(target_cpu);
     sched_unblock_on(task, target_cpu);
-    sched_unlock_any_cpu(target_cpu);
+    sched_unlock_any_cpu(target_cpu, lock_flags);
 #endif
 
     return task->sched->tid;
@@ -88,9 +89,9 @@ static SyscallResult handle_memstats(AnosMemInfo *mem_info) {
 }
 
 static SyscallResult handle_sleep(uint64_t nanos) {
-    sched_lock_this_cpu();
+    uint64_t lock_flags = sched_lock_this_cpu();
     sleep_task(task_current(), nanos);
-    sched_unlock_this_cpu();
+    sched_unlock_this_cpu(lock_flags);
 
     return SYSCALL_OK;
 }
@@ -190,9 +191,9 @@ static SyscallResult handle_create_process(uintptr_t stack_base,
     sched_unlock_this_cpu();
 #else
     PerCPUState *target_cpu = sched_find_target_cpu();
-    sched_lock_any_cpu(target_cpu);
+    uint64_t lock_flags = sched_lock_any_cpu(target_cpu);
     sched_unblock_on(new_task, target_cpu);
-    sched_unlock_any_cpu(target_cpu);
+    sched_unlock_any_cpu(target_cpu, lock_flags);
 #endif
 
     return new_process->pid;

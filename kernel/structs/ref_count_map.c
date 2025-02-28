@@ -22,12 +22,10 @@
 #endif
 
 #define SPINLOCK_LOCK()                                                        \
-    uint64_t intflags = save_disable_interrupts();                             \
-    spinlock_lock(&refcount_map_lock)
+    uint64_t intflags = spinlock_lock_irqsave(&refcount_map_lock)
 
 #define SPINLOCK_UNLOCK()                                                      \
-    spinlock_unlock(&refcount_map_lock);                                       \
-    restore_saved_interrupts(intflags)
+    spinlock_unlock_irqrestore(&refcount_map_lock, intflags)
 
 // Global map instance and lock for now...
 static RefCountMap *global_refcount_map = NULL;

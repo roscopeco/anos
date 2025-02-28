@@ -227,10 +227,10 @@ static inline bool stack_empty(MemoryRegion *region) {
 }
 
 uint64_t page_alloc_m(MemoryRegion *region, uint64_t count) {
-    spinlock_lock(&region->lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&region->lock);
 
     if (stack_empty(region)) {
-        spinlock_unlock(&region->lock);
+        spinlock_unlock_irqrestore(&region->lock, lock_flags);
         return 0xFF;
     }
 
@@ -250,7 +250,7 @@ uint64_t page_alloc_m(MemoryRegion *region, uint64_t count) {
 
             region->free -= (count << 12);
 
-            spinlock_unlock(&region->lock);
+            spinlock_unlock_irqrestore(&region->lock, lock_flags);
             return page;
         } else if (ptr->size == count) {
             // Block is exactly enough, pop (or remove if not top) it and return
@@ -270,22 +270,22 @@ uint64_t page_alloc_m(MemoryRegion *region, uint64_t count) {
 
             region->free -= (count << 12);
 
-            spinlock_unlock(&region->lock);
+            spinlock_unlock_irqrestore(&region->lock, lock_flags);
             return page;
         }
 
         ptr--;
     }
 
-    spinlock_unlock(&region->lock);
+    spinlock_unlock_irqrestore(&region->lock, lock_flags);
     return 0xFF;
 }
 
 uint64_t page_alloc(MemoryRegion *region) {
-    spinlock_lock(&region->lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&region->lock);
 
     if (stack_empty(region)) {
-        spinlock_unlock(&region->lock);
+        spinlock_unlock_irqrestore(&region->lock, lock_flags);
         return 0xFF;
     }
 
@@ -297,14 +297,14 @@ uint64_t page_alloc(MemoryRegion *region) {
         region->sp->base += 0x1000;
         region->sp->size--;
 
-        spinlock_unlock(&region->lock);
+        spinlock_unlock_irqrestore(&region->lock, lock_flags);
         return page;
     } else {
         // Must be exactly one page in this block - just pop and return
         uint64_t page = region->sp->base;
         region->sp--;
 
-        spinlock_unlock(&region->lock);
+        spinlock_unlock_irqrestore(&region->lock, lock_flags);
         return page;
     }
 }
@@ -315,7 +315,7 @@ void page_free(MemoryRegion *region, uint64_t page) {
         return;
     }
 
-    spinlock_lock(&region->lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&region->lock);
     region->free += 0x1000;
 
 #ifndef NO_PMM_FREE_COALESCE_ADJACENT
@@ -325,13 +325,13 @@ void page_free(MemoryRegion *region, uint64_t page) {
             region->sp->base = page;
             region->sp->size += 1;
 
-            spinlock_unlock(&region->lock);
+            spinlock_unlock_irqrestore(&region->lock, lock_flags);
             return;
         } else if (region->sp->base == page - 0x1000) {
             // Freeing page above current stack top, so just resize
             region->sp->size += 1;
 
-            spinlock_unlock(&region->lock);
+            spinlock_unlock_irqrestore(&region->lock, lock_flags);
             return;
         }
     }
@@ -341,5 +341,5 @@ void page_free(MemoryRegion *region, uint64_t page) {
     region->sp++;
     region->sp->base = page;
     region->sp->size = 1;
-    spinlock_unlock(&region->lock);
+    spinlock_unlock_irqrestore(&region->lock, lock_flags);
 }

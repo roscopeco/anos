@@ -10,8 +10,13 @@
 %define FUNC(name) name
 %endif
 
-global FUNC(spinlock_init), FUNC(spinlock_lock), FUNC(spinlock_unlock)
-global FUNC(spinlock_reentrant_init), FUNC(spinlock_reentrant_lock), FUNC(spinlock_reentrant_unlock)
+global FUNC(spinlock_init)
+global FUNC(spinlock_lock), FUNC(spinlock_unlock)
+global FUNC(spinlock_lock_irqsave), FUNC(spinlock_unlock_irqrestore)
+
+global FUNC(spinlock_reentrant_init)
+global FUNC(spinlock_reentrant_lock), FUNC(spinlock_reentrant_unlock)
+
 
 ; args:
 ;   rdi - *lock
@@ -19,6 +24,7 @@ global FUNC(spinlock_reentrant_init), FUNC(spinlock_reentrant_lock), FUNC(spinlo
 FUNC(spinlock_init):
     mov     qword [rdi], 0
     ret
+
 
 ; args:
 ;   rdi - *lock
@@ -34,12 +40,55 @@ FUNC(spinlock_lock):
     jz FUNC(spinlock_lock)
     jmp .wait
 
+
+; args:
+;   rdi - *lock
+;
+; ret:
+;   rax - save flags
+; 
+FUNC(spinlock_lock_irqsave):
+    pushfq
+    cli
+    pop     rax
+
+.try:
+    cli
+    xacquire lock bts qword [rdi], 0
+    jc .hold
+    ret
+
+.hold:
+    push    rax
+    popfq
+
+.wait:
+    pause
+    test qword [rdi], 1
+    jz .try
+    jmp .wait
+
+
 ; args:
 ;   rdi - *lock
 ;
 FUNC(spinlock_unlock):
     xrelease lock btr qword [rdi], 0; keeping the lock as it feels like requiring
-    ret                             ; alignment of the lock will lead to subtle bugs..
+                                    ; alignment of the lock will lead to subtle bugs..
+    ret
+
+
+; args:
+;   rdi - *lock
+;   rsi - restore flags
+;
+FUNC(spinlock_unlock_irqrestore):
+    xrelease lock btr qword [rdi], 0; keeping the lock as it feels like requiring
+                                    ; alignment of the lock will lead to subtle bugs..
+    push    rsi 
+    popfq
+    ret
+
 
 ; args:
 ;   rdi - *lock

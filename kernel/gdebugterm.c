@@ -15,6 +15,8 @@
 #include "printhex.h"
 #include "std/string.h"
 
+#include "spinlock.h"
+
 #if USE_BIZCAT_FONT
 #include "gdebugterm/bizcat_font.h"
 #else
@@ -27,12 +29,12 @@
 #define BACKBUF_PHYSICAL(x, y) (((x << 1) + (y * line_width_bytes)))
 #define FRAMEBUF_PHYSICAL(x, y) (((x) + ((y) * fb_phys_width)))
 
-static uint32_t *fb;
+static uint32_t volatile *fb;
 static uint16_t fb_phys_width;
 static uint16_t fb_phys_height;
 static uint8_t fb_bytes_per_pixel;
 
-static uint8_t backbuf[32768];
+static uint8_t volatile backbuf[32768];
 
 static uint16_t line_width_bytes;
 static uint16_t display_max;
@@ -40,13 +42,14 @@ static uint16_t display_max;
 static uint16_t row_count;
 static uint16_t col_count;
 
-static uint16_t logical_x;
-static uint16_t logical_y;
+static uint16_t volatile logical_x;
+static uint16_t volatile logical_y;
 
 static uint8_t attr;
 
-static int chars_per_row;
 static int font_area;
+
+static SpinLock debugterm_lock;
 
 static uint32_t const colors[] = {
         0x00000000, // COLOR_BLACK
@@ -70,7 +73,8 @@ static uint32_t const colors[] = {
 static const uint8_t bit_masks[8] = {0x80, 0x40, 0x20, 0x10,
                                      0x08, 0x04, 0x02, 0x01};
 
-bool debugterm_init(void *_fb, uint16_t phys_width, uint16_t phys_height) {
+bool debugterm_init(void volatile *_fb, uint16_t phys_width,
+                    uint16_t phys_height) {
     fb = _fb;
     fb_phys_width = phys_width;
     fb_phys_height = phys_height;
@@ -92,6 +96,34 @@ bool debugterm_init(void *_fb, uint16_t phys_width, uint16_t phys_height) {
 #define WRITE_PIXEL(n)                                                         \
     *fb_ptr++ = (font_byte & bit_masks[n]) ? fg_color : bg_color
 
+static inline void paint_char(uint8_t c, uint8_t attr, int fb_x_base,
+                              int fb_y_base) {
+    const uint32_t fg_color = colors[attr & 0xf];
+    const uint32_t bg_color = colors[attr >> 4];
+
+    const uint8_t *font_ptr =
+            ((uint8_t *)gdebugterm_font) + (c * gdebugterm_font_height);
+
+    uint32_t volatile *fb_char_base =
+            &fb[fb_x_base + (fb_y_base * fb_phys_width)];
+
+    for (int dy = 0; dy < gdebugterm_font_height; dy++) {
+        const uint8_t font_byte = *font_ptr++;
+        uint32_t volatile *fb_ptr = fb_char_base;
+
+        WRITE_PIXEL(0);
+        WRITE_PIXEL(1);
+        WRITE_PIXEL(2);
+        WRITE_PIXEL(3);
+        WRITE_PIXEL(4);
+        WRITE_PIXEL(5);
+        WRITE_PIXEL(6);
+        WRITE_PIXEL(7);
+
+        fb_char_base += fb_phys_width;
+    }
+}
+
 /*
  * Note! This expects the framebuffer is page aligned!
  *
@@ -100,13 +132,9 @@ bool debugterm_init(void *_fb, uint16_t phys_width, uint16_t phys_height) {
  * this just now...
  */
 static void repaint(void) {
-    const int chars_per_row = col_count;
-    const int bytes_per_row = chars_per_row << 1; // char + attribute
-    const int fb_char_width = gdebugterm_font_width;
-    const int fb_char_height = gdebugterm_font_height;
-    const int fb_row_stride = fb_phys_width;
+    const int bytes_per_row = col_count << 1; // char + attribute
 
-    const uint8_t *buf_ptr = backbuf;
+    const uint8_t volatile *buf_ptr = backbuf;
 
     // pre-calculate base framebuffer positions for each character row,
     // taking advantage of page alignment for optimal cache line usage
@@ -114,45 +142,30 @@ static void repaint(void) {
 
     for (int row = 0; row < display_max / bytes_per_row; row++) {
         // base Y pos for this row of characters
-        const int fb_y_base = row * fb_char_height;
+        const int fb_y_base = row * gdebugterm_font_height;
 
         // process whole row...
-        for (int col = 0; col < chars_per_row; col++) {
+        for (int col = 0; col < col_count; col++) {
+            const int fb_x_base = col * gdebugterm_font_width;
             const char c = *buf_ptr++;
             const uint8_t attr = *buf_ptr++;
 
-            const uint32_t fg_color = colors[attr & 0xf];
-            const uint32_t bg_color = colors[attr >> 4];
-
-            const int fb_x_base = col * fb_char_width;
-
-            const uint8_t *font_ptr =
-                    ((uint8_t *)gdebugterm_font) + (c * fb_char_height);
-
-            uint32_t *fb_char_base =
-                    &fb[fb_x_base + (fb_y_base * fb_row_stride)];
-
-            for (int dy = 0; dy < fb_char_height; dy++) {
-                const uint8_t font_byte = *font_ptr++;
-                uint32_t *fb_ptr = fb_char_base;
-
-                WRITE_PIXEL(0);
-                WRITE_PIXEL(1);
-                WRITE_PIXEL(2);
-                WRITE_PIXEL(3);
-                WRITE_PIXEL(4);
-                WRITE_PIXEL(5);
-                WRITE_PIXEL(6);
-                WRITE_PIXEL(7);
-
-                fb_char_base += fb_row_stride;
-            }
+            paint_char(c, attr, fb_x_base, fb_y_base);
         }
     }
 }
 
 static inline uint16_t scroll() {
-    memmove(backbuf, &backbuf[line_width_bytes],
+#ifdef BYTEWISE_SCROLL_DEBUGGING
+    for (int i = line_width_bytes; i < display_max; i++) {
+        backbuf[i - line_width_bytes] = backbuf[i];
+    }
+    for (int i = display_max - line_width_bytes; i < display_max; i += 2) {
+        backbuf[i] = ' ';
+        backbuf[i + 1] = 0x07;
+    }
+#else
+    memmove((void *)backbuf, (void *)&backbuf[line_width_bytes],
             display_max - line_width_bytes);
 
     uint64_t *p64 = (uint64_t *)(backbuf + display_max - line_width_bytes);
@@ -162,6 +175,7 @@ static inline uint16_t scroll() {
     for (size_t i = 0; i < line_width_bytes / 8; ++i) {
         p64[i] = fill64;
     }
+#endif
 
     logical_x = 0;
     logical_y = row_count - 1;
@@ -169,14 +183,11 @@ static inline uint16_t scroll() {
 }
 
 void debugchar_np(char chr) {
-    // TODO maybe should redo this such that writing a single char writes
-    // to both backbuffer **and** directly to frontbuffer, and then we only
-    // use backbuffer on full-repaint (scroll etc), like on rosco_m68k...
-    //
     uint16_t phys = BACKBUF_PHYSICAL(logical_x, logical_y);
 
     if (phys >= display_max || logical_y > row_count) {
         phys = scroll();
+        repaint();
     }
 
     switch (chr) {
@@ -186,16 +197,20 @@ void debugchar_np(char chr) {
         // TODO scrolling etc!
         logical_y += 1;
         logical_x = 0;
-        repaint();
         break;
     default:
         backbuf[phys] = chr;
         backbuf[phys + 1] = attr;
+
+        paint_char(chr, attr, logical_x * gdebugterm_font_width,
+                   logical_y * gdebugterm_font_height);
+
         logical_x += 1;
         if (logical_x > col_count - 1) {
             logical_y += 1;
             logical_x = 0;
         }
+
         break;
     }
 }
@@ -203,8 +218,9 @@ void debugchar_np(char chr) {
 void debugattr(uint8_t new_attr) { attr = new_attr; }
 
 void debugchar(char chr) {
+    uint64_t lock_flags = spinlock_lock_irqsave(&debugterm_lock);
     debugchar_np(chr);
-    repaint();
+    spinlock_unlock_irqrestore(&debugterm_lock, lock_flags);
 }
 
 static inline void debugstr_np(const char *str) {
@@ -215,7 +231,11 @@ static inline void debugstr_np(const char *str) {
     }
 }
 
-void debugstr(const char *str) { debugstr_np(str); }
+void debugstr(const char *str) {
+    uint64_t lock_flags = spinlock_lock_irqsave(&debugterm_lock);
+    debugstr_np(str);
+    spinlock_unlock_irqrestore(&debugterm_lock, lock_flags);
+}
 
 /* printhex */
 

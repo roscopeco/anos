@@ -23,9 +23,6 @@ static MunitResult test_init(const MunitParameter params[], void *data) {
 
     munit_assert_false(mock_spinlock_is_locked());
 
-    munit_assert_uint64(mock_machine_intr_disable_level(), ==, 0);
-    munit_assert_uint64(mock_machine_max_intr_disable_level(), ==, 1);
-
     // Test double initialization
     uint64_t prev_fba = mock_fba_get_alloc_count();
     uint64_t prev_slab = mock_slab_get_alloc_count();
@@ -35,9 +32,6 @@ static MunitResult test_init(const MunitParameter params[], void *data) {
 
     munit_assert_size(mock_fba_get_alloc_count(), ==, prev_fba);
     munit_assert_size(mock_slab_get_alloc_count(), ==, prev_slab);
-
-    munit_assert_uint64(mock_machine_intr_disable_level(), ==, 0);
-    munit_assert_uint64(mock_machine_max_intr_disable_level(), ==, 1);
 
     refcount_map_cleanup();
     return MUNIT_OK;
@@ -53,9 +47,6 @@ static MunitResult test_init_fba_fail(const MunitParameter params[],
 
     munit_assert_false(mock_spinlock_is_locked());
 
-    munit_assert_uint64(mock_machine_intr_disable_level(), ==, 0);
-    munit_assert_uint64(mock_machine_max_intr_disable_level(), ==, 1);
-
     refcount_map_cleanup();
     return MUNIT_OK;
 }
@@ -69,9 +60,6 @@ static MunitResult test_init_slab_fail(const MunitParameter params[],
     munit_assert_false(result);
 
     munit_assert_false(mock_spinlock_is_locked());
-
-    munit_assert_uint64(mock_machine_intr_disable_level(), ==, 0);
-    munit_assert_uint64(mock_machine_max_intr_disable_level(), ==, 1);
 
     refcount_map_cleanup();
     return MUNIT_OK;
@@ -89,9 +77,6 @@ static MunitResult test_basic_refcount(const MunitParameter params[],
     munit_assert_uint32(count, ==, 1);
     munit_assert_false(mock_spinlock_is_locked());
 
-    munit_assert_uint64(mock_machine_intr_disable_level(), ==, 0);
-    munit_assert_uint64(mock_machine_max_intr_disable_level(), ==, 1);
-
     // Second reference
     count = refcount_map_increment(addr);
     munit_assert_uint32(count, ==, 2);
@@ -107,9 +92,6 @@ static MunitResult test_basic_refcount(const MunitParameter params[],
     // Try to remove non-existent reference
     count = refcount_map_decrement(addr);
     munit_assert_uint32(count, ==, 0);
-
-    munit_assert_uint64(mock_machine_intr_disable_level(), ==, 0);
-    munit_assert_uint64(mock_machine_max_intr_disable_level(), ==, 1);
 
     refcount_map_cleanup();
     return MUNIT_OK;

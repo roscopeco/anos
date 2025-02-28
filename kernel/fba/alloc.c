@@ -23,17 +23,6 @@
 #define NULL (((void *)0))
 #endif
 
-#define SPIN_LOCK()                                                            \
-    do {                                                                       \
-        spinlock_lock(&fba_lock);                                              \
-    } while (0)
-
-#define SPIN_UNLOCK_RET(retval)                                                \
-    do {                                                                       \
-        spinlock_unlock(&fba_lock);                                            \
-        return (retval);                                                       \
-    } while (0)
-
 static uint64_t *_pml4;
 static uintptr_t _fba_begin;
 static uint64_t _fba_size_blocks;
@@ -265,14 +254,15 @@ void *fba_alloc_blocks_aligned(uint32_t count, uint8_t page_align) {
         return NULL;
     }
 
-    SPIN_LOCK();
+    uint64_t lock_flags = spinlock_lock_irqsave(&fba_lock);
     uint64_t *bmp = _fba_bitmap;
     uint64_t bit =
             find_unset_run(bmp, _fba_bitmap_size_quads, page_align, count);
 
     if (bit == _fba_bitmap_size_bits) {
         tprintf("Unable to satisfy request for %d blocks\n", count);
-        SPIN_UNLOCK_RET(NULL);
+        spinlock_unlock_irqrestore(&fba_lock, lock_flags);
+        return NULL;
     }
 
     tprintf("Bit is %ld\n", bit);
@@ -296,11 +286,13 @@ void *fba_alloc_blocks_aligned(uint32_t count, uint8_t page_align) {
             printhex32(count, debugchar);
             debugstr(" requested; PROBABLE MEMORY LEAK\n");
 #endif
-            SPIN_UNLOCK_RET(NULL);
+            spinlock_unlock_irqrestore(&fba_lock, lock_flags);
+            return NULL;
         }
     }
 
-    SPIN_UNLOCK_RET((void *)first_block_address);
+    spinlock_unlock_irqrestore(&fba_lock, lock_flags);
+    return (void *)first_block_address;
 }
 
 static inline uint8_t first_set_bit_64(uint64_t nonzero_uint64) {
@@ -327,7 +319,7 @@ void *fba_alloc_block() {
     tprintf("bmp     = %p\n", _fba_bitmap);
     tprintf("bmp_end = %p\n", _fba_bitmap_end);
 
-    SPIN_LOCK();
+    uint64_t lock_flags = spinlock_lock_irqsave(&fba_lock);
 
     uint64_t *bmp;
     for (bmp = _fba_bitmap; bmp < _fba_bitmap_end; bmp++) {
@@ -339,14 +331,16 @@ void *fba_alloc_block() {
 
     if (bmp == _fba_bitmap_end) {
         tprintf("All blocks are full\n");
-        SPIN_UNLOCK_RET(NULL);
+        spinlock_unlock_irqrestore(&fba_lock, lock_flags);
+        return NULL;
     }
 
     int bit = first_set_bit_64(~(*bmp));
     bitmap_set(bmp, bit);
     uintptr_t block_address =
             _fba_begin + ((bmp - _fba_bitmap) * 64 + bit) * VM_PAGE_SIZE;
-    SPIN_UNLOCK_RET(do_alloc(block_address));
+    spinlock_unlock_irqrestore(&fba_lock, lock_flags);
+    return do_alloc(block_address);
 }
 
 void fba_free(void *block) {
@@ -361,7 +355,7 @@ void fba_free(void *block) {
         return;
     }
 
-    spinlock_lock(&fba_lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&fba_lock);
 
     uint64_t block_index = (block_address - _fba_begin) / VM_PAGE_SIZE;
     uint64_t quad_index = block_index / 64;
@@ -390,5 +384,5 @@ void fba_free(void *block) {
         }
     }
 
-    spinlock_unlock(&fba_lock);
+    spinlock_unlock_irqrestore(&fba_lock, lock_flags);
 }

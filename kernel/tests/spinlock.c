@@ -17,7 +17,7 @@
 
 static uint64_t thread_nums[THREAD_NUM_COUNT];
 
-static MunitResult mock_spinlock_init(const MunitParameter params[],
+static MunitResult test_spinlock_init(const MunitParameter params[],
                                       void *param) {
     SpinLock lock = {0xffffffffffffffff};
 
@@ -28,7 +28,7 @@ static MunitResult mock_spinlock_init(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult mock_spinlock_lock_unlock(const MunitParameter params[],
+static MunitResult test_spinlock_lock_unlock(const MunitParameter params[],
                                              void *param) {
     SpinLock lock = {0x0, 0x0};
 
@@ -57,7 +57,7 @@ static void *spinlock_thread_func(void *arg) {
     return NULL;
 }
 
-static MunitResult mock_spinlock_multithreaded(const MunitParameter params[],
+static MunitResult test_spinlock_multithreaded(const MunitParameter params[],
                                                void *param) {
     SpinLock lock = {0x0};
     pthread_t threads[THREAD_COUNT];
@@ -79,7 +79,7 @@ static MunitResult mock_spinlock_multithreaded(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult mock_spinlock_reentrant_init(const MunitParameter params[],
+static MunitResult test_spinlock_reentrant_init(const MunitParameter params[],
                                                 void *param) {
     ReentrantSpinLock lock = {0xffffffffffffffff, 0xffffffffffffffff};
 
@@ -92,7 +92,7 @@ static MunitResult mock_spinlock_reentrant_init(const MunitParameter params[],
 }
 
 static MunitResult
-mock_spinlock_reentrant_lock_unlock(const MunitParameter params[],
+test_spinlock_reentrant_lock_unlock(const MunitParameter params[],
                                     void *param) {
     bool result;
     ReentrantSpinLock lock = {0x0, 0x0};
@@ -169,16 +169,16 @@ static MunitResult test_reentrant_multithreaded(const MunitParameter params[],
 }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/init", mock_spinlock_init, NULL, NULL,
+        {(char *)"/init", test_spinlock_init, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/lock_unlock", mock_spinlock_lock_unlock, NULL, NULL,
+        {(char *)"/lock_unlock", test_spinlock_lock_unlock, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/spinlock_multithreaded", mock_spinlock_multithreaded, NULL,
+        {(char *)"/spinlock_multithreaded", test_spinlock_multithreaded, NULL,
          NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
-        {(char *)"/reentrant_init", mock_spinlock_reentrant_init, NULL, NULL,
+        {(char *)"/reentrant_init", test_spinlock_reentrant_init, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/reentrant_lock_unlock", mock_spinlock_reentrant_lock_unlock,
+        {(char *)"/reentrant_lock_unlock", test_spinlock_reentrant_lock_unlock,
          NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/reentrant_multithreaded", test_reentrant_multithreaded, NULL,
          NULL, MUNIT_TEST_OPTION_NONE, NULL},

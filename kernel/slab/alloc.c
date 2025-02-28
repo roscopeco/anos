@@ -15,17 +15,6 @@
 
 #define NULL (((void *)0))
 
-#define SPIN_LOCK()                                                            \
-    do {                                                                       \
-        spinlock_lock(&slab_lock);                                             \
-    } while (0)
-
-#define SPIN_UNLOCK_RET(retval)                                                \
-    do {                                                                       \
-        spinlock_unlock(&slab_lock);                                           \
-        return (retval);                                                       \
-    } while (0)
-
 static ListNode *partial;
 static ListNode *full;
 
@@ -58,7 +47,7 @@ static inline uint8_t first_set_bit_64(uint64_t nonzero_uint64) {
 void *slab_alloc_block() {
     Slab *target = NULL;
 
-    SPIN_LOCK();
+    uint64_t lock_flags = spinlock_lock_irqsave(&slab_lock);
 
     if (partial == NULL) {
         // No partial slabs - allocate a new one..
@@ -67,7 +56,8 @@ void *slab_alloc_block() {
 
         if (target == NULL) {
             // alloc failed
-            SPIN_UNLOCK_RET(NULL);
+            spinlock_unlock_irqrestore(&slab_lock, lock_flags);
+            return NULL;
         }
 
         // zero out header
@@ -97,7 +87,8 @@ void *slab_alloc_block() {
     } else {
         // TODO warn about this, full block in partial list...
         // (or maybe just panic, since we're going to be in an indeterminite state now anyway...)
-        SPIN_UNLOCK_RET(NULL);
+        spinlock_unlock_irqrestore(&slab_lock, lock_flags);
+        return NULL;
     }
 
     bitmap_set(&target->bitmap0, free_block);
@@ -112,7 +103,8 @@ void *slab_alloc_block() {
         full = (ListNode *)target;
     }
 
-    SPIN_UNLOCK_RET((void *)(target + free_block));
+    spinlock_unlock_irqrestore(&slab_lock, lock_flags);
+    return (void *)(target + free_block);
 }
 
 void slab_free(void *block) {
@@ -131,7 +123,7 @@ void slab_free(void *block) {
         return;
     }
 
-    spinlock_lock(&slab_lock);
+    uint64_t lock_flags = spinlock_lock_irqsave(&slab_lock);
 
     if (slab->bitmap0 == 0xffffffffffffffff &&
         slab->bitmap1 == 0xffffffffffffffff &&
@@ -172,5 +164,5 @@ void slab_free(void *block) {
     }
 
     bitmap_clear(&slab->bitmap0, block_num);
-    spinlock_unlock(&slab_lock);
+    spinlock_unlock_irqrestore(&slab_lock, lock_flags);
 }

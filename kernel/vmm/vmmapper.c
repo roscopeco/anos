@@ -50,17 +50,6 @@
     ((uint64_t *)((entry | STATIC_KERNEL_SPACE) & PAGE_ALIGN_MASK))
 #endif
 
-#define SPIN_LOCK()                                                            \
-    do {                                                                       \
-        spinlock_lock(&vmm_map_lock);                                          \
-    } while (0)
-
-#define SPIN_UNLOCK_RET(retval)                                                \
-    do {                                                                       \
-        spinlock_unlock(&vmm_map_lock);                                        \
-        return (retval);                                                       \
-    } while (0)
-
 #ifndef NULL
 #define NULL (((void *)0))
 #endif
@@ -265,7 +254,7 @@ static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
 inline bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page,
                             uint16_t flags) {
 
-    SPIN_LOCK();
+    uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
 
     C_DEBUGSTR("==> MAP: ");
     C_PRINTHEX64(virt_addr, debugchar);
@@ -285,7 +274,8 @@ inline bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page,
     *pte = page | flags;
     vmm_invalidate_page(virt_addr);
 
-    SPIN_UNLOCK_RET(true);
+    spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+    return true;
 }
 
 bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags) {
@@ -306,7 +296,7 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
 // spot we're using as recursive in the given PML4!
 //
 uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
-    SPIN_LOCK();
+    uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
 
     C_DEBUGSTR("Unmap virtual ");
     C_PRINTHEX64((uint64_t)virt_addr, debugchar);
@@ -331,7 +321,8 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     if ((*pml4e & PRESENT) == 0) {
         // Not present PDPT, just bail
         C_DEBUGSTR("    No PDPT - Bailing\n");
-        SPIN_UNLOCK_RET(0);
+        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+        return 0;
     }
 
     uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
@@ -348,7 +339,8 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     if ((*pdpte & PRESENT) == 0) {
         // Not present PDPT, just bail
         C_DEBUGSTR("    No PD - Bailing\n");
-        SPIN_UNLOCK_RET(0);
+        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+        return 0;
     }
 
     uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
@@ -364,7 +356,8 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     if ((*pde & PRESENT) == 0) {
         // Not present PDPT, just bail
         C_DEBUGSTR("    No PT - Bailing\n");
-        SPIN_UNLOCK_RET(0);
+        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+        return 0;
     }
 
     uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
@@ -380,7 +373,8 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     if ((*pte & PRESENT) == 0) {
         // Not present PDPT, just bail
         C_DEBUGSTR("    No PT - Bailing\n");
-        SPIN_UNLOCK_RET(0);
+        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+        return 0;
     }
 
     uintptr_t phys = *pte & PAGE_ALIGN_MASK;
@@ -398,7 +392,8 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     *pte = 0;
     vmm_invalidate_page(virt_addr);
 
-    SPIN_UNLOCK_RET(phys);
+    spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+    return phys;
 }
 
 uintptr_t vmm_unmap_page(uintptr_t virt_addr) {

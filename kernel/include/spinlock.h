@@ -34,9 +34,37 @@ static_assert_sizeof(ReentrantSpinLock, ==, 64);
  */
 void spinlock_init(SpinLock *lock);
 
+/*
+ * Lock a spinlock, without touching interrupts.
+ *
+ * This is only safe outside of interrupt contexts.
+ */
 void spinlock_lock(SpinLock *lock);
 
+/*
+ * Lock a spinlock and disable interrupts.
+ *
+ * Interrupts are unconditonally disabled once the lock
+ * is acquired - they are left in their current state
+ * while the lock spins.
+ * 
+ * The return value is suitable for passing to the 
+ * related `spinlock_unlock_irqrestore` routine.
+ */
+uint64_t spinlock_lock_irqsave(SpinLock *lock);
+
+/*
+ * Unlock a spinlock, without touching interrupts.
+ *
+ * This is only safe outside of interrupt contexts.
+ */
 void spinlock_unlock(SpinLock *lock);
+
+/*
+ * Unlock a spinlock and restore previously-saved
+ * interrupt state (e.g. from `spinlock_lock_irqsave`).
+ */
+void spinlock_unlock_irqrestore(SpinLock *lock, uint64_t flags);
 
 /*
  * Init (zero) a reentrant spinlock. Note that this

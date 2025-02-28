@@ -133,8 +133,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
         return 0;
     }
 
-    spinlock_lock(&address_space_lock);
-    uint64_t intr = save_disable_interrupts();
+    uint64_t lock_flags = spinlock_lock_irqsave(&address_space_lock);
 
     // Find current pml4
     PageTable *current_pml4 = vmm_recursive_find_pml4();
@@ -237,8 +236,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
 
             current_pml4->entries[RECURSIVE_ENTRY_OTHER] = saved_other;
             cpu_invalidate_page((uintptr_t)new_pml4_virt);
-            spinlock_unlock(&address_space_lock);
-            restore_saved_interrupts(intr);
+            spinlock_unlock_irqrestore(&address_space_lock, lock_flags);
 
             return 0;
         }
@@ -251,8 +249,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
 
     current_pml4->entries[RECURSIVE_ENTRY_OTHER] = saved_other;
     cpu_invalidate_page((uintptr_t)new_pml4_virt);
-    spinlock_unlock(&address_space_lock);
-    restore_saved_interrupts(intr);
+    spinlock_unlock_irqrestore(&address_space_lock, lock_flags);
 
     return new_pml4_phys;
 }

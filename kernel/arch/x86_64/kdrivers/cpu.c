@@ -11,8 +11,10 @@
 #include "cpuid.h"
 #include "debugprint.h"
 #include "kdrivers/cpu.h"
-#include "printdec.h"
-#include "printhex.h"
+
+#ifdef DEBUG_CPU
+#include "kprintf.h"
+#endif
 
 bool cpu_init_this(void) {
     init_cpuid();
@@ -70,12 +72,7 @@ void cpu_get_brand_str(char *buffer) {
 static void debug_cpu_brand(uint8_t cpu_num) {
     char brand[49];
     cpu_get_brand_str(brand);
-
-    debugstr("CPU #");
-    printdec(cpu_num, debugchar);
-    debugstr(": ");
-    debugstr(&brand[0]);
-    debugstr("\n");
+    kprintf("CPU #%2d: %s\n", cpu_num, brand);
 }
 #else
 #define debug_cpu_brand(...)
@@ -83,38 +80,28 @@ static void debug_cpu_brand(uint8_t cpu_num) {
 
 #ifdef DEBUG_CPU_FREQ
 static void debug_tsc_frequency_cpuid(void) {
-    debugstr("TSC frequency (CPUID): ");
-
     uint32_t tsc_denominator, tsc_numerator, cpu_crystal_hz, edx;
     if (cpuid(0x15, &tsc_denominator, &tsc_numerator, &cpu_crystal_hz, &edx)) {
         if (tsc_denominator & tsc_numerator & cpu_crystal_hz) {
             uint64_t cpu_hz =
                     (cpu_crystal_hz * tsc_numerator) / tsc_denominator;
-            printdec(cpu_hz, debugchar);
-            debugstr("Hz");
+            kprintf("TSC frequency (CPUID): %ldHz\n", cpu_hz);
         } else {
-            debugstr("<unspecified>");
+            kprintf("TSC frequency (CPUID): <unspecified>\n");
         }
     } else {
-        debugstr("<unknown>");
+        kprintf("TSC frequency (CPUID): <unknown>\n");
     }
-
-    debugstr("\n");
 }
 
 static void debug_tsc_frequency_msr(void) {
-    debugstr("TSC frequency (MSR)  : ");
-
     uint64_t tsc_base = ((cpu_read_msr(0xce) & 0xff00) >> 8);
 
     if (tsc_base > 0) {
-        printdec(tsc_base * 100000, debugchar);
-        debugstr("Hz");
+        kprintf("TSC frequency (MSR)  : %ldHz\n", tsc_base * 100000);
     } else {
-        debugstr("<unknown>");
+        kprintf("TSC frequency (MSR)  : <unknown>\n");
     }
-
-    debugstr("\n");
 }
 #else
 #define debug_tsc_frequency_cpuid()

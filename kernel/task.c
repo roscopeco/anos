@@ -38,6 +38,10 @@
 #define vdbgx64(...)
 #endif
 
+#ifndef NULL
+#define NULL (((void *)0))
+#endif
+
 typedef per_cpu struct {
     Task *task_current_ptr;
     void *task_tss_ptr; // opaque, we only access from assembly...
@@ -103,7 +107,17 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                       uintptr_t bootstrap, uintptr_t func, TaskClass class) {
 
     TaskSched *sched = slab_alloc_block();
+
+    if (sched == NULL) {
+        return NULL;
+    }
+
     Task *task = slab_alloc_block();
+
+    if (task == NULL) {
+        slab_free(sched);
+        return NULL;
+    }
 
     task->sched = sched;
 

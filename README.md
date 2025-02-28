@@ -334,21 +334,16 @@ supports UEFI boot (with the Limine bootloader).
 Here, it's running on an old i5 4th-gen (Haswell) with 16GiB RAM. Haswell
 is the oldest architecture that Anos "officially" supports.
 
-<img src="images/IMG_2453.jpg" alt="UEFI-booted ANOS running on a real-life computer">
+<img src="images/IMG_2462.jpg" alt="UEFI-booted ANOS running on a real-life computer">
 
 And the same computer, but booted with legacy BIOS boot (and VGA text mode):
 
 <img src="images/IMG_2432.jpg" alt="ANOS running on a real-life computer">
 
-The output being slightly garbled is expected, since I don't currently have 
-any locking on the terminal - so the threads running on each core can randomly
-preempt one-another (even during the printing happening inside the kernel) and
-cause the garbled output.
-
 It also runs in emulators, of course - here's Qemu booted via UEFI, using the
 graphical debug terminal at 1280x800 resolution:
 
-<img src="images/Screenshot 2025-02-23 at 11.32.30.png" alt="UEFI-booted ANOS running in Qemu">
+<img src="images/Screenshot 2025-02-28 at 20.58.55.png" alt="UEFI-booted ANOS running in Qemu">
 
 Or legacy BIOS boot in VirtualBox, just for a change from qemu...
 
