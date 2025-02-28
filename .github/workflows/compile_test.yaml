@@ -67,16 +67,33 @@ jobs:
           sed -i.tmp "s;$PWD/;;g" gcov/system/coverage*.info
         shell: bash
 
-      - name: Coverage Badge
+      - name: Kernel Coverage Badge
         uses: ImBIOS/lcov-coverage-badge@v1
         with:
+          label: "Kernel Coverage"
           file: ./gcov/kernel/coverage.info
           access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Report code coverage
+      - name: System Coverage Badge
+        uses: ImBIOS/lcov-coverage-badge@v1
+        with:
+          label: "Kernel Coverage"
+          file: ./gcov/system/coverage.info
+          access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report kernel code coverage
         uses: zgosalvez/github-actions-report-lcov@v4
         with:
-          coverage-files: ./gcov/kernel/coverage.info ./gcov/system/coverage.info
-          artifact-name: code-coverage-report
+          coverage-files: ./gcov/kernel/coverage.info
+          artifact-name: kernel-code-coverage-report
           github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
+
+      - name: Report system code coverage
+        uses: zgosalvez/github-actions-report-lcov@v4
+        with:
+          coverage-files: ./gcov/system/coverage.info
+          artifact-name: system-code-coverage-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          update-comment: true
+
