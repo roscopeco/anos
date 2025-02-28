@@ -74,26 +74,19 @@ jobs:
           file: ./gcov/kernel/coverage.info
           access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: System Coverage Badge
-        uses: ImBIOS/lcov-coverage-badge@v1
-        with:
-          label: "Kernel Coverage"
-          file: ./gcov/system/coverage.info
-          access_token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Report kernel code coverage
         uses: zgosalvez/github-actions-report-lcov@v4
         with:
+          title-prefix: "Kernel"
           coverage-files: ./gcov/kernel/coverage.info
           artifact-name: kernel-code-coverage-report
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          update-comment: true
 
       - name: Report system code coverage
         uses: zgosalvez/github-actions-report-lcov@v4
         with:
+          title-prefix: "System"
           coverage-files: ./gcov/system/coverage.info
           artifact-name: system-code-coverage-report
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          update-comment: true
 
