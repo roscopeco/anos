@@ -28,6 +28,10 @@ uint32_t mock_spinlock_get_unlock_count() { return unlock_count; }
 
 void spinlock_init(SpinLock *lock) { init_count++; }
 
+void spinlock_lock(SpinLock *lock) { ++lock_count; }
+
+void spinlock_unlock(SpinLock *lock) { ++unlock_count; }
+
 uint64_t spinlock_lock_irqsave(SpinLock *lock) {
     ++lock_count;
     return 1234;

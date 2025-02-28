@@ -12,6 +12,7 @@
 
 #include "debugprint.h"
 #include "fba/alloc.h"
+#include "kprintf.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
 #include "process.h"
@@ -47,7 +48,7 @@ static SyscallResult handle_anos_testcall(SyscallArg arg0, SyscallArg arg1,
 
 static SyscallResult handle_debugprint(char *message) {
     if (((uint64_t)message & 0xffffffff00000000) == 0) {
-        debugstr(message);
+        kprintf(message);
     }
 
     return SYSCALL_OK;

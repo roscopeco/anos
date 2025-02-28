@@ -13,7 +13,9 @@
 global FUNC(spinlock_init)
 global FUNC(spinlock_lock), FUNC(spinlock_unlock)
 global FUNC(spinlock_lock_irqsave), FUNC(spinlock_unlock_irqrestore)
-global FUNC(spinlock_reentrant_init), FUNC(spinlock_reentrant_lock), FUNC(spinlock_reentrant_unlock)
+
+global FUNC(spinlock_reentrant_init)
+global FUNC(spinlock_reentrant_lock), FUNC(spinlock_reentrant_unlock)
 
 
 ; args:

@@ -31,7 +31,7 @@ test_sched_lock_this_cpu_locked(const MunitParameter params[], void *param) {
     flags = sched_lock_this_cpu(); // In reality this would deadlock
 
     // still only one lock, it's non-reentrant!
-    munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 2);
+    munit_assert_uint32(mock_spinlock_get_lock_count(), ==, 1);
     munit_assert_uint32(mock_spinlock_get_unlock_count(), ==, 0);
 
     return MUNIT_OK;
