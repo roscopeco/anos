@@ -69,6 +69,8 @@ endif
 #	DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL	address_space_create will copy **all** PDPT entries,
 #										not just kernel ones. This is unlikely to ever be a
 #										good idea outside some very specific startup tests!
+#	EXPERIMENTAL_SCHED_LOCK				Change the way the scheduler lock works. 
+#										The experimental way is simpler, but less well tested...
 #
 # These set options you might feel like configuring
 #
@@ -87,7 +89,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU
+CDEFS=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK
 
 QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
 QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
