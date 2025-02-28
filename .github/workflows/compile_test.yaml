@@ -64,6 +64,7 @@ jobs:
       - name: Make coverage paths relative
         run: |
           sed -i.tmp "s;$PWD/;;g" gcov/kernel/coverage*.info
+          sed -i.tmp "s;$PWD/;;g" gcov/system/coverage*.info
         shell: bash
 
       - name: Coverage Badge
@@ -75,7 +76,7 @@ jobs:
       - name: Report code coverage
         uses: zgosalvez/github-actions-report-lcov@v4
         with:
-          coverage-files: ./gcov/kernel/coverage.info
+          coverage-files: ./gcov/kernel/coverage.info ./gcov/system/coverage.info
           artifact-name: code-coverage-report
           github-token: ${{ secrets.GITHUB_TOKEN }}
           update-comment: true
