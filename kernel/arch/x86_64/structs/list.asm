@@ -5,6 +5,8 @@
 ;
 ; Implemented in asm for efficient calling from either C or assembly
 ;
+; TODO this probably doesn't need to be asm (and thus arch-specific)
+;
 
 %ifdef asm_macho64
 %define FUNC(name) _ %+ name
