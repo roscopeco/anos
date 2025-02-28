@@ -48,6 +48,7 @@ endif
 #	VERY_NOISY_PCI_ENUM		Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
 #	DEBUG_HPET				Enable debugging of the HPET initialisation
 #	DEBUG_SLEEP				Enable debugging of the sleep (and eventually yield etc) syscall(s)
+#	VERY_NOISY_SLEEP		Enable *lots* of debugging of sleep syscall(s)
 #	DEBUG_CPU				Enable debugging of CPU information at boot
 #	DEBUG_CPU_FREQ			Enable debugging of CPU frequency calibration (requires DEBUG_CPU)
 #	DEBUG_SMP_STARTUP		Enable debugging of SMP AP startup
@@ -86,7 +87,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU -DDEBUG_SLEEPY_KERNEL_TASK
+CDEFS=-DDEBUG_CPU
 
 QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
 QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
