@@ -34,6 +34,7 @@
 
 #define ANOS_RAMFS_MAGIC 0x0101CA75
 #define ANOS_RAMFS_VERSION 10
+#define ANOS_RAMFS_FILENAME_MAX 15
 
 typedef struct {
     uint32_t magic;      /* 0x0101CA75 */
@@ -43,9 +44,9 @@ typedef struct {
 } __attribute__((packed)) AnosRAMFSHeader;
 
 typedef struct {
-    uint32_t file_start;  /* offset from this header to start of data */
-    uint32_t file_length; /* size of file, in bytes. */
-    char file_name[24];   /* File-name, null-terminated. */
+    uint64_t file_start;  /* offset from this header to start of data */
+    uint64_t file_length; /* size of file, in bytes. */
+    char file_name[16];   /* File-name, null-terminated. */
 } __attribute__((packed)) AnosRAMFSFileHeader;
 
 /*
