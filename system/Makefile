@@ -31,6 +31,8 @@ SYSTEM_BIN=$(SYSTEM).bin
 
 SYSTEM_OBJS=start.o																\
 			main.o																\
+			ramfs.o																\
+			system_ramfs_linkable.o												\
 			$(ROOT_DIR)/$(LIBANOS_DIR)/$(LIBANOS_ARCHIVE)
 
 ALL_TARGETS=$(SYSTEM_BIN)
@@ -55,7 +57,7 @@ clean:
 	-o $@ $<
 
 %.o: %.c
-	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -I$(USER_INC) $(CFLAGS) -c -o $@ $<
+	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -I$(USER_INC) -Iinclude $(CFLAGS) -c -o $@ $<
 
 $(SYSTEM).elf: $(SYSTEM_OBJS)
 	$(XLD) -T $(SYSTEM).ld -o $@ $^
@@ -67,3 +69,10 @@ $(SYSTEM).dis: $(SYSTEM).elf
 $(SYSTEM_BIN): $(SYSTEM).elf $(SYSTEM).dis
 	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
+
+$(ROOT_DIR)/servers/system.ramfs: $(ROOT_DIR)/servers
+	$(MAKE) -C $< system_ramfs
+
+system_ramfs_linkable.o: $(ROOT_DIR)/servers/system.ramfs
+	$(XOBJCOPY) -I binary --rename-section .data=.system_ramfs_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+

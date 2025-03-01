@@ -91,7 +91,7 @@ endif
 #
 CDEFS=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK
 
-QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
+QEMU_BASEOPTS=-smp cpus=1 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
 QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
 QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/ovmf/OVMF_VARS-pure-efi.fd
 QEMU_DEBUG_OPTS=-gdb tcp::9666 -S -monitor telnet:127.0.0.1:1234,server,nowait
@@ -267,6 +267,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/smp/*.o								\
 				$(STAGE3_ARCH_X86_64_DIR)/process/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/entrypoints/*.o						\
+				$(STAGE3_ARCH_X86_64_DIR)/structs/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
@@ -294,6 +295,8 @@ clean:
 	rm -rf $(CLEAN_ARTIFACTS)
 	$(MAKE) -C libanos clean
 	$(MAKE) -C system clean
+	$(MAKE) -C servers clean
+	$(MAKE) -C tools clean
 
 include kernel/tests/include.mk
 include system/tests/include.mk

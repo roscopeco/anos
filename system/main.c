@@ -13,6 +13,8 @@
 #include "anos/anos_types.h"
 #include "anos/printf.h"
 
+#include "ramfs.h"
+
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
 #define VERSTR #unknown
@@ -21,6 +23,8 @@
 #define XSTRVER(verstr) #verstr
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
+
+extern AnosRAMFSHeader _system_ramfs_start;
 
 volatile int num;
 
@@ -88,6 +92,37 @@ static noreturn int other_main(void) {
     __builtin_unreachable();
 }
 
+static void dump_fs(AnosRAMFSHeader *ramfs) {
+    AnosRAMFSFileHeader *hdr = (AnosRAMFSFileHeader *)(ramfs + 1);
+
+    printf("System FS magic: 0x%08x\n", ramfs->magic);
+    printf("System FS ver  : 0x%08x\n", ramfs->version);
+    printf("System FS count: 0x%016lx\n", ramfs->file_count);
+    printf("System FS size : 0x%016lx\n", ramfs->fs_size);
+
+    for (int i = 0; i < ramfs->file_count; i++) {
+        if (!hdr) {
+            printf("dump_fs: Could not find file %s\n", hdr->file_name);
+            return;
+        }
+
+        uint8_t *fbuf = ramfs_file_open(hdr);
+
+        if (!fbuf) {
+            printf("dump_fs: Could not open file %s\n", hdr->file_name);
+            return;
+        }
+
+        printf("%-20s [%10ld]: ", hdr->file_name, hdr->file_length);
+        for (int i = 0; i < 16; i++) {
+            printf("0x%02x ", *fbuf++);
+        }
+        printf(" ... \n");
+
+        hdr++;
+    }
+}
+
 int main(int argc, char **argv) {
     banner();
 
@@ -114,6 +149,9 @@ int main(int argc, char **argv) {
         anos_kprint("BAD\n");
     }
 #endif
+
+    AnosRAMFSHeader *ramfs = (AnosRAMFSHeader *)&_system_ramfs_start;
+    dump_fs(ramfs);
 
     int t2 = anos_create_thread(thread2, ((uintptr_t)t2_stack) + 0x1000);
     if (t2 == 0) {
@@ -143,7 +181,7 @@ int main(int argc, char **argv) {
             },
             {.start = 0x80000000, .len_bytes = 0x4000}};
 
-    uint64_t new_pid = anos_create_process(0x100000000, 0x1000, 2, regions,
+    uint64_t new_pid = anos_create_process(0x7ffff000, 0x1000, 2, regions,
                                            (uintptr_t)other_main);
     if (new_pid < 0) {
         printf("Failed to create new process\n");
