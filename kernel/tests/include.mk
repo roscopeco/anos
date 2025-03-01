@@ -25,10 +25,10 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/kdrivers/*.gcno							\
 				kernel/tests/arch/x86_64/process/*.gcno								\
 				kernel/tests/build													\
-				gcov
+				gcov/kernel
 
 UBSAN_CFLAGS=-fsanitize=undefined,address -fno-sanitize-recover=all
-TEST_CFLAGS=-g 																		\
+KERNEL_TEST_CFLAGS=-g 																\
 	-Ikernel/include 																\
 	-Ikernel/arch/$(ARCH)/include 													\
 	-Ikernel/tests/include 															\
@@ -38,7 +38,7 @@ TEST_CFLAGS=-g 																		\
 HOST_ARCH=$(shell uname -p)
 
 ifeq ($(HOST_ARCH),arm)
-TEST_CFLAGS+=-arch x86_64
+KERNEL_TEST_CFLAGS+=-arch x86_64
 endif
 
 TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm	\
@@ -56,7 +56,7 @@ TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm
 ifeq (, $(shell which lcov))
 $(warning LCOV not installed, coverage will be skipped)
 else
-TEST_CFLAGS+=-fprofile-arcs -ftest-coverage
+KERNEL_TEST_CFLAGS+=-fprofile-arcs -ftest-coverage
 endif
 
 
@@ -109,94 +109,94 @@ kernel/tests/build/process:
 	mkdir -p kernel/tests/build/process
 
 kernel/tests/build/%.o: kernel/%.c $(TEST_BUILD_DIRS)
-	$(CC) -DUNIT_TESTS $(TEST_CFLAGS) -c -o $@ $<
+	$(CC) -DUNIT_TESTS $(KERNEL_TEST_CFLAGS) -c -o $@ $<
 
 kernel/tests/build/%.o: kernel/%.asm $(TEST_BUILD_DIRS)
 	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
 
 kernel/tests/%.o: kernel/tests/%.c kernel/tests/munit.h
-	$(CC) -DUNIT_TESTS $(TEST_CFLAGS) -Ikernel/tests -c -o $@ $<
+	$(CC) -DUNIT_TESTS $(KERNEL_TEST_CFLAGS) -Ikernel/tests -c -o $@ $<
 
 kernel/tests/build/interrupts: kernel/tests/munit.o kernel/tests/arch/x86_64/interrupts.o kernel/tests/build/arch/x86_64/interrupts.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/structs/bitmap: kernel/tests/munit.o kernel/tests/structs/bitmap.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/pmm/pagealloc: kernel/tests/munit.o kernel/tests/pmm/pagealloc.o kernel/tests/build/pmm/pagealloc.o kernel/tests/mock_spinlock.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/pmm/pagealloc_limine: kernel/tests/munit.o kernel/tests/pmm/pagealloc_limine.o kernel/tests/build/pmm/pagealloc.o kernel/tests/mock_spinlock.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/vmm/vmmapper: kernel/tests/munit.o kernel/tests/vmm/vmmapper.o kernel/tests/build/vmm/vmmapper.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_spinlock.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/vmm/vmalloc_linkedlist: kernel/tests/munit.o kernel/tests/vmm/vmalloc_linkedlist.o kernel/tests/build/vmm/vmalloc_linkedlist.o kernel/tests/mock_spinlock.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/debugprint: kernel/tests/munit.o kernel/tests/debugprint.o kernel/tests/build/debugprint.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/acpitables: kernel/tests/munit.o kernel/tests/arch/x86_64/acpitables.o kernel/tests/build/arch/x86_64/acpitables.o kernel/tests/mock_vmm.o kernel/tests/arch/x86_64/mock_machine.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/structs/pq: kernel/tests/munit.o kernel/tests/structs/pq.o kernel/tests/build/structs/pq.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/gdt: kernel/tests/munit.o kernel/tests/arch/x86_64/gdt.o kernel/tests/build/arch/x86_64/gdt.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/pci/bus: kernel/tests/munit.o kernel/tests/pci/bus.o kernel/tests/build/pci/bus.o kernel/tests/arch/x86_64/mock_machine.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/fba/alloc: kernel/tests/munit.o kernel/tests/fba/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/slab/alloc: kernel/tests/munit.o kernel/tests/slab/alloc.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/vmm/recursive: kernel/tests/munit.o kernel/tests/vmm/recursive.o $(TEST_BUILD_DIRS)
-	$(CC) $(TEST_CFLAGS) -o $@ kernel/tests/munit.o kernel/tests/vmm/recursive.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ kernel/tests/munit.o kernel/tests/vmm/recursive.o
 
 kernel/tests/build/task: kernel/tests/munit.o kernel/tests/task.o kernel/tests/build/task.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_spinlock.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/build/structs/pq.o kernel/tests/build/sched/idle.o kernel/tests/build/process/process.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_task.o kernel/tests/mock_spinlock.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/arch/x86_64/sched/lock: kernel/tests/munit.o kernel/tests/arch/x86_64/sched/lock.o kernel/tests/build/arch/x86_64/sched/lock.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/printdec: kernel/tests/munit.o kernel/tests/printdec.o kernel/tests/build/printdec.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/kdrivers/drivers: kernel/tests/munit.o kernel/tests/kdrivers/drivers.o kernel/tests/build/kdrivers/drivers.o kernel/tests/mock_kernel_drivers.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/sleep_queue: kernel/tests/munit.o kernel/tests/sleep_queue.o kernel/tests/build/sleep_queue.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/structs/ref_count_map: kernel/tests/munit.o kernel/tests/structs/ref_count_map.o kernel/tests/build/structs/ref_count_map.o kernel/tests/mock_fba_malloc.o kernel/tests/mock_slab_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/arch/x86_64/structs/list: kernel/tests/munit.o kernel/tests/arch/x86_64/structs/list.o kernel/tests/build/arch/x86_64/structs/list.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/arch/x86_64/kdrivers/hpet: kernel/tests/munit.o kernel/tests/arch/x86_64/kdrivers/hpet.o kernel/tests/build/arch/x86_64/kdrivers/hpet.o kernel/tests/build/kdrivers/drivers.o kernel/tests/arch/x86_64/mock_acpitables.o kernel/tests/mock_vmm.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/arch/x86_64/process/address_space_init: kernel/tests/munit.o kernel/tests/arch/x86_64/process/address_space_init.o kernel/tests/build/arch/x86_64/process/address_space.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/arch/x86_64/process/address_space_create: kernel/tests/munit.o kernel/tests/arch/x86_64/process/address_space_create.o kernel/tests/build/arch/x86_64/process/address_space.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o kernel/tests/mock_vmm.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/arch/x86_64/std_routines: kernel/tests/munit.o kernel/tests/arch/x86_64/std_routines.o kernel/tests/build/arch/x86_64/std_routines.o
-	$(CC) $(TEST_CFLAGS) -o $@ $^
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
@@ -226,12 +226,12 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines
 
-PHONY: test
-test: $(ALL_TESTS)
+PHONY: test-kernel
+test-kernel: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test || exit 1; done'
 
 ifeq (, $(shell which lcov))
-coverage:
+coverage-kernel:
 	@echo "LCOV not installed, coverage cannot be generated"
 else
 PHONY: gcov
@@ -239,7 +239,7 @@ PHONY: gcov
 gcov/kernel:
 	mkdir -p $@
 
-coverage: test gcov/kernel
+coverage-kernel: test-kernel gcov/kernel
 	lcov --capture --directory kernel/tests --output-file gcov/kernel/coverage.info
 	genhtml gcov/kernel/coverage.info --output-directory gcov/kernel
 endif

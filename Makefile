@@ -284,7 +284,7 @@ endif
 
 endif
 
-.PHONY: all build clean qemu bochs test
+.PHONY: all build clean qemu bochs test coverage
 
 all: build test
 
@@ -296,6 +296,10 @@ clean:
 	$(MAKE) -C system clean
 
 include kernel/tests/include.mk
+include system/tests/include.mk
+
+test: test-kernel test-system
+coverage: coverage-kernel coverage-system
 
 %.o: %.asm
 	$(ASM) 																		\

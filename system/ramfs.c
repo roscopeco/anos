@@ -1,0 +1,94 @@
+/*
+ * Initial ramfs for Anos
+ * anos - An Operating System
+ * 
+ * Copyright (c)2016-2025 Ross Bamford. See LICENSE for details.
+ *
+ * This originally came from Mink: 
+ *  https://github.com/roscopeco/mink/blob/master/ramfs.c
+ *  Created on: 4 Aug 2016
+ *      Author: Ross Bamford <roscopeco AT gmail DOT com>
+ */
+
+#include "ramfs.h"
+#include <stddef.h>
+
+bool is_valid_ramfs(void *mem) {
+    if (mem == NULL) {
+        return false;
+    }
+
+    uint32_t magic = *((uint32_t *)mem);
+    if (magic != ANOS_RAMFS_MAGIC) {
+        return false;
+    }
+
+    // looks like a ramfs at this point, so lets go for the size...
+    if (*((uint32_t *)mem + 1) != ANOS_RAMFS_VERSION) {
+        return false;
+    }
+
+    return true;
+}
+
+int ramfs_size(AnosRAMFSHeader *fs) {
+    if (!is_valid_ramfs(fs))
+        return -1;
+
+    return fs->fs_size;
+}
+
+int ramfs_file_count(AnosRAMFSHeader *fs) {
+    if (!is_valid_ramfs(fs))
+        return -1;
+
+    return fs->file_count;
+}
+
+// TODO we'll get this from newlib eventually - remove when we do.
+static int strncmp(const char *s1, const char *s2, size_t n) {
+    while (n && *s1 && (*s1 == *s2)) {
+        ++s1;
+        ++s2;
+        --n;
+    }
+
+    if (n == 0) {
+        return 0;
+    } else {
+        return (*(unsigned char *)s1 - *(unsigned char *)s2);
+    }
+}
+
+AnosRAMFSFileHeader *ramfs_find_file(AnosRAMFSHeader *fs, char *name) {
+    if (!is_valid_ramfs(fs))
+        return NULL;
+
+    if (name == NULL)
+        return NULL;
+
+    // first file is at end of fs header
+    AnosRAMFSFileHeader *current = (AnosRAMFSFileHeader *)(fs + 1);
+
+    for (int i = 0; i < fs->file_count; i++, current++) {
+        if (current->file_name[0] != 0 &&
+            strncmp(name, current->file_name, 24) == 0) {
+            return current;
+        }
+    }
+
+    return NULL;
+}
+
+void *ramfs_file_open(AnosRAMFSFileHeader *file) {
+    if (file == NULL)
+        return NULL;
+
+    if (file->file_length == 0)
+        return NULL;
+
+    if (file->file_start == 0)
+        return NULL;
+
+    return (void *)(((char *)file) + file->file_start);
+}
