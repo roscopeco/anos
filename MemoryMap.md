@@ -1,4 +1,4 @@
-## Memory Map for Anos
+## Memory Map for Anos
 
 > [!NOTE]
 > The low memory and early boot information here applies **only when booted via STAGE2**.
