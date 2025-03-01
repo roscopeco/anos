@@ -19,4 +19,6 @@ system/system.bin
 **/*.gcno
 gcov
 kernel/arch/x86_64/realmode.bin
-
+servers/**/*.bin
+servers/**/*.elf
+servers/system.ramfs
