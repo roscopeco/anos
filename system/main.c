@@ -92,6 +92,7 @@ static noreturn int other_main(void) {
     __builtin_unreachable();
 }
 
+#ifdef DEBUG_INIT_RAMFS
 static void dump_fs(AnosRAMFSHeader *ramfs) {
     AnosRAMFSFileHeader *hdr = (AnosRAMFSFileHeader *)(ramfs + 1);
 
@@ -122,6 +123,9 @@ static void dump_fs(AnosRAMFSHeader *ramfs) {
         hdr++;
     }
 }
+#else
+#define dump_fs(...)
+#endif
 
 int main(int argc, char **argv) {
     banner();
@@ -150,8 +154,10 @@ int main(int argc, char **argv) {
     }
 #endif
 
+#ifdef DEBUG_INIT_RAMFS
     AnosRAMFSHeader *ramfs = (AnosRAMFSHeader *)&_system_ramfs_start;
     dump_fs(ramfs);
+#endif
 
     int t2 = anos_create_thread(thread2, ((uintptr_t)t2_stack) + 0x1000);
     if (t2 == 0) {
