@@ -131,7 +131,7 @@ with PML4 256 and 257 reserved for the recursive entries (256 being the "main" s
 always present in all address spaces, and 257 being a second recursive entry available for
 use when copying between address spaces). 
 
-This means that currenrly, of this 127TiB area, 1TiB is currently used, and the rest 
+This means that currently, of this 127TiB area, 1TiB is currently used, and the rest 
 is currently unused - the area looks like this currently:
 
 | Start                | End                  | Use                                                          |
