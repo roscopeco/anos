@@ -10,6 +10,7 @@ native_tests/printhex
 **/*.elf
 **/*.dis
 kernel/tests/build
+system/tests/build
 .vscode
 native_tests/pt
 system/system.bin
@@ -18,4 +19,6 @@ system/system.bin
 **/*.gcno
 gcov
 kernel/arch/x86_64/realmode.bin
-
+servers/**/*.bin
+servers/**/*.elf
+servers/system.ramfs

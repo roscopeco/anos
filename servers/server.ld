@@ -11,7 +11,7 @@ ENTRY(_start)
 
 MEMORY {
     CODE    : org = 0x0000000001000000,  l = 0x0040000000     /* 1GiB for System code (just for testing) */
-    DATA    : org = 0x0000000080000000,  l = 0x4000000000     /* 256GiB for bss/data, stack goes below this */
+    DATA    : org = 0x0000000080000000,  l = 0x4000000000     /* 256GiB for bss, stack goes below this */
 }
 
 SECTIONS
@@ -27,20 +27,6 @@ SECTIONS
     _code_end = .;
   } > CODE
   
-  .data : 
-  {
-    _data_start = .;
-    . = ALIGN(16);
-    *(.data*)
-    . = ALIGN(16);
-    _data_end = .;
-    . = ALIGN(4096);
-    _system_ramfs_start = .;
-    *(.system_ramfs_bin*)
-    _system_ramfs_end = .;
-    . = ALIGN(4096);
-  } > CODE
-
   .bss (NOLOAD) :
   {
     _bss_start = .;
@@ -48,6 +34,15 @@ SECTIONS
     *(COMMON)
     . = ALIGN(16);
     _bss_end = .;
+  } > DATA AT > CODE
+
+  .data : 
+  {
+    _data_start = .;
+    . = ALIGN(16);
+    *(.data*)
+    . = ALIGN(16);
+    _data_end = .;
   } > DATA
 
   _end = .;
