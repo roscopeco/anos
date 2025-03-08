@@ -183,6 +183,9 @@ kernel/tests/build/sleep_queue: kernel/tests/munit.o kernel/tests/sleep_queue.o 
 kernel/tests/build/structs/ref_count_map: kernel/tests/munit.o kernel/tests/structs/ref_count_map.o kernel/tests/build/structs/ref_count_map.o kernel/tests/mock_fba_malloc.o kernel/tests/mock_slab_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/structs/hash: kernel/tests/munit.o kernel/tests/structs/hash.o kernel/tests/build/structs/hash.o kernel/tests/build/arch/x86_64/spinlock.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -222,6 +225,7 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/kdrivers/drivers									\
 			kernel/tests/build/sleep_queue										\
 			kernel/tests/build/structs/ref_count_map							\
+			kernel/tests/build/structs/hash										\
 			kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
