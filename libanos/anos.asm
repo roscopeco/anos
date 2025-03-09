@@ -127,19 +127,19 @@ anos_syscall anos_send_message, 8
 ;   rdx - arg1
 ;
 ; mods:
-;   rax - result
+;   rax - message cookie
 ;   r11 - trashed
 ;   rcx - trashed
 ;
 anos_syscall anos_recv_message, 9
 
 ; args:
-;   rdi - message
+;   rdi - message cookie
 ;   rsi - arg0
 ;   rdx - arg1
 ;
 ; mods:
-;   rax - result
+;   rax - message cookie
 ;   r11 - trashed
 ;   rcx - trashed
 ;

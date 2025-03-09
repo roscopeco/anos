@@ -180,6 +180,13 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, uint64_t *arg) {
         spinlock_lock(channel->receivers_lock);
 
         // Check if there's a message already waiting...
+        //
+        // TODO this could (will) allow a lower-priority receiver to
+        // "jump the queue", need to figure out a way to fix that...
+        //
+        // (And ideally one that doesn't involve just queueing all receivers
+        // and ignoring this check...)
+        //
         spinlock_lock(channel->queue_lock);
 
         if (channel->queue) {
