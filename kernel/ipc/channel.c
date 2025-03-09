@@ -105,7 +105,10 @@ uint64_t ipc_channel_create(void) {
     spinlock_init(channel->receivers_lock);
     spinlock_init(channel->queue_lock);
 
-    uint64_t cookie = next_channel_cookie++;
+    uint64_t cookie =
+            next_channel_cookie++; // just do ++ in case another thread cuts in...
+    next_channel_cookie +=
+            (cpu_read_tsc() & 0xffff); // ... then adjust by "random" value
 
     hash_table_insert(channel_hash, cookie, channel);
 
@@ -185,6 +188,15 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, uint64_t *arg) {
             hash_table_insert(in_flight_message_hash, msg->cookie, msg);
             spinlock_unlock(channel->queue_lock);
             spinlock_unlock(channel->receivers_lock);
+
+            if (tag) {
+                *tag = msg->tag;
+            }
+
+            if (arg) {
+                *arg = msg->arg;
+            }
+
             return msg->cookie;
         }
 
@@ -259,9 +271,15 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, uint64_t *arg) {
 
 static void init_message(IpcMessage *message, uint64_t tag, uint64_t arg,
                          Task *current_task) {
+
+    uint64_t cookie =
+            next_message_cookie++; // do ++ in case another thread cuts in...
+    next_message_cookie +=
+            (cpu_read_tsc() & 0xffff); // ... then adjust by "random" value
+
     message->this.next = 0;
     message->this.type = KTYPE_IPC_MESSAGE;
-    message->cookie = next_message_cookie++;
+    message->cookie = cookie;
     message->tag = tag;
     message->arg = arg;
     message->waiter = current_task;
