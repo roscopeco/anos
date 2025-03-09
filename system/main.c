@@ -28,6 +28,7 @@ extern AnosRAMFSHeader _system_ramfs_start;
 
 volatile int num;
 static uint64_t channel_cookie;
+static uint64_t channel2_cookie;
 
 int subroutine(int in) { return in * 2; }
 
@@ -42,14 +43,22 @@ static inline void banner() {
 
 static void thread2() {
     int count = 0;
-    printf("\nTask 2 - startup and immediately sleep...\n");
+    printf("\nTask 2 - startup and send messages to channel 2 (no receivers "
+           "there yet, T3 will listen when it wakes)...\n");
+    uint64_t r1 = anos_send_message(channel2_cookie, 0x1b33b, 0x1b00b);
+    printf("\nTask 2 recieved reply 1 : %lx\n", r1);
+    uint64_t r2 = anos_send_message(channel2_cookie, 0x2b33b, 0x2b00b);
+    printf("\nTask 2 recieved reply 2 : %lx - will sleep for 5 secs\n", r2);
+
     anos_task_sleep_current_secs(5);
+
     printf("\nTask 2 has arisen!\n");
 
     uint64_t tag, arg;
     uint64_t recvd = anos_recv_message(channel_cookie, &tag, &arg);
-    printf("Received message cookie 0x%016lx: [tag = %ld; arg = %ld]\n", recvd,
-           tag, arg);
+    printf("T2: Received message on channel 1: cookie 0x%016lx: [tag = "
+           "0x%08lx; arg = 0x%08lx]\n",
+           recvd, tag, arg);
 
     anos_reply_message(recvd, 192000);
 
@@ -66,27 +75,30 @@ static void thread3() {
     anos_task_sleep_current_secs(3);
     printf("\nTask 3 has arisen!\n");
 
+    uint64_t tag, arg;
+
     while (1) {
-        if (count++ % 100000000 == 0) {
-            anos_kputchar('3');
-        }
+        uint64_t recvd = anos_recv_message(channel2_cookie, &tag, &arg);
+
+        printf("T3: Received message on channel 2: cookie 0x%016lx: [tag = "
+               "0x%08lx; arg = 0x%08lx]\n",
+               recvd, tag, arg);
+
+        anos_reply_message(recvd, count++);
     }
 }
 
 static void thread4() {
-    int count = 0;
     printf("Task 4 - startup and immediately sleep...\n");
     anos_task_sleep_current_secs(10);
-    printf("\nTask 4 has arisen!\n");
+    printf("\nTask 4 has arisen - Send message to channel 1!\n");
 
     uint64_t response = anos_send_message(channel_cookie, 9001, 2);
-    printf("Response is %ld\n", response);
+    printf("T4: Response is %ld; going to sleep-print loop...\n", response);
 
     while (1) {
-        if (count++ % 100000000 == 0) {
-            anos_kputchar('4');
-            anos_task_sleep_current_secs(2);
-        }
+        anos_task_sleep_current_secs(4);
+        anos_kputchar('4');
     }
 }
 
@@ -153,7 +165,10 @@ int main(int argc, char **argv) {
     }
 
     channel_cookie = anos_create_channel();
-    printf("Created IPC channel 0x%016lx\n", channel_cookie);
+    printf("Created IPC channel #1 0x%016lx\n", channel_cookie);
+
+    channel2_cookie = anos_create_channel();
+    printf("Created IPC channel #2 0x%016lx\n", channel2_cookie);
 
 #ifdef DEBUG_TEST_SYSCALL
     uint64_t ret;
