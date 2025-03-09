@@ -30,15 +30,22 @@ void fba_free(void *block) { free(block); }
 
 void slab_free(void *block) { free(block); }
 
+static void free_ht(HashTable *ht) {
+    fba_free(ht->entries);
+    slab_free(ht->lock);
+    slab_free(ht);
+}
+
 // Test: Create and destroy hash table
 static MunitResult test_create_destroy(const MunitParameter params[],
                                        void *user_data) {
     HashTable *ht = hash_table_create(1);
+
     munit_assert_not_null(ht);
     munit_assert_not_null(ht->entries);
     munit_assert_size(ht->capacity, >=, ENTRIES_PER_PAGE);
-    fba_free(ht->entries);
-    slab_free(ht);
+
+    free_ht(ht);
     return MUNIT_OK;
 }
 
@@ -46,9 +53,10 @@ static MunitResult test_create_destroy(const MunitParameter params[],
 static MunitResult test_lookup_non_existent(const MunitParameter params[],
                                             void *user_data) {
     HashTable *ht = hash_table_create(1);
+
     munit_assert_null(hash_table_lookup(ht, 99999));
-    fba_free(ht->entries);
-    slab_free(ht);
+
+    free_ht(ht);
     return MUNIT_OK;
 }
 
@@ -57,14 +65,16 @@ static MunitResult test_insert_after_delete(const MunitParameter params[],
                                             void *user_data) {
     HashTable *ht = hash_table_create(1);
     uint64_t cookie = 11111;
+
     void *channel = (void *)0xabcdef;
+
     munit_assert_true(hash_table_insert(ht, cookie, channel));
     munit_assert_ptr_equal(hash_table_remove(ht, cookie), channel);
     munit_assert_null(hash_table_lookup(ht, cookie));
     munit_assert_true(hash_table_insert(ht, cookie, channel));
     munit_assert_ptr_equal(hash_table_lookup(ht, cookie), channel);
-    fba_free(ht->entries);
-    slab_free(ht);
+
+    free_ht(ht);
     return MUNIT_OK;
 }
 
@@ -73,13 +83,15 @@ static MunitResult test_tombstone_reuse(const MunitParameter params[],
                                         void *user_data) {
     HashTable *ht = hash_table_create(1);
     uint64_t first = 22222, second = 33333;
+
     void *channel1 = (void *)0x1234, *channel2 = (void *)0x5678;
+
     munit_assert_true(hash_table_insert(ht, first, channel1));
     munit_assert_ptr_equal(hash_table_remove(ht, first), channel1);
     munit_assert_true(hash_table_insert(ht, second, channel2));
     munit_assert_ptr_equal(hash_table_lookup(ht, second), channel2);
-    fba_free(ht->entries);
-    slab_free(ht);
+
+    free_ht(ht);
     return MUNIT_OK;
 }
 
@@ -87,14 +99,16 @@ static MunitResult test_tombstone_reuse(const MunitParameter params[],
 static MunitResult test_insert_full_capacity(const MunitParameter params[],
                                              void *user_data) {
     HashTable *ht = hash_table_create(1);
+
     for (uint64_t i = 1; i <= ENTRIES_PER_PAGE; i++) {
         munit_assert_true(hash_table_insert(ht, i, (void *)(uintptr_t)i));
     }
+
     for (uint64_t i = 1; i <= ENTRIES_PER_PAGE; i++) {
         munit_assert_ptr_equal(hash_table_lookup(ht, i), (void *)(uintptr_t)i);
     }
-    fba_free(ht->entries);
-    slab_free(ht);
+
+    free_ht(ht);
     return MUNIT_OK;
 }
 
@@ -102,12 +116,15 @@ static MunitResult test_insert_full_capacity(const MunitParameter params[],
 static MunitResult test_resize_with_deletions(const MunitParameter params[],
                                               void *user_data) {
     HashTable *ht = hash_table_create(1);
+
     for (uint64_t i = 1; i <= ENTRIES_PER_PAGE; i++) {
         munit_assert_true(hash_table_insert(ht, i, (void *)(uintptr_t)i));
     }
+
     for (uint64_t i = 1; i <= ENTRIES_PER_PAGE / 2; i++) {
         munit_assert_ptr_equal(hash_table_remove(ht, i), (void *)(uintptr_t)i);
     }
+
     munit_assert_true(
             hash_table_insert(ht, ENTRIES_PER_PAGE + 1,
                               (void *)(uintptr_t)(ENTRIES_PER_PAGE + 1)));
@@ -115,8 +132,8 @@ static MunitResult test_resize_with_deletions(const MunitParameter params[],
          i++) {
         munit_assert_ptr_equal(hash_table_lookup(ht, i), (void *)(uintptr_t)i);
     }
-    fba_free(ht->entries);
-    slab_free(ht);
+
+    free_ht(ht);
     return MUNIT_OK;
 }
 
@@ -160,17 +177,20 @@ static MunitResult test_concurrent_insert(const MunitParameter params[],
                                           void *user_data) {
     shared_ht = hash_table_create(1);
     pthread_t threads[THREAD_COUNT];
+
     for (uintptr_t i = 0; i < THREAD_COUNT; i++) {
         pthread_create(&threads[i], NULL, thread_insert, (void *)i);
     }
+
     for (int i = 0; i < THREAD_COUNT; i++) {
         pthread_join(threads[i], NULL);
     }
+
     for (uint64_t i = 0; i < THREAD_COUNT * ENTRIES_PER_THREAD; i++) {
         munit_assert_ptr_equal(hash_table_lookup(shared_ht, i), (void *)i);
     }
-    fba_free(shared_ht->entries);
-    fba_free(shared_ht);
+
+    free_ht(shared_ht);
     return MUNIT_OK;
 }
 
@@ -185,6 +205,7 @@ static MunitResult test_concurrent_insert_lookup(const MunitParameter params[],
     for (uintptr_t i = 0; i < THREAD_COUNT; i++) {
         pthread_create(&insert_threads[i], NULL, thread_insert, (void *)i);
     }
+
     // Wait for all insertion threads to complete.
     for (uintptr_t i = 0; i < THREAD_COUNT; i++) {
         pthread_join(insert_threads[i], NULL);
@@ -194,13 +215,13 @@ static MunitResult test_concurrent_insert_lookup(const MunitParameter params[],
     for (uintptr_t i = 0; i < THREAD_COUNT; i++) {
         pthread_create(&lookup_threads[i], NULL, thread_lookup, (void *)i);
     }
+
     // Wait for all lookup threads to complete.
     for (uintptr_t i = 0; i < THREAD_COUNT; i++) {
         pthread_join(lookup_threads[i], NULL);
     }
 
-    fba_free(shared_ht->entries);
-    fba_free(shared_ht);
+    free_ht(shared_ht);
     return MUNIT_OK;
 }
 
@@ -209,17 +230,20 @@ static MunitResult test_concurrent_insert_delete(const MunitParameter params[],
                                                  void *user_data) {
     shared_ht = hash_table_create(1);
     pthread_t threads[THREAD_COUNT];
+
     for (uintptr_t i = 0; i < THREAD_COUNT; i++) {
         pthread_create(&threads[i], NULL, thread_insert_delete, (void *)i);
     }
+
     for (int i = 0; i < THREAD_COUNT; i++) {
         pthread_join(threads[i], NULL);
     }
+
     for (uint64_t i = 0; i < THREAD_COUNT * ENTRIES_PER_THREAD; i++) {
         munit_assert_null(hash_table_lookup(shared_ht, i));
     }
-    fba_free(shared_ht->entries);
-    fba_free(shared_ht);
+
+    free_ht(shared_ht);
     return MUNIT_OK;
 }
 

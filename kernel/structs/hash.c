@@ -91,7 +91,7 @@ HashTable *hash_table_create(size_t num_pages) {
     ht->lock = (SpinLock *)slab_alloc_block();
     if (!ht->lock) {
         fba_free(ht->entries);
-        fba_free(ht);
+        slab_free(ht);
         return NULL;
     }
     spinlock_init(ht->lock);
