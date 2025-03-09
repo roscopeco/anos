@@ -59,7 +59,7 @@ far are, briefly:
   * **Physical / virtual memory management**
   * **Thread / Process management & address space primitives**
   * **Scheduling (and directly-related concurrency primitives)**
-  * IPC (just a single primitive mechanism)
+  * **IPC** (_just a single primitive mechanism, still WIP_)
   * Small, targeted syscall interface (_started, still WIP_)
     * **Fast channel (via `SYSCALL` and `SYSRET`)**
     * **Slow channel (via `int 0x69`)**
