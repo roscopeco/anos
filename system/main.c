@@ -8,10 +8,12 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#include "anos.h"
-#include "anos/anos_syscalls.h"
-#include "anos/anos_types.h"
-#include "anos/printf.h"
+#include <anos.h>
+#include <anos/printf.h>
+#include <anos/syscalls.h>
+#include <anos/types.h>
+
+#include "ramfs.h"
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -22,7 +24,11 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
+extern AnosRAMFSHeader _system_ramfs_start;
+
 volatile int num;
+static uint64_t channel_cookie;
+static uint64_t channel2_cookie;
 
 int subroutine(int in) { return in * 2; }
 
@@ -37,9 +43,24 @@ static inline void banner() {
 
 static void thread2() {
     int count = 0;
-    printf("\nTask 2 - startup and immediately sleep...\n");
+    printf("\nTask 2 - startup and send messages to channel 2 (no receivers "
+           "there yet, T3 will listen when it wakes)...\n");
+    uint64_t r1 = anos_send_message(channel2_cookie, 0x1b33b, 0x1b00b);
+    printf("\nTask 2 recieved reply 1 : %lx\n", r1);
+    uint64_t r2 = anos_send_message(channel2_cookie, 0x2b33b, 0x2b00b);
+    printf("\nTask 2 recieved reply 2 : %lx - will sleep for 5 secs\n", r2);
+
     anos_task_sleep_current_secs(5);
+
     printf("\nTask 2 has arisen!\n");
+
+    uint64_t tag, arg;
+    uint64_t recvd = anos_recv_message(channel_cookie, &tag, &arg);
+    printf("T2: Received message on channel 1: cookie 0x%016lx: [tag = "
+           "0x%08lx; arg = 0x%08lx]\n",
+           recvd, tag, arg);
+
+    anos_reply_message(recvd, 192000);
 
     while (1) {
         if (count++ % 100000000 == 0) {
@@ -54,24 +75,30 @@ static void thread3() {
     anos_task_sleep_current_secs(3);
     printf("\nTask 3 has arisen!\n");
 
+    uint64_t tag, arg;
+
     while (1) {
-        if (count++ % 100000000 == 0) {
-            anos_kputchar('3');
-        }
+        uint64_t recvd = anos_recv_message(channel2_cookie, &tag, &arg);
+
+        printf("T3: Received message on channel 2: cookie 0x%016lx: [tag = "
+               "0x%08lx; arg = 0x%08lx]\n",
+               recvd, tag, arg);
+
+        anos_reply_message(recvd, count++);
     }
 }
 
 static void thread4() {
-    int count = 0;
     printf("Task 4 - startup and immediately sleep...\n");
     anos_task_sleep_current_secs(10);
-    printf("\nTask 4 has arisen!\n");
+    printf("\nTask 4 has arisen - Send message to channel 1!\n");
+
+    uint64_t response = anos_send_message(channel_cookie, 9001, 2);
+    printf("T4: Response is %ld; going to sleep-print loop...\n", response);
 
     while (1) {
-        if (count++ % 100000000 == 0) {
-            anos_kputchar('4');
-            anos_task_sleep_current_secs(2);
-        }
+        anos_task_sleep_current_secs(4);
+        anos_kputchar('4');
     }
 }
 
@@ -88,6 +115,43 @@ static noreturn int other_main(void) {
     __builtin_unreachable();
 }
 
+noreturn int initial_server_loader(void);
+
+#ifdef DEBUG_INIT_RAMFS
+static void dump_fs(AnosRAMFSHeader *ramfs) {
+    AnosRAMFSFileHeader *hdr = (AnosRAMFSFileHeader *)(ramfs + 1);
+
+    printf("System FS magic: 0x%08x\n", ramfs->magic);
+    printf("System FS ver  : 0x%08x\n", ramfs->version);
+    printf("System FS count: 0x%016lx\n", ramfs->file_count);
+    printf("System FS size : 0x%016lx\n", ramfs->fs_size);
+
+    for (int i = 0; i < ramfs->file_count; i++) {
+        if (!hdr) {
+            printf("dump_fs: Could not find file %s\n", hdr->file_name);
+            return;
+        }
+
+        uint8_t *fbuf = ramfs_file_open(hdr);
+
+        if (!fbuf) {
+            printf("dump_fs: Could not open file %s\n", hdr->file_name);
+            return;
+        }
+
+        printf("%-20s [%10ld]: ", hdr->file_name, hdr->file_length);
+        for (int i = 0; i < 16; i++) {
+            printf("0x%02x ", *fbuf++);
+        }
+        printf(" ... \n");
+
+        hdr++;
+    }
+}
+#else
+#define dump_fs(...)
+#endif
+
 int main(int argc, char **argv) {
     banner();
 
@@ -99,6 +163,12 @@ int main(int argc, char **argv) {
     } else {
         printf("WARN: Get mem info failed\n");
     }
+
+    channel_cookie = anos_create_channel();
+    printf("Created IPC channel #1 0x%016lx\n", channel_cookie);
+
+    channel2_cookie = anos_create_channel();
+    printf("Created IPC channel #2 0x%016lx\n", channel2_cookie);
 
 #ifdef DEBUG_TEST_SYSCALL
     uint64_t ret;
@@ -113,6 +183,11 @@ int main(int argc, char **argv) {
     } else {
         anos_kprint("BAD\n");
     }
+#endif
+
+#ifdef DEBUG_INIT_RAMFS
+    AnosRAMFSHeader *ramfs = (AnosRAMFSHeader *)&_system_ramfs_start;
+    dump_fs(ramfs);
 #endif
 
     int t2 = anos_create_thread(thread2, ((uintptr_t)t2_stack) + 0x1000);
@@ -139,11 +214,11 @@ int main(int argc, char **argv) {
     ProcessMemoryRegion regions[2] = {
             {
                     .start = 0x1000000,
-                    .len_bytes = 0x2000,
+                    .len_bytes = 0x3000,
             },
             {.start = 0x80000000, .len_bytes = 0x4000}};
 
-    uint64_t new_pid = anos_create_process(0x100000000, 0x1000, 2, regions,
+    uint64_t new_pid = anos_create_process(0x7ffff000, 0x1000, 2, regions,
                                            (uintptr_t)other_main);
     if (new_pid < 0) {
         printf("Failed to create new process\n");

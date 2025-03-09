@@ -10,6 +10,7 @@
 #include "machine.h"
 #include "pmm/pagealloc.h"
 #include "spinlock.h"
+#include "vmm/vmconfig.h"
 
 #ifdef HOSTED_PMM_PRINTF_DEBUGGING
 #include <stdio.h>
@@ -78,7 +79,7 @@ MemoryRegion *page_alloc_init_e820(E820h_MemMap *memmap, uint64_t managed_base,
             // Is the aligned base below the actual base for this block?
             if (entry->base > start) {
                 // Round up to next page boundary if so...
-                start += 0x1000;
+                start += VM_PAGE_SIZE;
             }
 
             // Cut off any memory below the supplied managed base.
@@ -110,7 +111,9 @@ MemoryRegion *page_alloc_init_e820(E820h_MemMap *memmap, uint64_t managed_base,
             // Stack this block
             region->sp++;
             region->sp->base = start;
-            region->sp->size = total_bytes >> 12; // size is pages, not bytes...
+            region->sp->size =
+                    total_bytes >>
+                    VM_PAGE_LINEAR_SHIFT; // size is pages, not bytes...
         } else {
             C_DEBUGSTR(" ====> Skipping unavailable region ");
             C_PRINTHEX64(entry->base, debugchar);
@@ -169,7 +172,7 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
                 // Is the aligned base below the actual base for this block?
                 if (entry->base > start) {
                     // Round up to next page boundary if so...
-                    start += 0x1000;
+                    start += VM_PAGE_SIZE;
                 }
 
                 // Cut off any memory below the supplied managed base.
@@ -204,7 +207,8 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
                 region->sp++;
                 region->sp->base = start;
                 region->sp->size =
-                        total_bytes >> 12; // size is pages, not bytes...
+                        total_bytes >>
+                        VM_PAGE_LINEAR_SHIFT; // size is pages, not bytes...
 
                 break;
             }
@@ -245,10 +249,10 @@ uint64_t page_alloc_m(MemoryRegion *region, uint64_t count) {
             uint64_t page = ptr->base;
 
             hprintf("  Split block and allocate 0x%016x\n", page);
-            ptr->base += 0x1000;
+            ptr->base += VM_PAGE_SIZE;
             ptr->size -= count;
 
-            region->free -= (count << 12);
+            region->free -= (count << VM_PAGE_LINEAR_SHIFT);
 
             spinlock_unlock_irqrestore(&region->lock, lock_flags);
             return page;
@@ -289,12 +293,12 @@ uint64_t page_alloc(MemoryRegion *region) {
         return 0xFF;
     }
 
-    region->free -= 0x1000;
+    region->free -= VM_PAGE_SIZE;
 
     if (region->sp->size > 1) {
         // More than one page in this block - just adjust in-place
         uint64_t page = region->sp->base;
-        region->sp->base += 0x1000;
+        region->sp->base += VM_PAGE_SIZE;
         region->sp->size--;
 
         spinlock_unlock_irqrestore(&region->lock, lock_flags);
@@ -316,18 +320,18 @@ void page_free(MemoryRegion *region, uint64_t page) {
     }
 
     uint64_t lock_flags = spinlock_lock_irqsave(&region->lock);
-    region->free += 0x1000;
+    region->free += VM_PAGE_SIZE;
 
 #ifndef NO_PMM_FREE_COALESCE_ADJACENT
     if (!stack_empty(region)) {
-        if (region->sp->base == page + 0x1000) {
+        if (region->sp->base == page + VM_PAGE_SIZE) {
             // Freeing page below current stack top, so just rebase and resize
             region->sp->base = page;
             region->sp->size += 1;
 
             spinlock_unlock_irqrestore(&region->lock, lock_flags);
             return;
-        } else if (region->sp->base == page - 0x1000) {
+        } else if (region->sp->base == page - VM_PAGE_SIZE) {
             // Freeing page above current stack top, so just resize
             region->sp->size += 1;
 

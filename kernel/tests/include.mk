@@ -6,6 +6,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/sched/*.o									\
 				kernel/tests/arch/x86_64/kdrivers/*.o								\
 				kernel/tests/arch/x86_64/process/*.o								\
+				kernel/tests/arch/x86_64/structs/*.o								\
 				kernel/tests/*.gcda kernel/tests/pmm/*.gcda kernel/tests/vmm/*.gcda	\
 				kernel/tests/structs/*.gcda kernel/tests/pci/*.gcda 				\
 				kernel/tests/fba/*.gcda kernel/tests/slab/*.gcda 					\
@@ -15,6 +16,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/sched/*.gcda								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcda							\
 				kernel/tests/arch/x86_64/process/*.gcda								\
+				kernel/tests/arch/x86_64/structs/*.gcda								\
 				kernel/tests/*.gcno kernel/tests/pmm/*.gcno kernel/tests/vmm/*.gcno	\
 				kernel/tests/structs/*.gcno kernel/tests/pci/*.gcno 				\
 				kernel/tests/fba/*.gcno kernel/tests/slab/*.gcno 					\
@@ -24,6 +26,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/sched/*.gcno								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcno							\
 				kernel/tests/arch/x86_64/process/*.gcno								\
+				kernel/tests/arch/x86_64/structs/*.gcno								\
 				kernel/tests/build													\
 				gcov/kernel
 
@@ -180,6 +183,9 @@ kernel/tests/build/sleep_queue: kernel/tests/munit.o kernel/tests/sleep_queue.o 
 kernel/tests/build/structs/ref_count_map: kernel/tests/munit.o kernel/tests/structs/ref_count_map.o kernel/tests/build/structs/ref_count_map.o kernel/tests/mock_fba_malloc.o kernel/tests/mock_slab_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/structs/hash: kernel/tests/munit.o kernel/tests/structs/hash.o kernel/tests/build/structs/hash.o kernel/tests/build/arch/x86_64/spinlock.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -219,6 +225,7 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/kdrivers/drivers									\
 			kernel/tests/build/sleep_queue										\
 			kernel/tests/build/structs/ref_count_map							\
+			kernel/tests/build/structs/hash										\
 			kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\

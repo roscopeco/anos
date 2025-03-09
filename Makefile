@@ -57,6 +57,7 @@ endif
 #   DEBUG_PROCESS_SYSCALLS	Enable debugging of process-related syscalls
 #	DEBUG_TASK_SWITCH		Enable debugging info when switching tasks
 #	VERY_NOISY_TASK_SWITCH	Enable *lots* of debugging info when switching tasks (requires DEBUG_TASK_SWITCH)
+#	DEBUG_CHANNEL_IPC		Enable debugging info for IPC channels
 #
 # These ones enable some specific feature tests
 #
@@ -226,6 +227,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/structs/ref_count_map.o								\
 			$(STAGE3_DIR)/process/process.o										\
 			$(STAGE3_DIR)/smp/state.o											\
+			$(STAGE3_DIR)/structs/hash.o										\
+			$(STAGE3_DIR)/ipc/channel.o											\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 
@@ -253,6 +256,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
 				$(STAGE3_DIR)/structs/*.o $(STAGE3_DIR)/sched/*.o				\
 				$(STAGE3_DIR)/smp/*.o $(STAGE3_DIR)/process/*.o					\
+				$(STAGE3_DIR)/ipc/*.o											\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
@@ -267,6 +271,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/smp/*.o								\
 				$(STAGE3_ARCH_X86_64_DIR)/process/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/entrypoints/*.o						\
+				$(STAGE3_ARCH_X86_64_DIR)/structs/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
@@ -294,6 +299,8 @@ clean:
 	rm -rf $(CLEAN_ARTIFACTS)
 	$(MAKE) -C libanos clean
 	$(MAKE) -C system clean
+	$(MAKE) -C servers clean
+	$(MAKE) -C tools clean
 
 include kernel/tests/include.mk
 include system/tests/include.mk

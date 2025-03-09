@@ -5,7 +5,7 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
-#include "anos/anos_syscalls.h"
+#include "anos/syscalls.h"
 
 #define NANOS_PER_SEC ((1000000000))
 

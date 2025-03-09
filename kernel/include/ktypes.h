@@ -15,6 +15,7 @@ typedef enum {
     KTYPE_TASK,
     KTYPE_PROCESS,
     KTYPE_SLEEPER,
+    KTYPE_IPC_MESSAGE,
 } KType;
 
 #endif //__ANOS_KERNEL_KTYPES_H
