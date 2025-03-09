@@ -12,7 +12,12 @@
 #include "munit.h"
 #include "structs/hash.h"
 
-#define THREAD_COUNT ((4))
+#ifdef UNIT_TEST_HARD_MODE
+#define THREAD_COUNT ((32))
+#else
+#define THREAD_COUNT ((8))
+#endif
+
 #define ENTRIES_PER_THREAD ((1000))
 
 void *fba_alloc_blocks(uint64_t count) { return calloc(count, VM_PAGE_SIZE); }
@@ -33,7 +38,7 @@ static MunitResult test_create_destroy(const MunitParameter params[],
     munit_assert_not_null(ht->entries);
     munit_assert_size(ht->capacity, >=, ENTRIES_PER_PAGE);
     fba_free(ht->entries);
-    fba_free(ht);
+    slab_free(ht);
     return MUNIT_OK;
 }
 
@@ -43,7 +48,7 @@ static MunitResult test_lookup_non_existent(const MunitParameter params[],
     HashTable *ht = hash_table_create(1);
     munit_assert_null(hash_table_lookup(ht, 99999));
     fba_free(ht->entries);
-    fba_free(ht);
+    slab_free(ht);
     return MUNIT_OK;
 }
 
@@ -59,7 +64,7 @@ static MunitResult test_insert_after_delete(const MunitParameter params[],
     munit_assert_true(hash_table_insert(ht, cookie, channel));
     munit_assert_ptr_equal(hash_table_lookup(ht, cookie), channel);
     fba_free(ht->entries);
-    fba_free(ht);
+    slab_free(ht);
     return MUNIT_OK;
 }
 
@@ -74,7 +79,7 @@ static MunitResult test_tombstone_reuse(const MunitParameter params[],
     munit_assert_true(hash_table_insert(ht, second, channel2));
     munit_assert_ptr_equal(hash_table_lookup(ht, second), channel2);
     fba_free(ht->entries);
-    fba_free(ht);
+    slab_free(ht);
     return MUNIT_OK;
 }
 
@@ -89,7 +94,7 @@ static MunitResult test_insert_full_capacity(const MunitParameter params[],
         munit_assert_ptr_equal(hash_table_lookup(ht, i), (void *)(uintptr_t)i);
     }
     fba_free(ht->entries);
-    fba_free(ht);
+    slab_free(ht);
     return MUNIT_OK;
 }
 
@@ -111,7 +116,7 @@ static MunitResult test_resize_with_deletions(const MunitParameter params[],
         munit_assert_ptr_equal(hash_table_lookup(ht, i), (void *)(uintptr_t)i);
     }
     fba_free(ht->entries);
-    fba_free(ht);
+    slab_free(ht);
     return MUNIT_OK;
 }
 
