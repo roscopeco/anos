@@ -334,16 +334,22 @@ supports UEFI boot (with the Limine bootloader).
 Here, it's running on an old i5 4th-gen (Haswell) with 16GiB RAM. Haswell
 is the oldest architecture that Anos "officially" supports.
 
-<img src="images/IMG_2462.jpg" alt="UEFI-booted ANOS running on a real-life computer">
+It's running two processes with multiple threads on the different cores, and
+is also showing the experimental synchronous message-passing IPC features:
 
-And the same computer, but booted with legacy BIOS boot (and VGA text mode):
+<img src="images/IMG_2472.jpg" alt="UEFI-booted ANOS running on a real-life computer">
+
+And the same computer, but booted with legacy BIOS boot (and VGA text mode).
+It's worth noting this image is running an older kernel so doesn't have all
+the same features as the one above:
 
 <img src="images/IMG_2432.jpg" alt="ANOS running on a real-life computer">
 
 It also runs in emulators, of course - here's Qemu booted via UEFI, using the
-graphical debug terminal at 1280x800 resolution:
+graphical debug terminal at 1280x800 resolution and again showing the 
+experimental IPC features:
 
-<img src="images/Screenshot 2025-02-28 at 20.58.55.png" alt="UEFI-booted ANOS running in Qemu">
+<img src="images/Screenshot 2025-03-09 at 20.29.45.png" alt="UEFI-booted ANOS running in Qemu">
 
 Or legacy BIOS boot in VirtualBox, just for a change from qemu...
 
