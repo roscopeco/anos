@@ -54,7 +54,7 @@ static MunitResult test_insert_after_delete(const MunitParameter params[],
     uint64_t cookie = 11111;
     void *channel = (void *)0xabcdef;
     munit_assert_true(hash_table_insert(ht, cookie, channel));
-    munit_assert_true(hash_table_remove(ht, cookie));
+    munit_assert_ptr_equal(hash_table_remove(ht, cookie), channel);
     munit_assert_null(hash_table_lookup(ht, cookie));
     munit_assert_true(hash_table_insert(ht, cookie, channel));
     munit_assert_ptr_equal(hash_table_lookup(ht, cookie), channel);
@@ -70,7 +70,7 @@ static MunitResult test_tombstone_reuse(const MunitParameter params[],
     uint64_t first = 22222, second = 33333;
     void *channel1 = (void *)0x1234, *channel2 = (void *)0x5678;
     munit_assert_true(hash_table_insert(ht, first, channel1));
-    munit_assert_true(hash_table_remove(ht, first));
+    munit_assert_ptr_equal(hash_table_remove(ht, first), channel1);
     munit_assert_true(hash_table_insert(ht, second, channel2));
     munit_assert_ptr_equal(hash_table_lookup(ht, second), channel2);
     fba_free(ht->entries);
@@ -101,7 +101,7 @@ static MunitResult test_resize_with_deletions(const MunitParameter params[],
         munit_assert_true(hash_table_insert(ht, i, (void *)(uintptr_t)i));
     }
     for (uint64_t i = 1; i <= ENTRIES_PER_PAGE / 2; i++) {
-        munit_assert_true(hash_table_remove(ht, i));
+        munit_assert_ptr_equal(hash_table_remove(ht, i), (void *)(uintptr_t)i);
     }
     munit_assert_true(
             hash_table_insert(ht, ENTRIES_PER_PAGE + 1,

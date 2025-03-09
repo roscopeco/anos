@@ -12,6 +12,8 @@
 
 #include "debugprint.h"
 #include "fba/alloc.h"
+#include "ipc/channel.h"
+#include "kdrivers/cpu.h"
 #include "kprintf.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
@@ -20,9 +22,16 @@
 #include "sched.h"
 #include "sleep.h"
 #include "smp/state.h"
+#include "std/string.h"
 #include "syscalls.h"
 #include "task.h"
+#include "vmm/recursive.h"
 #include "vmm/vmconfig.h"
+#include "vmm/vmmapper.h"
+
+#ifdef CONSERVATIVE_BUILD
+#include "panic.h"
+#endif
 
 typedef void (*ThreadFunc)(void);
 
@@ -199,6 +208,104 @@ static SyscallResult handle_create_process(uintptr_t stack_base,
     return new_process->pid;
 }
 
+static inline uintptr_t page_align(uintptr_t addr) {
+    return addr & 0xfff ? (addr + VM_PAGE_SIZE) & ~(0xfff) : addr;
+}
+
+static inline void undo_partial_map(uintptr_t virtual_base,
+                                    uintptr_t virtual_last,
+                                    uintptr_t new_page) {
+    if ((new_page & 0xff) == 0) {
+        // we allocated a page, so must be failing because there's already a page
+        // mapped here... We need to free the page we allocated.
+        page_free(physical_region, new_page);
+    }
+
+    // Either way, we're failing, so need to undo what we've already done...
+    for (uintptr_t unmap_addr = virtual_base; unmap_addr < virtual_last;
+         unmap_addr += VM_PAGE_SIZE) {
+        uintptr_t page = vmm_virt_to_phys_page(unmap_addr);
+
+#ifdef CONSERVATIVE_BUILD
+        if (!page) {
+            panic("unmapped page found during map_virtual syscall failure "
+                  "loop");
+        }
+#endif
+        vmm_unmap_page(unmap_addr);
+        page_free(physical_region, page);
+    }
+}
+
+SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base) {
+    if (size == 0) {
+        // we don't map empty regions...
+        return 0;
+    }
+
+    virtual_base = page_align(virtual_base);
+    size = page_align(size);
+
+    uint64_t page_count = size >> VM_PAGE_LINEAR_SHIFT;
+
+    // Let's try to map it in, just using small pages for now...
+    kprintf("LFG mapping %ld bytes @ 0x%016lx\n", size, virtual_base);
+
+    uintptr_t virtual_end = virtual_base + size;
+    for (uintptr_t addr = virtual_base; addr < virtual_end;
+         addr += VM_PAGE_SIZE) {
+        uintptr_t new_page = page_alloc(physical_region);
+
+        if (new_page & 0xff || vmm_virt_to_phys_page(addr)) {
+            undo_partial_map(virtual_base, addr, new_page);
+            return 0;
+        }
+
+        // TODO allow flags to be controlled (to an extent) by caller...
+        if (!vmm_map_page(addr, new_page, PRESENT | WRITE | USER)) {
+            undo_partial_map(virtual_base, addr, new_page);
+            return 0;
+        }
+
+        kprintf("    Mapped page 0x%016lx => 0x%016lx\n", addr, new_page);
+    }
+
+    memclr((void *)virtual_base, size);
+
+    return virtual_base;
+}
+
+// TODO we need a nicer scheme for return values in all of the below...
+// they're kind of all over the place at the moment...
+//
+
+SyscallResult handle_send_message(uint64_t channel_cookie, uint64_t tag,
+                                  uint64_t arg) {
+    return ipc_channel_send(channel_cookie, tag, arg);
+}
+
+SyscallResult handle_recv_message(uint64_t channel_cookie, uint64_t *tag,
+                                  uint64_t *arg) {
+    if (((uintptr_t)tag & 0xffffffff00000000) ||
+        ((uintptr_t)arg & 0xffffffff00000000)) {
+        // Pointers must be user space...
+        return 0;
+    }
+
+    return ipc_channel_recv(channel_cookie, tag, arg);
+}
+
+SyscallResult handle_reply_message(uint64_t message_cookie, uint64_t reply) {
+    return ipc_channel_reply(message_cookie, reply);
+}
+
+SyscallResult handle_create_channel(void) { return ipc_channel_create(); }
+
+SyscallResult handle_destroy_channel(uint64_t cookie) {
+    ipc_channel_destroy(cookie);
+    return SYSCALL_OK;
+}
+
 SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
                                 SyscallArg arg2, SyscallArg arg3,
                                 SyscallArg arg4, SyscallArg syscall_num) {
@@ -218,6 +325,18 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
     case 6:
         return handle_create_process(arg0, arg1, arg2,
                                      (ProcessMemoryRegion *)arg3, arg4);
+    case 7:
+        return handle_map_virtual(arg0, arg1);
+    case 8:
+        return handle_send_message(arg0, arg1, arg2);
+    case 9:
+        return handle_recv_message(arg0, (uint64_t *)arg1, (uint64_t *)arg2);
+    case 10:
+        return handle_reply_message(arg0, arg1);
+    case 11:
+        return handle_create_channel();
+    case 12:
+        return handle_destroy_channel(arg0);
     default:
         return SYSCALL_BAD_NUMBER;
     }

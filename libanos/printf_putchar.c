@@ -5,7 +5,7 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
-#include "anos/anos_syscalls.h"
+#include "anos/syscalls.h"
 
 #define buf_len 0x400
 

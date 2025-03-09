@@ -15,6 +15,7 @@
 #include "cpuid.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
+#include "ipc/channel.h"
 #include "kdrivers/cpu.h"
 #include "kdrivers/drivers.h"
 #include "kdrivers/local_apic.h"
@@ -249,6 +250,7 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
     task_init(get_this_cpu_tss());
     process_init();
     sleep_init();
+    ipc_channel_init();
 
     if (!address_space_init()) {
         panic("Address space initialisation failed");

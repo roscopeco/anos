@@ -10,7 +10,7 @@ OUTPUT_FORMAT("elf64-x86-64")
 ENTRY(_start)
 
 MEMORY {
-    CODE    : org = 0x0000000001000000,  l = 0x0040000000     /* 1GiB for System code (just for testing) */
+    CODE    : org = 0x0000000002000000,  l = 0x0040000000     /* 1GiB for server code */
     DATA    : org = 0x0000000080000000,  l = 0x4000000000     /* 256GiB for bss, stack goes below this */
 }
 

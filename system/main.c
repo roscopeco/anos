@@ -8,10 +8,10 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#include "anos.h"
-#include "anos/anos_syscalls.h"
-#include "anos/anos_types.h"
-#include "anos/printf.h"
+#include <anos.h>
+#include <anos/printf.h>
+#include <anos/syscalls.h>
+#include <anos/types.h>
 
 #include "ramfs.h"
 
@@ -27,6 +27,7 @@
 extern AnosRAMFSHeader _system_ramfs_start;
 
 volatile int num;
+static uint64_t channel_cookie;
 
 int subroutine(int in) { return in * 2; }
 
@@ -44,6 +45,13 @@ static void thread2() {
     printf("\nTask 2 - startup and immediately sleep...\n");
     anos_task_sleep_current_secs(5);
     printf("\nTask 2 has arisen!\n");
+
+    uint64_t tag, arg;
+    uint64_t recvd = anos_recv_message(channel_cookie, &tag, &arg);
+    printf("Received message cookie 0x%016lx: [tag = %ld; arg = %ld]\n", recvd,
+           tag, arg);
+
+    anos_reply_message(recvd, 192000);
 
     while (1) {
         if (count++ % 100000000 == 0) {
@@ -71,6 +79,9 @@ static void thread4() {
     anos_task_sleep_current_secs(10);
     printf("\nTask 4 has arisen!\n");
 
+    uint64_t response = anos_send_message(channel_cookie, 9001, 2);
+    printf("Response is %ld\n", response);
+
     while (1) {
         if (count++ % 100000000 == 0) {
             anos_kputchar('4');
@@ -91,6 +102,8 @@ static noreturn int other_main(void) {
 
     __builtin_unreachable();
 }
+
+noreturn int initial_server_loader(void);
 
 #ifdef DEBUG_INIT_RAMFS
 static void dump_fs(AnosRAMFSHeader *ramfs) {
@@ -139,6 +152,9 @@ int main(int argc, char **argv) {
         printf("WARN: Get mem info failed\n");
     }
 
+    channel_cookie = anos_create_channel();
+    printf("Created IPC channel 0x%016lx\n", channel_cookie);
+
 #ifdef DEBUG_TEST_SYSCALL
     uint64_t ret;
     if ((ret = anos_testcall_int(1, 2, 3, 4, 5)) == 42) {
@@ -183,7 +199,7 @@ int main(int argc, char **argv) {
     ProcessMemoryRegion regions[2] = {
             {
                     .start = 0x1000000,
-                    .len_bytes = 0x2000,
+                    .len_bytes = 0x3000,
             },
             {.start = 0x80000000, .len_bytes = 0x4000}};
 

@@ -73,7 +73,7 @@ static bool hash_table_resize(HashTable *ht) {
 }
 
 HashTable *hash_table_create(size_t num_pages) {
-    // Allocate the hash table structure from the slab (must be ≤ 64 bytes).
+    // Allocate the hash table structure from the slab (must be <= 64 bytes).
     HashTable *ht = (HashTable *)slab_alloc_block();
     if (!ht)
         return NULL;
@@ -163,9 +163,11 @@ void *hash_table_lookup(HashTable *ht, uint64_t key) {
     return result;
 }
 
-bool hash_table_remove(HashTable *ht, uint64_t key) {
-    bool ret = false;
+void *hash_table_remove(HashTable *ht, uint64_t key) {
+    void *ret = NULL;
     LOCK(ht);
+
+    // fuck me this is a mess...
 
     size_t index = key % ht->capacity;
     size_t pos;
@@ -174,11 +176,13 @@ bool hash_table_remove(HashTable *ht, uint64_t key) {
         if (ht->entries[pos].key == 0)
             goto out;
         if (ht->entries[pos].key == key) {
-            // Remove the entry.
+            // save the entry for return...
+            ret = ht->entries[pos].data;
+
+            // and remove it from the table
             ht->entries[pos].key = 0;
             ht->entries[pos].data = NULL;
             ht->size--;
-            ret = true;
 
             // Rehash the following cluster.
             size_t j = (pos + 1) % ht->capacity;

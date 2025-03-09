@@ -22,6 +22,7 @@
 
 #include <stdatomic.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "anos_assert.h"
@@ -68,10 +69,11 @@ void *hash_table_lookup(HashTable *ht, uint64_t key);
 /*
  * Remove an entry identified by key from the table.
  *
- * Returns true if the key was found and removed, or false if not found.
+ * Returns the removed value if the key was found and removed, 
+ * or NULL if not found.
  *
  * After removal, rehashes the contiguous cluster to preserve lookups.
  */
-bool hash_table_remove(HashTable *ht, uint64_t key);
+void *hash_table_remove(HashTable *ht, uint64_t key);
 
 #endif //__ANOS_KERNEL_HASH_H

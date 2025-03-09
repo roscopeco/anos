@@ -5,10 +5,10 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
-#include "anos.h"
-#include "anos/anos_syscalls.h"
-#include "anos/anos_types.h"
-#include "anos/printf.h"
+#include <anos.h>
+#include <anos/printf.h>
+#include <anos/syscalls.h>
+#include <anos/types.h>
 
 int main(int argc, char **argv) {
     anos_kprint("Beep Boop process is up...\n");

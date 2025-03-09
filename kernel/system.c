@@ -110,7 +110,7 @@ noreturn void start_system(void) {
             (uint64_t)&_system_bin_start & ~(0xFFFFFFFF80000000);
     const uint64_t system_len_bytes =
             (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
-    const uint64_t system_len_pages = system_len_bytes >> 12;
+    const uint64_t system_len_pages = system_len_bytes >> VM_PAGE_LINEAR_SHIFT;
 
     const uint16_t flags = PRESENT | USER;
 
