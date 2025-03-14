@@ -26,6 +26,7 @@ jobs:
 
       - name: Build & run tests
         run: |
+          brew update
           brew install nasm clang-format@20
           find . -name '*.c' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
           find . -name '*.h' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
