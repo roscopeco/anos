@@ -7,6 +7,8 @@
  * **This is not a dumping-ground for common code!**
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_CONFIG_H
 #define __ANOS_KERNEL_CONFIG_H
 

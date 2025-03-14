@@ -22,6 +22,8 @@
  * SOFTWARE.
  */
 
+// clang-format Language: C
+
 #if !defined(MUNIT_H)
 #define MUNIT_H
 

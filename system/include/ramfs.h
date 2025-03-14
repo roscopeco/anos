@@ -24,6 +24,8 @@
  *      Author: Ross Bamford <roscopeco AT gmail DOT com>
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_SYSTEM_RAMFS_H_
 #define __ANOS_SYSTEM_RAMFS_H_
 

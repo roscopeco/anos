@@ -5,6 +5,8 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_MOCK_CPU_H
 #define __ANOS_KERNEL_MOCK_CPU_H
 

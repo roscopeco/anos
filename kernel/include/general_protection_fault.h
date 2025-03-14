@@ -5,6 +5,8 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_GENERAL_PROTECTION_FAULT_H
 #define __ANOS_KERNEL_GENERAL_PROTECTION_FAULT_H
 

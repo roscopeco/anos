@@ -5,6 +5,8 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_ANOS_H
 #define __ANOS_ANOS_H
 

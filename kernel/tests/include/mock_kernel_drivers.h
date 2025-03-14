@@ -5,6 +5,8 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_TESTS_TEST_KERNEL_DRIVERS_H
 #define __ANOS_TESTS_TEST_KERNEL_DRIVERS_H
 

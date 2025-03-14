@@ -8,6 +8,8 @@
  * copy anything - that's all on the caller.
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_TASK_PQ_H
 #define __ANOS_KERNEL_TASK_PQ_H
 
