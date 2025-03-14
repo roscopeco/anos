@@ -3,7 +3,7 @@
  * Link Script
  *
  * (c)2025 Ross Bamford & Contributors
- * See LICENSE.md (spoiler: MIT)
+ * See LICENSE.md (spoiler: GPLv2)
  *
  * Yes, I'm aware this could all be linked by a single script,
  * but that was such a pain in the arse that I decided to build

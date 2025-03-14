@@ -3,7 +3,7 @@
  * Link Script
  *
  * (c)2023 Ross Bamford & Contributors
- * See LICENSE.md (spoiler: MIT)
+ * See LICENSE.md (spoiler: GPLv2)
  */
 
 OUTPUT_FORMAT("elf64-x86-64")

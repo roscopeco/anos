@@ -1,0 +1,19 @@
+NOTE! The GPLv2 license used for this project code does *not* cover 
+user programs that use kernel services by normal system calls or 
+kernel-provided IPC messaging - this is considered normal use of
+the kernel, and does not come within the meaning of "derived work".
+
+Also note that the GPL itself is copyrighted by the Free Software
+Foundation, but the instance of code that it refers to (the Anos
+operating system) is copyrighted by me and those who contributed
+to it.
+
+The only valid version of the GPL as far as Anos is concerned is
+the particular version of the license included in LICENSE.md 
+(and including this exception) - i.e. GPL v2 and not any other
+version unless explicitly otherwise stated.
+
+This exception is based upon the Linux syscall exception as
+written by Linux Torvalds.
+
+			Ross Bamford
