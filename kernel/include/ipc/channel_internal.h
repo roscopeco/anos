@@ -8,6 +8,8 @@
  * and in tests.
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_IPC_CHANNEL_INTERNAL_H
 #define __ANOS_KERNEL_IPC_CHANNEL_INTERNAL_H
 
