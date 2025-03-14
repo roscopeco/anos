@@ -41,6 +41,7 @@ jobs:
 
       - name: Build & run tests
         run: |
+          brew update
           brew install nasm clang-format@20
           find . -name '*.c' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
           find . -name '*.h' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
@@ -55,8 +56,9 @@ jobs:
 
       - name: Build & run tests
         run: |
+          sudo apt-get update
           sudo apt-get install nasm lcov
-          pip install clang-format@20
+          pip install clang-format==20.1.0
           find . -name '*.c' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
           find . -name '*.h' -print0 | xargs -0 clang-format -dry-run -style=file -Werror
           make clean test coverage
