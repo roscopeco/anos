@@ -20,6 +20,8 @@
 #include "structs/list.h"
 #include "task.h"
 
+#include "ipc/channel_internal.h"
+
 #ifdef CONSERVATIVE_BUILD
 #include "kprintf.h"
 #else
@@ -30,34 +32,19 @@
 
 #define INITIAL_CHANNEL_HASH_PAGE_COUNT ((4))
 #define INITIAL_IN_FLIGHT_MESSAGE_HASH_PAGE_COUNT ((1))
+#define NEXT_COOKIE_ADD_TSC_MASK ((0xffff))
 
-typedef struct {
-    ListNode this;
-    uint64_t cookie;
-    uint64_t tag;
-    uint64_t arg;
-    Task *waiter;
-    uint64_t reply;
-    bool handled;
-} IpcMessage;
-
-typedef struct {
-    uint64_t cookie;
-    Task *receivers;
-    SpinLock *receivers_lock;
-    IpcMessage *queue;
-    SpinLock *queue_lock;
-    uint64_t reserved[3];
-} IpcChannel;
-
-static_assert_sizeof(IpcMessage, ==, 64);
-static_assert_sizeof(IpcChannel, ==, 64);
+#ifdef UNIT_TESTS
+#define STATIC_EXCEPT_TESTS
+#else
+#define STATIC_EXCEPT_TESTS static
+#endif
 
 static _Atomic uint64_t next_channel_cookie;
 static _Atomic uint64_t next_message_cookie;
 
-static HashTable *channel_hash;
-static HashTable *in_flight_message_hash;
+STATIC_EXCEPT_TESTS HashTable *channel_hash;
+STATIC_EXCEPT_TESTS HashTable *in_flight_message_hash;
 
 void ipc_channel_init(void) {
     kernel_guard_once();
@@ -108,7 +95,11 @@ uint64_t ipc_channel_create(void) {
     uint64_t cookie =
             next_channel_cookie++; // just do ++ in case another thread cuts in...
     next_channel_cookie +=
-            (cpu_read_tsc() & 0xffff); // ... then adjust by "random" value
+            (cpu_read_tsc() &
+             NEXT_COOKIE_ADD_TSC_MASK); // ... then adjust by "random" value
+
+    channel->queue = NULL;
+    channel->receivers = NULL;
 
     hash_table_insert(channel_hash, cookie, channel);
 
@@ -140,6 +131,10 @@ void ipc_channel_destroy(uint64_t cookie) {
         //
         IpcMessage *queued = channel->queue;
         while (queued) {
+            if (!queued->waiter) {
+                continue;
+            }
+
             PerCPUState *target_cpu = sched_find_target_cpu();
             uint64_t lock_flags = sched_lock_any_cpu(target_cpu);
             sched_unblock_on(queued->waiter, target_cpu);
@@ -282,7 +277,8 @@ static void init_message(IpcMessage *message, uint64_t tag, uint64_t arg,
     uint64_t cookie =
             next_message_cookie++; // do ++ in case another thread cuts in...
     next_message_cookie +=
-            (cpu_read_tsc() & 0xffff); // ... then adjust by "random" value
+            (cpu_read_tsc() &
+             NEXT_COOKIE_ADD_TSC_MASK); // ... then adjust by "random" value
 
     message->this.next = 0;
     message->this.type = KTYPE_IPC_MESSAGE;
@@ -338,6 +334,20 @@ uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, uint64_t arg) {
         sched_unlock_this_cpu(lock_flags);
 
         uint64_t result = message->reply;
+
+#ifdef CONSERVATIVE_BUILD
+        // This should never happen (it should've been dequeued while we were sleeping)
+        // but just in case of weirdness...
+        //
+        // Though note, we **do** expect this to happen in the unit tests, since the mock
+        // scheduler doesn't actually block!
+        if (channel->queue == message) {
+            kprintf("WARN: Queued message not dequeued by the time send "
+                    "completed...\n");
+            channel->queue = (IpcMessage *)message->this.next;
+        }
+#endif
+
         slab_free(message);
         return result;
     }

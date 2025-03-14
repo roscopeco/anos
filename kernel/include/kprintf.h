@@ -61,11 +61,19 @@ void _putchar(char character);
  * \param format A string that specifies the format of the output
  * \return The number of characters that are written into the array, not counting the terminating null character
  */
+#ifdef UNIT_TESTS
+#ifdef printf
+#define kprintf printf
+#else
+#define kprintf(...)
+#endif
+#else
 #define kprintf printf_
 #ifdef __GNUC__
 __attribute__ ((format (__printf__, 1, 2)))
 #endif
 int printf_(const char* format, ...);
+#endif
 
 /**
  * Tiny sprintf implementation

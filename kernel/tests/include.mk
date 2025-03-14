@@ -2,6 +2,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/structs/*.o kernel/tests/pci/*.o kernel/tests/fba/*.o 	\
 				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/smp/*.o	\
 				kernel/tests/kdrivers/*.o											\
+				kernel/tests/ipc/*.o												\
 				kernel/tests/arch/x86_64/*.o										\
 				kernel/tests/arch/x86_64/sched/*.o									\
 				kernel/tests/arch/x86_64/kdrivers/*.o								\
@@ -12,6 +13,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/fba/*.gcda kernel/tests/slab/*.gcda 					\
 				kernel/tests/sched/*.gcda kernel/tests/smp/*.gcda					\
 				kernel/tests/kdrivers/*.gcda										\
+				kernel/tests/ipc/*.gcda												\
 				kernel/tests/arch/x86_64/*.gcda										\
 				kernel/tests/arch/x86_64/sched/*.gcda								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcda							\
@@ -22,6 +24,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/fba/*.gcno kernel/tests/slab/*.gcno 					\
 				kernel/tests/sched/*.gcno kernel/tests/smp/*.gcno					\
 				kernel/tests/kdrivers/*.gcno										\
+				kernel/tests/ipc/*.gcno												\
 				kernel/tests/arch/x86_64/*.gcno										\
 				kernel/tests/arch/x86_64/sched/*.gcno								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcno							\
@@ -54,7 +57,8 @@ TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm
 				kernel/tests/build/process											\
 				kernel/tests/build/arch/x86_64/process								\
 				kernel/tests/build/arch/x86_64/structs								\
-				kernel/tests/build/arch/x86_64/kdrivers
+				kernel/tests/build/arch/x86_64/kdrivers								\
+				kernel/tests/build/ipc
 
 ifeq (, $(shell which lcov))
 $(warning LCOV not installed, coverage will be skipped)
@@ -92,6 +96,9 @@ kernel/tests/build/kdrivers:
 
 kernel/tests/build/smp:
 	mkdir -p kernel/tests/build/smp
+
+kernel/tests/build/ipc:
+	mkdir -p kernel/tests/build/ipc
 
 kernel/tests/build/arch/x86_64:
 	mkdir -p kernel/tests/build/arch/x86_64
@@ -186,6 +193,9 @@ kernel/tests/build/structs/ref_count_map: kernel/tests/munit.o kernel/tests/stru
 kernel/tests/build/structs/hash: kernel/tests/munit.o kernel/tests/structs/hash.o kernel/tests/build/structs/hash.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/ipc/channel: kernel/tests/munit.o kernel/tests/ipc/channel.o kernel/tests/build/ipc/channel.o kernel/tests/build/structs/hash.o kernel/tests/mock_fba_malloc.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -226,6 +236,7 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/sleep_queue										\
 			kernel/tests/build/structs/ref_count_map							\
 			kernel/tests/build/structs/hash										\
+			kernel/tests/build/ipc/channel										\
 			kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\

@@ -43,6 +43,20 @@ void *fba_alloc_block(void) {
     return ptr;
 }
 
+void *fba_alloc_blocks(uint64_t count) {
+    if (should_fba_alloc_fail)
+        return NULL;
+    fba_alloc_count += count;
+
+    // Allocate 4096 bytes and ensure it's page-aligned
+    void *ptr = aligned_alloc(4096, 4096 * count);
+    if (ptr) {
+        memset(ptr, 0,
+               4096 * count); // Zero the memory like a real allocator would
+    }
+    return ptr;
+}
+
 void fba_free(void *ptr) {
     if (!ptr)
         return;
