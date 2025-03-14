@@ -11,6 +11,8 @@
  * after the ACPI tables, 0xFFFFFFFF81008000.
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_DRIVERS_H
 #define __ANOS_KERNEL_DRIVERS_H
 

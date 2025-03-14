@@ -7,6 +7,8 @@
  * Be sure to keep this in-sync with state.inc!
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_SMP_STATE_H
 #define __ANOS_SMP_STATE_H
 

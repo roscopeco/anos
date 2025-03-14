@@ -17,6 +17,8 @@
  * so it shouldn't be used for high-contention situations.
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_HASH_H
 #define __ANOS_KERNEL_HASH_H
 

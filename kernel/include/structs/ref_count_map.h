@@ -34,6 +34,8 @@
  *  Efficient handling of deleted entries
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_REF_COUNT_MAP_H
 #define __ANOS_KERNEL_REF_COUNT_MAP_H
 

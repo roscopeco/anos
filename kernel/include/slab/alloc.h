@@ -13,6 +13,8 @@
  * space.
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_SLAB_ALLOC_H
 #define __ANOS_KERNEL_SLAB_ALLOC_H
 

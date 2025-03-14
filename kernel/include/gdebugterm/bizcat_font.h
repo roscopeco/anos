@@ -8,6 +8,8 @@
  * someplace else (see comment on the `gdebugterm_font` below).
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_GDEBUGTERM_BIZCAT_FONT_H
 #define __ANOS_KERNEL_GDEBUGTERM_BIZCAT_FONT_H
 

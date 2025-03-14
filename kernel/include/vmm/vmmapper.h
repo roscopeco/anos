@@ -5,6 +5,8 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_VM_MAPPER_H
 #define __ANOS_KERNEL_VM_MAPPER_H
 

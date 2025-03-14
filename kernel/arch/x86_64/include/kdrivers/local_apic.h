@@ -5,6 +5,8 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_DRIVERS_LOCAL_APIC_H
 #define __ANOS_KERNEL_DRIVERS_LOCAL_APIC_H
 

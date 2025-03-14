@@ -10,6 +10,8 @@
  * kernel's 1GiB FBA space at 0xffffffffc0000000.
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_PMM_FBA_ALLOC_H
 #define __ANOS_KERNEL_PMM_FBA_ALLOC_H
 

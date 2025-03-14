@@ -16,6 +16,8 @@
  * singly-linked list for general kernel usage.
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_LIST_H
 #define __ANOS_KERNEL_LIST_H
 

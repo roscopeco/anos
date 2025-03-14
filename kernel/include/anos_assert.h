@@ -8,6 +8,8 @@
  * because in 2025 it's not yet supporting the things we need...
  */
 
+// clang-format Language: C
+
 #ifndef __ANOS_KERNEL_ASSERT_H
 #define __ANOS_KERNEL_ASSERT_H
 
