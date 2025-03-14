@@ -148,8 +148,10 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
             switch (entry->type) {
             case LIMINE_MEMMAP_USABLE:
             case LIMINE_MEMMAP_EXECUTABLE_AND_MODULES:
-            case LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE: // TODO make sure this is actually safe,
-                    // i.e. ACPI tables are in ACPI_RESERVED?
+
+            // TODO make sure this is actually safe,
+            // i.e. ACPI tables are in ACPI_RESERVED?
+            case LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE:
 
                 C_DEBUGSTR(" ====> Mapping available region ");
                 C_PRINTHEX64(entry->base, debugchar);
