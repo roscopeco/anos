@@ -1,3 +1,10 @@
+/*
+ * stage3 - Tests for named IPC channels
+ * anos - An Operating System
+ *
+ * Copyright (c) 2025 Ross Bamford
+ */
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
