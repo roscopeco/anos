@@ -56,9 +56,8 @@ void check_sleepers() {
 #ifdef DEBUG_SLEEP
 #ifdef VERY_NOISY_SLEEP
     if (get_lapic_timer_upticks() % 100 == 0) {
-        kprintf("check_sleepers(): Ticks now is 0x%016lx - Next wakeup at "
-                "0x%016lx\n",
-                get_lapic_timer_upticks(), wake_tick);
+        kprintf("check_sleepers(): Ticks now is 0x%016lx\n",
+                get_lapic_timer_upticks());
     }
 #endif
 #endif

@@ -93,9 +93,9 @@ void task_init(void *tss) {
 Task *task_current() { return get_cpu_task_state()->task_current_ptr; }
 
 void task_switch(Task *next) {
-    tdebug("Switching task: ");
-    tdbgx64((uint64_t)next);
-    tdebug("\n");
+    vdebug("Switching task: ");
+    vdbgx64((uint64_t)next);
+    vdebug("\n");
 
     task_do_switch(next);
 }

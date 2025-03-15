@@ -199,6 +199,8 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
     smp_bsp_start_aps(acpi_root_table, lapic);
 #endif
 
+    panic_notify_smp_started();
+
     pci_enumerate();
 
 #ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT

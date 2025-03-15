@@ -8,6 +8,7 @@
  *      It should probably also have a dedicated stack...
  */
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdnoreturn.h>
 
@@ -15,6 +16,7 @@
 #include "machine.h"
 #include "printdec.h"
 #include "printhex.h"
+#include "smp/state.h"
 #include "spinlock.h"
 
 #ifndef VERSTR
@@ -29,6 +31,9 @@
 #define IS_KERNEL_CODE(addr) (((addr & 0xFFFFFFFF80000000) != 0))
 
 static SpinLock panic_lock;
+static bool smp_is_up;
+
+void arch_panic_stop_all_processors(void);
 
 static inline void print_header_vec(char *msg, uint8_t vector) {
     debugattr(0x0C);
@@ -85,6 +90,21 @@ static inline void print_loc(const char *filename, uint64_t line) {
     printdec(line, debugchar);
 }
 
+static inline void print_cpu(void) {
+    if (smp_is_up) {
+        PerCPUState *state = state_get_for_this_cpu();
+
+        debugattr(0x0C);
+        debugstr("\nCPU        : ");
+        debugattr(0x07);
+
+        if (state) {
+            printdec(state->cpu_id, debugchar);
+        } else {
+            debugstr("<unknown>");
+        }
+    }
+}
 static inline void print_code(uint64_t code) {
     debugattr(0x0C);
     debugstr("\nCode       : ");
@@ -206,13 +226,20 @@ static inline void print_footer(void) {
     debugattr(0x07);
 }
 
+void panic_notify_smp_started(void) { smp_is_up = true; }
+
 noreturn void panic_sloc(const char *msg, const char *filename,
                          const uint64_t line) {
     disable_interrupts();
     uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
+    if (smp_is_up) {
+        arch_panic_stop_all_processors();
+    }
+
     print_header_no_vec(msg);
     print_loc(filename, line);
+    print_cpu();
     print_footer();
 
     spinlock_unlock_irqrestore(&panic_lock, lock_flags);
@@ -225,8 +252,13 @@ noreturn void panic_page_fault_sloc(uintptr_t origin_addr, uintptr_t fault_addr,
     disable_interrupts();
     uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
+    if (smp_is_up) {
+        arch_panic_stop_all_processors();
+    }
+
     print_header_vec("Page fault", 0x0e);
     print_loc(filename, line);
+    print_cpu();
     print_code(code);
     print_page_fault_code(code);
     print_origin_ip(origin_addr);
@@ -244,8 +276,13 @@ noreturn void panic_general_protection_fault_sloc(uint64_t code,
     disable_interrupts();
     uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
+    if (smp_is_up) {
+        arch_panic_stop_all_processors();
+    }
+
     print_header_vec("General protection fault", 0x0d);
     print_loc(filename, line);
+    print_cpu();
     print_code(code);
     print_origin_ip(origin_addr);
     print_footer();
@@ -261,8 +298,13 @@ noreturn void panic_exception_with_code_sloc(uint8_t vector, uint64_t code,
     disable_interrupts();
     uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
+    if (smp_is_up) {
+        arch_panic_stop_all_processors();
+    }
+
     print_header_vec("Unhandled exception", vector);
     print_loc(filename, line);
+    print_cpu();
     print_code(code);
     print_origin_ip(origin_addr);
     print_footer();
@@ -278,8 +320,13 @@ noreturn void panic_exception_no_code_sloc(uint8_t vector,
     disable_interrupts();
     uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
+    if (smp_is_up) {
+        arch_panic_stop_all_processors();
+    }
+
     print_header_vec("Unhandled exception", vector);
     print_loc(filename, line);
+    print_cpu();
     print_origin_ip(origin_addr);
     print_footer();
 

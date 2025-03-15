@@ -85,12 +85,13 @@ endif
 #	SMP_TWO_SIPI_ATTEMPTS	Try a second SIPI if an AP doesn't respond to the first
 #	NO_USER_GS				Disable user-mode GS swap at kernel entry/exit (debugging only)
 #	NAIVE_MEMCPY			Use a naive (byte-wise only) memcpy
+#	TARGET_CPU_USE_SLEEPERS	Consider the size of the sleep queue as well as run queues when selecting a target CPU
 #
 # Additionally:
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK
+CDEFS=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS
 
 QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
 QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
@@ -191,6 +192,8 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/structs/list.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/spinlock.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/panic_asm.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/panic.o							\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
 ifeq ($(ARCH),x86_64)

@@ -46,7 +46,8 @@ typedef struct {
     uint64_t reserved; // ..16
     uint64_t always0;  // ..24 [see note above]
     Sleeper *tail;     // ..32
-    uint64_t res[4];   // ..64
+    uint64_t count;    // ..40
+    uint64_t res[3];   // ..64
 } SleepQueue;
 
 static_assert_sizeof(Sleeper, ==, 64);

@@ -9,6 +9,10 @@
 #include "ktypes.h"
 #include "slab/alloc.h"
 
+#ifdef CONSERVATIVE_BUILD
+#include "panic.h"
+#endif
+
 #ifndef NULL
 #define NULL (((void *)0))
 #endif
@@ -50,6 +54,8 @@ bool sleep_queue_enqueue(SleepQueue *queue, Task *task, uint64_t deadline) {
         queue->tail = sleeper;
     }
 
+    queue->count++;
+
     return true;
 }
 
@@ -88,6 +94,14 @@ Task *sleep_queue_dequeue(SleepQueue *queue, uint64_t deadline) {
         Sleeper *to_free = curr;
         curr = (Sleeper *)curr->this.next;
         slab_free(to_free);
+
+#ifdef CONSERVATIVE_BUILD
+        if (queue->count == 0) {
+            panic("Sleep queue count inconsistency detected");
+        }
+#endif
+
+        queue->count--;
     }
 
     if (last_task) {

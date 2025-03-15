@@ -9,6 +9,7 @@
 
 #include "interrupts.h"
 #include "kdrivers/local_apic.h" // TODO this shouldn't be used here...
+#include "panic.h"
 #include "syscalls.h"
 
 // This is a bit messy, but it works and is "good enough" for now 😅
@@ -24,6 +25,7 @@ extern void bsp_timer_interrupt_handler(void);
 extern void ap_timer_interrupt_handler(void);
 extern void unknown_interrupt_handler(void);
 extern void syscall_69_handler(void);
+extern void panic_ipi_handler(void);
 
 extern void pic_init(void);
 
@@ -89,6 +91,10 @@ void idt_install(uint16_t kernel_cs) {
     // Set up the handler for the 0x69 syscall...
     idt_entry(idt + SYSCALL_VECTOR, syscall_69_handler, kernel_cs, 0,
               idt_attr(1, 3, IDT_TYPE_TRAP));
+
+    // Set up the handlers for kernel IPIs
+    idt_entry(idt + PANIC_IPI_VECTOR, panic_ipi_handler, kernel_cs, 0,
+              idt_attr(1, 3, IDT_TYPE_IRQ));
 
     // Setup the IDTR
     idt_r(&idtr, (uint64_t)idt, (uint16_t)sizeof(IdtEntry) * 256 - 1);
