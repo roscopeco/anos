@@ -17,6 +17,13 @@
 
 static HashTable *name_table;
 
+// TODO we're gonna have a problem here, we currently have no way to
+//      remove any names that have been registered for this cookie... 🤔
+//
+// That's going to need solving anyway, even if we disallow destruction
+// we'll still need to handle the process owning the channel exiting...
+//
+
 // In case you're wondering why no lock, HashTable has built-in locking,
 // and that's good enough for this use case...
 

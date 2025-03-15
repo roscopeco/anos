@@ -32,7 +32,7 @@ bool named_channel_register(uint64_t cookie, char *name);
  *
  * Maximum length for name is 255 characters.
  *
- * Returns true if registered, false otherwise.
+ * Returns cookie if registered, zero otherwise.
  */
 uint64_t named_channel_find(char *name);
 

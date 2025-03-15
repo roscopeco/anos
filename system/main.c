@@ -170,6 +170,21 @@ int main(int argc, char **argv) {
     channel2_cookie = anos_create_channel();
     printf("Created IPC channel #2 0x%016lx\n", channel2_cookie);
 
+    if (anos_register_channel_name(channel_cookie, "SYSTEM::DBG:CHANNEL") !=
+        0) {
+        printf("Failed to name channel #1!\n");
+    } else {
+        printf("Named channel 1...\n");
+    }
+
+    channel_cookie = anos_find_named_channel("SYSTEM::DBG:CHANNEL");
+    if (!channel_cookie) {
+        printf("Failed to retrieve named channel #1!\n");
+    } else {
+        printf("Retrieved cookie 0x%016lx by name '%s'\n", channel_cookie,
+               "SYSTEM::DBG:CHANNEL");
+    }
+
 #ifdef DEBUG_TEST_SYSCALL
     uint64_t ret;
     if ((ret = anos_testcall_int(1, 2, 3, 4, 5)) == 42) {
