@@ -25,6 +25,7 @@ typedef enum {
     SYSCALL_BAD_NUMBER = -2,
     SYSCALL_NOT_IMPL = -3,
     SYSCALL_BADARGS = -4,
+    SYSCALL_BAD_NAME = -5,
 } SyscallResult;
 
 // TODO this is duplicated into libanos headers...

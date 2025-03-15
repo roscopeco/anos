@@ -164,3 +164,35 @@ anos_syscall anos_create_channel, 11
 ;   rcx - trashed
 ;
 anos_syscall anos_destroy_channel, 12
+
+; args:
+;   rdi - cookie
+;   rsi - name (char*)
+;
+; mods:
+;   rax - 0 on success, or negative on failure
+;   r11 - trashed
+;   rcx - trashed
+;
+anos_syscall anos_register_channel_name, 13
+
+; args:
+;   rdi - name (char*)
+;
+; mods:
+;   rax - 0 on success, or negative on failure
+;   r11 - trashed
+;   rcx - trashed
+;
+anos_syscall anos_remove_channel_name, 14
+
+; args:
+;   rdi - name (char*)
+;
+; mods:
+;   rax - cookie on success, or 0 on failure
+;   r11 - trashed
+;   rcx - trashed
+;
+anos_syscall anos_find_named_channel, 15
+

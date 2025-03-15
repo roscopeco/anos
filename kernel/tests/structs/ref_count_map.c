@@ -1,3 +1,10 @@
+/*
+ * stage3 - Tests for reference-counting map
+ * anos - An Operating System
+ *
+ * Copyright (c) 2025 Ross Bamford
+ */
+
 #include <stdbool.h>
 #include <stdint.h>
 

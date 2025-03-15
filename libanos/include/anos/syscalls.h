@@ -33,6 +33,9 @@ typedef struct {
 #define anos_reply_message anos_reply_message_int
 #define anos_create_channel anos_create_channel_int
 #define anos_destroy_channel anos_destroy_channel_int
+#define anos_register_channel_name anos_register_channel_name_int
+#define anos_remove_channel_name anos_remove_channel_name_int
+#define anos_find_named_channel anos_find_named_channel_int
 #else
 #define anos_kprint anos_kprint_syscall
 #define anos_kputchar anos_kputchar_syscall
@@ -46,6 +49,9 @@ typedef struct {
 #define anos_reply_message anos_reply_message_syscall
 #define anos_create_channel anos_create_channel_syscall
 #define anos_destroy_channel anos_destroy_channel_syscall
+#define anos_register_channel_name anos_register_channel_name_syscall
+#define anos_remove_channel_name anos_remove_channel_name_syscall
+#define anos_find_named_channel anos_find_named_channel_syscall
 #endif
 
 typedef void (*ThreadFunc)(void);
@@ -99,5 +105,14 @@ uint64_t anos_create_channel_int(void);
 
 int anos_destroy_channel_syscall(uint64_t cookie);
 int anos_destroy_channel_int(uint64_t cookie);
+
+int anos_register_channel_name_syscall(uint64_t cookie, char *name);
+int anos_register_channel_name_int(uint64_t cookie, char *name);
+
+int anos_remove_channel_name_syscall(char *name);
+int anos_remove_channel_name_int(char *name);
+
+uint64_t anos_find_named_channel_syscall(char *name);
+uint64_t anos_find_named_channel_int(char *name);
 
 #endif //__ANOS_ANOS_SYSCALLS_H

@@ -2,10 +2,16 @@
  * stage3 - Syscall implementations
  * anos - An Operating System
  * 
- * NOTE: The calls defined herein are currently only for test/debug.
- * They are poorly designed and **won't** be sticking around.
- *
  * Copyright (c) 2024 Ross Bamford
+ * 
+ * NOTE: The layout of calls defined herein is currently only 
+ * for test/development. They are poorly designed and **won't**
+ * be sticking around in this layout. Some of the calls here
+ * are only for debugging and will also be removed!
+ * 
+ * TODO these **badly** need their return values sorting out, in some
+ * error cases callers have no way to know what they're going to get
+ * (even in terms of signedness!)
  */
 
 #include <stdint.h>
@@ -13,6 +19,7 @@
 #include "debugprint.h"
 #include "fba/alloc.h"
 #include "ipc/channel.h"
+#include "ipc/named.h"
 #include "kdrivers/cpu.h"
 #include "kprintf.h"
 #include "pmm/pagealloc.h"
@@ -32,6 +39,8 @@
 #ifdef CONSERVATIVE_BUILD
 #include "panic.h"
 #endif
+
+#define IS_USER_ADDRESS(ptr) ((((uint64_t)ptr & 0xffffffff00000000) == 0))
 
 typedef void (*ThreadFunc)(void);
 
@@ -56,7 +65,7 @@ static SyscallResult handle_anos_testcall(SyscallArg arg0, SyscallArg arg1,
 }
 
 static SyscallResult handle_debugprint(char *message) {
-    if (((uint64_t)message & 0xffffffff00000000) == 0) {
+    if (IS_USER_ADDRESS(message)) {
         kprintf(message);
     }
 
@@ -89,7 +98,7 @@ static SyscallResult handle_create_thread(ThreadFunc func,
 }
 
 static SyscallResult handle_memstats(AnosMemInfo *mem_info) {
-    if (((uint64_t)mem_info & 0xffffffff00000000) == 0) {
+    if (IS_USER_ADDRESS(mem_info)) {
         mem_info->physical_total = physical_region->size;
         mem_info->physical_avail = physical_region->free;
     }
@@ -286,13 +295,12 @@ SyscallResult handle_send_message(uint64_t channel_cookie, uint64_t tag,
 
 SyscallResult handle_recv_message(uint64_t channel_cookie, uint64_t *tag,
                                   uint64_t *arg) {
-    if (((uintptr_t)tag & 0xffffffff00000000) ||
-        ((uintptr_t)arg & 0xffffffff00000000)) {
-        // Pointers must be user space...
-        return 0;
+
+    if (IS_USER_ADDRESS(tag) && IS_USER_ADDRESS(arg)) {
+        return ipc_channel_recv(channel_cookie, tag, arg);
     }
 
-    return ipc_channel_recv(channel_cookie, tag, arg);
+    return 0;
 }
 
 SyscallResult handle_reply_message(uint64_t message_cookie, uint64_t reply) {
@@ -304,6 +312,38 @@ SyscallResult handle_create_channel(void) { return ipc_channel_create(); }
 SyscallResult handle_destroy_channel(uint64_t cookie) {
     ipc_channel_destroy(cookie);
     return SYSCALL_OK;
+}
+
+SyscallResult handle_register_named_channel(uint64_t cookie, char *name) {
+    if (!IS_USER_ADDRESS(name)) {
+        return SYSCALL_BADARGS;
+    }
+
+    if (named_channel_register(cookie, name)) {
+        return SYSCALL_OK;
+    } else {
+        return SYSCALL_BAD_NUMBER;
+    }
+}
+
+SyscallResult handle_deregister_named_channel(char *name) {
+    if (!IS_USER_ADDRESS(name)) {
+        return SYSCALL_BADARGS;
+    }
+
+    if (named_channel_deregister(name) != 0) {
+        return SYSCALL_OK;
+    } else {
+        return SYSCALL_BAD_NAME;
+    }
+}
+
+SyscallResult handle_find_named_channel(char *name) {
+    if (!IS_USER_ADDRESS(name)) {
+        return 0;
+    }
+
+    return named_channel_find(name);
 }
 
 SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
@@ -337,6 +377,12 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
         return handle_create_channel();
     case 12:
         return handle_destroy_channel(arg0);
+    case 13:
+        return handle_register_named_channel(arg0, (char *)arg1);
+    case 14:
+        return handle_deregister_named_channel((char *)arg0);
+    case 15:
+        return handle_find_named_channel((char *)arg0);
     default:
         return SYSCALL_BAD_NUMBER;
     }

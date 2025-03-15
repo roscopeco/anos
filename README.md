@@ -94,11 +94,12 @@ _they_ hold to other processes they supervise.
 
 #### Current State
 
-Right now, it's early days, but there's a simple stack-based physical
-memory allocator and enough support for everything (page fault handling,
-IDT, virtual memory management, etc) to be able to get to user mode
-and then back via a simple syscall interface (accessible via both
-`int` and `syscall` interfaces).
+Things are developing quite nicely, if I do say so myself.
+
+We have enough support for everything (page fault handling,
+IDT, virtual memory management, etc) to be able to get to a 
+multitasking user mode and then back via a simple syscall interface
+(accessible via both `int` and `syscall` interfaces).
 
 Scheduling is currently handled by a simple prioritised round-robin 
 scheduler with four priority classes and 255 priority levels per
@@ -109,8 +110,7 @@ SMP is supported, up to a maximum of 16 symmetric cores (one BSP
 and 15 APs). The scheduler operates on a per-CPU basis and is driven by
 each CPUs independent local APIC timer. The plan is to migrate this to
 a tickless design in the near future in order to improve power efficiency
-in the final design. Cross-CPU Balancing (and obviously _rebalancing_) 
-is not yet implemented) but again, is part of the plan.
+in the final design.
 
 Realtime scheduling is, like realtime behaviour in general, a non-goal 
 of this project.
@@ -337,7 +337,7 @@ is the oldest architecture that Anos "officially" supports.
 It's running two processes with multiple threads on the different cores, and
 is also showing the experimental synchronous message-passing IPC features:
 
-<img src="images/IMG_2472.jpg" alt="UEFI-booted ANOS running on a real-life computer">
+<img src="images/IMG_2480.jpg" alt="UEFI-booted ANOS running on a real-life computer">
 
 And the same computer, but booted with legacy BIOS boot (and VGA text mode).
 It's worth noting this image is running an older kernel so doesn't have all
@@ -349,7 +349,7 @@ It also runs in emulators, of course - here's Qemu booted via UEFI, using the
 graphical debug terminal at 1280x800 resolution and again showing the 
 experimental IPC features:
 
-<img src="images/Screenshot 2025-03-09 at 20.29.45.png" alt="UEFI-booted ANOS running in Qemu">
+<img src="images/Screenshot 2025-03-15 at 20.03.10.png" alt="UEFI-booted ANOS running in Qemu">
 
 Or legacy BIOS boot in VirtualBox, just for a change from qemu...
 
