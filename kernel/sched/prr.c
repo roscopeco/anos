@@ -356,11 +356,11 @@ void sched_schedule(void) {
     Task *next = task_pq_pop(candidate_queue);
     state->all_queue_total -= 1;
 
-    tdebug("Switch to ");
-    tdbgx64((uintptr_t)next);
-    tdebug(" [TID = ");
-    tdbgx64((uint64_t)next->sched->tid);
-    tdebug("]\n");
+    vdebug("Switch to ");
+    vdbgx64((uintptr_t)next);
+    vdebug(" [TID = ");
+    vdbgx64((uint64_t)next->sched->tid);
+    vdebug("]\n");
 
     if (current && current->sched->state == TASK_STATE_RUNNING) {
         current->sched->state = TASK_STATE_READY;
@@ -401,7 +401,12 @@ PerCPUState *sched_find_target_cpu() {
         }
 #endif
 
+#ifdef TARGET_CPU_CONSIDER_SLEEPERS
+        if ((candidate_sched->all_queue_total + candidate->sleep_queue.count) ==
+            1) {
+#else
         if (candidate_sched->all_queue_total == 1) {
+#endif
             // short-circuit for a candidate with only the idle thread
 
             vdebug("WILL UNBLOCK ON CPU #");
@@ -414,7 +419,13 @@ PerCPUState *sched_find_target_cpu() {
         }
 
         if (target == NULL ||
-            candidate_sched->all_queue_total < target_sched->all_queue_total) {
+#ifdef TARGET_CPU_CONSIDER_SLEEPERS
+            ((candidate_sched->all_queue_total + candidate->sleep_queue.count) <
+             (target_sched->all_queue_total + candidate->sleep_queue.count))) {
+#else
+            (candidate_sched->all_queue_total <
+             target_sched->all_queue_total)) {
+#endif
             target = candidate;
         }
     }

@@ -29,6 +29,10 @@ typedef struct {
     void *page_area_ptr;
 } Fixture;
 
+void panic_sloc(char *str) {
+    munit_errorf("panic_sloc called in sleep_queue: %s\n", str);
+}
+
 static void *test_setup(const MunitParameter params[], void *user_data) {
     void *page_area_ptr;
     posix_memalign(&page_area_ptr, 0x40000, TEST_PAGE_COUNT << 12);

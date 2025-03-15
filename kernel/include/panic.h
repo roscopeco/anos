@@ -13,6 +13,13 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#define PANIC_IPI_VECTOR ((0x02)) // Use NMI for Panic IPI
+
+// This must be called once SMP and the scheduler is up,
+// to notify the panic subsystem that panics from now on
+// must support SMP and can use CPU-local data.
+void panic_notify_smp_started(void);
+
 // Just panic...
 #define panic(msg) panic_sloc(msg, __FILE__, __LINE__)
 noreturn void panic_sloc(const char *msg, const char *filename,
