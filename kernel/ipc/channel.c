@@ -61,6 +61,10 @@ void ipc_channel_init(void) {
     }
 }
 
+bool ipc_channel_exists(uint64_t cookie) {
+    return hash_table_lookup(channel_hash, cookie) != NULL;
+}
+
 uint64_t ipc_channel_create(void) {
     IpcChannel *channel = slab_alloc_block();
     if (!channel) {
