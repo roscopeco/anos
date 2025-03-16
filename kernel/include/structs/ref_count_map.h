@@ -71,9 +71,25 @@ static_assert_sizeof(Entry, ==, 64);
 static_assert_sizeof(BlockNode, ==, 64);
 static_assert_sizeof(RefCountMap, ==, 64);
 
+/*
+ * Initialize - must be called before other routines are used!
+ * (entrypoint handles that...)
+ */
 bool refcount_map_init(void);
+
+/*
+ * Increment the reference count for the given address.
+ * 
+ * Returns the new reference count for that address, or 0 on error.
+ */
 uint32_t refcount_map_increment(uintptr_t addr);
+
+/*
+ * Decrement the reference count for the given address.
+ * 
+ * Returns the **previous** reference count for that address,
+ * or 0 if no reference count (or error).
+ */
 uint32_t refcount_map_decrement(uintptr_t addr);
-void refcount_map_cleanup(void);
 
 #endif //__ANOS_KERNEL_REF_COUNT_MAP_H

@@ -280,10 +280,10 @@ uint32_t refcount_map_decrement(uintptr_t addr) {
                 slab_free(entry);
                 map->num_entries--;
                 SPINLOCK_UNLOCK();
-                return 0;
+                return 1;
             }
 
-            uint32_t result = entry->ref_count;
+            uint32_t result = entry->ref_count + 1;
             SPINLOCK_UNLOCK();
             return result;
         }
@@ -295,7 +295,7 @@ uint32_t refcount_map_decrement(uintptr_t addr) {
     return 0; // Address not found
 }
 
-// TODO probably don't need this..?
+#ifdef UNIT_TESTS
 void refcount_map_cleanup(void) {
     SPINLOCK_LOCK();
 
@@ -330,3 +330,4 @@ void refcount_map_cleanup(void) {
 
     SPINLOCK_UNLOCK();
 }
+#endif

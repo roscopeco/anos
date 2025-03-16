@@ -12,63 +12,58 @@
 #include "panic.h"
 #include "pmm/pagealloc.h"
 #include "printhex.h"
+#include "smp/state.h"
+#include "std/string.h"
+#include "structs/ref_count_map.h"
+#include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
-
-#ifdef DEBUG_PAGE_FAULT
-#define C_DEBUGSTR debugstr
-#define C_DEBUGATTR debugattr
-#define C_PRINTHEX64 printhex64
-#else
-#define C_DEBUGSTR(...)
-#define C_DEBUGATTR(...)
-#define C_PRINTHEX64(...)
-#endif
-
-static inline void debug_page_fault_code(uint8_t code) {
-    C_DEBUGSTR(" [");
-    C_DEBUGSTR(code & 0x8000 ? "SGX|" : "sgx|");
-    C_DEBUGSTR(code & 0x40 ? "SS|" : "ss|");
-    C_DEBUGSTR(code & 0x20 ? "PK|" : "pk|");
-    C_DEBUGSTR(code & 0x10 ? "I|" : "i|");
-    C_DEBUGSTR(code & 0x8 ? "R|" : "r|");
-    C_DEBUGSTR(code & 0x4 ? "U|" : "u|");
-    C_DEBUGSTR(code & 0x2 ? "W|" : "w|");
-    C_DEBUGSTR(code & 0x1 ? "P" : "p");
-    C_DEBUGSTR("]");
-}
 
 extern MemoryRegion *physical_region;
 
-static inline void debug_page_fault(uint64_t code, uintptr_t fault_addr,
-                                    uintptr_t origin_addr) {
-
-#ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT
-    if (fault_addr > 0xFFFFFFFF80400000 && fault_addr < 0xFFFFFFFF81000000) {
-        C_DEBUGATTR(0x0E);
-        C_DEBUGSTR("## Page fault in kernel vmspace; Will alloc & map a "
-                   "page...\n");
-
-        // Allocate a page
-        uint64_t page = page_alloc(physical_region);
-
-        C_DEBUGSTR("Mapped page for ");
-        C_PRINTHEX64(fault_addr, debugchar);
-        C_DEBUGSTR(" at phys ");
-        C_PRINTHEX64(page, debugchar);
-        C_DEBUGSTR("\n");
-
-        // Map the page
-        vmm_map_page(fault_addr, page, PRESENT | WRITE);
-        C_DEBUGATTR(0x07);
-
-        return;
-    }
-#endif
-
-    panic_page_fault(origin_addr, fault_addr, code);
-}
-
 void handle_page_fault(uint64_t code, uint64_t fault_addr,
                        uint64_t origin_addr) {
-    debug_page_fault(code, fault_addr, origin_addr);
+
+    if (code & WRITE) {
+        uint64_t pte = vmm_virt_to_pt_entry(fault_addr);
+        if (pte & COPY_ON_WRITE) {
+            // This is a write to a COW page...
+
+            if (refcount_map_decrement(pte & PAGE_ALIGN_MASK) == 0) {
+                // Nobody else is referencing this page, assume other referees are gone.
+                // So we can just make it writeable, no need to copy.
+                vmm_map_page(fault_addr, pte & PAGE_ALIGN_MASK,
+                             ((pte & PAGE_FLAGS_MASK) & ~(COPY_ON_WRITE)) |
+                                     WRITE);
+            } else {
+                // There are still references to this page elsewhere, so
+                // we need to copy it...
+                uintptr_t phys = page_alloc(physical_region);
+
+                if (phys & 0xff) {
+                    // phys alloc failed - panic anyway
+                    panic_page_fault(origin_addr, fault_addr, code);
+                }
+
+                PerCPUState *state = state_get_for_this_cpu();
+                uintptr_t per_cpu_temp_page =
+                        vmm_per_cpu_temp_page_addr(state->cpu_id);
+
+                vmm_map_page(per_cpu_temp_page, phys,
+                             ((pte & PAGE_FLAGS_MASK) & ~(COPY_ON_WRITE)) |
+                                     WRITE);
+                uint64_t *src_page = (uint64_t *)fault_addr;
+                uint64_t *dest_page = (uint64_t *)per_cpu_temp_page;
+
+                memcpy(dest_page, src_page, VM_PAGE_SIZE);
+
+                vmm_unmap_page(per_cpu_temp_page);
+                vmm_map_page(fault_addr, phys,
+                             ((pte & PAGE_FLAGS_MASK) & ~(COPY_ON_WRITE)) |
+                                     WRITE);
+            }
+            return;
+        }
+    }
+
+    panic_page_fault(origin_addr, fault_addr, code);
 }

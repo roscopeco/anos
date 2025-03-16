@@ -51,6 +51,11 @@
 #define USER ((1 << 2))
 
 /*
+ * Page COW attribute (STAGE3-specific)
+ */
+#define COPY_ON_WRITE ((1 << 6))
+
+/*
  * Page size attribute (for large pages)
  */
 #define PAGESIZE ((1 << 7))
@@ -58,13 +63,26 @@
 // Again, for now, all physical memory used must be mapped
 // here, the mapper expects to be able to access pages
 // under this...
-#define STATIC_KERNEL_SPACE 0xFFFFFFFF80000000
+#define STATIC_KERNEL_SPACE ((0xFFFFFFFF80000000))
 
 // Just used to page-align addresses to their containing page
-#define PAGE_ALIGN_MASK 0xFFFFFFFFFFFFF000
+#define PAGE_ALIGN_MASK ((0xFFFFFFFFFFFFF000))
 
 // Just used to extract page-relative addresses from their containing page
 #define PAGE_RELATIVE_MASK (~PAGE_ALIGN_MASK)
+
+// Just used to extract PTE flags
+#define PAGE_FLAGS_MASK PAGE_RELATIVE_MASK
+
+// Base of the per-CPU temporary mapping pages
+#define PER_CPU_TEMP_PAGE_BASE ((0xFFFFFFFF80400000))
+
+/*
+ *  Find the per-CPU temporary page base for the given CPU.
+ */
+static inline uintptr_t vmm_per_cpu_temp_page_addr(uint8_t cpu) {
+    return PER_CPU_TEMP_PAGE_BASE + (cpu << 12);
+}
 
 /*
  * Map the given page-aligned physical address into virtual memory 

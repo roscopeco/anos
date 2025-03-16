@@ -112,7 +112,7 @@ at this point, leaving us with:
 | `0xffffffa000000000` | `0xffffffa0000003ff` | Local APIC (for all CPUs) [TODO move to driver space]        |
 | `0xffffffa000000400` | `0xffffffff7fffffff` | [_Currently unused, ~381GiB_]                                |
 | `0xffffffff80000000` | `0xffffffff803fffff` | First 4MiB of top (negative) 2GiB mapped to first 4MiB phys  |
-| `0xffffffff80400000` | `0xffffffff80ffffff` | 1MiB Kernel "Automap" space, **(see notes, below)**          |
+| `0xffffffff80400000` | `0xffffffff80ffffff` | 256 per-CPU temporary mapping pages (**see notes, below**)   |
 | `0xffffffff81000000` | `0xffffffff8101ffff` | (Temporary) Reserved space for ACPI tables                   |
 | `0xffffffff81020000` | `0xffffffff810fffff` | Kernel driver MMIO mapping space (895KiB, 224 pages)         |
 | `0xffffffff81100000` | `0xffffffff81ffffff` | [_Currently unused, 15MiB_]                                  |
@@ -166,15 +166,21 @@ it around once the devices are setup 🤔:
 Probably worth noting that these aren't moved or copied - they stay at their original 
 phys location, and I just map it in. Maybe a bad idea, but works for now (on emus).
 
-##### Automap space
+##### Per-CPU temporary mapping pages
 
-When the kernel is compiled with `DEBUG_FORCE_HANDLED_PAGE_FAULT` (which isn't recommended 
-any more, this was a debugging / test option added during early development), the debug page
-fault handler manages this region:
+Each CPU (up to a maximum of 256) has a single 4KiB page in this area that can be used for
+a temporary mapping (e.g. when a single page needs to be copied without mapping in a whole
+other address space).
+
+Each CPU's page is at `0xFFFFFFFF80400000 + (CPU_ID << 12)`. There are no spinlocks 
+protecting these (since they're per-CPU) but they should only be used with local
+interrupts disabled for obvious reasons.
+
+This is currently used for mapping new pages for COW pages in the pagefault handler.
 
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
-| `0xFFFFFFFF80400000` | `0xFFFFFFFF80FFFFFF` | Kernel "Automap" space, **for testing only**                 |
+| `0xFFFFFFFF80400000` | `0xFFFFFFFF80FFFFFF` | 256 Per-CPU temporary mapping pages                          |
 
 This space is not represented by page tables at boot, but if there's a page
 fault there the handler will automatically map in a page. 

@@ -204,48 +204,6 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
 
     pci_enumerate();
 
-#ifdef DEBUG_FORCE_HANDLED_PAGE_FAULT
-    debugstr("\nForcing a (handled) page fault with write to "
-             "0xFFFFFFFF80600000...\n");
-
-    // Force a page fault for testing purpose. This one should get handled and a
-    // page mapped...
-    uint32_t *bad = (uint32_t *)0xFFFFFFFF80600000;
-    *bad = 0x0A11C001;
-    debugstr("Continued after fault, write succeeded. Value is ");
-    debugattr(0x02);
-    printhex32(*bad, debugchar);
-    debugattr(0x07);
-    debugstr("\n");
-#endif
-
-#ifdef DEBUG_FORCE_UNHANDLED_PAGE_FAULT
-    // Map a page, write to it, read it back, then unmap and attempt to read
-    // again. Should force an unhandled page fault.
-    debugstr("Forcing unhandled page fault and testing vmm_map / vmm_unmap at "
-             "the same time...\n");
-    volatile uint64_t *volatile ptr = (uint64_t *)0x400000000;
-    uint64_t tpage = page_alloc(physical_region);
-    vmm_map_page(0x400000000, tpage, WRITE | PRESENT);
-
-    *ptr = 0x12345678;
-
-    debugstr("Mapped & set: now ");
-    printhex64(*ptr, debugchar);
-    debugstr("\n");
-
-    uintptr_t old = vmm_unmap_page(0x400000000);
-    debugstr("Unmapped - phys was ");
-    printhex64(old, debugchar);
-    debugstr("; should equal ");
-    printhex64(tpage, debugchar);
-    debugstr("\n");
-
-    debugstr("Attempting read - should panic here...\n");
-    printhex64(*ptr, debugchar);
-    debugstr("\n");
-#endif
-
 #ifdef DEBUG_NO_START_SYSTEM
     debugstr("All is well, DEBUG_NO_START_SYSTEM was specified, so halting for "
              "now.\n");

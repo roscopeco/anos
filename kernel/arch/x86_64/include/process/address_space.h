@@ -34,7 +34,7 @@ bool address_space_init(void);
  *
  * * Allocate a new address space
  * * Copy all kernel PDPTs into it
- * * Map the space covered by `shared_space_start` / `shared_space_start` as readonly shared
+ * * Map the space covered by `regions` as COW shared
  * * Allocate pages to cover `init_stack_len` bytes and map it at `init_stack_vaddr`.
  * 
  * Currently, on failure, this will leak some memory - that'll be fixed once
