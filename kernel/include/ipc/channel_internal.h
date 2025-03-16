@@ -13,6 +13,7 @@
 #ifndef __ANOS_KERNEL_IPC_CHANNEL_INTERNAL_H
 #define __ANOS_KERNEL_IPC_CHANNEL_INTERNAL_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "spinlock.h"
@@ -22,8 +23,8 @@
 typedef struct {
     ListNode this;
     uint64_t cookie;
-    uint64_t tag;
-    uint64_t arg;
+    size_t arg_buf_size;
+    uintptr_t arg_buf_phys;
     Task *waiter;
     uint64_t reply;
     bool handled;

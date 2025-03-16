@@ -60,8 +60,8 @@
  */
 #define PAGESIZE ((1 << 7))
 
-// Again, for now, all physical memory used must be mapped
-// here, the mapper expects to be able to access pages
+// Low physical memory used must be mapped here, the
+// mapper expects to be able to access pages
 // under this...
 #define STATIC_KERNEL_SPACE ((0xFFFFFFFF80000000))
 
@@ -76,6 +76,8 @@
 
 // Base of the per-CPU temporary mapping pages
 #define PER_CPU_TEMP_PAGE_BASE ((0xFFFFFFFF80400000))
+
+#define IS_USER_ADDRESS(ptr) ((((uint64_t)ptr & 0xffff800000000000) == 0))
 
 /*
  *  Find the per-CPU temporary page base for the given CPU.
