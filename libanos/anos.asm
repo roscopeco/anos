@@ -110,9 +110,10 @@ anos_syscall anos_create_process, 6
 anos_syscall anos_map_virtual, 7
 
 ; args:
-;   rdi - destination
-;   rsi - arg0
-;   rdx - arg1
+;   rdi - destination channel
+;   rsi - message tag
+;   rdx - buffer size
+;   r10 - buffer pointer
 ;
 ; mods:
 ;   rax - result
@@ -123,8 +124,9 @@ anos_syscall anos_send_message, 8
 
 ; args:
 ;   rdi - source
-;   rsi - arg0
-;   rdx - arg1
+;   rsi - tag (out ptr)
+;   rdx - buffer size (out ptr)
+;   r10 - buffer pointer
 ;
 ; mods:
 ;   rax - message cookie

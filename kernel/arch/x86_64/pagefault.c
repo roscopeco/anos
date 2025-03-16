@@ -25,7 +25,7 @@ void handle_page_fault(uint64_t code, uint64_t fault_addr,
         uint64_t pte = vmm_virt_to_pt_entry(fault_addr);
         if (pte & COPY_ON_WRITE) {
             // This is a write to a COW page...
-            uint64_t fault_addr_page = fault_addr & OFFSET_MASK;
+            uint64_t fault_addr_page = fault_addr & PAGE_ALIGN_MASK;
 
             if (refcount_map_decrement(pte & PAGE_ALIGN_MASK) == 0) {
                 // Nobody else is referencing this page, assume other referees are gone.

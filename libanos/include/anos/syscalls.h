@@ -10,6 +10,7 @@
 #ifndef __ANOS_ANOS_SYSCALLS_H
 #define __ANOS_ANOS_SYSCALLS_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "anos/system.h"
@@ -88,14 +89,14 @@ void *anos_map_virtual_syscall(uint64_t size, uintptr_t base_address);
 void *anos_map_virtual_int(uint64_t size, uintptr_t base_address);
 
 uint64_t anos_send_message_syscall(uint64_t channel_cookie, uint64_t tag,
-                                   uint64_t arg);
+                                   size_t buffer_size, void *buffer);
 uint64_t anos_send_message_int(uint64_t channel_cookie, uint64_t tag,
-                               uint64_t arg);
+                               size_t buffer_size, void *buffer);
 
 uint64_t anos_recv_message_syscall(uint64_t channel_cookie, uint64_t *tag,
-                                   uint64_t *arg);
+                                   size_t *buffer_size, void *buffer);
 uint64_t anos_recv_message_int(uint64_t channel_cookie, uint64_t *tag,
-                               uint64_t *arg);
+                               size_t *buffer_size, void *buffer);
 
 uint64_t anos_reply_message_syscall(uint64_t message_cookie, uint64_t reply);
 uint64_t anos_reply_message_int(uint64_t message_cookie, uint64_t reply);
