@@ -66,7 +66,7 @@ static SyscallResult handle_anos_testcall(SyscallArg arg0, SyscallArg arg1,
 
 static SyscallResult handle_debugprint(char *message) {
     if (IS_USER_ADDRESS(message)) {
-        kprintf(message);
+        kprintf("%s", message);
     }
 
     return SYSCALL_OK;
@@ -258,8 +258,6 @@ SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base) {
     uint64_t page_count = size >> VM_PAGE_LINEAR_SHIFT;
 
     // Let's try to map it in, just using small pages for now...
-    kprintf("LFG mapping %ld bytes @ 0x%016lx\n", size, virtual_base);
-
     uintptr_t virtual_end = virtual_base + size;
     for (uintptr_t addr = virtual_base; addr < virtual_end;
          addr += VM_PAGE_SIZE) {
@@ -275,8 +273,6 @@ SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base) {
             undo_partial_map(virtual_base, addr, new_page);
             return 0;
         }
-
-        kprintf("    Mapped page 0x%016lx => 0x%016lx\n", addr, new_page);
     }
 
     memclr((void *)virtual_base, size);
@@ -305,7 +301,6 @@ SyscallResult handle_recv_message(uint64_t channel_cookie, uint64_t *tag,
         return ipc_channel_recv(channel_cookie, tag, size, buffer);
     }
 
-    kprintf("RECV: NON-USER ADDRESS 0x%016lx\n", (uintptr_t)buffer);
     return 0;
 }
 
