@@ -193,7 +193,7 @@ kernel/tests/build/structs/ref_count_map: kernel/tests/munit.o kernel/tests/stru
 kernel/tests/build/structs/hash: kernel/tests/munit.o kernel/tests/structs/hash.o kernel/tests/build/structs/hash.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/ipc/channel: kernel/tests/munit.o kernel/tests/ipc/channel.o kernel/tests/build/ipc/channel.o kernel/tests/build/structs/hash.o kernel/tests/mock_fba_malloc.o
+kernel/tests/build/ipc/channel: kernel/tests/munit.o kernel/tests/ipc/channel.o kernel/tests/build/ipc/channel.o kernel/tests/build/structs/hash.o kernel/tests/mock_fba_malloc.o kernel/tests/mock_vmm.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/structs/strhash: kernel/tests/munit.o kernel/tests/structs/strhash.o $(TEST_BUILD_DIRS)

@@ -7,7 +7,6 @@
 
 #include "slab/alloc.h"
 #include "fba/alloc.h"
-#include "ktypes.h"
 #include "spinlock.h"
 #include "structs/bitmap.h"
 #include <stdbool.h>
@@ -62,7 +61,6 @@ void *slab_alloc_block() {
 
         // zero out header
         target->this.next = NULL;
-        target->this.type = KTYPE_SLAB_HEADER;
         target->bitmap0 = 1; // first block always allocated
         target->bitmap1 = 0;
         target->bitmap2 = 0;

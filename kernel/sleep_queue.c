@@ -6,7 +6,6 @@
  */
 
 #include "sleep_queue.h"
-#include "ktypes.h"
 #include "slab/alloc.h"
 
 #ifdef CONSERVATIVE_BUILD
@@ -39,7 +38,6 @@ bool sleep_queue_enqueue(SleepQueue *queue, Task *task, uint64_t deadline) {
     sleeper->task = task;
     sleeper->wake_at = deadline;
     sleeper->this.next = NULL;
-    sleeper->this.type = KTYPE_SLEEPER;
 
     Sleeper *current = (Sleeper *)queue;
 

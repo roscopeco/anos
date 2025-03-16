@@ -18,8 +18,6 @@ bits 64
 global FUNC(list_add), FUNC(list_insert_after), FUNC(list_delete_after), FUNC(list_find)
 
 %define NODE_NEXT 0x00 
-%define NODE_SIZE 0x08
-%define NODE_TYPE 0x10
 
 ; Insert after func; C-callable (SYSV AMD64)
 ;

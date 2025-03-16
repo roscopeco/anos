@@ -12,10 +12,11 @@
 
 #include "ipc/channel.h"
 #include "ipc/channel_internal.h"
-#include "ktypes.h"
 #include "munit.h"
 #include "structs/hash.h"
 #include "structs/list.h"
+
+#include "mock_vmm.h"
 
 /* Dummy panic that aborts the test on failure */
 void panic_sloc(const char *msg, const char *filename, const uint64_t line) {
@@ -143,10 +144,10 @@ static MunitResult test_recv_with_queued_message(const MunitParameter params[],
     IpcMessage *msg = slab_alloc_block();
     munit_assert_not_null(msg);
     msg->this.next = NULL;
-    msg->this.type = KTYPE_IPC_MESSAGE;
     msg->cookie = 12345; /* Test cookie */
     msg->tag = 42;
-    msg->arg = 84;
+    msg->arg_buf_phys = 0x1000; // must be page-aligned
+    msg->arg_buf_size = 99;
     msg->waiter = task_current();
     msg->reply = 0;
     msg->handled = false;
@@ -156,11 +157,20 @@ static MunitResult test_recv_with_queued_message(const MunitParameter params[],
     channel->queue = msg;
     spinlock_unlock(channel->queue_lock);
 
-    uint64_t tag, arg;
-    uint64_t ret_cookie = ipc_channel_recv(channel_cookie, &tag, &arg);
+    uint64_t tag;
+    uint64_t __attribute__((aligned(0x1000))) buf;
+    size_t size;
+
+    uint64_t ret_cookie = ipc_channel_recv(channel_cookie, &tag, &size, &buf);
+
+    // Values set as in message
     munit_assert_int(ret_cookie, ==, 12345);
     munit_assert_int(tag, ==, 42);
-    munit_assert_int(arg, ==, 84);
+    munit_assert_int(size, ==, 99);
+
+    // Buffer correctly mapped...
+    munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==, 0x1000);
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==, (uint64_t)&buf);
 
     /* Verify that the message is now in the in-flight message hash table */
     IpcMessage *lookup_msg = hash_table_lookup(in_flight_message_hash, 12345);
@@ -182,10 +192,9 @@ static MunitResult test_reply(const MunitParameter params[], void *data) {
     IpcMessage *msg = slab_alloc_block();
     munit_assert_not_null(msg);
     msg->this.next = NULL;
-    msg->this.type = KTYPE_IPC_MESSAGE;
     msg->cookie = 54321;
     msg->tag = 0;
-    msg->arg = 0;
+    msg->arg_buf_size = 0;
     msg->waiter = task_current();
     msg->reply = 0;
     msg->handled = false;
@@ -210,7 +219,8 @@ static MunitResult test_reply(const MunitParameter params[], void *data) {
 static MunitResult test_send_invalid_channel(const MunitParameter params[],
                                              void *data) {
 
-    uint64_t ret = ipc_channel_send(99999, 1, 2); /* Use an invalid cookie */
+    uint64_t ret = ipc_channel_send(99999, 1, 2,
+                                    (void *)3); /* Use an invalid cookie */
     munit_assert_int(ret, ==, 0);
     return MUNIT_OK;
 }
@@ -219,8 +229,10 @@ static MunitResult test_send_invalid_channel(const MunitParameter params[],
 static MunitResult test_recv_invalid_channel(const MunitParameter params[],
                                              void *data) {
 
-    uint64_t tag, arg;
-    uint64_t ret = ipc_channel_recv(99999, &tag, &arg); /* Invalid channel */
+    uint64_t tag, buf;
+    size_t size;
+    uint64_t ret =
+            ipc_channel_recv(99999, &tag, &size, &buf); /* Invalid channel */
     munit_assert_int(ret, ==, 0);
     return MUNIT_OK;
 }
@@ -243,7 +255,8 @@ test_send_when_receiver_waiting(const MunitParameter params[], void *data) {
     /* Set the current task to the sender */
     current_task_ptr = &sender_task;
 
-    uint64_t ret = ipc_channel_send(channel_cookie, 10, 20);
+    uint64_t ret = ipc_channel_send(channel_cookie, 10, 20, (void *)0x1000);
+
     /* No reply was provided so the sender should receive 0 */
     munit_assert_int(ret, ==, 0);
     munit_assert_null(channel->receivers);

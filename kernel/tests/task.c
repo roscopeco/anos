@@ -8,7 +8,6 @@
 #include "task.h"
 #include "acpitables.h"
 #include "fba/alloc.h"
-#include "ktypes.h"
 #include "munit.h"
 #include "slab/alloc.h"
 
@@ -70,7 +69,6 @@ static MunitResult test_task_create_new(const MunitParameter params[],
     // r14 register slot on stack has user SP
     munit_assert_uint64(*(uint64_t *)(task->ssp + 8), ==, TEST_SYS_SP);
 
-    munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
     munit_assert_ptr(task->this.next, ==, NULL);
 
     return MUNIT_OK;
@@ -110,7 +108,6 @@ static MunitResult test_task_create_kernel(const MunitParameter params[],
     // r14 register slot on stack has user SP
     munit_assert_uint64(*(uint64_t *)(task->ssp + 8), ==, TEST_SYS_SP);
 
-    munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
     munit_assert_ptr(task->this.next, ==, NULL);
 
     return MUNIT_OK;
@@ -150,7 +147,6 @@ static MunitResult test_task_create_user(const MunitParameter params[],
     // r14 register slot on stack has user SP
     munit_assert_uint64(*(uint64_t *)(task->ssp + 8), ==, TEST_SYS_SP);
 
-    munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
     munit_assert_ptr(task->this.next, ==, NULL);
 
     return MUNIT_OK;

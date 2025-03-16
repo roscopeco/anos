@@ -13,7 +13,6 @@
 #include "anos_assert.h"
 #include "fba/alloc.h"
 #include "kdrivers/cpu.h"
-#include "ktypes.h"
 #include "once.h"
 #include "panic.h"
 #include "sched.h"
@@ -22,8 +21,13 @@
 #include "structs/hash.h"
 #include "structs/list.h"
 #include "task.h"
-#include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
+
+#ifdef UNIT_TESTS
+#include "mock_recursive.h"
+#else
+#include "vmm/recursive.h"
+#endif
 
 #include "ipc/channel_internal.h"
 
@@ -212,7 +216,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
             spinlock_unlock(channel->receivers_lock);
 
             if (tag) {
-                *tag = msg->this.type;
+                *tag = msg->tag;
             }
 
             if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
@@ -281,7 +285,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
             sched_unlock_this_cpu(lock_flags);
 
             if (tag) {
-                *tag = msg->this.type;
+                *tag = msg->tag;
             }
 
             if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
@@ -319,7 +323,7 @@ static bool init_message(IpcMessage *message, uint64_t tag, size_t size,
              NEXT_COOKIE_ADD_TSC_MASK); // ... then adjust by "random" value
 
     message->this.next = 0;
-    message->this.type = tag;
+    message->tag = tag;
     message->cookie = cookie;
     message->arg_buf_size = size;
     message->arg_buf_phys = vmm_virt_to_phys_page((uintptr_t)buffer);

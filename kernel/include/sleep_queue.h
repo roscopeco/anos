@@ -16,9 +16,10 @@
 #include "task.h"
 
 typedef struct {
-    ListNode this;    // 16
-    uint64_t wake_at; // 32
-    Task *task;       // 24
+    ListNode this;    // 8
+    uint64_t res0;    // 16
+    uint64_t wake_at; // 24
+    Task *task;       // 32
     uint64_t res[4];  // 64
 } Sleeper;
 

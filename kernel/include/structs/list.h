@@ -26,13 +26,10 @@
 
 /*
  * A list node. The intention is that this struct will
- * be used as the first entry in other structs (hence
- * the size and type fields, which aren't used by the
- * list implementation itself 😊).
+ * be used as the first entry in other structs.
  */
 typedef struct _ListNode {
     struct _ListNode *next;
-    uint64_t type;
 } ListNode;
 
 /*

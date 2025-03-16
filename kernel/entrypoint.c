@@ -21,7 +21,6 @@
 #include "kdrivers/drivers.h"
 #include "kdrivers/local_apic.h"
 #include "kprintf.h"
-#include "ktypes.h"
 #include "panic.h"
 #include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
