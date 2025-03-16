@@ -61,8 +61,6 @@ endif
 #
 # These ones enable some specific feature tests
 #
-#	DEBUG_FORCE_HANDLED_PAGE_FAULT		Force a handled page-fault at boot
-#	DEBUG_FORCE_UNHANDLED_PAGE_FAULT	Force an unhandled page-fault at boot
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #	DEBUG_SLEEPY_KERNEL_TASK			Start a noisy kernel task that sleeps on all CPUs
 #	SYSCALL_SCHED_ONLY_THIS_CPU			Syscalls will only schedule things on the current CPU

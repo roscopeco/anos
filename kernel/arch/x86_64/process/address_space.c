@@ -191,6 +191,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
 
         for (uintptr_t ptr = regions[i].start; ptr < region_end;
              ptr += VM_PAGE_SIZE) {
+
             debugstr("Copying ");
             printhex64(ptr, debugchar);
             debugstr("\n");
@@ -201,13 +202,13 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
                 // TODO what if this fails (to alloc table pages)?
                 //
                 vmm_map_page_in(new_pml4_virt, ptr, shared_phys,
-                                PRESENT | USER);
+                                PRESENT | USER | COPY_ON_WRITE);
 
                 // TODO pmm_free_shareable(page) needs implementing to check this and handle appropriately...
                 //
                 refcount_map_increment(shared_phys);
 
-                debugstr("    Copied a page...\n");
+                debugstr("    Copied a page mapping as COW...\n");
             } else {
                 debugstr("    [... skipped, not present]\n");
             }

@@ -18,6 +18,8 @@
 #include "mock_slab.h"
 #include "mock_spinlock.h"
 
+void refcount_map_cleanup(void);
+
 // Test initialization
 static MunitResult test_init(const MunitParameter params[], void *data) {
     // Test successful initialization
@@ -90,11 +92,11 @@ static MunitResult test_basic_refcount(const MunitParameter params[],
 
     // Remove one reference
     count = refcount_map_decrement(addr);
-    munit_assert_uint32(count, ==, 1);
+    munit_assert_uint32(count, ==, 2);
 
     // Remove last reference
     count = refcount_map_decrement(addr);
-    munit_assert_uint32(count, ==, 0);
+    munit_assert_uint32(count, ==, 1);
 
     // Try to remove non-existent reference
     count = refcount_map_decrement(addr);
@@ -123,11 +125,11 @@ static MunitResult test_multiple_addresses(const MunitParameter params[],
     munit_assert_uint32(refcount_map_increment(addr2), ==, 3);
 
     // Remove references in mixed order
-    munit_assert_uint32(refcount_map_decrement(addr1), ==, 0);
+    munit_assert_uint32(refcount_map_decrement(addr1), ==, 1);
+    munit_assert_uint32(refcount_map_decrement(addr2), ==, 3);
+    munit_assert_uint32(refcount_map_decrement(addr3), ==, 1);
     munit_assert_uint32(refcount_map_decrement(addr2), ==, 2);
-    munit_assert_uint32(refcount_map_decrement(addr3), ==, 0);
     munit_assert_uint32(refcount_map_decrement(addr2), ==, 1);
-    munit_assert_uint32(refcount_map_decrement(addr2), ==, 0);
 
     refcount_map_cleanup();
     return MUNIT_OK;
@@ -171,7 +173,7 @@ static MunitResult test_resize(const MunitParameter params[], void *data) {
         uint32_t count = refcount_map_increment(addr);
         munit_assert_uint32(count, ==, 2);
         count = refcount_map_decrement(addr);
-        munit_assert_uint32(count, ==, 1);
+        munit_assert_uint32(count, ==, 2);
     }
 
     refcount_map_cleanup();

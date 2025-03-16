@@ -276,14 +276,13 @@ static inline PageTable *vmm_virt_to_pml4(uintptr_t virt_addr) {
 }
 
 /*
- * Get the physical base address of the page containing the given virtual address, or 
- * 0 if the page is not mapped in the _current process_ recursive mapping.
+ * Get the PT entry (including flags) for the given virtual address,
+ * or 0 if not mapped in the _current process_ recursive mapping.
  * 
- * TODO if we ever start making low RAM available for mapping, this will have to change...
- * 
- * TODO we're gonna need this for the 'other' address space too...
+ * This **only** works for 4KiB pages - large pages will not work 
+ * with this (and that's by design!)
  */
-static inline uintptr_t vmm_virt_to_phys_page(uintptr_t virt_addr) {
+static inline uint64_t vmm_virt_to_pt_entry(uintptr_t virt_addr) {
     uint64_t pml4e = *vmm_virt_to_pml4e(virt_addr);
     if (pml4e & 0x1) {
         uint64_t pdpte = *vmm_virt_to_pdpte(virt_addr);
@@ -292,10 +291,28 @@ static inline uintptr_t vmm_virt_to_phys_page(uintptr_t virt_addr) {
             if (pde & 0x1) {
                 uint64_t pte = *vmm_virt_to_pte(virt_addr);
                 if (pte & 0x1) {
-                    return pte & OFFSET_MASK;
+                    return pte;
                 }
             }
         }
+    }
+
+    return 0;
+}
+
+/*
+ * Get the physical base address of the page containing the given virtual address, or 
+ * 0 if the page is not mapped in the _current process_ recursive mapping.
+ * 
+ * TODO if we ever start making low RAM available for mapping, this will have to change...
+ * 
+ * TODO we're gonna need this for the 'other' address space too...
+ */
+static inline uintptr_t vmm_virt_to_phys_page(uintptr_t virt_addr) {
+    uint64_t pte = vmm_virt_to_pt_entry(virt_addr);
+
+    if (pte) {
+        return pte & OFFSET_MASK;
     }
 
     return 0;

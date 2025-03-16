@@ -36,6 +36,8 @@ static uint8_t t2_stack[4096];
 static uint8_t t3_stack[4096];
 static uint8_t t4_stack[4096];
 
+volatile int num2;
+
 static inline void banner() {
     printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION,
            libanos_version());
@@ -106,6 +108,12 @@ static noreturn int other_main(void) {
     anos_kprint("Beep Boop process is up...\n");
 
     while (1) {
+        // This is testing copy-on-write is working...
+        // num2 is in SYSTEM's data area, mapped copy-on-write
+        // into the new process call. This will generate #PF
+        // and the handler will sort out the copy...
+        num2 += 1;
+
         anos_task_sleep_current_secs(10);
         anos_kprint("<beep>");
         anos_task_sleep_current_secs(10);
