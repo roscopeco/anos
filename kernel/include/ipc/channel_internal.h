@@ -23,6 +23,7 @@
 typedef struct {
     ListNode this;
     uint64_t cookie;
+    uint64_t tag;
     size_t arg_buf_size;
     uintptr_t arg_buf_phys;
     Task *waiter;

@@ -18,10 +18,12 @@
 #ifndef __ANOS_KERNEL_SLAB_ALLOC_H
 #define __ANOS_KERNEL_SLAB_ALLOC_H
 
-#include "structs/list.h"
-#include "vmm/vmconfig.h"
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "anos_assert.h"
+#include "structs/list.h"
+#include "vmm/vmconfig.h"
 
 static const uint64_t BYTES_PER_SLAB = 16384; // 16KiB Slabs
 static const uint64_t SLAB_BASE_MASK = ~(BYTES_PER_SLAB - 1);
@@ -30,6 +32,7 @@ static const uint64_t BLOCKS_PER_SLAB = BYTES_PER_SLAB / SLAB_BLOCK_SIZE;
 
 typedef struct Slab {
     ListNode this;
+    uint64_t reserved0;
     uint64_t reserved1;
     uint64_t reserved2;
     uint64_t bitmap0;
@@ -37,6 +40,8 @@ typedef struct Slab {
     uint64_t bitmap2;
     uint64_t bitmap3;
 } Slab;
+
+static_assert_sizeof(Slab, ==, 64);
 
 static inline Slab *slab_base(void *block_addr) {
     // TODO check block_addr is in the FBA area!

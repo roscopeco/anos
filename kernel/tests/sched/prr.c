@@ -8,7 +8,6 @@
 #include <stdbool.h>
 
 #include "fba/alloc.h"
-#include "ktypes.h"
 #include "mock_pmm.h"
 #include "mock_task.h"
 #include "munit.h"

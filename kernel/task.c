@@ -11,7 +11,6 @@
 #include "anos_assert.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
-#include "ktypes.h"
 #include "printhex.h"
 #include "slab/alloc.h"
 #include "smp/state.h"
@@ -161,7 +160,6 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
     task->sched->prio = 0;
 
     task->this.next = (void *)0;
-    task->this.type = KTYPE_TASK;
 
     return task;
 }
