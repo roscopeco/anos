@@ -39,9 +39,11 @@ noreturn int initial_server_loader(void) {
     strcpy_hack(msg_buffer, "boot:/test_server.bin");
 
     uint64_t exec_size = anos_send_message(sys_vfs_cookie, SYS_VFS_TAG_GET_SIZE,
-                                           21, msg_buffer);
+                                           22, msg_buffer);
 
     printf("test_server.bin is %ld byte(s)\n", exec_size);
+
+    printf("Message buffer now: %s\n", msg_buffer);
     // if (exec_size) {
     //     void *buffer = anos_map_virtual(exec_size, 0x2000000);
 

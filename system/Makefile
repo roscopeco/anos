@@ -38,6 +38,7 @@ SYSTEM_BIN=$(SYSTEM).bin
 SYSTEM_OBJS=start.o																\
 			main.o																\
 			ramfs.o																\
+			path.o																\
 			loader.o															\
 			system_ramfs_linkable.o												\
 			$(ROOT_DIR)/$(LIBANOS_DIR)/$(LIBANOS_ARCHIVE)

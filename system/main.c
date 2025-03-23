@@ -13,6 +13,7 @@
 #include <anos/syscalls.h>
 #include <anos/types.h>
 
+#include "path.h"
 #include "ramfs.h"
 
 #ifndef VERSTR
@@ -26,9 +27,7 @@
 
 extern AnosRAMFSHeader _system_ramfs_start;
 
-int subroutine(int in) { return in * 2; }
-
-volatile int num2;
+// static char __attribute__((aligned(0x1000))) message_buffer[0x1000];
 
 static inline void banner() {
     printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION,
@@ -72,6 +71,30 @@ static void dump_fs(AnosRAMFSHeader *ramfs) {
 #define dump_fs(...)
 #endif
 
+static void handle_file_size_query(uint64_t message_cookie,
+                                   char *message_buffer, size_t message_size) {
+    char *mount_point, *path;
+
+    if (parse_file_path(message_buffer, message_size, &mount_point, &path)) {
+        // ignore leading slashes
+        while (*path == '/') {
+            path++;
+        }
+
+        AnosRAMFSFileHeader *target =
+                ramfs_find_file((AnosRAMFSHeader *)&_system_ramfs_start, path);
+
+        if (target) {
+            anos_reply_message(message_cookie, target->file_length);
+        } else {
+            anos_reply_message(message_cookie, 0);
+        }
+    } else {
+        // Bad message content
+        anos_reply_message(message_cookie, 0);
+    }
+}
+
 int main(int argc, char **argv) {
     banner();
 
@@ -111,7 +134,8 @@ int main(int argc, char **argv) {
             while (true) {
                 uint64_t tag;
                 size_t message_size;
-                char *message_buffer = (void *)0x80000000;
+                char *message_buffer = (char *)0xa0000000;
+
                 uint64_t message_cookie = anos_recv_message(
                         vfs_channel, &tag, &message_size, message_buffer);
 
@@ -120,19 +144,20 @@ int main(int argc, char **argv) {
                            "bytes): %s\n",
                            message_cookie, tag, message_size, message_buffer);
 
-                    AnosRAMFSFileHeader *target = ramfs_find_file(
-                            (AnosRAMFSHeader *)&_system_ramfs_start,
-                            "test_server.bin");
-                    if (target) {
-                        anos_reply_message(message_cookie, target->file_length);
-                    } else {
+                    switch (tag) {
+                    case 1:
+                        handle_file_size_query(message_cookie, message_buffer,
+                                               message_size);
+                        break;
+                    default:
+                        printf("WARN: Unhandled message [tag 0x%016lx] to "
+                               "SYSTEM::VFS\n",
+                               tag);
                         anos_reply_message(message_cookie, 0);
+                        break;
                     }
                 } else {
-                    printf("GOT BAD MESSAGE\n");
-
-                    while (1) {
-                    }
+                    printf("WARN: NULL message cookie\n");
                 }
             }
         }

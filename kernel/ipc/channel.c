@@ -406,6 +406,11 @@ uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, size_t size,
 #endif
 
         if (message->arg_buf_phys) {
+            // TODO Not sure why I'm doing this, I suspect it's a bug.
+            // why would the phys be mapped virtual?
+            //
+            // I _think_ I'm wanting to unmap in the _receiving_ process,
+            // which means this would need to (somehow) be done in reply, below...
             vmm_unmap_page(message->arg_buf_phys);
         }
         slab_free(message);
