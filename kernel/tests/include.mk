@@ -202,6 +202,9 @@ kernel/tests/build/structs/strhash: kernel/tests/munit.o kernel/tests/structs/st
 kernel/tests/build/ipc/named: kernel/tests/munit.o kernel/tests/ipc/named.o kernel/tests/build/ipc/named.o kernel/tests/build/structs/hash.o kernel/tests/mock_fba_malloc.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/structs/shift_array: kernel/tests/munit.o kernel/tests/structs/shift_array.o kernel/tests/build/structs/shift_array.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -245,6 +248,7 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/ipc/channel										\
 			kernel/tests/build/structs/strhash									\
 			kernel/tests/build/ipc/named										\
+			kernel/tests/build/structs/shift_array								\
 			kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
