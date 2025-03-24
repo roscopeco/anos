@@ -16,10 +16,7 @@
 #include "anos/system.h"
 #include "anos/types.h"
 
-typedef struct {
-    uintptr_t start;
-    uint64_t len_bytes;
-} ProcessMemoryRegion;
+#define MAX_IPC_BUFFER_SIZE ((0x1000))
 
 #ifdef DEBUG_INT_SYSCALLS
 #define anos_kprint anos_kprint_int
@@ -54,8 +51,6 @@ typedef struct {
 #define anos_remove_channel_name anos_remove_channel_name_syscall
 #define anos_find_named_channel anos_find_named_channel_syscall
 #endif
-
-typedef void (*ThreadFunc)(void);
 
 int anos_testcall_int(uint64_t arg0, uint64_t arg1, uint64_t arg2,
                       uint64_t arg3, uint64_t arg4);

@@ -71,9 +71,15 @@ static void dump_fs(AnosRAMFSHeader *ramfs) {
 #define dump_fs(...)
 #endif
 
-static void handle_file_size_query(uint64_t message_cookie,
-                                   char *message_buffer, size_t message_size) {
+static void handle_file_size_query(uint64_t message_cookie, size_t message_size,
+                                   char *message_buffer) {
     char *mount_point, *path;
+
+    // Refuse oversized messages...
+    // TODO the kernel should guarantee this!
+    if (message_size > MAX_IPC_BUFFER_SIZE) {
+        anos_reply_message(message_cookie, 0);
+    }
 
     if (parse_file_path(message_buffer, message_size, &mount_point, &path)) {
         // ignore leading slashes
@@ -86,6 +92,57 @@ static void handle_file_size_query(uint64_t message_cookie,
 
         if (target) {
             anos_reply_message(message_cookie, target->file_length);
+        } else {
+            anos_reply_message(message_cookie, 0);
+        }
+    } else {
+        // Bad message content
+        anos_reply_message(message_cookie, 0);
+    }
+}
+
+typedef struct {
+    uint64_t start_byte_ofs;
+    char name[];
+} FileLoadPageQuery;
+
+static void handle_file_load_page_query(uint64_t message_cookie,
+                                        size_t message_size,
+                                        void *message_buffer) {
+    char *mount_point, *path;
+    FileLoadPageQuery *pq = message_buffer;
+
+    // Refuse oversized messages...
+    if (message_size > MAX_IPC_BUFFER_SIZE) {
+        anos_reply_message(message_cookie, 0);
+    }
+
+    if (parse_file_path(pq->name, message_size - 4, &mount_point, &path)) {
+        // ignore leading slashes
+        while (*path == '/') {
+            path++;
+        }
+
+        AnosRAMFSFileHeader *target =
+                ramfs_find_file((AnosRAMFSHeader *)&_system_ramfs_start, path);
+
+        if (target) {
+            // figure out size to copy
+            size_t copy_size = target->file_length - pq->start_byte_ofs;
+            if (copy_size > MAX_IPC_BUFFER_SIZE) {
+                copy_size = MAX_IPC_BUFFER_SIZE;
+            }
+
+            uint8_t *src = ramfs_file_open(target);
+            src += pq->start_byte_ofs;
+
+            uint8_t *dest = message_buffer;
+
+            for (int i = 0; i < copy_size; i++) {
+                *dest++ = *src++;
+            }
+
+            anos_reply_message(message_cookie, copy_size);
         } else {
             anos_reply_message(message_cookie, 0);
         }
@@ -123,8 +180,6 @@ int main(int argc, char **argv) {
                                            (uintptr_t)initial_server_loader);
     if (new_pid < 0) {
         printf("Failed to create new process\n");
-    } else {
-        printf("Created new process with PID 0x%016lx\n", new_pid);
     }
 
     uint64_t vfs_channel = anos_create_channel();
@@ -140,24 +195,33 @@ int main(int argc, char **argv) {
                         vfs_channel, &tag, &message_size, message_buffer);
 
                 if (message_cookie) {
+#ifdef DEBUG_SYS_IPC
                     printf("SYSTEM::VFS received [0x%016lx] 0x%016lx (%ld "
                            "bytes): %s\n",
                            message_cookie, tag, message_size, message_buffer);
-
+#endif
                     switch (tag) {
                     case 1:
-                        handle_file_size_query(message_cookie, message_buffer,
-                                               message_size);
+                        handle_file_size_query(message_cookie, message_size,
+                                               message_buffer);
+                        break;
+                    case 2:
+                        handle_file_load_page_query(
+                                message_cookie, message_size, message_buffer);
                         break;
                     default:
+#ifdef DEBUG_SYS_IPC
                         printf("WARN: Unhandled message [tag 0x%016lx] to "
                                "SYSTEM::VFS\n",
                                tag);
+#endif
                         anos_reply_message(message_cookie, 0);
                         break;
                     }
+#ifdef CONSERVATIVE_BUILD
                 } else {
                     printf("WARN: NULL message cookie\n");
+#endif
                 }
             }
         }

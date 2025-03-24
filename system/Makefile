@@ -21,8 +21,9 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #   DEBUG_INT_SYSCALLS		Use int 0x69 instead of syscall instruction
 #	DEBUG_TEST_SYSCALL		Sanity-check the TEST syscall at user-mode startup
 #	DEBUG_INIT_RAMFS		Dump info about the initial RAMFS loaded by system
+#	DEBUG_SYS_IPC			Debug IPC messages received by SYSTEM
 #
-CDEFS=-DDEBUG_INIT_RAMFS
+CDEFS=
 
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(THIS_DIR)/..)

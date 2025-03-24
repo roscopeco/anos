@@ -14,9 +14,9 @@ int main(int argc, char **argv) {
     anos_kprint("Beep Boop process is up...\n");
 
     while (1) {
-        anos_task_sleep_current_secs(10);
-        printf("<beep>");
-        anos_task_sleep_current_secs(10);
-        printf("<boop>");
+        anos_task_sleep_current_secs(5);
+        printf("<beep>\n");
+        anos_task_sleep_current_secs(5);
+        printf("<boop>\n");
     }
 }
