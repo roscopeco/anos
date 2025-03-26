@@ -1,11 +1,12 @@
 ARCH?=x86_64
+TARGET_TRIPLE?=$(ARCH)-elf-anos
 
 ASM?=nasm
-XLD?=$(ARCH)-elf-ld
-XOBJCOPY?=$(ARCH)-elf-objcopy
-XOBJDUMP?=$(ARCH)-elf-objdump
+XLD?=$(TARGET_TRIPLE)-ld
+XOBJCOPY?=$(TARGET_TRIPLE)-objcopy
+XOBJDUMP?=$(TARGET_TRIPLE)-objdump
 QEMU?=qemu-system-$(ARCH)
-XCC?=$(ARCH)-elf-gcc
+XCC?=$(TARGET_TRIPLE)-gcc
 BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23	\
