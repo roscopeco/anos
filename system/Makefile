@@ -1,8 +1,13 @@
+ARCH?=x86_64
+TARGET_TRIPLE?=$(ARCH)-elf-anos
+
 ASM?=nasm
-XLD?=x86_64-elf-ld
-XOBJCOPY?=x86_64-elf-objcopy
-XOBJDUMP?=x86_64-elf-objdump
-XCC?=x86_64-elf-gcc
+XLD?=$(TARGET_TRIPLE)-ld
+XOBJCOPY?=$(TARGET_TRIPLE)-objcopy
+XOBJDUMP?=$(TARGET_TRIPLE)-objdump
+XCC?=$(TARGET_TRIPLE)-gcc
+XAR?=$(TARGET_TRIPLE)-ar
+XRANLIB?=$(TARGET_TRIPLE)-ranlib
 ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\

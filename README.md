@@ -117,11 +117,11 @@ of this project.
 
 ### Building
 
-Everything is built with `make`. You'll want a cross-compiler
-toolchain for `x86_64` (for `ld` and `gcc` plus supporting things)
-along with cross `binutils` (for `objcopy` and `objdump` at least). 
-
-Latest versions of these are recommended.
+Everything is built with `make`. The 
+[anos toolchain](https://github.com/roscopeco/anos-toolchain) 
+is **required**. Ensure you download, build and install the 
+toolchain (follow the instructions in the README over there)
+and that it's available somewhere in your path.
 
 All assembly code is built with NASM. 2.16 or higher is recommended.
 
@@ -225,12 +225,14 @@ from a thrift store. It works well on that machine, but that doesn't
 mean it'll work on your machine necessarily.
 
 The main problem I forsee on newer machines is that they probably
-won't emulate legacy BIOS. You might need to go into the BIOS
-setting (assuming that's still a thing) and set them up to boot
-from floppy and use legacy BIOS.
+won't emulate legacy BIOS (with a CSM). 
 
-If that is a problem, raise a bug - I'm planning to switch to UEFI
-and knowing someone else wants it will likely help motivate me...
+If you want to run the legacy BIOS build on newer machines, you 
+might need to go into the BIOS settings (assuming that's still 
+a thing) and set them up to boot from floppy and use legacy BIOS.
+
+However, with UEFI support now mainlined, it's recommended to 
+always use that on real hardware anyway.
 
 ### Debugging
 
