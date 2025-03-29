@@ -50,7 +50,8 @@ typedef struct {
  * exact layout of this!
  */
 typedef struct Task {
-    ListNode this;    // 16 bytes
+    ListNode this;    // 8 bytes
+    void *data;       // 16
     TaskSched *sched; // 24
     uintptr_t rsp0;   // 32
     uintptr_t ssp;    // 40

@@ -8,7 +8,6 @@
 #include "anos_assert.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
-#include "ktypes.h"
 #include "pmm/sys.h"
 #include "printhex.h"
 #include "process.h"

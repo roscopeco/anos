@@ -7,18 +7,27 @@
  */
 
 #include <stdatomic.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "anos_assert.h"
+#include "fba/alloc.h"
 #include "kdrivers/cpu.h"
-#include "ktypes.h"
 #include "once.h"
 #include "panic.h"
 #include "sched.h"
 #include "slab/alloc.h"
+#include "std/string.h"
 #include "structs/hash.h"
 #include "structs/list.h"
 #include "task.h"
+#include "vmm/vmmapper.h"
+
+#ifdef UNIT_TESTS
+#include "mock_recursive.h"
+#else
+#include "vmm/recursive.h"
+#endif
 
 #include "ipc/channel_internal.h"
 
@@ -33,6 +42,7 @@
 #define INITIAL_CHANNEL_HASH_PAGE_COUNT ((4))
 #define INITIAL_IN_FLIGHT_MESSAGE_HASH_PAGE_COUNT ((1))
 #define NEXT_COOKIE_ADD_TSC_MASK ((0xffff))
+#define ARG_BUF_MAX ((0x1000))
 
 #ifdef UNIT_TESTS
 #define STATIC_EXCEPT_TESTS
@@ -172,7 +182,17 @@ void ipc_channel_destroy(uint64_t cookie) {
     }
 }
 
-uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, uint64_t *arg) {
+static inline unsigned int round_up_to_page_size(size_t size) {
+    return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
+}
+
+uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
+                          void *buffer) {
+    if ((uintptr_t)buffer & PAGE_RELATIVE_MASK) {
+        // buffer must be page aligned
+        return 0;
+    }
+
     IpcChannel *channel = hash_table_lookup(channel_hash, cookie);
 
     if (channel) {
@@ -199,8 +219,15 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, uint64_t *arg) {
                 *tag = msg->tag;
             }
 
-            if (arg) {
-                *arg = msg->arg;
+            if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
+                vmm_map_page((uintptr_t)buffer, (uint64_t)msg->arg_buf_phys,
+                             USER | WRITE | PRESENT);
+            } else {
+                msg->arg_buf_phys = 0;
+            }
+
+            if (buffer_size) {
+                *buffer_size = msg->arg_buf_size;
             }
 
             return msg->cookie;
@@ -261,8 +288,15 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, uint64_t *arg) {
                 *tag = msg->tag;
             }
 
-            if (arg) {
-                *arg = msg->arg;
+            if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
+                vmm_map_page((uintptr_t)buffer, msg->arg_buf_phys,
+                             USER | WRITE | PRESENT);
+            } else {
+                msg->arg_buf_phys = 0;
+            }
+
+            if (buffer_size) {
+                *buffer_size = msg->arg_buf_size;
             }
 
             return msg->cookie;
@@ -275,8 +309,12 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, uint64_t *arg) {
     return 0;
 }
 
-static void init_message(IpcMessage *message, uint64_t tag, uint64_t arg,
-                         Task *current_task) {
+static bool init_message(IpcMessage *message, uint64_t tag, size_t size,
+                         void *buffer, Task *current_task) {
+
+    if (size > VM_PAGE_SIZE) {
+        size = VM_PAGE_SIZE;
+    }
 
     uint64_t cookie =
             next_message_cookie++; // do ++ in case another thread cuts in...
@@ -285,16 +323,29 @@ static void init_message(IpcMessage *message, uint64_t tag, uint64_t arg,
              NEXT_COOKIE_ADD_TSC_MASK); // ... then adjust by "random" value
 
     message->this.next = 0;
-    message->this.type = KTYPE_IPC_MESSAGE;
-    message->cookie = cookie;
     message->tag = tag;
-    message->arg = arg;
+    message->cookie = cookie;
+    message->arg_buf_size = size;
+    message->arg_buf_phys = vmm_virt_to_phys_page((uintptr_t)buffer);
     message->waiter = current_task;
     message->reply = 0;
     message->handled = false;
+
+    return true;
 }
 
-uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, uint64_t arg) {
+uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, size_t size,
+                          void *buffer) {
+    if ((uintptr_t)buffer & PAGE_RELATIVE_MASK) {
+        // buffer must be page aligned
+        return 0;
+    }
+
+    if (size > VM_PAGE_SIZE) {
+        // Buffer can only be one page for now
+        return 0;
+    }
+
     IpcChannel *channel = hash_table_lookup(channel_hash, channel_cookie);
 
     if (channel) {
@@ -305,7 +356,9 @@ uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, uint64_t arg) {
             return 0;
         }
 
-        init_message(message, tag, arg, current_task);
+        if (!init_message(message, tag, size, buffer, current_task)) {
+            return 0;
+        }
 
         spinlock_lock(channel->queue_lock);
 
@@ -352,6 +405,14 @@ uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, uint64_t arg) {
         }
 #endif
 
+        if (message->arg_buf_phys) {
+            // TODO Not sure why I'm doing this, I suspect it's a bug.
+            // why would the phys be mapped virtual?
+            //
+            // I _think_ I'm wanting to unmap in the _receiving_ process,
+            // which means this would need to (somehow) be done in reply, below...
+            vmm_unmap_page(message->arg_buf_phys);
+        }
         slab_free(message);
         return result;
     }

@@ -92,6 +92,15 @@ _start_limine:
   mov   gs,ax
   mov   ss,ax
 
+  mov   rax, cr0                          ; Enable SSE
+  and   ax, 0xFFFB		                    ; ... clear coprocessor emulation CR0.EM
+  or    ax, 0x2			                      ; ... set coprocessor monitoring  CR0.MP
+  mov   cr0, rax
+
+  mov   rax, cr4                          ; set CR4.OSFXSR and CR4.OSXMMEXCPT
+  or    ax, 3 << 9
+  mov   cr4, rax
+
   push  0x08                              ; Sort out code segment as well while we're at it...
   push  bsp_kernel_entrypoint_limine
   retfq                                   ; Rest of the init is in C...

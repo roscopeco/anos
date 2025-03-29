@@ -64,6 +64,15 @@ _start:
                                           ; fine until next time there's an exception...
 
 .done:
+  mov   rax, cr0                          ; Enable SSE
+  and   ax, 0xFFFB		                    ; ... clear coprocessor emulation CR0.EM
+  or    ax, 0x2			                      ; ... set coprocessor monitoring  CR0.MP
+  mov   cr0, rax
+
+  mov   rax, cr4                          ; set CR4.OSFXSR and CR4.OSXMMEXCPTqq
+  or    ax, 3 << 9
+  mov   cr4, rax
+
   jmp   bsp_kernel_entrypoint_bios        ; Let's do some C...
 
 .GDT_DESC:

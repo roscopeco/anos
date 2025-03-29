@@ -266,17 +266,13 @@ static MunitResult test_find_null_pred(const MunitParameter params[],
 
 static bool match_none(ListNode *candidate) { return false; }
 
-static bool match_head(ListNode *candidate) {
-    return candidate->type == NEW_NODE_TYPE;
-}
+static bool match_head(ListNode *candidate) { return candidate == &new_node; }
 
 static bool match_middle(ListNode *candidate) {
-    return candidate->type == SECOND_NODE_TYPE;
+    return candidate == &second_node;
 }
 
-static bool match_last(ListNode *candidate) {
-    return candidate->type == THIRD_NODE_TYPE;
-}
+static bool match_last(ListNode *candidate) { return candidate == &third_node; }
 
 static MunitResult test_find_match_none(const MunitParameter params[],
                                         void *param) {
@@ -327,13 +323,10 @@ static MunitResult test_find_match_last(const MunitParameter params[],
 }
 
 static void *setup(const MunitParameter params[], void *user_data) {
-    new_node.type = NEW_NODE_TYPE;
     new_node.next = NULL;
 
-    second_node.type = SECOND_NODE_TYPE;
     second_node.next = NULL;
 
-    third_node.type = THIRD_NODE_TYPE;
     third_node.next = NULL;
 
     return NULL;

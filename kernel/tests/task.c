@@ -8,7 +8,6 @@
 #include "task.h"
 #include "acpitables.h"
 #include "fba/alloc.h"
-#include "ktypes.h"
 #include "munit.h"
 #include "slab/alloc.h"
 
@@ -41,9 +40,10 @@ static MunitResult test_task_create_new(const MunitParameter params[],
             task_create_new(&mock_owner, TEST_SYS_SP, sys_stack, TEST_BOOT_FUNC,
                             TEST_SYS_FUNC, TASK_CLASS_IDLE);
 
-    // We should have allocated overhead (FBA + Slab), plus a slab for the blocks we needed
+    // We should have allocated overhead (FBA + Slab), plus a slab for the blocks
+    // we needed, as well as one FBA for the task data block.
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 2);
+                        PAGES_PER_SLAB + 3);
 
     // TaskSched (allocated first) is at the base of the slab area, plus 64 bytes
     munit_assert_ptr_equal(task->sched, slab_area_base(page_area_ptr) + 64);
@@ -70,7 +70,6 @@ static MunitResult test_task_create_new(const MunitParameter params[],
     // r14 register slot on stack has user SP
     munit_assert_uint64(*(uint64_t *)(task->ssp + 8), ==, TEST_SYS_SP);
 
-    munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
     munit_assert_ptr(task->this.next, ==, NULL);
 
     return MUNIT_OK;
@@ -81,9 +80,10 @@ static MunitResult test_task_create_kernel(const MunitParameter params[],
     Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack,
                                     TEST_SYS_FUNC, TASK_CLASS_IDLE);
 
-    // We should have allocated overhead (FBA + Slab), plus a slab for the blocks we needed
+    // We should have allocated overhead (FBA + Slab), plus a slab for the blocks
+    // we needed, as well as one FBA for the task data block.
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 2);
+                        PAGES_PER_SLAB + 3);
 
     // TaskSched (allocated first) is at the base of the slab area, plus 64 bytes
     munit_assert_ptr_equal(task->sched, slab_area_base(page_area_ptr) + 64);
@@ -110,7 +110,6 @@ static MunitResult test_task_create_kernel(const MunitParameter params[],
     // r14 register slot on stack has user SP
     munit_assert_uint64(*(uint64_t *)(task->ssp + 8), ==, TEST_SYS_SP);
 
-    munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
     munit_assert_ptr(task->this.next, ==, NULL);
 
     return MUNIT_OK;
@@ -121,9 +120,10 @@ static MunitResult test_task_create_user(const MunitParameter params[],
     Task *task = task_create_user(&mock_owner, TEST_SYS_SP, sys_stack,
                                   TEST_SYS_FUNC, TASK_CLASS_IDLE);
 
-    // We should have allocated overhead (FBA + Slab), plus a slab for the blocks we needed
+    // We should have allocated overhead (FBA + Slab), plus a slab for the blocks
+    // we needed, as well as one FBA for the task data block.
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 2);
+                        PAGES_PER_SLAB + 3);
 
     // TaskSched (allocated first) is at the base of the slab area, plus 64 bytes
     munit_assert_ptr_equal(task->sched, slab_area_base(page_area_ptr) + 64);
@@ -150,7 +150,6 @@ static MunitResult test_task_create_user(const MunitParameter params[],
     // r14 register slot on stack has user SP
     munit_assert_uint64(*(uint64_t *)(task->ssp + 8), ==, TEST_SYS_SP);
 
-    munit_assert_uint64(task->this.type, ==, KTYPE_TASK);
     munit_assert_ptr(task->this.next, ==, NULL);
 
     return MUNIT_OK;

@@ -10,15 +10,13 @@
 #ifndef __ANOS_ANOS_SYSCALLS_H
 #define __ANOS_ANOS_SYSCALLS_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "anos/system.h"
 #include "anos/types.h"
 
-typedef struct {
-    uintptr_t start;
-    uint64_t len_bytes;
-} ProcessMemoryRegion;
+#define MAX_IPC_BUFFER_SIZE ((0x1000))
 
 #ifdef DEBUG_INT_SYSCALLS
 #define anos_kprint anos_kprint_int
@@ -54,8 +52,6 @@ typedef struct {
 #define anos_find_named_channel anos_find_named_channel_syscall
 #endif
 
-typedef void (*ThreadFunc)(void);
-
 int anos_testcall_int(uint64_t arg0, uint64_t arg1, uint64_t arg2,
                       uint64_t arg3, uint64_t arg4);
 int anos_testcall_syscall(uint64_t arg0, uint64_t arg1, uint64_t arg2,
@@ -88,14 +84,14 @@ void *anos_map_virtual_syscall(uint64_t size, uintptr_t base_address);
 void *anos_map_virtual_int(uint64_t size, uintptr_t base_address);
 
 uint64_t anos_send_message_syscall(uint64_t channel_cookie, uint64_t tag,
-                                   uint64_t arg);
+                                   size_t buffer_size, void *buffer);
 uint64_t anos_send_message_int(uint64_t channel_cookie, uint64_t tag,
-                               uint64_t arg);
+                               size_t buffer_size, void *buffer);
 
 uint64_t anos_recv_message_syscall(uint64_t channel_cookie, uint64_t *tag,
-                                   uint64_t *arg);
+                                   size_t *buffer_size, void *buffer);
 uint64_t anos_recv_message_int(uint64_t channel_cookie, uint64_t *tag,
-                               uint64_t *arg);
+                               size_t *buffer_size, void *buffer);
 
 uint64_t anos_reply_message_syscall(uint64_t message_cookie, uint64_t reply);
 uint64_t anos_reply_message_int(uint64_t message_cookie, uint64_t reply);

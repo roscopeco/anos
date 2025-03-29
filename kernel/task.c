@@ -11,7 +11,6 @@
 #include "anos_assert.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
-#include "ktypes.h"
 #include "printhex.h"
 #include "slab/alloc.h"
 #include "smp/state.h"
@@ -106,19 +105,28 @@ void kernel_thread_entrypoint(void);
 Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                       uintptr_t bootstrap, uintptr_t func, TaskClass class) {
 
+    void *data = fba_alloc_block();
+
+    if (data == NULL) {
+        return NULL;
+    }
+
     TaskSched *sched = slab_alloc_block();
 
     if (sched == NULL) {
+        fba_free(data);
         return NULL;
     }
 
     Task *task = slab_alloc_block();
 
     if (task == NULL) {
+        fba_free(data);
         slab_free(sched);
         return NULL;
     }
 
+    task->data = data;
     task->sched = sched;
 
     task->sched->tid = next_tid++;
@@ -161,7 +169,6 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
     task->sched->prio = 0;
 
     task->this.next = (void *)0;
-    task->this.type = KTYPE_TASK;
 
     return task;
 }

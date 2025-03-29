@@ -18,7 +18,7 @@
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
 
-#define SYSTEM_BSS_PAGE_COUNT 4
+#define SYSTEM_BSS_PAGE_COUNT 10
 #define SYSTEM_KERNEL_STACK_PAGE_COUNT 4
 #define SYSTEM_USER_STACK_PAGE_COUNT 4
 

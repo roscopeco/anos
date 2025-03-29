@@ -40,12 +40,11 @@
 #include "panic.h"
 #endif
 
-#define IS_USER_ADDRESS(ptr) ((((uint64_t)ptr & 0xffffffff00000000) == 0))
-
 typedef void (*ThreadFunc)(void);
 
 extern MemoryRegion *physical_region;
 
+#ifdef DEBUG_TEST_SYSCALL
 static SyscallResult handle_anos_testcall(SyscallArg arg0, SyscallArg arg1,
                                           SyscallArg arg2, SyscallArg arg3,
                                           SyscallArg arg4) {
@@ -63,10 +62,11 @@ static SyscallResult handle_anos_testcall(SyscallArg arg0, SyscallArg arg1,
 
     return 42;
 }
+#endif
 
 static SyscallResult handle_debugprint(char *message) {
     if (IS_USER_ADDRESS(message)) {
-        kprintf(message);
+        kprintf("%s", message);
     }
 
     return SYSCALL_OK;
@@ -258,8 +258,6 @@ SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base) {
     uint64_t page_count = size >> VM_PAGE_LINEAR_SHIFT;
 
     // Let's try to map it in, just using small pages for now...
-    kprintf("LFG mapping %ld bytes @ 0x%016lx\n", size, virtual_base);
-
     uintptr_t virtual_end = virtual_base + size;
     for (uintptr_t addr = virtual_base; addr < virtual_end;
          addr += VM_PAGE_SIZE) {
@@ -275,8 +273,6 @@ SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base) {
             undo_partial_map(virtual_base, addr, new_page);
             return 0;
         }
-
-        kprintf("    Mapped page 0x%016lx => 0x%016lx\n", addr, new_page);
     }
 
     memclr((void *)virtual_base, size);
@@ -289,15 +285,20 @@ SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base) {
 //
 
 SyscallResult handle_send_message(uint64_t channel_cookie, uint64_t tag,
-                                  uint64_t arg) {
-    return ipc_channel_send(channel_cookie, tag, arg);
+                                  size_t size, void *buffer) {
+    if (IS_USER_ADDRESS(buffer)) {
+        return ipc_channel_send(channel_cookie, tag, size, buffer);
+    }
+
+    return 0;
 }
 
 SyscallResult handle_recv_message(uint64_t channel_cookie, uint64_t *tag,
-                                  uint64_t *arg) {
+                                  size_t *size, void *buffer) {
 
-    if (IS_USER_ADDRESS(tag) && IS_USER_ADDRESS(arg)) {
-        return ipc_channel_recv(channel_cookie, tag, arg);
+    if (IS_USER_ADDRESS(tag) && IS_USER_ADDRESS(size) &&
+        IS_USER_ADDRESS(buffer)) {
+        return ipc_channel_recv(channel_cookie, tag, size, buffer);
     }
 
     return 0;
@@ -350,8 +351,10 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
                                 SyscallArg arg2, SyscallArg arg3,
                                 SyscallArg arg4, SyscallArg syscall_num) {
     switch (syscall_num) {
+#ifdef DEBUG_TEST_SYSCALL
     case 0:
         return handle_anos_testcall(arg0, arg1, arg2, arg3, arg4);
+#endif
     case 1:
         return handle_debugprint((char *)arg0);
     case 2:
@@ -368,9 +371,10 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
     case 7:
         return handle_map_virtual(arg0, arg1);
     case 8:
-        return handle_send_message(arg0, arg1, arg2);
+        return handle_send_message(arg0, arg1, arg2, (void *)arg3);
     case 9:
-        return handle_recv_message(arg0, (uint64_t *)arg1, (uint64_t *)arg2);
+        return handle_recv_message(arg0, (uint64_t *)arg1, (size_t *)arg2,
+                                   (void *)arg3);
     case 10:
         return handle_reply_message(arg0, arg1);
     case 11:
