@@ -9,7 +9,7 @@ global task_do_switch
 extern task_current_ptr, task_tss_ptr   ; TODO tss_ptr not used here now...
                                         ;      but needs setting up properly!
 
-%define TASK_TID    16                  ; Task struct offsets
+%define TASK_DATA   8                   ; Task struct offsets
 %define TASK_RSP0   24
 %define TASK_SSP    32
 %define TASK_PML4   48
@@ -19,6 +19,8 @@ extern task_current_ptr, task_tss_ptr   ; TODO tss_ptr not used here now...
 %include "smp/state.inc"
 
 ; **Must** be called with scheduler locked!
+;
+; TODO this could be optimized (e.g. always fxsave/fxrstor, etc)
 task_do_switch:
     mov     [temp_rsi],rsi
 
@@ -53,6 +55,9 @@ task_do_switch:
 
     mov     [rsi+TASK_SSP],rsp              ; Save stack pointer
 
+    mov     rsi,[rsi+TASK_DATA]             ; Find task data pointer
+    fxsave  [rsi]                           ; ... and just store fp state there.
+
 .next:
     mov     rsi,[gs:0]                      ; Load per-CPU data pointer
     add     rsi,CPU_TASK_CURRENT            ; Advance pointer to current task
@@ -79,6 +84,9 @@ task_do_switch:
     mov     cr3,rcx                         ; ... else, switch out cr3 with the new tables.
 
 .page_tables_done:
+    mov     rdi,[rdi+TASK_DATA]             ; Find new task data pointer
+    fxrstor [rdi]                           ; ... and restore fp state from it
+
     pop     rdi                             ; Pop all GP registers
     pop     rsi
     pop     r15
