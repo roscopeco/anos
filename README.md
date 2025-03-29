@@ -123,18 +123,6 @@ is **required**. Ensure you download, build and install the
 toolchain (follow the instructions in the README over there)
 and that it's available somewhere in your path.
 
-> [!NOTE]
-> Currently it's still possible to build with a vanilla 
-> `x86_64-elf` cross-compiler. To make this work, pass
-> the `TARGET_TRIPLE=x86_64-elf` option to `make`, e.g.
-> `TARGET_TRIPLE=x86_64-elf make clean qemu-uefi`.
->
-> Note that this is a bit of a hack, and only works because
-> I haven't yet fleshed out the Newlib syscalls for ANOS,
-> so all user code is still built freestanding.
->
-> It won't be staying like this for long...
-
 All assembly code is built with NASM. 2.16 or higher is recommended.
 
 For running and debugging, you'll want `qemu-system-x86_64`. 

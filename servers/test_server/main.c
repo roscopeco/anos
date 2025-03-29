@@ -5,18 +5,20 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
-#include <anos.h>
-#include <anos/printf.h>
+#include <stdio.h>
+
 #include <anos/syscalls.h>
 #include <anos/types.h>
 
-int main(int argc, char **argv) {
+__attribute__((constructor)) void testing_init(void) {
     anos_kprint("Beep Boop process is up...\n");
+}
 
+int main(int argc, char **argv) {
     while (1) {
         anos_task_sleep_current_secs(5);
-        printf("<beep>\n");
+        anos_kprint("<beep>\n");
         anos_task_sleep_current_secs(5);
-        printf("<boop>\n");
+        anos_kprint("<boop>\n");
     }
 }
