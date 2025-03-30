@@ -8,61 +8,116 @@
  *   ... but it does the job.
  */
 
+#include <libgen.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <sys/stat.h>
 
 #include "ramfs.h"
 
-#define FILE_COUNT(argc) (((argc - 2)))
-#define COPY_BUF_SIZE 0x1000
+#define PAGE_SIZE 4096
 
-static AnosRAMFSHeader ramfs_header;
-static char zero_buf[0x1000];
+typedef struct {
+    const char *path;
+    const char *name;
+} InputFile;
 
-// Staying away from the mess of basename / dirname...
-const char *file_basename(const char *path) {
-    const char *base = strrchr(path, '/');
-    return (base ? base + 1 : path);
+static void pad_to_alignment(FILE *out, size_t alignment) {
+    long offset = ftell(out);
+    size_t pad = (alignment - (offset % alignment)) % alignment;
+    for (size_t i = 0; i < pad; ++i)
+        fputc(0, out);
 }
 
-static int calc_fs_data_size(int argc, char **argv) {
-    struct stat stat_buf;
-    int files_total = 0;
+static void write_filesystem(const char *out_path, InputFile *files,
+                             size_t file_count) {
+    FILE *out = fopen(out_path, "wb");
+    if (!out) {
+        perror("fopen");
+        exit(1);
+    }
 
-    for (int i = 2; i < argc; i++) {
-        int status = stat(argv[i], &stat_buf);
+    AnosRAMFSHeader header = {.magic = ANOS_RAMFS_MAGIC,
+                              .version = ANOS_RAMFS_VERSION,
+                              .fs_size = 0, // to be patched
+                              .file_count = file_count,
+                              .reserved = {0}};
 
-        if (status != 0) {
-            printf("Failed to stat %s\n", argv[i]);
-            return -1;
+    AnosRAMFSFileHeader *file_headers =
+            calloc(file_count, sizeof(AnosRAMFSFileHeader));
+    if (!file_headers) {
+        perror("calloc");
+        exit(1);
+    }
+
+    // Header + all file headers padded to page boundary
+    size_t headers_raw =
+            sizeof(header) + file_count * sizeof(AnosRAMFSFileHeader);
+    size_t headers_padded = (headers_raw + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+
+    // Write zero-filled space for header and headers
+    fwrite(&header, sizeof(header), 1, out);
+    fwrite(file_headers, sizeof(AnosRAMFSFileHeader), file_count, out);
+    for (size_t i = headers_raw; i < headers_padded; ++i)
+        fputc(0, out);
+
+    size_t current_offset = headers_padded;
+
+    for (size_t i = 0; i < file_count; ++i) {
+        FILE *f = fopen(files[i].path, "rb");
+        if (!f) {
+            perror(files[i].path);
+            exit(1);
         }
 
-        files_total += stat_buf.st_size;
+        fseek(f, 0, SEEK_END);
+        size_t file_size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+
+        file_headers[i].file_start =
+                current_offset -
+                (sizeof(AnosRAMFSHeader) + i * sizeof(AnosRAMFSFileHeader));
+        file_headers[i].file_length = file_size;
+        strncpy(file_headers[i].file_name, files[i].name,
+                sizeof(file_headers[i].file_name) - 1);
+
+        // Copy file data
+        char buf[4096];
+        size_t remaining = file_size;
+        while (remaining > 0) {
+            size_t read = fread(buf, 1, sizeof(buf), f);
+            fwrite(buf, 1, read, out);
+            remaining -= read;
+        }
+
+        fclose(f);
+
+        current_offset += file_size;
+        size_t pad = (PAGE_SIZE - (current_offset % PAGE_SIZE)) % PAGE_SIZE;
+        for (size_t j = 0; j < pad; ++j)
+            fputc(0, out);
+        current_offset += pad;
     }
 
-    return files_total;
+    // Patch file headers
+    fseek(out, sizeof(header), SEEK_SET);
+    fwrite(file_headers, sizeof(AnosRAMFSFileHeader), file_count, out);
+
+    // Patch fs_size
+    fseek(out, 0, SEEK_END);
+    uint64_t final_size = (ftell(out) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+    fseek(out, offsetof(AnosRAMFSHeader, fs_size), SEEK_SET);
+    fwrite(&final_size, sizeof(final_size), 1, out);
+
+    fclose(out);
+    free(file_headers);
 }
 
-static int calc_fs_size(int argc, char **argv) {
-    int data_size = calc_fs_data_size(argc, argv);
-
-    if (data_size == -1) {
-        return -1;
-    }
-
-    int fs_size = data_size + (FILE_COUNT(argc) * sizeof(AnosRAMFSFileHeader)) +
-                  sizeof(AnosRAMFSHeader);
-
-    // ensure page alignment
-    if (fs_size & 0xfff) {
-        fs_size = (fs_size + 0x1000) & ~(0xfff);
-    }
-    return fs_size;
-}
-
-static void dump_fs(char *filename) {
+static void dump_fs(const char *filename) {
     struct stat stat_buf;
 
     int status = stat(filename, &stat_buf);
@@ -128,116 +183,49 @@ static void dump_fs(char *filename) {
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        printf("mkramfs %s <output> <input1> [input2] ... [inputN]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <output.img> <input1> [input2] ...\n",
+                argv[0]);
         return 1;
     }
 
-    printf("Create RAMFS image %s\n", argv[1]);
+    const char *out_path = argv[1];
+    size_t file_count = argc - 2;
 
-    int file_count = FILE_COUNT(argc);
-    int current_data_offset = 0;
-
-    int fs_size = calc_fs_size(argc, argv);
-    if (fs_size == -1) {
-        printf("Failed to determine fs size\n");
-        return 2;
+    InputFile *files = malloc(file_count * sizeof(InputFile));
+    if (!files) {
+        perror("malloc");
+        return 1;
     }
 
-    printf("fs_size is %d\n", fs_size);
-
-    ramfs_header.file_count = file_count;
-    ramfs_header.magic = ANOS_RAMFS_MAGIC;
-    ramfs_header.version = ANOS_RAMFS_VERSION;
-    ramfs_header.fs_size = fs_size;
-
-    FILE *out = fopen(argv[1], "wb");
-    if (!out) {
-        printf("Failed to open output file!\n");
-        return 3;
-    }
-
-    if (fwrite(&ramfs_header, 1, sizeof(AnosRAMFSHeader), out) !=
-        sizeof(AnosRAMFSHeader)) {
-        printf("Failed to write header!\n");
-        fclose(out);
-        return 4;
-    }
-
-    printf("Headers occupy %ld bytes\n",
-           sizeof(AnosRAMFSHeader) +
-                   (sizeof(AnosRAMFSFileHeader) * file_count));
-
-    // write file headers
-    int data_area_ptr = 0;
-    for (int i = 0; i < file_count; i++) {
-        AnosRAMFSFileHeader file_header;
-        struct stat stat_buf;
-
-        char *input = argv[i + 2];
-
-        int status = stat(input, &stat_buf);
-
-        if (status != 0) {
-            printf("Failed to stat %s\n", argv[i]);
-            fclose(out);
-            return 5;
+    for (size_t i = 0; i < file_count; ++i) {
+        const char *path = argv[i + 2];
+        char *path_copy = strdup(path);
+        if (!path_copy) {
+            perror("strdup");
+            return 1;
         }
 
-        strncpy(file_header.file_name, file_basename(input),
-                ANOS_RAMFS_FILENAME_MAX);
-        file_header.file_length = stat_buf.st_size;
-        file_header.file_start =
-                ((file_count - i) * sizeof(AnosRAMFSFileHeader)) +
-                data_area_ptr;
-
-        if (fwrite(&file_header, 1, sizeof(AnosRAMFSFileHeader), out) !=
-            sizeof(AnosRAMFSFileHeader)) {
-            printf("Failed to write file header for %s!\n", input);
-            fclose(out);
-            return 6;
+        const char *base = basename(path_copy);
+        if (strlen(base) >= 16) {
+            fprintf(stderr,
+                    "Filename '%s' too long for AnosRAMFS (max 15 chars)\n",
+                    base);
+            return 1;
         }
 
-        printf("%s starts at %llu\n", file_header.file_name,
-               file_header.file_start);
+        files[i].path = path;
+        files[i].name = strdup(base); // hold onto a clean copy
 
-        data_area_ptr += stat_buf.st_size;
+        free(path_copy);
     }
 
-    // Copy file data
-    for (int i = 2; i < argc; i++) {
-        FILE *in = fopen(argv[i], "rb");
+    write_filesystem(out_path, files, file_count);
 
-        while (!feof(in)) {
-            char buf[COPY_BUF_SIZE];
-
-            int rd = fread(buf, 1, COPY_BUF_SIZE, in);
-            int wr = fwrite(buf, 1, rd, out);
-
-            if (rd != wr) {
-                fclose(in);
-                fclose(out);
-                printf("Failed to copy buffer from %s\n", argv[i]);
-                return 7;
-            }
-        }
+    for (size_t i = 0; i < file_count; ++i) {
+        free((void *)files[i].name);
     }
+    free(files);
 
-    int zeropad = fs_size - (sizeof(AnosRAMFSHeader) +
-                             ((sizeof(AnosRAMFSFileHeader) * file_count)) +
-                             data_area_ptr);
-
-    printf("Needs %d bytes of zero pad\n", zeropad);
-
-    int zp_wr = fwrite(zero_buf, 1, zeropad, out);
-    if (zp_wr != zeropad) {
-        fclose(out);
-        printf("Failed to zeropad - %d bytes written", zp_wr);
-        return 8;
-    }
-
-    fclose(out);
-
-    dump_fs(argv[1]);
-
+    dump_fs(out_path);
     return 0;
 }

@@ -34,6 +34,8 @@
 #include <stdbool.h>
 #endif
 
+#include <assert.h>
+
 #define ANOS_RAMFS_MAGIC 0x0101CA75
 #define ANOS_RAMFS_VERSION 10
 #define ANOS_RAMFS_FILENAME_MAX 15
@@ -43,6 +45,7 @@ typedef struct {
     uint32_t version;    /* Must equal ANOS_RAMFS_VERSION */
     uint64_t fs_size;    /* Size of this filesystem. Must be a multiple of 4k */
     uint64_t file_count; /* Number of AnosRAMFSFileHeader following header */
+    uint64_t reserved[1]; /* Pad to 32 bytes */
 } __attribute__((packed)) AnosRAMFSHeader;
 
 typedef struct {
@@ -50,6 +53,11 @@ typedef struct {
     uint64_t file_length; /* size of file, in bytes. */
     char file_name[16];   /* File-name, null-terminated. */
 } __attribute__((packed)) AnosRAMFSFileHeader;
+
+static_assert(sizeof(AnosRAMFSHeader) == 32,
+              "Size of AnosRAMFSHeader is not 32 bytes");
+static_assert(sizeof(AnosRAMFSFileHeader) == 32,
+              "Size of AnosRAMFSFileHeader is not 32 bytes");
 
 /*
   * Checks that the memory pointed to by mem is a valid ramfs.
