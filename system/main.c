@@ -25,9 +25,15 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
+#define VFS_FIND_FS_DRIVER ((1))
+
+#define FS_QUERY_OBJECT_SIZE ((1))
+#define FS_LOAD_OBJECT_PAGE ((2))
+
 extern AnosRAMFSHeader _system_ramfs_start;
 
-// static char __attribute__((aligned(0x1000))) message_buffer[0x1000];
+static char __attribute__((aligned(0x1000))) ramfs_driver_thread_stack[0x1000];
+static uint64_t ramfs_channel;
 
 static inline void banner() {
     printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION,
@@ -152,6 +158,47 @@ static void handle_file_load_page_query(uint64_t message_cookie,
     }
 }
 
+static void ramfs_driver_thread(void) {
+    while (true) {
+        uint64_t tag;
+        size_t message_size;
+        char *message_buffer = (char *)0xb0000000;
+
+        uint64_t message_cookie = anos_recv_message(
+                ramfs_channel, &tag, &message_size, message_buffer);
+
+        if (message_cookie) {
+#ifdef DEBUG_SYS_IPC
+            printf("SYSTEM::VFS received [0x%016lx] 0x%016lx (%ld "
+                   "bytes): %s\n",
+                   message_cookie, tag, message_size, message_buffer);
+#endif
+            switch (tag) {
+            case FS_QUERY_OBJECT_SIZE:
+                handle_file_size_query(message_cookie, message_size,
+                                       message_buffer);
+                break;
+            case FS_LOAD_OBJECT_PAGE:
+                handle_file_load_page_query(message_cookie, message_size,
+                                            message_buffer);
+                break;
+            default:
+#ifdef DEBUG_SYS_IPC
+                printf("WARN: Unhandled message [tag 0x%016lx] to "
+                       "SYSTEM::VFS\n",
+                       tag);
+#endif
+                anos_reply_message(message_cookie, 0);
+                break;
+            }
+#ifdef CONSERVATIVE_BUILD
+        } else {
+            printf("WARN: NULL message cookie\n");
+#endif
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     banner();
 
@@ -183,9 +230,16 @@ int main(int argc, char **argv) {
     }
 
     uint64_t vfs_channel = anos_create_channel();
+    ramfs_channel = anos_create_channel();
 
-    if (vfs_channel) {
+    if (vfs_channel && ramfs_channel) {
         if (anos_register_channel_name(vfs_channel, "SYSTEM::VFS") == 0) {
+            // set up RAMFS driver thread
+            if (!anos_create_thread(ramfs_driver_thread,
+                                    (uintptr_t)ramfs_driver_thread_stack)) {
+                printf("Failed to create RAMFS driver thread!\n");
+            }
+
             while (true) {
                 uint64_t tag;
                 size_t message_size;
@@ -201,13 +255,17 @@ int main(int argc, char **argv) {
                            message_cookie, tag, message_size, message_buffer);
 #endif
                     switch (tag) {
-                    case 1:
-                        handle_file_size_query(message_cookie, message_size,
-                                               message_buffer);
-                        break;
-                    case 2:
-                        handle_file_load_page_query(
-                                message_cookie, message_size, message_buffer);
+                    case VFS_FIND_FS_DRIVER:
+                        // find FS driver
+                        if (message_size > 5 && message_buffer[0] == 'b' &&
+                            message_buffer[1] == 'o' &&
+                            message_buffer[2] == 'o' &&
+                            message_buffer[3] == 't' &&
+                            message_buffer[4] == ':') {
+                            anos_reply_message(message_cookie, ramfs_channel);
+                        } else {
+                            anos_reply_message(message_cookie, 0);
+                        }
                         break;
                     default:
 #ifdef DEBUG_SYS_IPC
