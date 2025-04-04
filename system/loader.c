@@ -43,7 +43,7 @@ noreturn int initial_server_loader(void) {
     uint64_t sys_vfs_cookie = anos_find_named_channel("SYSTEM::VFS");
 
     if (!sys_vfs_cookie) {
-        anos_kprint("Failed to find named channel\n");
+        anos_kprint("Failed to find named VFS channel\n");
         sleep_loop();
     }
 
@@ -51,8 +51,17 @@ noreturn int initial_server_loader(void) {
 
     strcpy_hack(msg_buffer, "boot:/test_server.bin");
 
-    uint64_t exec_size = anos_send_message(sys_vfs_cookie, SYS_VFS_TAG_GET_SIZE,
-                                           22, msg_buffer);
+    uint64_t sys_ramfs_cookie =
+            anos_send_message(sys_vfs_cookie, 1, 22, msg_buffer);
+
+    if (!sys_ramfs_cookie) {
+        anos_kprint("FAILED TO FIND RAMFS DRIVER\n");
+        while (true)
+            ;
+    }
+
+    uint64_t exec_size = anos_send_message(
+            sys_ramfs_cookie, SYS_VFS_TAG_GET_SIZE, 22, msg_buffer);
 
     if (exec_size) {
         bool success = true;
@@ -65,8 +74,9 @@ noreturn int initial_server_loader(void) {
                 strcpy_hack(msg_buffer + sizeof(uint64_t),
                             "boot:/test_server.bin");
 
-                int loaded_bytes = anos_send_message(
-                        sys_vfs_cookie, SYS_VFS_TAG_LOAD_PAGE, 26, msg_buffer);
+                int loaded_bytes = anos_send_message(sys_ramfs_cookie,
+                                                     SYS_VFS_TAG_LOAD_PAGE, 26,
+                                                     msg_buffer);
 
                 if (loaded_bytes) {
                     for (int j = 0; j < loaded_bytes; j++) {
