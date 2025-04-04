@@ -56,8 +56,9 @@ noreturn int initial_server_loader(void) {
 
     if (!sys_ramfs_cookie) {
         anos_kprint("FAILED TO FIND RAMFS DRIVER\n");
-        while (true)
-            ;
+        while (true) {
+            sleep_loop();
+        }
     }
 
     uint64_t exec_size = anos_send_message(
