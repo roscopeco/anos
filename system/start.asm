@@ -35,6 +35,16 @@ _start:
 .done:
   mov   rdi, 0                              ; argc = 0
   mov   rsi, EMPTY_ARGS                     ; argv = pointer to null array
+
+  ; Push a NULL frame pointer (and misalign by 8) here. We need to misalign because we're
+  ; jumping, not calling, into main. GCC expects the stack to be misaligned by 8 bytes
+  ; on entry due to the return address - SYSV stipulates that the stack must be 16-byte
+  ; aligned _before the call instruction_.
+  ;
+  ; The NULL frame pointer will let us know when to stop walking the stack when we're
+  ; doing backtraces.
+  xor   rbp, rbp                            ; Zero RBP
+  push  rbp                                 ; Push NULL frame pointer (and misalign by 8)
   jmp   main                                ; Let's do some C...
 
 EMPTY_ARGS:
