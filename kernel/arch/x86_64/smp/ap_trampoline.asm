@@ -142,7 +142,17 @@ main64:
   xor r14, r14
   xor r15, r15
 
-  ret                                     ; And "return" to the AP entrypoint
+  ; Enable SSE here - just before we return to AP entrypoint
+  mov   rax, cr0         ; Enable SSE
+  and   ax, 0xFFFB       ; clear coprocessor emulation CR0.EM
+  or    ax, 0x2         ; set coprocessor monitoring CR0.MP
+  mov   cr0, rax
+
+  mov   rax, cr4         ; set CR4.OSFXSR and CR4.OSXMMEXCPT
+  or    ax, 3 << 9
+  mov   cr4, rax
+
+  ret                    ; And "return" to the AP entrypoint
 
 align 16
 
