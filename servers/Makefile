@@ -10,13 +10,12 @@ all: test_server/test_server.bin
 
 clean:
 	$(MAKE) -C test_server clean
-	$(RM) start.o
 	$(RM) system.ramfs
 
 $(MKRAMFS_BIN): $(MKRAMFS_DIR)
 	$(MAKE) -C $< $(MKRAMFS)
 
-test_server/test_server.bin: server_common.mk test_server/Makefile Makefile start.asm test_server/main.c
+test_server/test_server.bin: server_common.mk test_server/Makefile Makefile test_server/main.c
 	$(MAKE) -C test_server test_server.bin
 
 system_ramfs: $(MKRAMFS_BIN) test_server/test_server.bin
