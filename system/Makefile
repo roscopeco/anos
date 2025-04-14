@@ -26,7 +26,6 @@ CDEFS=
 
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(THIS_DIR)/..)
-USER_INC=$(ROOT_DIR)/$(LIBANOS_DIR)/include
 
 # System loads at 0x0000000001000000 (16MiB)
 #
@@ -36,11 +35,12 @@ SYSTEM?=system
 SYSTEM_BIN=$(SYSTEM).bin
 
 SYSTEM_OBJS=main.o																\
+			printf.o															\
+			printf_putchar.o													\
 			ramfs.o																\
 			path.o																\
 			loader.o															\
-			system_ramfs_linkable.o												\
-			$(ROOT_DIR)/$(LIBANOS_DIR)/$(LIBANOS_ARCHIVE)
+			system_ramfs_linkable.o
 
 ALL_TARGETS=$(SYSTEM_BIN)
 
@@ -64,7 +64,7 @@ clean:
 	-o $@ $<
 
 %.o: %.c
-	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -I$(USER_INC) -Iinclude $(CFLAGS) -c -o $@ $<
+	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -Iinclude $(CFLAGS) -c -o $@ $<
 
 $(SYSTEM).elf: $(SYSTEM_OBJS)
 	$(XLD) -T $(SYSTEM).ld -o $@ $^

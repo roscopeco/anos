@@ -8,12 +8,11 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#include <anos.h>
-#include <anos/printf.h>
 #include <anos/syscalls.h>
 #include <anos/types.h>
 
 #include "path.h"
+#include "printf.h"
 #include "ramfs.h"
 
 #ifndef VERSTR

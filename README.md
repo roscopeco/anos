@@ -151,7 +151,7 @@ make clean all
 This will do the following:
 
 * Build kernel ELF
-* Build the user-mode `libanos` and `System` user-mode supervisor
+* Build the `System` user-mode supervisor and test servers
 * Create a disassembly file (`.dis`)
 * Build a floppy-disk image with the (stripped) kernel and System
 * Run a bunch of unit tests

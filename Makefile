@@ -110,22 +110,16 @@ STAGE1?=stage1
 STAGE2?=stage2
 STAGE3?=kernel
 SYSTEM?=system
-LIBANOS?=libanos
 ARCH_X86_64_REALMODE?=realmode
 STAGE1_DIR?=$(STAGE1)
 STAGE2_DIR?=$(STAGE2)
 STAGE3_DIR?=$(STAGE3)
 SYSTEM_DIR?=$(SYSTEM)
-LIBANOS_DIR?=$(LIBANOS)
 STAGE1_BIN=$(STAGE1).bin
 STAGE2_BIN=$(STAGE2).bin
 STAGE3_BIN=$(STAGE3).bin
 SYSTEM_BIN=$(SYSTEM).bin
 ARCH_X86_64_REALMODE_BIN=$(ARCH_X86_64_REALMODE).bin
-LIBANOS_ARCHIVE=$(LIBANOS).a
-
-export LIBANOS_DIR
-export LIBANOS_ARCHIVE
 
 STAGE3_INC=-I$(STAGE3)/include -I$(STAGE3)/arch/$(ARCH)/include
 
@@ -300,7 +294,6 @@ build: $(ALL_TARGETS)
 
 clean:
 	rm -rf $(CLEAN_ARTIFACTS)
-	$(MAKE) -C libanos clean
 	$(MAKE) -C system clean
 	$(MAKE) -C servers clean
 	$(MAKE) -C tools clean
@@ -349,12 +342,8 @@ $(STAGE2_DIR)/$(STAGE2_BIN): $(STAGE2_DIR)/$(STAGE2).elf $(STAGE2_DIR)/$(STAGE2)
 	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
 
-# ############# Libanos ##############
-$(LIBANOS_DIR)/$(LIBANOS_ARCHIVE): $(LIBANOS_DIR)/Makefile
-	$(MAKE) -C $(LIBANOS_DIR)
-
 # ############# System  ##############
-$(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile $(LIBANOS_DIR)/$(LIBANOS_ARCHIVE)
+$(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile
 	$(MAKE) -C $(SYSTEM_DIR)
 
 $(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
