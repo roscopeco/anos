@@ -2,7 +2,7 @@ ARCH?=x86_64
 TARGET_TRIPLE?=$(ARCH)-elf-anos
 
 ASM?=nasm
-XLD?=$(TARGET_TRIPLE)-ld
+XLD?=$(TARGET_TRIPLE)-gcc
 XOBJCOPY?=$(TARGET_TRIPLE)-objcopy
 XOBJDUMP?=$(TARGET_TRIPLE)-objdump
 XCC?=$(TARGET_TRIPLE)-gcc
@@ -10,7 +10,6 @@ XAR?=$(TARGET_TRIPLE)-ar
 XRANLIB?=$(TARGET_TRIPLE)-ranlib
 ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
-		-ffreestanding -mno-red-zone -mno-mmx -mno-sse -mno-sse2 				\
 		-fno-asynchronous-unwind-tables 										\
 		-mcmodel=large															\
 		-g																		\
@@ -36,8 +35,7 @@ SYSTEM_ADDR?=0x01000000
 SYSTEM?=system
 SYSTEM_BIN=$(SYSTEM).bin
 
-SYSTEM_OBJS=start.o																\
-			main.o																\
+SYSTEM_OBJS=main.o																\
 			ramfs.o																\
 			path.o																\
 			loader.o															\
