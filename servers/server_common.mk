@@ -9,7 +9,6 @@ XCC?=$(TARGET_TRIPLE)-gcc
 XAR?=$(TARGET_TRIPLE)-ar
 ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
-		-mno-mmx -mno-sse -mno-sse2 											\
 		-fno-asynchronous-unwind-tables 										\
 		-g																		\
 		-O3																		\
