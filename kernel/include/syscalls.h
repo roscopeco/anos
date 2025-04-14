@@ -28,13 +28,11 @@ typedef enum {
     SYSCALL_BAD_NAME = -5,
 } SyscallResult;
 
-// TODO this is duplicated into libanos headers...
 typedef struct {
     uint64_t physical_total;
     uint64_t physical_avail;
 } AnosMemInfo;
 
-// TODO this is duplicated into libanos headers...
 typedef struct {
     uintptr_t start;
     uint64_t len_bytes;

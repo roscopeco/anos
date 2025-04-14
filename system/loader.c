@@ -11,9 +11,9 @@
 #include <stdbool.h>
 #include <stdnoreturn.h>
 
-#include <anos.h>
-#include <anos/printf.h>
 #include <anos/syscalls.h>
+
+#include "printf.h"
 
 #ifndef NULL
 #define NULL (((void *)0))
