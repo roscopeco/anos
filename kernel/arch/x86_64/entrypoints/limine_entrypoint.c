@@ -283,7 +283,7 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
     //
     debugterm_init((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
 
-    banner();
+    banner("x86_64");
 
     init_kernel_gdt();
     install_interrupts();

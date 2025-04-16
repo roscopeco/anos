@@ -117,6 +117,8 @@ of this project.
 
 ### Building
 
+#### x86_64
+
 Everything is built with `make`. The 
 [anos toolchain](https://github.com/roscopeco/anos-toolchain) 
 is **required**. Ensure you download, build and install the 
@@ -160,6 +162,33 @@ You can also choose to just run `make test` if you want to run the
 tests. If you have `LCOV` installed, you can also generate 
 coverage reports with `make coverage` - these will be output in
 the `gcov/kernel` directory as HTML.
+
+#### RISC-V
+
+> [!WARNING]
+> RISC-V support is _very_ much in its infancy right now - it's 
+> basically the scaffolding and enough code to boot into C from
+> limine, and that's all.
+>
+> It only works on a qemu that's setup weirdly (e.g. with VGA)
+> and will not work on any real hardware at all yet. It also 
+> has basically zero features beyond booting and printing. It
+> doesn't even set up paging or start additional harts.
+>
+> Unless you're hacking on it, stick with x86_64 for now.
+
+Currently, we have no custom toolchain, but one isn't needed
+since the RISC-V port is far away from booting to SYSTEM 
+right now.
+
+You'll want to have the `riscv64-elf-` binutils and GCC toolchains
+installed. Then run:
+
+```shell
+ARCH=riscv64 make clean qemu-uefi
+```
+
+You'll obviously also need `qemu-system-riscv64` installed.
 
 ### Running
 

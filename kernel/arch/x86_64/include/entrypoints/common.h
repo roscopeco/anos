@@ -12,6 +12,6 @@
 
 void init_kernel_gdt(void);
 void install_interrupts();
-void banner(void);
+void banner(char *arch);
 
 #endif //__ANOS_KERNEL_ENTRYPOINTS_COMMON_H

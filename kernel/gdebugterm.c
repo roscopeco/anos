@@ -59,7 +59,7 @@ static uint32_t const colors[] = {
         0x00aa0000, // COLOR_RED
         0x00aa00aa, // COLOR_MAGENTA
         0x00aa5500, // COLOR_YELLOW
-        0x00eeeeee, // COLOR_WHITE
+        0x00bbbbbb, // COLOR_WHITE
         0x00707070, // COLOR_BRIGHT_BLACK
         0x000000ee, // COLOR_BRIGHT_BLUE
         0x0000ee00, // COLOR_BRIGHT_GREEN

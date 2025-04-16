@@ -20,7 +20,7 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
-static char *MSG = VERSION "\n";
+static char *MSG = VERSION;
 
 // Replace the bootstrap 32-bit segments with 64-bit user segments.
 //
@@ -55,7 +55,7 @@ void init_kernel_gdt(void) {
 
 void install_interrupts() { idt_install(0x08); }
 
-void banner(void) {
+void banner(char *arch) {
     debugattr(0x0B);
     debugstr("STAGE");
     debugattr(0x03);
@@ -64,5 +64,11 @@ void banner(void) {
     debugstr(" #");
     debugattr(0x0F);
     debugstr(MSG);
+    debugattr(0x08);
+    debugstr(" [");
+    debugattr(0x07);
+    debugstr(arch);
+    debugattr(0x08);
+    debugstr("]\n");
     debugattr(0x07);
 }
