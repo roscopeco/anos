@@ -144,7 +144,11 @@ kernel/tests/build/arch/riscv64/vmm:
 kernel/tests/build/%.o: kernel/%.c $(TEST_BUILD_DIRS)
 	$(CC) -DUNIT_TESTS $(KERNEL_TEST_CFLAGS) -c -o $@ $<
 
-ifeq ($(HOST_ARCH),i386)
+ifeq ($(HOST_ARCH),i386)	# macOS
+kernel/tests/build/%.o: kernel/%.asm $(TEST_BUILD_DIRS)
+	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
+else
+ifeq ($(HOST_ARCH),x86_64)	# Linux
 kernel/tests/build/%.o: kernel/%.asm $(TEST_BUILD_DIRS)
 	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
 else
@@ -155,6 +159,7 @@ else
 ifeq ($(HOST_ARCH),riscv64)
 kernel/tests/build/%.o: kernel/%.asm $(TEST_BUILD_DIRS)
 	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
+endif
 endif
 endif
 endif
@@ -287,7 +292,16 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/ipc/named										\
 			kernel/tests/build/structs/shift_array
 
-ifeq ($(HOST_ARCH),i386)
+ifeq ($(HOST_ARCH),i386)	# macOS
+ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
+			kernel/tests/build/arch/x86_64/vmm/vmmapper							\
+			kernel/tests/build/arch/x86_64/structs/list							\
+			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
+			kernel/tests/build/arch/x86_64/process/address_space_init			\
+			kernel/tests/build/arch/x86_64/process/address_space_create			\
+			kernel/tests/build/arch/x86_64/std_routines
+else
+ifeq ($(HOST_ARCH),x86_64)	# Linux
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/vmm/vmmapper							\
 			kernel/tests/build/arch/x86_64/structs/list							\
@@ -307,6 +321,7 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 else
 ifeq ($(HOST_ARCH),riscv64)
 ALL_TESTS+= kernel/tests/build/arch/riscv64/spinlock
+endif
 endif
 endif
 endif
