@@ -18,6 +18,7 @@
 #include "machine.h"
 #include "pmm/config.h"
 #include "pmm/pagealloc.h"
+#include "sbi.h"
 #include "std/string.h"
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
@@ -660,6 +661,8 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
     //
 
     debugterm_reinit((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
+
+    sbi_debug_info();
 
     debug_memmap_limine(&static_memmap);
 

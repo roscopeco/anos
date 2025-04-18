@@ -45,7 +45,8 @@ else
 HOST_OBJFORMAT=elf64
 endif
 
-# The following C defines are recognised by stage3 and enable various things
+# The following C defines are recognised by stage3 and enable various things. Some
+# of them are architecture-dependent.
 #
 #	CONSERVATIVE_BUILD		Will build a (slow) kernel with various invariant checks
 #							You should pass this to the make command if you want it.
@@ -78,6 +79,7 @@ endif
 #	DEBUG_TASK_SWITCH		Enable debugging info when switching tasks
 #	VERY_NOISY_TASK_SWITCH	Enable *lots* of debugging info when switching tasks (requires DEBUG_TASK_SWITCH)
 #	DEBUG_CHANNEL_IPC		Enable debugging info for IPC channels
+#	DEBUG_SBI				Enable debugging of the Supervisor Binary Interface
 #
 # These ones enable some specific feature tests
 #
@@ -226,6 +228,7 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 STAGE3_ARCH_RISCV64_DIR=$(STAGE3_DIR)/arch/riscv64
 STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_entrypoint.o	\
+					$(STAGE3_ARCH_RISCV64_DIR)/sbi.o							\
 					$(STAGE3_ARCH_RISCV64_DIR)/machine.o						\
 					$(STAGE3_ARCH_RISCV64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper.o					\
@@ -512,7 +515,14 @@ debug-qemu: _no-bios-error
 debug-qemu-start: _no-bios-error
 endif
 
+ifeq ($(ARCH),riscv64)
+uefi/riscv64/edk2/RISCV_VIRT_VARS.fd: 
+	cp $@.template $@
+
+qemu-uefi: $(UEFI_IMG) | uefi/riscv64/edk2/RISCV_VIRT_VARS.fd
+else
 qemu-uefi: $(UEFI_IMG)
+endif
 	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_UEFI_OPTS)
 
 debug-qemu-uefi-start: $(UEFI_IMG)
