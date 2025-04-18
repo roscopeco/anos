@@ -24,7 +24,8 @@ static MemoryBlock *stack_base(MemoryRegion *region) {
 static MunitResult test_init_empty(const MunitParameter params[], void *param) {
     Limine_MemMap map = {.entry_count = 0};
 
-    MemoryRegion *region = page_alloc_init_limine(&map, 0, region_buffer);
+    MemoryRegion *region =
+            page_alloc_init_limine(&map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -40,7 +41,7 @@ static MunitResult test_init_all_invalid(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -57,7 +58,7 @@ static MunitResult test_init_all_reserved(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -74,7 +75,7 @@ static MunitResult test_init_all_acpi(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -91,7 +92,7 @@ static MunitResult test_init_all_acpi_nvs(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -108,7 +109,7 @@ static MunitResult test_init_all_illegal(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -127,7 +128,7 @@ static MunitResult test_init_zero_length(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -147,7 +148,7 @@ static MunitResult test_init_too_small(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0);
 
     // empty stack
@@ -167,7 +168,7 @@ static MunitResult test_init_one_available(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0x100000);
 
     // One entry on stack
@@ -190,7 +191,7 @@ static MunitResult test_init_unaligned_zero(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0x0);
 
     // empty stack
@@ -211,7 +212,7 @@ static MunitResult test_init_unaligned_one(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0x1000);
 
     // One entry on stack
@@ -236,7 +237,7 @@ static MunitResult test_init_some_available(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(2);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0x100000);
 
     // One entry on stack
@@ -261,7 +262,7 @@ static MunitResult test_init_1M_at_zero(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(2);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
 
     munit_assert_uint64(region->size, ==, 0x100000);
     munit_assert_uint64(region->free, ==, 0x100000);
@@ -286,7 +287,7 @@ static MunitResult test_init_large_region(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
 
     munit_assert_uint64(region->size, ==, 0x10000000);
     munit_assert_uint64(region->free, ==, 0x10000000);
@@ -316,7 +317,7 @@ static MunitResult test_init_two_regions(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(3);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
 
     munit_assert_uint64(region->size, ==, 0x00120000);
     munit_assert_uint64(region->free, ==, 0x00120000);
@@ -350,7 +351,7 @@ static MunitResult test_init_two_large_regions(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(2);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
 
     munit_assert_uint64(region->size, ==, 0x20000000);
     munit_assert_uint64(region->free, ==, 0x20000000);
@@ -384,7 +385,7 @@ test_init_two_noncontig_regions(const MunitParameter params[], void *param) {
     Limine_MemMap *map = create_mem_map(2);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
 
     munit_assert_uint64(region->size, ==, 0x20000000);
     munit_assert_uint64(region->free, ==, 0x20000000);
@@ -418,7 +419,7 @@ static MunitResult test_init_two_unequal_regions(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(2);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
 
     munit_assert_uint64(region->size, ==, 0x10100000);
     munit_assert_uint64(region->free, ==, 0x10100000);
@@ -438,8 +439,8 @@ static MunitResult test_init_two_unequal_regions(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_init_one_executable(const MunitParameter params[],
-                                            void *param) {
+static MunitResult
+test_init_one_executable_ignored(const MunitParameter params[], void *param) {
     Limine_MemMapEntry entry = {.type = LIMINE_MEMMAP_EXECUTABLE_AND_MODULES,
                                 .base = 0x0000000000000000,
                                 .length = 0x0000000000100000};
@@ -448,7 +449,27 @@ static MunitResult test_init_one_executable(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
+    munit_assert_uint64(region->size, ==, 0x0);
+
+    // Empty stack
+    munit_assert_ptr_equal(region->sp, stack_base(region));
+
+    free(map);
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_init_one_executable_reclaimed(const MunitParameter params[], void *param) {
+    Limine_MemMapEntry entry = {.type = LIMINE_MEMMAP_EXECUTABLE_AND_MODULES,
+                                .base = 0x0000000000000000,
+                                .length = 0x0000000000100000};
+
+    Limine_MemMapEntry *entries[1] = {&entry};
+    Limine_MemMap *map = create_mem_map(1);
+    map->entries = entries;
+
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, true);
     munit_assert_uint64(region->size, ==, 0x100000);
 
     // One entry on stack
@@ -471,7 +492,7 @@ test_init_one_bootloader_reclaimable(const MunitParameter params[],
     Limine_MemMap *map = create_mem_map(1);
     map->entries = entries;
 
-    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer);
+    MemoryRegion *region = page_alloc_init_limine(map, 0, region_buffer, false);
     munit_assert_uint64(region->size, ==, 0x100000);
 
     // One entry on stack
@@ -527,8 +548,10 @@ static MunitTest test_suite_tests[] = {
          setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/init_two_unequal_regions", test_init_two_unequal_regions,
          setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/init_one_avail", test_init_one_executable, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_one_exec_ignore", test_init_one_executable_ignored,
+         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_one_exec_reclaimed", test_init_one_executable_reclaimed,
+         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/init_one_avail", test_init_one_bootloader_reclaimable, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
