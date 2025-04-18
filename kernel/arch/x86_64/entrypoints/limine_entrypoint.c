@@ -288,10 +288,10 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
 
     pagetables_init();
 
-    physical_region = page_alloc_init_limine(&static_memmap, PMM_PHYS_BASE,
-                                             STATIC_PMM_VREGION);
-
     debug_memmap_limine(&static_memmap);
+
+    physical_region = page_alloc_init_limine(&static_memmap, PMM_PHYS_BASE,
+                                             STATIC_PMM_VREGION, true);
 
     bsp_kernel_entrypoint(((uintptr_t)&static_rsdp) - STATIC_KERNEL_SPACE);
 }

@@ -1,14 +1,15 @@
 /*
- * stage3 - Kernel page table initialisation
+ * stage3 - Kernel page table initialisation for x86_64
  * anos - An Operating System
  *
  * Now we're into the kernel proper, we no longer need the identity
- * mapping that was set up by the bootloader. We also need to set
+ * mapping that was set up by the early-boot. We also need to set
  * up some mappings to support the PMM stack and other kernel
  * things.
  *
  * This expects that the page-tables are currently the mimimal ones
- * set up by the bootloader (see stage2/init_pagetables.asm).
+ * set up by the bootloader (see stage2/init_pagetables.asm) or our
+ * UEFI entrypoint code (arch/x86_64/entrypoints/limine_entrypoint.c).
  *
  * This doesn't move (or replace entirely) the tables - the PML4,
  * PDPT and PD for the top 2GiB will stay where they are. They

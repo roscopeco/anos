@@ -13,4 +13,4 @@
 void init_kernel_gdt(void);
 void install_interrupts();
 
-#endif //__ANOS_KERNEL_ENTRYPOINTS_COMMON_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_ENTRYPOINTS_COMMON_H

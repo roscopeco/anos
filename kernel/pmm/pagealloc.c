@@ -24,6 +24,10 @@
 #include "printdec.h"
 #include "printhex.h"
 
+#define XARCH(arch) #arch
+#define STRARCH(xstrarch) XARCH(xstrarch)
+#define ARCH_STR STRARCH(ARCH)
+
 #define C_DEBUGSTR debugstr
 #define C_PRINTHEX64 printhex64
 #define C_PRINTDEC printdec
@@ -129,7 +133,8 @@ MemoryRegion *page_alloc_init_e820(E820h_MemMap *memmap, uint64_t managed_base,
 }
 
 MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
-                                     uint64_t managed_base, void *buffer) {
+                                     uint64_t managed_base, void *buffer,
+                                     bool reclaim_exec_mods) {
     MemoryRegion *region = (MemoryRegion *)buffer;
     spinlock_init(&region->lock);
     region->sp = (MemoryBlock *)(region + 1);
@@ -152,6 +157,19 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
             // TODO make sure this is actually safe,
             // i.e. ACPI tables are in ACPI_RESERVED?
             case LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE:
+
+                if (!reclaim_exec_mods &&
+                    entry->type == LIMINE_MEMMAP_EXECUTABLE_AND_MODULES) {
+                    C_DEBUGSTR(" ====> IGNORED available region ");
+                    C_PRINTHEX64(entry->base, debugchar);
+                    C_DEBUGSTR(" of length ");
+                    C_PRINTDEC(entry->length, debugchar);
+                    C_DEBUGSTR(" [type ");
+                    C_PRINTDEC(entry->type, debugchar);
+                    C_DEBUGSTR("] - EXECUTABLE_AND_MODULES reclaim disabled "
+                               "on " ARCH_STR "\n");
+                    break;
+                }
 
                 C_DEBUGSTR(" ====> Mapping available region ");
                 C_PRINTHEX64(entry->base, debugchar);

@@ -60,9 +60,7 @@
  */
 #define PG_PAGESIZE ((1 << 7))
 
-// Low physical memory used must be mapped here, the
-// mapper expects to be able to access pages
-// under this...
+// This is where we map the PMM region(s)
 #define STATIC_KERNEL_SPACE ((0xFFFFFFFF80000000))
 
 // Just used to page-align addresses to their containing page

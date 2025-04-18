@@ -5,14 +5,18 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+#define ANOS_NO_DECL_REGIONS
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdnoreturn.h>
 
 #include "debugprint.h"
+#include "init_pagetables.h"
 #include "kdrivers/cpu.h"
 #include "kprintf.h"
 #include "machine.h"
+#include "pmm/config.h"
 #include "pmm/pagealloc.h"
 #include "std/string.h"
 #include "vmm/vmconfig.h"
@@ -155,10 +159,17 @@ static Limine_MemMap static_memmap;
 static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
 static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
 
+/* Static initial pagetables */
 static uint64_t new_pml4[512] __attribute__((aligned(4096)));
 static uint64_t new_pdpt[512] __attribute__((aligned(4096)));
 static uint64_t new_pd[512] __attribute__((aligned(4096)));
 static uint64_t new_pt[512] __attribute__((aligned(4096)));
+
+static uint64_t pmm_pd[512] __attribute__((aligned(4096)));
+static uint64_t pmm_pt[512] __attribute__((aligned(4096)));
+
+/* Bootstrap page for the PMM */
+static uint64_t pmm_bootstrap_page[512] __attribute__((aligned(4096)));
 
 /* Globals */
 MemoryRegion *physical_region;
@@ -543,14 +554,6 @@ noreturn void bsp_kernel_entrypoint_limine() {
         halt_and_catch_fire();
     }
 
-    // Set up the initial tables
-    for (int i = 0; i < 512; i++) {
-        new_pml4[i] = 0; // zero out the PML4
-        new_pdpt[i] = 0; // ... and the PDPT
-        new_pd[i] = 0;   // ... as well as the PD
-        new_pt[i] = 0;   // ... and the PT
-    }
-
     new_pml4[0x1ff] =
             (pdpt_phys >> 2) | PG_PRESENT; // Set up the entries we need for
     new_pdpt[0x1fe] =
@@ -566,6 +569,41 @@ noreturn void bsp_kernel_entrypoint_limine() {
             ((fb_phys + 0x400000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
     new_pd[0x13] =
             ((fb_phys + 0x600000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+
+    // setup PMM stack area and bootstrap page
+    uintptr_t pmm_pd_phys, pmm_pt_phys, pmm_bootstrap_phys;
+
+    if (vmm_table_walk_mode((uintptr_t)pmm_pd, cpu_satp_mode(satp),
+                            cpu_satp_to_root_table_phys(satp),
+                            limine_hhdm_request.response->offset, &page)) {
+        pmm_pd_phys = page.phys_addr;
+    } else {
+        kprintf("Failed to detemine PMM PD physical address; Halting\n");
+        halt_and_catch_fire();
+    }
+    if (vmm_table_walk_mode((uintptr_t)pmm_pt, cpu_satp_mode(satp),
+                            cpu_satp_to_root_table_phys(satp),
+                            limine_hhdm_request.response->offset, &page)) {
+        pmm_pt_phys = page.phys_addr;
+    } else {
+        kprintf("Failed to detemine PMM PD physical address; Halting\n");
+        halt_and_catch_fire();
+    }
+    if (vmm_table_walk_mode((uintptr_t)pmm_bootstrap_page, cpu_satp_mode(satp),
+                            cpu_satp_to_root_table_phys(satp),
+                            limine_hhdm_request.response->offset, &page)) {
+        pmm_bootstrap_phys = page.phys_addr;
+    } else {
+        kprintf("Failed to detemine PMM PD physical address; Halting\n");
+        halt_and_catch_fire();
+    }
+
+    // ... map bootstrap page
+    pmm_pd[0] = (pmm_pt_phys >> 2) | PG_PRESENT;
+    pmm_pt[0] = (pmm_bootstrap_phys >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+
+    // ... then hook this into the kernel-space mapping
+    new_pdpt[0] = (pmm_pd_phys >> 2) | PG_PRESENT;
 
     // Copy BSS mappings....
     for (uintptr_t page_virt = (uintptr_t)&_kernel_vma_start;
@@ -623,7 +661,28 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
 
     debugterm_reinit((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
 
-    kprintf("This is as far as we go right now...\n");
+    debug_memmap_limine(&static_memmap);
+
+    physical_region = page_alloc_init_limine(&static_memmap, 0,
+                                             STATIC_PMM_VREGION, false);
+
+    uintptr_t test_page = page_alloc(physical_region);
+
+#ifdef DEBUG_PMM
+    kprintf("\n\nphysical_region allocated at %p : %ld bytes total / %ld bytes "
+            "free\n",
+            physical_region, physical_region->size, physical_region->free);
+    if (test_page & 0xfff) {
+        kprintf("Test physical page alloc: failed to allocate test physical "
+                "page!\n");
+        page_free(physical_region, test_page);
+    } else {
+        kprintf("Test physical page alloc: allocated at 0x%016lx [phys]\n",
+                test_page);
+    }
+#endif
+
+    kprintf("\n\nThis is as far as we go right now...\n");
 
     halt_and_catch_fire();
 }

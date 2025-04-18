@@ -13,9 +13,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// Low physical memory used must be mapped here, the
-// mapper expects to be able to access pages
-// under this...
+// This is where we map the PMM region(s)
 static const uintptr_t STATIC_KERNEL_SPACE = 0xFFFFFFFF80000000;
 
 // Direct mapping base address (from MemoryMap.md)

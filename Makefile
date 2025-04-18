@@ -220,6 +220,7 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/spinlock.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/panic_asm.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/panic.o							\
+					$(STAGE3_ARCH_X86_64_DIR)/debugmadt.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
 STAGE3_ARCH_RISCV64_DIR=$(STAGE3_DIR)/arch/riscv64
@@ -242,7 +243,7 @@ endif
 
 ifeq ($(ARCH),x86_64)
 STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
-			$(STAGE3_DIR)/debuginfo.o											\
+			$(STAGE3_DIR)/debugmemmap.o											\
 			$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/isr_handlers.o										\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
@@ -272,6 +273,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 else
 ifeq ($(ARCH),riscv64)
 STAGE3_OBJS=$(STAGE3_DIR)/kprintf.o												\
+			$(STAGE3_DIR)/debugmemmap.o											\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_ARCH_OBJS)
 endif
