@@ -15,6 +15,8 @@ static char *video_buffer;
 
 #define IGNORED ((0))
 
+bool banner() { return true; }
+
 static MunitResult test_init_empty(const MunitParameter params[], void *param) {
     debugterm_init(video_buffer, IGNORED, IGNORED);
 

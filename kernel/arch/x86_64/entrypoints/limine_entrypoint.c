@@ -255,21 +255,21 @@ noreturn void bsp_kernel_entrypoint_limine() {
         new_pml4[i] = 0; // zero out the PML4
         new_pdpt[i] = 0; // ... and the PDPT
         new_pd[i] = 0;   // ... as well as the PD
-        new_pt[i] = (i * VM_PAGE_SIZE) | PRESENT |
-                    WRITE; // ... and map low mem into the PT
+        new_pt[i] = (i * VM_PAGE_SIZE) | PG_PRESENT |
+                    PG_WRITE; // ... and map low mem into the PT
     }
     new_pml4[0x1ff] =
-            PDP_START | PRESENT | WRITE; // Set up the entries we need for
+            PDP_START | PG_PRESENT | PG_WRITE; // Set up the entries we need for
     new_pdpt[0x1fe] =
-            PD_START | PRESENT | WRITE; // the mappings in kernel space...
-    new_pd[0] = PT_START | PRESENT | WRITE;
+            PD_START | PG_PRESENT | PG_WRITE; // the mappings in kernel space...
+    new_pd[0] = PT_START | PG_PRESENT | PG_WRITE;
 
-    // map framebuffer, as two 2MiB large pages at 0xffffffff82000000 - 0xffffffff82400000
+    // map framebuffer, as four 2MiB large pages at 0xffffffff82000000 - 0xffffffff827fffff
     // TODO write-combining!
-    new_pd[0x10] = fb_phys | PRESENT | WRITE | PAGESIZE;
-    new_pd[0x11] = (fb_phys + 0x200000) | PRESENT | WRITE | PAGESIZE;
-    new_pd[0x12] = (fb_phys + 0x400000) | PRESENT | WRITE | PAGESIZE;
-    new_pd[0x13] = (fb_phys + 0x600000) | PRESENT | WRITE | PAGESIZE;
+    new_pd[0x10] = fb_phys | PG_PRESENT | PG_WRITE | PG_PAGESIZE;
+    new_pd[0x11] = (fb_phys + 0x200000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE;
+    new_pd[0x12] = (fb_phys + 0x400000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE;
+    new_pd[0x13] = (fb_phys + 0x600000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE;
 
     bootstrap_trampoline(fb_width, fb_height, KERNEL_INIT_STACK_TOP, PM4_START,
                          bootstrap_continue);
@@ -283,17 +283,15 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
     //
     debugterm_init((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
 
-    banner();
-
     init_kernel_gdt();
     install_interrupts();
 
     pagetables_init();
 
-    physical_region = page_alloc_init_limine(&static_memmap, PMM_PHYS_BASE,
-                                             STATIC_PMM_VREGION);
-
     debug_memmap_limine(&static_memmap);
+
+    physical_region = page_alloc_init_limine(&static_memmap, PMM_PHYS_BASE,
+                                             STATIC_PMM_VREGION, true);
 
     bsp_kernel_entrypoint(((uintptr_t)&static_rsdp) - STATIC_KERNEL_SPACE);
 }

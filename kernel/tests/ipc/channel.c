@@ -129,6 +129,10 @@ static MunitResult test_channel_create_destroy(const MunitParameter params[],
     return MUNIT_OK;
 }
 
+// This needs to be page-aligned, and gcc (13, Linux) won't do that
+// if it's on the stack apparently...
+uint64_t __attribute__((aligned(0x1000))) buf;
+
 /* Test ipc_channel_recv when a message is already queued.
     We manually allocate an IpcMessage and insert it into the channel queue. */
 static MunitResult test_recv_with_queued_message(const MunitParameter params[],
@@ -158,7 +162,6 @@ static MunitResult test_recv_with_queued_message(const MunitParameter params[],
     spinlock_unlock(channel->queue_lock);
 
     uint64_t tag;
-    uint64_t __attribute__((aligned(0x1000))) buf;
     size_t size;
 
     uint64_t ret_cookie = ipc_channel_recv(channel_cookie, &tag, &size, &buf);

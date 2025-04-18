@@ -59,7 +59,7 @@ bool address_space_init(void) {
     PageTable *pml4 = vmm_recursive_find_pml4();
 
     for (int i = KERNEL_BEGIN_ENTRY; i < 512; i++) {
-        if ((pml4->entries[i] & PRESENT) == 0) {
+        if ((pml4->entries[i] & PG_PRESENT) == 0) {
 
             // Allocate a page for this PDPT
             uintptr_t new_pdpt = page_alloc(physical_region);
@@ -69,7 +69,7 @@ bool address_space_init(void) {
             }
 
             // Set up the new PDPT
-            pml4->entries[i] = new_pdpt | WRITE | PRESENT;
+            pml4->entries[i] = new_pdpt | PG_WRITE | PG_PRESENT;
 
             // Get a vaddr for this new table and invalidate TLB (just in case)
             uint64_t *vaddr = (uint64_t *)vmm_recursive_find_pdpt(i);
@@ -141,7 +141,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     // Map in the new one to the "other" spot
     uintptr_t saved_other = current_pml4->entries[RECURSIVE_ENTRY_OTHER];
     current_pml4->entries[RECURSIVE_ENTRY_OTHER] =
-            new_pml4_phys | WRITE | PRESENT;
+            new_pml4_phys | PG_WRITE | PG_PRESENT;
 
     printhex64(saved_other, debugchar);
     debugstr("\n");
@@ -173,9 +173,10 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     // functions always need the other table's 'other' recursive slot to be mapped
     // when working with an address space as the 'other' address space.
     //
-    new_pml4_virt->entries[RECURSIVE_ENTRY] = new_pml4_phys | WRITE | PRESENT;
+    new_pml4_virt->entries[RECURSIVE_ENTRY] =
+            new_pml4_phys | PG_WRITE | PG_PRESENT;
     new_pml4_virt->entries[RECURSIVE_ENTRY_OTHER] =
-            new_pml4_phys | WRITE | PRESENT;
+            new_pml4_phys | PG_WRITE | PG_PRESENT;
 
     // copy kernel space
     for (int i = KERNEL_BEGIN_ENTRY; i < 512; i++) {
@@ -202,7 +203,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
                 // TODO what if this fails (to alloc table pages)?
                 //
                 vmm_map_page_in(new_pml4_virt, ptr, shared_phys,
-                                PRESENT | USER | COPY_ON_WRITE);
+                                PG_PRESENT | PG_USER | PG_COPY_ON_WRITE);
 
                 // TODO pmm_free_shareable(page) needs implementing to check this and handle appropriately...
                 //
@@ -242,7 +243,8 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
             return 0;
         }
 
-        vmm_map_page_in(new_pml4_virt, ptr, stack_page, WRITE | PRESENT | USER);
+        vmm_map_page_in(new_pml4_virt, ptr, stack_page,
+                        PG_WRITE | PG_PRESENT | PG_USER);
     }
 
     // Zero out other recursive

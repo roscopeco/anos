@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include "banner.h"
 #include "kdrivers/serial.h"
 
 #ifdef SERIAL_TERMINAL
@@ -17,12 +18,22 @@
 
 static SerialPort port;
 
-void debugterm_init(char *vram_addr, int unused1, int unused2) {
+bool debugterm_reinit(char *vram_addr, int unused1, int unused2) {
     if (serial_init(SERIAL_PORT_COM1)) {
         port = SERIAL_PORT_COM1;
     } else {
         port = SERIAL_PORT_DUMMY;
     }
+    return true;
+}
+
+bool debugterm_init(char *vram_addr, int unused1, int unused2) {
+    if (debugterm_reinit(vram_addr, unused1, unused2)) {
+        banner();
+        return true;
+    }
+
+    return false;
 }
 
 void debugchar(char chr) {
@@ -63,8 +74,18 @@ static uint8_t logical_x = 0;
 static uint8_t logical_y = 0;
 static uint8_t attr = 0x07;
 
-void debugterm_init(char *vram_addr, int unused1, int unused2) {
+bool debugterm_reinit(char *vram_addr, int unused1, int unused2) {
     vram = vram_addr;
+    return true;
+}
+
+bool debugterm_init(char *vram_addr, int unused1, int unused2) {
+    if (debugterm_reinit(vram_addr, unused1, unused2)) {
+        banner();
+        return true;
+    }
+
+    return false;
 }
 
 static inline uint16_t scroll() {

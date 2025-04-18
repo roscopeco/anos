@@ -1,7 +1,21 @@
 ARCH?=x86_64
-TARGET_TRIPLE?=$(ARCH)-elf-anos
 
+# We don't yet have a custom riscv toolchain, which means
+#
+#  * We need to hack the triple here to use the baseline one
+#  * We can't build system or any usermode stuff for riscv...
+#
+ifeq ($(ARCH),x86_64)
+TARGET_TRIPLE?=$(ARCH)-elf-anos
 ASM?=nasm
+else
+ifeq ($(ARCH),riscv64)
+# TODO remove this once toolchain is up :)
+TARGET_TRIPLE?=$(ARCH)-elf
+ASM?=riscv64-elf-gcc
+endif
+endif
+
 XLD?=$(TARGET_TRIPLE)-ld
 XOBJCOPY?=$(TARGET_TRIPLE)-objcopy
 XOBJDUMP?=$(TARGET_TRIPLE)-objdump
@@ -10,11 +24,16 @@ XCC?=$(TARGET_TRIPLE)-gcc
 BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23	\
-		-ffreestanding -fno-asynchronous-unwind-tables -mcmodel=kernel			\
-		-g -O3
+		-ffreestanding -fno-asynchronous-unwind-tables							\
+		-g -O3																	\
+		-DARCH=$(ARCH)
 
 ifeq ($(ARCH),x86_64)
-CFLAGS+=-mno-red-zone -mno-mmx -mno-sse -mno-sse2
+CFLAGS+=-mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel
+else
+ifeq ($(ARCH),riscv64)
+CFLAGS+=-mcmodel=medany -DRISCV_SV48
+endif
 endif
 
 # Setup host stuff for tests etc.
@@ -26,7 +45,8 @@ else
 HOST_OBJFORMAT=elf64
 endif
 
-# The following C defines are recognised by stage3 and enable various things
+# The following C defines are recognised by stage3 and enable various things. Some
+# of them are architecture-dependent.
 #
 #	CONSERVATIVE_BUILD		Will build a (slow) kernel with various invariant checks
 #							You should pass this to the make command if you want it.
@@ -59,6 +79,7 @@ endif
 #	DEBUG_TASK_SWITCH		Enable debugging info when switching tasks
 #	VERY_NOISY_TASK_SWITCH	Enable *lots* of debugging info when switching tasks (requires DEBUG_TASK_SWITCH)
 #	DEBUG_CHANNEL_IPC		Enable debugging info for IPC channels
+#	DEBUG_SBI				Enable debugging of the Supervisor Binary Interface
 #
 # These ones enable some specific feature tests
 #
@@ -85,16 +106,29 @@ endif
 #	NO_USER_GS				Disable user-mode GS swap at kernel entry/exit (debugging only)
 #	NAIVE_MEMCPY			Use a naive (byte-wise only) memcpy
 #	TARGET_CPU_USE_SLEEPERS	Consider the size of the sleep queue as well as run queues when selecting a target CPU
+#	NO_BANNER				Disable the startup banner
 #
 # Additionally:
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS
+CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS
 
+ifeq ($(ARCH),x86_64)
 QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
 QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
-QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/ovmf/OVMF_VARS-pure-efi.fd
+QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
+else
+ifeq ($(ARCH),riscv64)
+QEMU_BASEOPTS=-M virt,pflash0=pflash0,pflash1=pflash1,acpi=off -m 8G -cpu rv64,sv57=on										\
+    -device VGA																												\
+    -device qemu-xhci																										\
+    -device usb-kbd
+QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),format=raw,id=hd0																	\
+	-blockdev node-name=pflash0,driver=file,read-only=on,filename=uefi/riscv64/edk2/RISCV_VIRT_CODE.fd						\
+    -blockdev node-name=pflash1,driver=file,filename=uefi/riscv64/edk2/RISCV_VIRT_VARS.fd
+endif
+endif
 QEMU_DEBUG_OPTS=-gdb tcp::9666 -S -monitor telnet:127.0.0.1:1234,server,nowait
 
 ifeq ($(SERIAL_TERMINAL),true)
@@ -167,6 +201,7 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/pagefault.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/init_pagetables.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/pmm/sys_asm.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/vmm/vmmapper.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/acpitables.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/gdt.o								\
 					$(STAGE3_ARCH_X86_64_DIR)/general_protection_fault.o		\
@@ -187,24 +222,34 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/spinlock.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/panic_asm.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/panic.o							\
+					$(STAGE3_ARCH_X86_64_DIR)/debugmadt.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
+
+STAGE3_ARCH_RISCV64_DIR=$(STAGE3_DIR)/arch/riscv64
+STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
+					$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_entrypoint.o	\
+					$(STAGE3_ARCH_RISCV64_DIR)/sbi.o							\
+					$(STAGE3_ARCH_RISCV64_DIR)/machine.o						\
+					$(STAGE3_ARCH_RISCV64_DIR)/std_routines.o					\
+					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper.o					\
+					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o
 
 ifeq ($(ARCH),x86_64)
 STAGE3_ARCH_OBJS=$(STAGE3_OBJS_X86_64)
 else
 ifeq ($(ARCH),riscv64)
-$(error Arch `riscv64` is not yet supported)
+STAGE3_ARCH_OBJS=$(STAGE3_OBJS_RISCV64)
 else
 $(error Arch $(ARCH) is not supported)
 endif
 endif
 
+ifeq ($(ARCH),x86_64)
 STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
-			$(STAGE3_DIR)/debuginfo.o											\
+			$(STAGE3_DIR)/debugmemmap.o											\
 			$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/isr_handlers.o										\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
-			$(STAGE3_DIR)/vmm/vmmapper.o										\
 			$(STAGE3_DIR)/fba/alloc.o											\
 			$(STAGE3_DIR)/slab/alloc.o											\
 			$(STAGE3_DIR)/timer_isr.o											\
@@ -228,22 +273,38 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/ipc/named.o											\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
+else
+ifeq ($(ARCH),riscv64)
+STAGE3_OBJS=$(STAGE3_DIR)/kprintf.o												\
+			$(STAGE3_DIR)/debugmemmap.o											\
+			$(STAGE3_DIR)/pmm/pagealloc.o										\
+			$(STAGE3_ARCH_OBJS)
+endif
+endif
 
 ifeq ($(LEGACY_TERMINAL),true)
 STAGE3_OBJS+=$(STAGE3_DIR)/debugprint.o											\
 			$(STAGE3_DIR)/printhex.o											\
-			$(STAGE3_DIR)/printdec.o
+			$(STAGE3_DIR)/printdec.o											\
+			$(STAGE3_DIR)/banner.o
 else
-STAGE3_OBJS+=$(STAGE3_DIR)/gdebugterm.o
+STAGE3_OBJS+=$(STAGE3_DIR)/gdebugterm.o											\
+			$(STAGE3_DIR)/banner.o
 endif
 
 ARCH_X86_64_REALMODE_OBJS=$(STAGE3_DIR)/arch/x86_64/smp/ap_trampoline.o
 
 ALL_TARGETS=floppy.img
 
+ifeq ($(ARCH),x86_64)
 FLOPPY_DEPENDENCIES=$(STAGE1_DIR)/$(STAGE1_BIN) 								\
 					$(STAGE2_DIR)/$(STAGE2_BIN) 								\
 					$(STAGE3_DIR)/$(STAGE3_BIN)
+else
+ifeq ($(ARCH),riscv64)
+FLOPPY_DEPENDENCIES=$(STAGE3_DIR)/$(STAGE3_BIN)
+endif
+endif
 
 CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 	       		$(STAGE2_DIR)/*.dis $(STAGE2_DIR)/*.elf $(STAGE2_DIR)/*.o 		\
@@ -270,7 +331,12 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_X86_64_DIR)/structs/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
-				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
+				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o	\
+	       		$(STAGE3_ARCH_RISCV64_DIR)/*.dis 								\
+				$(STAGE3_ARCH_RISCV64_DIR)/*.elf								\
+				$(STAGE3_ARCH_RISCV64_DIR)/vmm/*.o								\
+				$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/*.o						\
+				$(STAGE3_ARCH_RISCV64_DIR)/*.o
 
 ifeq ($(CONSERVATIVE_BUILD),true)
 CDEFS+=-DCONSERVATIVE_BUILD
@@ -286,7 +352,9 @@ endif
 
 endif
 
-.PHONY: all build clean qemu bochs test coverage
+.PHONY: all build clean bochs test coverage 									\
+	qemu debug-qemu-start debug-qemu-start-terminal debug-qemu					\
+	qemu-uefi debug-qemu-uefi-start debug-qemu-uefi-start-terminal debug-qemu-uefi
 
 all: build test
 
@@ -304,6 +372,7 @@ include system/tests/include.mk
 test: test-kernel test-system
 coverage: coverage-kernel coverage-system
 
+ifeq ($(ARCH),x86_64)
 %.o: %.asm
 	$(ASM) 																		\
 	-DVERSTR=$(SHORT_HASH) 														\
@@ -313,6 +382,20 @@ coverage: coverage-kernel coverage-system
 	$(CDEFS)																	\
 	$(ASFLAGS) 																	\
 	-o $@ $<
+else
+ifeq ($(ARCH),riscv64)
+%.o: %.S
+	$(ASM) 																		\
+	-x assembler-with-cpp														\
+	-DVERSTR=$(SHORT_HASH) 														\
+	-DSTAGE_2_ADDR=$(STAGE_2_ADDR)												\
+	-DSTAGE_3_LO_ADDR=$(STAGE_3_LO_ADDR) -DSTAGE_3_HI_ADDR=$(STAGE_3_HI_ADDR)	\
+	$(STAGE3_INC)																\
+	$(CFLAGS)																	\
+	$(CDEFS)																	\
+	-c -o $@ $<
+endif
+endif
 
 %.o: %.c
 	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) $(STAGE3_INC) $(CFLAGS) -c -o $@ $<
@@ -378,12 +461,20 @@ $(STAGE3_DIR)/$(STAGE3_BIN): $(STAGE3_DIR)/$(STAGE3).elf $(STAGE3_DIR)/$(STAGE3)
 	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
 
-UEFI_IMG=anos_uefi.img
-UEFI_APPLICATION=uefi/limine/BOOTX64.EFI
-UEFI_CONF?=uefi/limine.conf
-UEFI_BOOT_WALLPAPER?=uefi/anoschip2-glass.jpg
 
 # ############ UEFI Image ############
+UEFI_IMG=anos_uefi.img
+UEFI_BOOT_WALLPAPER?=uefi/anoschip2-glass.jpg
+UEFI_CONF?=uefi/$(ARCH)/limine.conf
+
+ifeq ($(ARCH),x86_64)
+UEFI_APPLICATION=uefi/$(ARCH)/limine/BOOTX64.EFI
+else
+ifeq ($(ARCH),riscv64)
+UEFI_APPLICATION=uefi/$(ARCH)/limine/BOOTRISCV64.EFI
+endif
+endif
+
 $(UEFI_IMG): $(STAGE3_DIR)/$(STAGE3).elf $(UEFI_CONF) $(UEFI_BOOT_WALLPAPER) $(UEFI_APPLICATION)
 	dd of=$@ if=/dev/zero bs=4M count=1
 	mformat -T 8192 -v ANOSDISK002 -i $@ ::
@@ -401,11 +492,9 @@ $(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
 	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
 
+ifeq ($(ARCH),x86_64)
 qemu: $(FLOPPY_IMG)
 	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS)
-
-qemu-uefi: $(UEFI_IMG)
-	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_UEFI_OPTS)
 
 debug-qemu-start: $(FLOPPY_IMG)
 	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS) $(QEMU_DEBUG_OPTS)
@@ -413,14 +502,34 @@ debug-qemu-start: $(FLOPPY_IMG)
 debug-qemu-start-terminal: $(FLOPPY_IMG)
 	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS) $(QEMU_DEBUG_OPTS) &
 
+debug-qemu: debug-qemu-start-terminal
+	gdb -ex 'target remote localhost:9666'
+else
+_no-bios-error:
+	$(error BIOS support available only for ARCH=x86_64)
+
+qemu: _no-bios-error
+debug-qemu-start: _no-bios-error
+debug-qemu-start-terminal: _no-bios-error
+debug-qemu: _no-bios-error
+debug-qemu-start: _no-bios-error
+endif
+
+ifeq ($(ARCH),riscv64)
+uefi/riscv64/edk2/RISCV_VIRT_VARS.fd: 
+	cp $@.template $@
+
+qemu-uefi: $(UEFI_IMG) | uefi/riscv64/edk2/RISCV_VIRT_VARS.fd
+else
+qemu-uefi: $(UEFI_IMG)
+endif
+	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_UEFI_OPTS)
+
 debug-qemu-uefi-start: $(UEFI_IMG)
 	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_UEFI_OPTS) $(QEMU_DEBUG_OPTS)
 
 debug-qemu-uefi-start-terminal: $(UEFI_IMG)
 	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_UEFI_OPTS) $(QEMU_DEBUG_OPTS) &
-
-debug-qemu: debug-qemu-start-terminal
-	gdb -ex 'target remote localhost:9666'
 
 debug-qemu-uefi: debug-qemu-uefi-start-terminal
 	gdb -ex 'target remote localhost:9666'

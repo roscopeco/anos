@@ -21,9 +21,9 @@ extern MemoryRegion *physical_region;
 void handle_page_fault(uint64_t code, uint64_t fault_addr,
                        uint64_t origin_addr) {
 
-    if (code & WRITE) {
+    if (code & PG_WRITE) {
         uint64_t pte = vmm_virt_to_pt_entry(fault_addr);
-        if (pte & COPY_ON_WRITE) {
+        if (pte & PG_COPY_ON_WRITE) {
             // This is a write to a COW page...
             uint64_t fault_addr_page = fault_addr & PAGE_ALIGN_MASK;
 
@@ -31,8 +31,8 @@ void handle_page_fault(uint64_t code, uint64_t fault_addr,
                 // Nobody else is referencing this page, assume other referees are gone.
                 // So we can just make it writeable, no need to copy.
                 vmm_map_page(fault_addr_page, pte & PAGE_ALIGN_MASK,
-                             ((pte & PAGE_FLAGS_MASK) & ~(COPY_ON_WRITE)) |
-                                     WRITE);
+                             ((pte & PAGE_FLAGS_MASK) & ~(PG_COPY_ON_WRITE)) |
+                                     PG_WRITE);
             } else {
                 // There are still references to this page elsewhere, so
                 // we need to copy it...
@@ -48,8 +48,8 @@ void handle_page_fault(uint64_t code, uint64_t fault_addr,
                         vmm_per_cpu_temp_page_addr(state->cpu_id);
 
                 vmm_map_page(per_cpu_temp_page, phys,
-                             ((pte & PAGE_FLAGS_MASK) & ~(COPY_ON_WRITE)) |
-                                     WRITE);
+                             ((pte & PAGE_FLAGS_MASK) & ~(PG_COPY_ON_WRITE)) |
+                                     PG_WRITE);
                 uint64_t *src_page = (uint64_t *)fault_addr_page;
                 uint64_t *dest_page = (uint64_t *)per_cpu_temp_page;
 
@@ -57,8 +57,8 @@ void handle_page_fault(uint64_t code, uint64_t fault_addr,
 
                 vmm_unmap_page(per_cpu_temp_page);
                 vmm_map_page(fault_addr_page, phys,
-                             ((pte & PAGE_FLAGS_MASK) & ~(COPY_ON_WRITE)) |
-                                     WRITE);
+                             ((pte & PAGE_FLAGS_MASK) & ~(PG_COPY_ON_WRITE)) |
+                                     PG_WRITE);
             }
             return;
         }

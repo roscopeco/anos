@@ -11,11 +11,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "banner.h"
 #include "printdec.h"
 #include "printhex.h"
-#include "std/string.h"
-
 #include "spinlock.h"
+#include "std/string.h"
 
 #if USE_BIZCAT_FONT
 #include "gdebugterm/bizcat_font.h"
@@ -59,7 +59,7 @@ static uint32_t const colors[] = {
         0x00aa0000, // COLOR_RED
         0x00aa00aa, // COLOR_MAGENTA
         0x00aa5500, // COLOR_YELLOW
-        0x00eeeeee, // COLOR_WHITE
+        0x00bbbbbb, // COLOR_WHITE
         0x00707070, // COLOR_BRIGHT_BLACK
         0x000000ee, // COLOR_BRIGHT_BLUE
         0x0000ee00, // COLOR_BRIGHT_GREEN
@@ -73,8 +73,8 @@ static uint32_t const colors[] = {
 static const uint8_t bit_masks[8] = {0x80, 0x40, 0x20, 0x10,
                                      0x08, 0x04, 0x02, 0x01};
 
-bool debugterm_init(void volatile *_fb, uint16_t phys_width,
-                    uint16_t phys_height) {
+bool debugterm_reinit(void volatile *_fb, uint16_t phys_width,
+                      uint16_t phys_height) {
     fb = _fb;
     fb_phys_width = phys_width;
     fb_phys_height = phys_height;
@@ -91,6 +91,16 @@ bool debugterm_init(void volatile *_fb, uint16_t phys_width,
     font_area = gdebugterm_font_height * gdebugterm_font_width;
 
     return true;
+}
+
+bool debugterm_init(void volatile *_fb, uint16_t phys_width,
+                    uint16_t phys_height) {
+    if (debugterm_reinit(_fb, phys_width, phys_height)) {
+        banner();
+        return true;
+    }
+
+    return false;
 }
 
 #define WRITE_PIXEL(n)                                                         \
