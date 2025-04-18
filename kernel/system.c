@@ -112,7 +112,7 @@ noreturn void start_system(void) {
             (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
     const uint64_t system_len_pages = system_len_bytes >> VM_PAGE_LINEAR_SHIFT;
 
-    const uint16_t flags = PRESENT | USER;
+    const uint16_t flags = PG_PRESENT | PG_USER;
 
     // Map pages for the user code
     for (int i = 0; i < system_len_pages; i++) {
@@ -128,7 +128,7 @@ noreturn void start_system(void) {
     for (int i = 0; i < SYSTEM_BSS_PAGE_COUNT; i++) {
         uint64_t user_bss_phys = page_alloc(physical_region);
         vmm_map_page(user_bss + (i * VM_PAGE_SIZE), user_bss_phys,
-                     flags | WRITE);
+                     flags | PG_WRITE);
     }
 
     // ... and a page below that for the user stack
@@ -136,7 +136,7 @@ noreturn void start_system(void) {
     for (int i = 0; i < SYSTEM_USER_STACK_PAGE_COUNT; i++) {
         user_stack -= VM_PAGE_SIZE;
         uint64_t user_stack_phys = page_alloc(physical_region);
-        vmm_map_page(user_stack, user_stack_phys, flags | WRITE);
+        vmm_map_page(user_stack, user_stack_phys, flags | PG_WRITE);
     }
 
     // ... the FBA can give us a kernel stack...

@@ -150,7 +150,7 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
 
     // Temp identity map the low memory pages so APs can enable paging
     for (int i = AP_TRAMPOLINE_RUN_PADDR; i < 0x10000; i += 0x1000) {
-        vmm_map_page(i, i, PRESENT | WRITE);
+        vmm_map_page(i, i, PG_PRESENT | PG_WRITE);
     }
 
     // Placed return address to ap_kernel_entrypoint on each stack

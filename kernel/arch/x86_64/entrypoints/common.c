@@ -11,17 +11,6 @@
 #include "kdrivers/cpu.h"
 #include "machine.h"
 
-#ifndef VERSTR
-#warning Version String not defined (-DVERSTR); Using default
-#define VERSTR #unknown
-#endif
-
-#define XSTRVER(verstr) #verstr
-#define STRVER(xstrver) XSTRVER(xstrver)
-#define VERSION STRVER(VERSTR)
-
-static char *MSG = VERSION;
-
 // Replace the bootstrap 32-bit segments with 64-bit user segments.
 //
 // TODO we should remap the memory as read-only after this since they
@@ -54,21 +43,3 @@ void init_kernel_gdt(void) {
 }
 
 void install_interrupts() { idt_install(0x08); }
-
-void banner(char *arch) {
-    debugattr(0x0B);
-    debugstr("STAGE");
-    debugattr(0x03);
-    debugchar('3');
-    debugattr(0x08);
-    debugstr(" #");
-    debugattr(0x0F);
-    debugstr(MSG);
-    debugattr(0x08);
-    debugstr(" [");
-    debugattr(0x07);
-    debugstr(arch);
-    debugattr(0x08);
-    debugstr("]\n");
-    debugattr(0x07);
-}

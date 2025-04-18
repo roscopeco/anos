@@ -7,11 +7,10 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_ENTRYPOINTS_COMMON_H
-#define __ANOS_KERNEL_ENTRYPOINTS_COMMON_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_ENTRYPOINTS_COMMON_H
+#define __ANOS_KERNEL_ARCH_X86_64_ENTRYPOINTS_COMMON_H
 
 void init_kernel_gdt(void);
 void install_interrupts();
-void banner(char *arch);
 
 #endif //__ANOS_KERNEL_ENTRYPOINTS_COMMON_H

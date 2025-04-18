@@ -38,8 +38,8 @@ static MunitResult test_init_success(const MunitParameter params[],
     // Verify PML4 entries are properly set up
     for (int i = RECURSIVE_ENTRY + 2; i < 512; i++) {
         munit_assert_not_null((void *)complete_pml4.entries[i]);
-        munit_assert((complete_pml4.entries[i] & PRESENT) != 0);
-        munit_assert((complete_pml4.entries[i] & WRITE) != 0);
+        munit_assert((complete_pml4.entries[i] & PG_PRESENT) != 0);
+        munit_assert((complete_pml4.entries[i] & PG_WRITE) != 0);
 
         for (int j = 0; j < 512; j++) {
             uint64_t *pdpt = (uint64_t *)(complete_pml4.entries[i] & ~(0xfff));
@@ -53,17 +53,17 @@ static MunitResult test_init_success(const MunitParameter params[],
 static MunitResult
 test_init_with_existing_entries(const MunitParameter params[], void *fixture) {
     // Set up some pre-existing entries
-    complete_pml4.entries[RECURSIVE_ENTRY + 3] = 0x1000 | PRESENT;
-    complete_pml4.entries[RECURSIVE_ENTRY + 4] = 0x2000 | PRESENT | WRITE;
+    complete_pml4.entries[RECURSIVE_ENTRY + 3] = 0x1000 | PG_PRESENT;
+    complete_pml4.entries[RECURSIVE_ENTRY + 4] = 0x2000 | PG_PRESENT | PG_WRITE;
 
     bool result = address_space_init();
     munit_assert_true(result);
 
     // Verify pre-existing entries weren't modified
     munit_assert_uint64(complete_pml4.entries[RECURSIVE_ENTRY + 3], ==,
-                        0x1000 | PRESENT);
+                        0x1000 | PG_PRESENT);
     munit_assert_uint64(complete_pml4.entries[RECURSIVE_ENTRY + 4], ==,
-                        0x2000 | PRESENT | WRITE);
+                        0x2000 | PG_PRESENT | PG_WRITE);
 
     return MUNIT_OK;
 }

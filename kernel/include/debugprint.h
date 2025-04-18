@@ -10,9 +10,10 @@
 #ifndef __ANOS_KERNEL_DEBUGPRINT_H
 #define __ANOS_KERNEL_DEBUGPRINT_H
 
+#include <stdbool.h>
 #include <stdint.h>
-
-void debugterm_init(char *vram_addr, int arg1, int arg2);
+bool debugterm_init(char *vram_addr, int arg1, int arg2);
+bool debugterm_reinit(char *vram_addr, int arg1, int arg2);
 
 #if __STDC_HOSTED__ == 1 && !defined(UNIT_TEST_DEBUGPRINT)
 #include <stdio.h>

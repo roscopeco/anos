@@ -32,7 +32,6 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys);
 noreturn void bsp_kernel_entrypoint_bios(uintptr_t rsdp_phys,
                                          E820h_MemMap *memmap) {
     debugterm_init(VRAM_VIRT_BASE, 0, 0);
-    banner("x86_64");
 
     init_kernel_gdt();
     install_interrupts();

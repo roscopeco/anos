@@ -116,7 +116,7 @@ static MunitResult test_fba_init_32768_ok(const MunitParameter params[],
     munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         (uint64_t)test_page_area);
     munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
-                        WRITE | PRESENT);
+                        PG_WRITE | PG_PRESENT);
     munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
@@ -154,7 +154,7 @@ static MunitResult test_fba_init_65536_ok(const MunitParameter params[],
     munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x1000);
     munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
-                        WRITE | PRESENT);
+                        PG_WRITE | PG_PRESENT);
     munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
@@ -202,7 +202,7 @@ static MunitResult test_fba_alloc_block_one(const MunitParameter params[],
     munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x1000);
     munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
-                        WRITE | PRESENT);
+                        PG_WRITE | PG_PRESENT);
     munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
@@ -231,7 +231,7 @@ static MunitResult test_fba_alloc_block_two(const MunitParameter params[],
     munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x2000);
     munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
-                        WRITE | PRESENT);
+                        PG_WRITE | PG_PRESENT);
     munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
@@ -292,7 +292,7 @@ static MunitResult test_fba_alloc_blocks_one(const MunitParameter params[],
     munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x1000);
     munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
-                        WRITE | PRESENT);
+                        PG_WRITE | PG_PRESENT);
     munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
@@ -319,7 +319,7 @@ static MunitResult test_fba_alloc_blocks_two(const MunitParameter params[],
     munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x2000);
     munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
-                        WRITE | PRESENT);
+                        PG_WRITE | PG_PRESENT);
     munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
@@ -377,7 +377,7 @@ test_fba_alloc_blocks_aligned_1(const MunitParameter params[],
     munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x1000);
     munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
-                        WRITE | PRESENT);
+                        PG_WRITE | PG_PRESENT);
     munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
@@ -405,7 +405,7 @@ test_fba_alloc_blocks_aligned_2(const MunitParameter params[],
     munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x2000);
     munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
-                        WRITE | PRESENT);
+                        PG_WRITE | PG_PRESENT);
     munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 
@@ -433,7 +433,7 @@ test_fba_alloc_blocks_aligned_4(const MunitParameter params[],
     munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
                         ((uint64_t)test_page_area) + 0x4000);
     munit_assert_uint16(mock_vmm_get_last_page_map_flags(), ==,
-                        WRITE | PRESENT);
+                        PG_WRITE | PG_PRESENT);
     munit_assert_uint64(mock_vmm_get_last_page_map_pml4(), ==,
                         (uint64_t)TEST_PML4_ADDR);
 

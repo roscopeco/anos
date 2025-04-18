@@ -221,7 +221,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
 
             if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
                 vmm_map_page((uintptr_t)buffer, (uint64_t)msg->arg_buf_phys,
-                             USER | WRITE | PRESENT);
+                             PG_USER | PG_WRITE | PG_PRESENT);
             } else {
                 msg->arg_buf_phys = 0;
             }
@@ -290,7 +290,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
 
             if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
                 vmm_map_page((uintptr_t)buffer, msg->arg_buf_phys,
-                             USER | WRITE | PRESENT);
+                             PG_USER | PG_WRITE | PG_PRESENT);
             } else {
                 msg->arg_buf_phys = 0;
             }

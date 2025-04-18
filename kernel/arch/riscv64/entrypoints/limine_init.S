@@ -10,9 +10,16 @@
 .section .text.init
 
 # Kinda dodgy, but we'll only hit it on early exception...
-# It should panic really...
+# It should panic really, but for now it just halts.
 s_trap_vector:
-	sret
+1:
+	# Disable interrupts
+	csrw	sie, zero
+	csrw	sip, zero
+
+	# Halt
+	wfi
+	j 1b
 
 .global _start_limine
 _start_limine:
@@ -37,3 +44,23 @@ _start_limine:
 	# Setup stack and let's get to it!
 	la		sp, _stack_end
 	tail 	bsp_kernel_entrypoint_limine
+
+
+# `limine_entrypoint.c` calls back to this to get the page tables and stack sorted 
+# out without upsetting C too much.
+#
+# Arguments (mostly passed through):
+#
+#   a0 - framebuffer width
+#   a1 - framebuffer height
+#   a2 - virtual address for new stack top
+#   a3 - physical address and mode of new PML4
+#   a4  - address to bounce off to
+#
+.global bootstrap_trampoline
+bootstrap_trampoline:
+	mv t0, a3
+    csrw satp, t0		# Set up new page tables
+    # mv sp, a2			# Set up new stack
+    mv t0, a4			# push return address
+    jr t0				# Return (equivalent to ret)

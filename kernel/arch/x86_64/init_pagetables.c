@@ -63,11 +63,11 @@ void pagetables_init() {
     // Use 0x98000 as the page table
     uint64_t *newpt = (uint64_t *)(STATIC_KERNEL_SPACE + 0x98000);
     for (int i = 0; i < 0x200; i++) {
-        newpt[i] = ((i << 12) + 0x200000) | PRESENT | WRITE;
+        newpt[i] = ((i << 12) + 0x200000) | PG_PRESENT | PG_WRITE;
     }
 
     // And hook it into the page directory as the second 2MiB
-    pd[1] = 0x98000 | PRESENT | WRITE;
+    pd[1] = 0x98000 | PG_PRESENT | PG_WRITE;
 
     // Set up initial page directory and table for the PMM stack.
     // Might as well use the 8KiB below the existing page tables,
@@ -83,18 +83,18 @@ void pagetables_init() {
     }
 
     // Map the new table into the directory, with physical address
-    pmm_pd[0] = 0x9b000 | PRESENT | WRITE;
+    pmm_pd[0] = 0x9b000 | PG_PRESENT | PG_WRITE;
 
     // Map the physical page below these page tables as the PMM bootstrap
     // page - this will contain the region struct and first bit of the
     // stack.
-    pmm_pt[0] = 0x99000 | PRESENT | WRITE;
+    pmm_pt[0] = 0x99000 | PG_PRESENT | PG_WRITE;
 
     // Hook this into the PDPT
-    pdpt[0] = 0x9a000 | PRESENT | WRITE;
+    pdpt[0] = 0x9a000 | PG_PRESENT | PG_WRITE;
 
     // Set up recursive page table
-    pml4[RECURSIVE_ENTRY] = 0x9c000 | PRESENT | WRITE;
+    pml4[RECURSIVE_ENTRY] = 0x9c000 | PG_PRESENT | PG_WRITE;
 
     // Just load cr3 to dump the TLB...
     __asm__ volatile("mov %%cr3, %%rax\n\t"

@@ -91,7 +91,7 @@ bool hpet_init(ACPI_RSDT *rsdt) {
 
         // per-spec, HPET **must** be in memory...
         if (!vmm_map_page_containing((uintptr_t)vaddr, hpet->address.address,
-                                     PRESENT | WRITE)) {
+                                     PG_PRESENT | PG_WRITE)) {
             debugstr("WARN: Failed to map MMIO vm space for HPET\n");
             return false;
         }

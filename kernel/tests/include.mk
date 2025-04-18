@@ -8,6 +8,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/kdrivers/*.o								\
 				kernel/tests/arch/x86_64/process/*.o								\
 				kernel/tests/arch/x86_64/structs/*.o								\
+				kernel/tests/arch/x86_64/vmm/*.o									\
 				kernel/tests/*.gcda kernel/tests/pmm/*.gcda kernel/tests/vmm/*.gcda	\
 				kernel/tests/structs/*.gcda kernel/tests/pci/*.gcda 				\
 				kernel/tests/fba/*.gcda kernel/tests/slab/*.gcda 					\
@@ -19,6 +20,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/kdrivers/*.gcda							\
 				kernel/tests/arch/x86_64/process/*.gcda								\
 				kernel/tests/arch/x86_64/structs/*.gcda								\
+				kernel/tests/arch/x86_64/vmm/*.gcda									\
 				kernel/tests/*.gcno kernel/tests/pmm/*.gcno kernel/tests/vmm/*.gcno	\
 				kernel/tests/structs/*.gcno kernel/tests/pci/*.gcno 				\
 				kernel/tests/fba/*.gcno kernel/tests/slab/*.gcno 					\
@@ -30,6 +32,8 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/kdrivers/*.gcno							\
 				kernel/tests/arch/x86_64/process/*.gcno								\
 				kernel/tests/arch/x86_64/structs/*.gcno								\
+				kernel/tests/arch/x86_64/structs/*.gcno								\
+				kernel/tests/arch/x86_64/vmm/*.gcno									\
 				kernel/tests/build													\
 				gcov/kernel
 
@@ -52,20 +56,24 @@ TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm
 				kernel/tests/build/fba kernel/tests/build/slab 						\
 				kernel/tests/build/sched kernel/tests/build/kdrivers				\
 				kernel/tests/build/smp												\
+				kernel/tests/build/ipc												\
+				kernel/tests/build/process											\
 				kernel/tests/build/arch/x86_64										\
 				kernel/tests/build/arch/x86_64/sched								\
-				kernel/tests/build/process											\
 				kernel/tests/build/arch/x86_64/process								\
 				kernel/tests/build/arch/x86_64/structs								\
 				kernel/tests/build/arch/x86_64/kdrivers								\
-				kernel/tests/build/ipc
+				kernel/tests/build/arch/x86_64/vmm									\
+				kernel/tests/build/arch/riscv64										\
+				kernel/tests/build/arch/riscv64/structs								\
+				kernel/tests/build/arch/riscv64/kdrivers							\
+				kernel/tests/build/arch/riscv64/vmm
 
 ifeq (, $(shell which lcov))
 $(warning LCOV not installed, coverage will be skipped)
 else
 KERNEL_TEST_CFLAGS+=-fprofile-arcs -ftest-coverage
 endif
-
 
 kernel/tests/build:
 	mkdir -p kernel/tests/build
@@ -100,6 +108,9 @@ kernel/tests/build/smp:
 kernel/tests/build/ipc:
 	mkdir -p kernel/tests/build/ipc
 
+kernel/tests/build/process:
+	mkdir -p kernel/tests/build/process
+
 kernel/tests/build/arch/x86_64:
 	mkdir -p kernel/tests/build/arch/x86_64
 
@@ -115,14 +126,38 @@ kernel/tests/build/arch/x86_64/process:
 kernel/tests/build/arch/x86_64/structs:
 	mkdir -p kernel/tests/build/arch/x86_64/structs
 
-kernel/tests/build/process:
-	mkdir -p kernel/tests/build/process
+kernel/tests/build/arch/x86_64/vmm:
+	mkdir -p kernel/tests/build/arch/x86_64/vmm
+
+kernel/tests/build/arch/riscv64:
+	mkdir -p kernel/tests/build/arch/riscv64
+
+kernel/tests/build/arch/riscv64/structs:
+	mkdir -p kernel/tests/build/arch/riscv64/structs
+
+kernel/tests/build/arch/riscv64/kdrivers:
+	mkdir -p kernel/tests/build/arch/riscv64/kdrivers
+
+kernel/tests/build/arch/riscv64/vmm:
+	mkdir -p kernel/tests/build/arch/riscv64/vmm
 
 kernel/tests/build/%.o: kernel/%.c $(TEST_BUILD_DIRS)
 	$(CC) -DUNIT_TESTS $(KERNEL_TEST_CFLAGS) -c -o $@ $<
 
+ifeq ($(HOST_ARCH),i386)
 kernel/tests/build/%.o: kernel/%.asm $(TEST_BUILD_DIRS)
 	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
+else
+ifeq ($(HOST_ARCH),arm)
+kernel/tests/build/%.o: kernel/%.asm $(TEST_BUILD_DIRS)
+	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
+else
+ifeq ($(HOST_ARCH),riscv64)
+kernel/tests/build/%.o: kernel/%.asm $(TEST_BUILD_DIRS)
+	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
+endif
+endif
+endif
 
 kernel/tests/%.o: kernel/tests/%.c kernel/tests/munit.h
 	$(CC) -DUNIT_TESTS $(KERNEL_TEST_CFLAGS) -Ikernel/tests -c -o $@ $<
@@ -137,9 +172,6 @@ kernel/tests/build/pmm/pagealloc: kernel/tests/munit.o kernel/tests/pmm/pageallo
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/pmm/pagealloc_limine: kernel/tests/munit.o kernel/tests/pmm/pagealloc_limine.o kernel/tests/build/pmm/pagealloc.o kernel/tests/mock_spinlock.o
-	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
-
-kernel/tests/build/vmm/vmmapper: kernel/tests/munit.o kernel/tests/vmm/vmmapper.o kernel/tests/build/vmm/vmmapper.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/vmm/vmalloc_linkedlist: kernel/tests/munit.o kernel/tests/vmm/vmalloc_linkedlist.o kernel/tests/build/vmm/vmalloc_linkedlist.o kernel/tests/mock_spinlock.o
@@ -214,6 +246,9 @@ kernel/tests/build/arch/x86_64/structs/list: kernel/tests/munit.o kernel/tests/a
 kernel/tests/build/arch/x86_64/kdrivers/hpet: kernel/tests/munit.o kernel/tests/arch/x86_64/kdrivers/hpet.o kernel/tests/build/arch/x86_64/kdrivers/hpet.o kernel/tests/build/kdrivers/drivers.o kernel/tests/arch/x86_64/mock_acpitables.o kernel/tests/mock_vmm.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/arch/x86_64/vmm/vmmapper: kernel/tests/munit.o kernel/tests/arch/x86_64/vmm/vmmapper.o kernel/tests/build/arch/x86_64/vmm/vmmapper.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_spinlock.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/process/address_space_init: kernel/tests/munit.o kernel/tests/arch/x86_64/process/address_space_init.o kernel/tests/build/arch/x86_64/process/address_space.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -223,11 +258,13 @@ kernel/tests/build/arch/x86_64/process/address_space_create: kernel/tests/munit.
 kernel/tests/build/arch/x86_64/std_routines: kernel/tests/munit.o kernel/tests/arch/x86_64/std_routines.o kernel/tests/build/arch/x86_64/std_routines.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/arch/riscv64/spinlock: kernel/tests/munit.o kernel/tests/arch/riscv64/spinlock.o kernel/tests/build/arch/riscv64/spinlock.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
 			kernel/tests/build/pmm/pagealloc_limine								\
-			kernel/tests/build/vmm/vmmapper										\
 			kernel/tests/build/vmm/vmalloc_linkedlist							\
 			kernel/tests/build/debugprint										\
 			kernel/tests/build/acpitables										\
@@ -248,13 +285,31 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/ipc/channel										\
 			kernel/tests/build/structs/strhash									\
 			kernel/tests/build/ipc/named										\
-			kernel/tests/build/structs/shift_array								\
-			kernel/tests/build/arch/x86_64/spinlock								\
+			kernel/tests/build/structs/shift_array
+
+ifeq ($(HOST_ARCH),i386)
+ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
+			kernel/tests/build/arch/x86_64/vmm/vmmapper							\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines
+else
+ifeq ($(HOST_ARCH),arm64)
+ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
+			kernel/tests/build/arch/x86_64/vmm/vmmapper							\
+			kernel/tests/build/arch/x86_64/structs/list							\
+			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
+			kernel/tests/build/arch/x86_64/process/address_space_init			\
+			kernel/tests/build/arch/x86_64/process/address_space_create			\
+			kernel/tests/build/arch/x86_64/std_routines
+else
+ifeq ($(HOST_ARCH),riscv64)
+ALL_TESTS+= kernel/tests/build/arch/riscv64/spinlock
+endif
+endif
+endif
 
 PHONY: test-kernel
 test-kernel: $(ALL_TESTS)

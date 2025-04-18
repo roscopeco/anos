@@ -36,12 +36,12 @@ static void *test_setup(const MunitParameter params[], void *user_data) {
 
     // Set up kernel space entries in complete_pml4
     for (int i = KERNEL_BEGIN_ENTRY; i < 512; i++) {
-        complete_pml4.entries[i] = 0xA000 + i | PRESENT | WRITE;
+        complete_pml4.entries[i] = 0xA000 + i | PG_PRESENT | PG_WRITE;
     }
 
     // Set up recursive mapping in complete_pml4
     complete_pml4.entries[RECURSIVE_ENTRY] =
-            (uintptr_t)&complete_pml4 | PRESENT | WRITE;
+            (uintptr_t)&complete_pml4 | PG_PRESENT | PG_WRITE;
 
     void *page_area_ptr;
     posix_memalign(&page_area_ptr, 0x40000, TEST_PAGE_COUNT << 12);
@@ -57,7 +57,7 @@ static void test_teardown(void *page_area_ptr) {
 static MunitResult test_create_success(const MunitParameter params[],
                                        void *fixture) {
     // Given
-    complete_pml4.entries[RECURSIVE_ENTRY_OTHER] = 0x1234 | PRESENT;
+    complete_pml4.entries[RECURSIVE_ENTRY_OTHER] = 0x1234 | PG_PRESENT;
 
     // When
     uintptr_t result = address_space_create(0x0, 0x0, 0, (void *)0);
@@ -79,7 +79,7 @@ static MunitResult test_create_success(const MunitParameter params[],
 
     // Verify recursive entry
     munit_assert_uint64(mock_new_pml4->entries[RECURSIVE_ENTRY], ==,
-                        ((uintptr_t)mock_new_pml4 | WRITE | PRESENT));
+                        ((uintptr_t)mock_new_pml4 | PG_WRITE | PG_PRESENT));
 
     // Verify other recursive entry is zeroed
     munit_assert_uint64(mock_new_pml4->entries[RECURSIVE_ENTRY_OTHER], ==, 0);
@@ -92,7 +92,7 @@ static MunitResult test_create_success(const MunitParameter params[],
 
     // Verify original PML4 was restored
     munit_assert_uint64(complete_pml4.entries[RECURSIVE_ENTRY_OTHER], ==,
-                        0x1234 | PRESENT);
+                        0x1234 | PG_PRESENT);
 
     return MUNIT_OK;
 }

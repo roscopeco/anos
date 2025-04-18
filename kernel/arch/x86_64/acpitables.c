@@ -126,14 +126,21 @@ static uint64_t get_mapping_for(uint64_t phys) {
         // This doesn't _fix_ things though - we really need to map based on the table
         // position and size relative to end of the page as we run through them...
         next_vaddr += 0x8000;
-        vmm_map_page_containing(vaddr, phys, PRESENT | WRITE);
-        vmm_map_page_containing(vaddr + 0x1000, phys + 0x1000, PRESENT | WRITE);
-        vmm_map_page_containing(vaddr + 0x2000, phys + 0x3000, PRESENT | WRITE);
-        vmm_map_page_containing(vaddr + 0x3000, phys + 0x4000, PRESENT | WRITE);
-        vmm_map_page_containing(vaddr + 0x4000, phys + 0x5000, PRESENT | WRITE);
-        vmm_map_page_containing(vaddr + 0x5000, phys + 0x6000, PRESENT | WRITE);
-        vmm_map_page_containing(vaddr + 0x6000, phys + 0x7000, PRESENT | WRITE);
-        vmm_map_page_containing(vaddr + 0x7000, phys + 0x8000, PRESENT | WRITE);
+        vmm_map_page_containing(vaddr, phys, PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x1000, phys + 0x1000,
+                                PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x2000, phys + 0x3000,
+                                PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x3000, phys + 0x4000,
+                                PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x4000, phys + 0x5000,
+                                PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x5000, phys + 0x6000,
+                                PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x6000, phys + 0x7000,
+                                PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x7000, phys + 0x8000,
+                                PG_PRESENT | PG_WRITE);
 
 #ifdef DEBUG_ACPI
 #ifdef VERY_NOISY_ACPI

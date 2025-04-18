@@ -3,6 +3,9 @@
  * anos - An Operating System
  *
  * Copyright (c) 2024 Ross Bamford
+ *
+ * This header defines the spinlock interface which is implemented
+ * for both x86_64 and RISC-V architectures.
  */
 
 // clang-format Language: C

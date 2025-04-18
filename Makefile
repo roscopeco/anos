@@ -25,13 +25,14 @@ BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23	\
 		-ffreestanding -fno-asynchronous-unwind-tables							\
-		-g -O3
+		-g -O3																	\
+		-DARCH=$(ARCH)
 
 ifeq ($(ARCH),x86_64)
 CFLAGS+=-mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel
 else
 ifeq ($(ARCH),riscv64)
-CFLAGS+=-mcmodel=medany
+CFLAGS+=-mcmodel=medany -DRISCV_SV48
 endif
 endif
 
@@ -103,12 +104,13 @@ endif
 #	NO_USER_GS				Disable user-mode GS swap at kernel entry/exit (debugging only)
 #	NAIVE_MEMCPY			Use a naive (byte-wise only) memcpy
 #	TARGET_CPU_USE_SLEEPERS	Consider the size of the sleep queue as well as run queues when selecting a target CPU
+#	NO_BANNER				Disable the startup banner
 #
 # Additionally:
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS
+CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS
 
 ifeq ($(ARCH),x86_64)
 QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
@@ -116,7 +118,7 @@ QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk
 QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
 else
 ifeq ($(ARCH),riscv64)
-QEMU_BASEOPTS=-M virt,pflash0=pflash0,pflash1=pflash1,acpi=off																\
+QEMU_BASEOPTS=-M virt,pflash0=pflash0,pflash1=pflash1,acpi=off -m 8G -cpu rv64,sv57=on										\
     -device VGA																												\
     -device qemu-xhci																										\
     -device usb-kbd
@@ -197,6 +199,7 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/pagefault.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/init_pagetables.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/pmm/sys_asm.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/vmm/vmmapper.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/acpitables.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/gdt.o								\
 					$(STAGE3_ARCH_X86_64_DIR)/general_protection_fault.o		\
@@ -222,7 +225,10 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 STAGE3_ARCH_RISCV64_DIR=$(STAGE3_DIR)/arch/riscv64
 STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_entrypoint.o	\
-					$(STAGE3_ARCH_RISCV64_DIR)/placeholders.o
+					$(STAGE3_ARCH_RISCV64_DIR)/machine.o						\
+					$(STAGE3_ARCH_RISCV64_DIR)/std_routines.o					\
+					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper.o					\
+					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o
 
 ifeq ($(ARCH),x86_64)
 STAGE3_ARCH_OBJS=$(STAGE3_OBJS_X86_64)
@@ -240,7 +246,6 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/isr_handlers.o										\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
-			$(STAGE3_DIR)/vmm/vmmapper.o										\
 			$(STAGE3_DIR)/fba/alloc.o											\
 			$(STAGE3_DIR)/slab/alloc.o											\
 			$(STAGE3_DIR)/timer_isr.o											\
@@ -267,6 +272,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 else
 ifeq ($(ARCH),riscv64)
 STAGE3_OBJS=$(STAGE3_DIR)/kprintf.o												\
+			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_ARCH_OBJS)
 endif
 endif
@@ -274,9 +280,11 @@ endif
 ifeq ($(LEGACY_TERMINAL),true)
 STAGE3_OBJS+=$(STAGE3_DIR)/debugprint.o											\
 			$(STAGE3_DIR)/printhex.o											\
-			$(STAGE3_DIR)/printdec.o
+			$(STAGE3_DIR)/printdec.o											\
+			$(STAGE3_DIR)/banner.o
 else
-STAGE3_OBJS+=$(STAGE3_DIR)/gdebugterm.o
+STAGE3_OBJS+=$(STAGE3_DIR)/gdebugterm.o											\
+			$(STAGE3_DIR)/banner.o
 endif
 
 ARCH_X86_64_REALMODE_OBJS=$(STAGE3_DIR)/arch/x86_64/smp/ap_trampoline.o
@@ -321,6 +329,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o	\
 	       		$(STAGE3_ARCH_RISCV64_DIR)/*.dis 								\
 				$(STAGE3_ARCH_RISCV64_DIR)/*.elf								\
+				$(STAGE3_ARCH_RISCV64_DIR)/vmm/*.o								\
 				$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_RISCV64_DIR)/*.o
 

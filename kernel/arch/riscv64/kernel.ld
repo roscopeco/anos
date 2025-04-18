@@ -9,8 +9,8 @@
 ENTRY(_start_limine)
 
 MEMORY {
-    CODE    : org = 0xFFFFFFFF80120000,  l = 0x000e0000     /* 896KiB for Stage 3 code */
-    DATA    : org = 0xFFFFFFFF80110000,  l = 0x00010000     /* 64KiB for bss, stack goes below this */
+    CODE    : org = 0xFFFFFFFF80130000,  l = 0x000e0000     /* 896KiB for Stage 3 code */
+    DATA    : org = 0xFFFFFFFF80110000,  l = 0x00020000     /* 64KiB for bss, stack goes below this */
 }
 
 SECTIONS
