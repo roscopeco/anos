@@ -3,6 +3,9 @@
  * anos - An Operating System
  *
  * Copyright (c) 2023 Ross Bamford
+ * 
+ * This is the platform-agnostic interface. It will include
+ * the platform-specific parts from arch/$ARCH/include.
  */
 
 // clang-format Language: C

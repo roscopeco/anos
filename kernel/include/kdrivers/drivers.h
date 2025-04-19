@@ -19,7 +19,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "acpitables.h"
+#include "x86_64/acpitables.h"
 
 // See MemoryMap.md for details on the size and purpose of these...
 #define KERNEL_HARDWARE_VADDR_BASE 0xffffffa000000000

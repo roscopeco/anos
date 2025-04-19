@@ -12,15 +12,15 @@
 #include "mock_cpu.h"
 #include "mock_recursive.h"
 #else
-#include "kdrivers/cpu.h"
-#include "vmm/recursive.h"
+#include "x86_64/kdrivers/cpu.h"
+#include "x86_64/vmm/recursive.h"
 #endif
 
 #include "pmm/pagealloc.h"
-#include "process/address_space.h"
 #include "spinlock.h"
 #include "structs/ref_count_map.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/process/address_space.h"
 
 #ifdef DEBUG_ADDR_SPACE
 #if __STDC_HOSTED__ == 1

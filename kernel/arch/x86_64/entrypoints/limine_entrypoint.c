@@ -13,14 +13,14 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#include "acpitables.h"
 #include "debugprint.h"
-#include "entrypoints/common.h"
-#include "init_pagetables.h"
-#include "kdrivers/cpu.h"
-#include "pmm/config.h"
 #include "std/string.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/entrypoints/common.h"
+#include "x86_64/init_pagetables.h"
+#include "x86_64/kdrivers/cpu.h"
+#include "x86_64/pmm/config.h"
 
 #define MAX_MEMMAP_ENTRIES 64
 

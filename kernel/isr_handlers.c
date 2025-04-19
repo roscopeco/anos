@@ -7,13 +7,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "acpitables.h"
 #include "debugprint.h"
-#include "general_protection_fault.h"
 #include "machine.h"
 #include "pagefault.h"
 #include "panic.h"
 #include "printhex.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/general_protection_fault.h"
 
 /*
  * Actual handler for exceptions with no code.

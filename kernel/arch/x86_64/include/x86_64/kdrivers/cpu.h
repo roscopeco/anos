@@ -14,8 +14,8 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
-#include "gdt.h"
 #include "interrupts.h"
+#include "x86_64/gdt.h"
 
 #define MSR_FSBase ((0xC0000100))
 #define MSR_GSBase ((0xC0000101))

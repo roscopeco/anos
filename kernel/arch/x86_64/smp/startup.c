@@ -8,18 +8,18 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#include "acpitables.h"
-#include "cpuid.h"
 #include "debugprint.h"
-#include "gdt.h"
 #include "interrupts.h"
-#include "kdrivers/cpu.h"
-#include "kdrivers/hpet.h"
-#include "kdrivers/local_apic.h"
 #include "printdec.h"
 #include "std/string.h"
-#include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/cpuid.h"
+#include "x86_64/gdt.h"
+#include "x86_64/kdrivers/cpu.h"
+#include "x86_64/kdrivers/hpet.h"
+#include "x86_64/kdrivers/local_apic.h"
+#include "x86_64/vmm/recursive.h"
 
 #ifdef DEBUG_SMP_STARTUP
 #include "kprintf.h"

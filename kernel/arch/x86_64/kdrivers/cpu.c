@@ -7,10 +7,10 @@
 
 #include <stdint.h>
 
-#include "acpitables.h"
-#include "cpuid.h"
 #include "debugprint.h"
-#include "kdrivers/cpu.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/cpuid.h"
+#include "x86_64/kdrivers/cpu.h"
 
 #ifdef DEBUG_CPU
 #include "kprintf.h"

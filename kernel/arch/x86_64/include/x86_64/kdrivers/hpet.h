@@ -13,8 +13,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "acpitables.h"
 #include "kdrivers/timer.h"
+#include "x86_64/acpitables.h"
 
 typedef struct {
     ACPI_SDTHeader header;

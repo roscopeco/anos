@@ -11,22 +11,18 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#include "acpitables.h"
 #include "cpuid.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
 #include "ipc/channel.h"
 #include "ipc/named.h"
-#include "kdrivers/cpu.h"
 #include "kdrivers/drivers.h"
-#include "kdrivers/local_apic.h"
 #include "kprintf.h"
 #include "panic.h"
 #include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
 #include "printdec.h"
 #include "printhex.h"
-#include "process/address_space.h"
 #include "sched.h"
 #include "slab/alloc.h"
 #include "sleep.h"
@@ -36,8 +32,12 @@
 #include "syscalls.h"
 #include "system.h"
 #include "task.h"
-#include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/kdrivers/cpu.h"
+#include "x86_64/kdrivers/local_apic.h"
+#include "x86_64/process/address_space.h"
+#include "x86_64/vmm/recursive.h"
 
 static ACPI_RSDT *acpi_root_table;
 

@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "acpitables.h"
+#include "x86_64/acpitables.h"
 
 // This doesn't belong here, it'll go away when we go tickless...
 #define KERNEL_HZ ((100))

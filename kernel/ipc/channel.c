@@ -12,7 +12,6 @@
 
 #include "anos_assert.h"
 #include "fba/alloc.h"
-#include "kdrivers/cpu.h"
 #include "once.h"
 #include "panic.h"
 #include "sched.h"
@@ -22,11 +21,12 @@
 #include "structs/list.h"
 #include "task.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/kdrivers/cpu.h"
 
 #ifdef UNIT_TESTS
 #include "mock_recursive.h"
 #else
-#include "vmm/recursive.h"
+#include "x86_64/vmm/recursive.h"
 #endif
 
 #include "ipc/channel_internal.h"

@@ -7,8 +7,8 @@
 
 #include <stdint.h>
 
-#include "gdt.h"
-#include "kdrivers/cpu.h"
+#include "x86_64/gdt.h"
+#include "x86_64/kdrivers/cpu.h"
 
 void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
                     uint8_t access, uint8_t flags_limit_h) {

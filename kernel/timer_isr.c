@@ -8,9 +8,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "kdrivers/local_apic.h"
 #include "sched.h"
 #include "sleep.h"
+#include "x86_64/kdrivers/local_apic.h"
 
 #ifdef WITH_KERNEL_HEART
 // TODO Obviously doesn't belong here, just a hack for proof of life...
