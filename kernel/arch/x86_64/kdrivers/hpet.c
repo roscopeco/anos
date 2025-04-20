@@ -7,12 +7,12 @@
 
 #include <stdbool.h>
 
-#include "acpitables.h"
 #include "debugprint.h"
 #include "kdrivers/drivers.h"
-#include "kdrivers/hpet.h"
 #include "kdrivers/timer.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/kdrivers/hpet.h"
 
 #ifdef DEBUG_HPET
 #if __STDC_HOSTED__ == 1

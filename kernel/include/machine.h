@@ -15,6 +15,9 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#define unlikely(x) __builtin_expect(!!(x), 0)
+#define likely(x) __builtin_expect(!!(x), 1)
+
 typedef enum {
     MEM_MAP_ENTRY_INVALID = 0,
     MEM_MAP_ENTRY_AVAILABLE = 1,

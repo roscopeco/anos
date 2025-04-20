@@ -166,14 +166,15 @@ the `gcov/kernel` directory as HTML.
 #### RISC-V
 
 > [!WARNING]
-> RISC-V support is _very_ much in its infancy right now - it's 
-> basically the scaffolding and enough code to boot into C from
-> limine, and that's all.
+> RISC-V support is _very_ much in its infancy right now - there's
+> enough to get through early boot and start the PMM and VMM, 
+> including setting up a direct map (since recursive can't be a
+> thing) but that's it.
 >
 > It only works on a qemu that's setup weirdly (e.g. with VGA)
 > and will not work on any real hardware at all yet. It also 
 > has basically zero features beyond booting and printing. It
-> doesn't even set up paging or start additional harts.
+> doesn't even get nearly far enough to start additional harts.
 >
 > Unless you're hacking on it, stick with x86_64 for now.
 

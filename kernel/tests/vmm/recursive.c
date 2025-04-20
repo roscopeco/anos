@@ -5,10 +5,12 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
-#include "vmm/recursive.h"
-#include "munit.h"
 #include <stddef.h>
 #include <stdlib.h>
+
+#include "munit.h"
+
+#include "x86_64/vmm/recursive_paging.h"
 
 static MunitResult test_table_address_0(const MunitParameter params[],
                                         void *fixture) {
@@ -133,7 +135,7 @@ test_table_address_pdpt_4_pml4_2(const MunitParameter params[], void *fixture) {
 
 static MunitResult test_find_pml4(const MunitParameter params[],
                                   void *fixture) {
-    PageTable *addr = vmm_recursive_find_pml4();
+    PageTable *addr = vmm_find_pml4();
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff804020100000 == 0b1111111111111111 100000000 100000000 100000000 100000000 000000000000
@@ -453,7 +455,7 @@ static MunitResult test_virt_to_pml4(const MunitParameter params[],
     munit_assert_ptr_equal(pml4_1, pml4_2);
 
     // Should also be internally consistent...
-    munit_assert_ptr_equal(pml4_1, vmm_recursive_find_pml4());
+    munit_assert_ptr_equal(pml4_1, vmm_find_pml4());
 
     return MUNIT_OK;
 }

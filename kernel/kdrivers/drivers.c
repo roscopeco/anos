@@ -8,10 +8,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "acpitables.h"
 #include "kdrivers/drivers.h"
-#include "kdrivers/hpet.h"
 #include "vmm/vmconfig.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/kdrivers/hpet.h"
 
 #define KERNEL_DRIVER_VADDR_END                                                \
     ((KERNEL_DRIVER_VADDR_BASE + KERNEL_DRIVER_VADDR_SIZE))

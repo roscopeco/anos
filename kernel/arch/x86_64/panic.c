@@ -6,7 +6,7 @@
  */
 
 #include "kdrivers/drivers.h"
-#include "kdrivers/local_apic.h"
+#include "x86_64/kdrivers/local_apic.h"
 
 void arch_panic_stop_all_processors(void) {
     uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);

@@ -36,15 +36,34 @@ typedef struct {
     uint64_t entries[512];
 } PageTable;
 
+// TODO this is brittle as all hell, and makes modifying / refactoring
+// in tests a real pain in the arse.
+//
+// If you're here because some tests started randomly failing to build
+// after some change, it's probably down to this.
+//
+// The usual trick is to:
+//
+//  * Be sure to include "munit.h" **first**
+//  * _then_ include "mock_recursive" afterward, even if your test
+//    doesn't seem to need it.
+//
+// But really this should be fixed properly. Which if recursive goes
+// away it will do, but otherwise, well, welcome to the club :D
+//
+// (Oh, and if you add those two steps in your test, make sure you have
+// a blank line between them or clang-format will "helpfully" reorder
+// them and break everything again...)
+//
 #ifdef MUNIT_H
-extern PageTable empty_pml4;
+PageTable empty_pml4 __attribute__((__aligned__(4096)));
 
-extern PageTable complete_pml4;
-extern PageTable complete_pdpt;
-extern PageTable complete_pd;
-extern PageTable complete_pt;
+PageTable complete_pml4 __attribute__((__aligned__(4096)));
+PageTable complete_pdpt __attribute__((__aligned__(4096)));
+PageTable complete_pd __attribute__((__aligned__(4096)));
+PageTable complete_pt __attribute__((__aligned__(4096)));
 
-extern PageTable *current_recursive_pml4;
+PageTable *current_recursive_pml4 = &complete_pml4;
 #else
 #include <stdio.h>
 
@@ -55,14 +74,14 @@ extern PageTable *current_recursive_pml4;
 
 #define MEM(arg) ((arg & ~0xfff))
 
-PageTable empty_pml4 __attribute__((__aligned__(4096)));
+extern PageTable empty_pml4;
 
-PageTable complete_pml4 __attribute__((__aligned__(4096)));
-PageTable complete_pdpt __attribute__((__aligned__(4096)));
-PageTable complete_pd __attribute__((__aligned__(4096)));
-PageTable complete_pt __attribute__((__aligned__(4096)));
+extern PageTable complete_pml4;
+extern PageTable complete_pdpt;
+extern PageTable complete_pd;
+extern PageTable complete_pt;
 
-PageTable *current_recursive_pml4 = &complete_pml4;
+extern PageTable *current_recursive_pml4;
 
 static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2,
                                                     uint16_t l3, uint16_t l4,
@@ -85,7 +104,7 @@ static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2,
     return (uintptr_t)(ptl2->entries[l4] & ~(0xfff));
 }
 
-static inline PageTable *vmm_recursive_find_pml4() { return &complete_pml4; }
+static inline PageTable *vmm_find_pml4() { return &complete_pml4; }
 
 static inline PageTable *vmm_recursive_find_pdpt(uint16_t pml4_entry) {
     return (PageTable *)(complete_pml4.entries[pml4_entry] & ~(0xfff));

@@ -5,13 +5,14 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include "task.h"
-#include "acpitables.h"
-#include "fba/alloc.h"
 #include "munit.h"
+
+#include "fba/alloc.h"
 #include "slab/alloc.h"
+#include "task.h"
 
 #include "mock_pmm.h"
+#include "mock_recursive.h"
 #include "smp/state.h"
 
 static const int PAGES_PER_SLAB = BYTES_PER_SLAB / VM_PAGE_SIZE;

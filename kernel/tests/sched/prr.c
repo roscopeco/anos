@@ -7,10 +7,12 @@
 
 #include <stdbool.h>
 
+#include "munit.h"
+
 #include "fba/alloc.h"
 #include "mock_pmm.h"
+#include "mock_recursive.h"
 #include "mock_task.h"
-#include "munit.h"
 #include "sched.h"
 #include "slab/alloc.h"
 #include "smp/state.h"

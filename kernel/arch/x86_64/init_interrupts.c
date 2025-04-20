@@ -8,9 +8,9 @@
 #include <stdint.h>
 
 #include "interrupts.h"
-#include "kdrivers/local_apic.h" // TODO this shouldn't be used here...
 #include "panic.h"
 #include "syscalls.h"
+#include "x86_64/kdrivers/local_apic.h" // TODO this shouldn't be used here...
 
 // This is a bit messy, but it works and is "good enough" for now 😅
 #define install_trap(N)                                                        \

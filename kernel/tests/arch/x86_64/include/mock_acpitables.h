@@ -12,7 +12,7 @@
 
 #include <stdint.h>
 
-#include "acpitables.h"
+#include "x86_64/acpitables.h"
 
 void mock_acpitables_reset(void);
 

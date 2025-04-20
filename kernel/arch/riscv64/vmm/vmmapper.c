@@ -1,480 +1,243 @@
 /*
- * RISC-V Memory Management
+ * RISC-V virtual memory manager
  * anos - An Operating System
  *
- * Copyright (c) 2023 Ross Bamford
+ * Copyright (c) 2025 Ross Bamford
+ * 
+ * Easy-peasy, based on the direct mapping. The hard work to set
+ * that up happens in vmmapper_init.c :)
  */
 
 #include <stddef.h>
 #include <stdint.h>
 
-#include "kdrivers/cpu.h"
+#include "panic.h"
 #include "pmm/pagealloc.h"
+#include "riscv64/kdrivers/cpu.h"
+#include "riscv64/vmm/vmconfig.h"
+#include "spinlock.h"
 #include "std/string.h"
+
 #include "vmm/vmmapper.h"
 
-// Define SATP mode if not already defined
-#ifndef SATP_MODE_SV39
-#define SATP_MODE_SV39 8
+#ifdef DEBUG_VMM
+#include "kprintf.h"
+#define debugf printf
+#ifdef VERY_NOISY_VMM
+#define vdebugf printf
+#else
+#define vdebugf(...)
+#endif
+#else
+#define debugf(...)
+#define vdebugf(...)
 #endif
 
-// Current page table hierarchy
-static PageTableHierarchy current_hierarchy;
+#ifdef UNIT_TESTS
+#define STATIC_EXCEPT_TESTS
+#else
+#define STATIC_EXCEPT_TESTS static
+#endif
 
-// Physical memory region
+typedef enum {
+    PT_LEVEL_PML4 = 4,
+    PT_LEVEL_PDPT = 3,
+    PT_LEVEL_PD = 2,
+    PT_LEVEL_PT = 1,
+} PagetableLevel;
+
 extern MemoryRegion *physical_region;
 
-// Initialize the direct mapping for physical memory
-void vmm_init_direct_mapping(void) {
-    // Allocate the top-level page table
-    current_hierarchy.l2 = vmm_alloc_page_table();
-    if (!current_hierarchy.l2) {
-        // Handle error
-        return;
-    }
+static SpinLock vmm_map_lock;
 
-#ifdef RISCV_SV48
-    // For Sv48, we need to allocate L3 as well
-    current_hierarchy.l3 = vmm_alloc_page_table();
-    if (!current_hierarchy.l3) {
-        // Handle error
-        return;
-    }
-#endif
+// TODO locking in here is very coarse-grained - it could be done based
+//      on the top-level table instead, for example...
+//
 
-    // Set up the direct mapping for physical memory
-    // We'll use huge pages (2MB) for efficiency
-    uintptr_t phys_addr = 0;
-    uintptr_t virt_addr = DIRECT_MAP_BASE;
-
-    // Map all physical memory using huge pages
-    // This is a simplified version - in a real implementation,
-    // you would get the actual physical memory size from the bootloader
-    // or memory manager
-    while (phys_addr < 0x100000000) { // 4GB for this example
-        vmm_map_page(virt_addr, phys_addr,
-                     PG_PRESENT | PG_READ | PG_WRITE | PG_GLOBAL);
-        phys_addr += MEGA_PAGE_SIZE;
-        virt_addr += MEGA_PAGE_SIZE;
-    }
-
-    // Set the page table base address in the SATP CSR
-    uintptr_t pt_base = virt_to_phys((uintptr_t)current_hierarchy.l2);
-#ifdef RISCV_SV48
-    cpu_set_satp(pt_base, SATP_MODE_SV48);
-#else
-    cpu_set_satp(pt_base, SATP_MODE_SV39);
-#endif
+/*
+ * Returns true if the given entry is a leaf, i.e.
+ * has any of the READ, WRITE or EXEC bits set.
+ */
+STATIC_EXCEPT_TESTS inline bool is_leaf(uint64_t table_entry) {
+    return table_entry & (PG_READ | PG_WRITE | PG_EXEC);
 }
 
-// Get the page table entry for a given virtual address
-uint64_t *vmm_get_pte(uintptr_t virt_addr) {
-    // Extract the page table indices from the virtual address
-    uint16_t l0_index = (virt_addr >> 12) & 0x1FF;
-    uint16_t l1_index = (virt_addr >> 21) & 0x1FF;
-    uint16_t l2_index = (virt_addr >> 30) & 0x1FF;
-#ifdef RISCV_SV48
-    uint16_t l3_index = (virt_addr >> 39) & 0x1FF;
-#endif
-
-    // Get the physical address of the page table
-    uintptr_t pt_phys_addr;
-
-#ifdef RISCV_SV48
-    // For Sv48, we need to traverse L3, L2, L1, L0
-    if (!current_hierarchy.l3)
+/*
+ * Ensure tables are mapped to the specified level.
+ *
+ * levels (1-based to fit with PML4 naming):
+ *
+ *   4 - Ensures PML4
+ *   3 - Ensures PDPT
+ *   2 - Ensures PD
+ *   1 - Ensures PT
+ * 
+ * Returns a virtual pointer to the table of the specified 
+ * level, which may be newly created.
+ * 
+ * Must be called with VMM locked!
+ */
+STATIC_EXCEPT_TESTS uint64_t *ensure_tables(uint64_t *root_table,
+                                            uintptr_t virt_addr,
+                                            PagetableLevel to_level) {
+    if (to_level < 1 || to_level > 4) {
         return NULL;
+    }
 
-    // Get L3 entry
-    uint64_t l3_entry = current_hierarchy.l3->entries[l3_index];
-    if (!(l3_entry & PG_PRESENT))
-        return NULL;
+    int levels_remain = 4 - to_level;
+    uint64_t *current_table = root_table;
 
-    // Get L2
-    PageTable *l2 = (PageTable *)phys_to_virt(l3_entry & ~0xFFF);
-    if (!l2)
-        return NULL;
+    while (levels_remain) {
+        uint16_t current_index =
+                vmm_virt_to_table_index(virt_addr, levels_remain + 1);
+        uint64_t current_entry = current_table[current_index];
 
-    // Get L2 entry
-    uint64_t l2_entry = l2->entries[l2_index];
-    if (!(l2_entry & PG_PRESENT))
-        return NULL;
+        if ((current_entry & PG_PRESENT) == 0) {
+            uintptr_t new_table = page_alloc(physical_region);
 
-    // Get L1
-    PageTable *l1 = (PageTable *)phys_to_virt(l2_entry & ~0xFFF);
-    if (!l1)
-        return NULL;
+            if (new_table & 0xfff) {
+                // TODO unmap what we mapped so far? Is it worth it?
+                return NULL;
+            }
 
-    // Get L1 entry
-    uint64_t l1_entry = l1->entries[l1_index];
-    if (!(l1_entry & PG_PRESENT))
-        return NULL;
+            uint64_t *new_ptr = vmm_phys_to_virt_ptr(new_table);
 
-    // Get L0
-    PageTable *l0 = (PageTable *)phys_to_virt(l1_entry & ~0xFFF);
-    if (!l0)
-        return NULL;
+            memclr(new_ptr, VM_PAGE_SIZE);
 
-    // Return L0 entry
-    return &l0->entries[l0_index];
-#else
-    // For Sv39, we need to traverse L2, L1, L0
-    if (!current_hierarchy.l2)
-        return NULL;
+            current_table[current_index] =
+                    vmm_phys_and_flags_to_table_entry(new_table, PG_PRESENT);
+            current_table = new_ptr;
+        } else {
+            // special case - if this is a leaf, but we wanted a lower level,
+            // we'll just fail...
+            if (levels_remain > 1 && is_leaf(current_entry)) {
+                return NULL;
+            }
 
-    // Get L2 entry
-    uint64_t l2_entry = current_hierarchy.l2->entries[l2_index];
-    if (!(l2_entry & PG_PRESENT))
-        return NULL;
+            current_table = vmm_phys_to_virt_ptr(
+                    vmm_table_entry_to_phys(current_entry));
+        }
 
-    // Get L1
-    PageTable *l1 = (PageTable *)phys_to_virt(l2_entry & ~0xFFF);
-    if (!l1)
-        return NULL;
+        levels_remain -= 1;
+    }
 
-    // Get L1 entry
-    uint64_t l1_entry = l1->entries[l1_index];
-    if (!(l1_entry & PG_PRESENT))
-        return NULL;
-
-    // Get L0
-    PageTable *l0 = (PageTable *)phys_to_virt(l1_entry & ~0xFFF);
-    if (!l0)
-        return NULL;
-
-    // Return L0 entry
-    return &l0->entries[l0_index];
-#endif
+    return current_table;
 }
 
-// Get the page table for a given virtual address
-PageTable *vmm_get_pt(uintptr_t virt_addr) {
-    // Extract the page table indices from the virtual address
-    uint16_t l1_index = (virt_addr >> 21) & 0x1FF;
-    uint16_t l2_index = (virt_addr >> 30) & 0x1FF;
-#ifdef RISCV_SV48
-    uint16_t l3_index = (virt_addr >> 39) & 0x1FF;
-#endif
-
-#ifdef RISCV_SV48
-    // For Sv48, we need to traverse L3, L2, L1
-    if (!current_hierarchy.l3)
-        return NULL;
-
-    // Get L3 entry
-    uint64_t l3_entry = current_hierarchy.l3->entries[l3_index];
-    if (!(l3_entry & PG_PRESENT))
-        return NULL;
-
-    // Get L2
-    PageTable *l2 = (PageTable *)phys_to_virt(l3_entry & ~0xFFF);
-    if (!l2)
-        return NULL;
-
-    // Get L2 entry
-    uint64_t l2_entry = l2->entries[l2_index];
-    if (!(l2_entry & PG_PRESENT))
-        return NULL;
-
-    // Get L1
-    PageTable *l1 = (PageTable *)phys_to_virt(l2_entry & ~0xFFF);
-    if (!l1)
-        return NULL;
-
-    // Get L1 entry
-    uint64_t l1_entry = l1->entries[l1_index];
-    if (!(l1_entry & PG_PRESENT))
-        return NULL;
-
-    // Get L0
-    return (PageTable *)phys_to_virt(l1_entry & ~0xFFF);
-#else
-    // For Sv39, we need to traverse L2, L1
-    if (!current_hierarchy.l2)
-        return NULL;
-
-    // Get L2 entry
-    uint64_t l2_entry = current_hierarchy.l2->entries[l2_index];
-    if (!(l2_entry & PG_PRESENT))
-        return NULL;
-
-    // Get L1
-    PageTable *l1 = (PageTable *)phys_to_virt(l2_entry & ~0xFFF);
-    if (!l1)
-        return NULL;
-
-    // Get L1 entry
-    uint64_t l1_entry = l1->entries[l1_index];
-    if (!(l1_entry & PG_PRESENT))
-        return NULL;
-
-    // Get L0
-    return (PageTable *)phys_to_virt(l1_entry & ~0xFFF);
-#endif
-}
-
-// Get the page directory for a given virtual address
-PageTable *vmm_get_pd(uintptr_t virt_addr) {
-    // Extract the page table indices from the virtual address
-    uint16_t l2_index = (virt_addr >> 30) & 0x1FF;
-#ifdef RISCV_SV48
-    uint16_t l3_index = (virt_addr >> 39) & 0x1FF;
-#endif
-
-#ifdef RISCV_SV48
-    // For Sv48, we need to traverse L3, L2
-    if (!current_hierarchy.l3)
-        return NULL;
-
-    // Get L3 entry
-    uint64_t l3_entry = current_hierarchy.l3->entries[l3_index];
-    if (!(l3_entry & PG_PRESENT))
-        return NULL;
-
-    // Get L2
-    PageTable *l2 = (PageTable *)phys_to_virt(l3_entry & ~0xFFF);
-    if (!l2)
-        return NULL;
-
-    // Get L2 entry
-    uint64_t l2_entry = l2->entries[l2_index];
-    if (!(l2_entry & PG_PRESENT))
-        return NULL;
-
-    // Get L1
-    return (PageTable *)phys_to_virt(l2_entry & ~0xFFF);
-#else
-    // For Sv39, we need to traverse L2
-    if (!current_hierarchy.l2)
-        return NULL;
-
-    // Get L2 entry
-    uint64_t l2_entry = current_hierarchy.l2->entries[l2_index];
-    if (!(l2_entry & PG_PRESENT))
-        return NULL;
-
-    // Get L1
-    return (PageTable *)phys_to_virt(l2_entry & ~0xFFF);
-#endif
-}
-
-// Get the page directory pointer table for a given virtual address
-PageTable *vmm_get_pdpt(uintptr_t virt_addr) {
-#ifdef RISCV_SV48
-    // Extract the page table indices from the virtual address
-    uint16_t l3_index = (virt_addr >> 39) & 0x1FF;
-
-    // For Sv48, we need to traverse L3
-    if (!current_hierarchy.l3)
-        return NULL;
-
-    // Get L3 entry
-    uint64_t l3_entry = current_hierarchy.l3->entries[l3_index];
-    if (!(l3_entry & PG_PRESENT))
-        return NULL;
-
-    // Get L2
-    return (PageTable *)phys_to_virt(l3_entry & ~0xFFF);
-#else
-    // For Sv39, L2 is the top level
-    return current_hierarchy.l2;
-#endif
-}
-
-#ifdef RISCV_SV48
-// Get the page map level 4 for a given virtual address
-PageTable *vmm_get_pml4(uintptr_t virt_addr) {
-    // For Sv48, L3 is the top level
-    return current_hierarchy.l3;
-}
-#endif
-
-// Get the physical address for a given virtual address
-uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
-    // Check if the address is in the direct mapping region
-    if (is_direct_mapped(virt_addr)) {
-        return virt_to_phys(virt_addr);
-    }
-
-    // Get the page table entry
-    uint64_t *pte = vmm_get_pte(virt_addr);
-    if (!pte || !(*pte & PG_PRESENT)) {
-        return 0;
-    }
-
-    // Extract the physical address from the page table entry
-    uintptr_t phys_addr = *pte & ~0xFFF;
-
-    // Add the page offset
-    phys_addr |= virt_addr & 0xFFF;
-
-    return phys_addr;
-}
-
-// Map a physical page to a virtual address
-bool vmm_map_page(uintptr_t virt_addr, uintptr_t phys_addr, uint64_t flags) {
-    // Extract the page table indices from the virtual address
-    uint16_t l0_index = (virt_addr >> 12) & 0x1FF;
-    uint16_t l1_index = (virt_addr >> 21) & 0x1FF;
-    uint16_t l2_index = (virt_addr >> 30) & 0x1FF;
-#ifdef RISCV_SV48
-    uint16_t l3_index = (virt_addr >> 39) & 0x1FF;
-#endif
-
-    // Ensure the page tables exist
-#ifdef RISCV_SV48
-    // For Sv48, we need to ensure L3, L2, L1, L0 exist
-    if (!current_hierarchy.l3) {
-        current_hierarchy.l3 = vmm_alloc_page_table();
-        if (!current_hierarchy.l3)
-            return false;
-    }
-
-    // Get L3 entry
-    uint64_t l3_entry = current_hierarchy.l3->entries[l3_index];
-    if (!(l3_entry & PG_PRESENT)) {
-        // Allocate L2
-        PageTable *l2 = vmm_alloc_page_table();
-        if (!l2)
-            return false;
-
-        // Set L3 entry
-        current_hierarchy.l3->entries[l3_index] =
-                ((uintptr_t)virt_to_phys((uintptr_t)l2) & ~0xFFF) | PG_PRESENT;
-    }
-
-    // Get L2
-    PageTable *l2 = (PageTable *)phys_to_virt(
-            current_hierarchy.l3->entries[l3_index] & ~0xFFF);
-
-    // Get L2 entry
-    uint64_t l2_entry = l2->entries[l2_index];
-    if (!(l2_entry & PG_PRESENT)) {
-        // Allocate L1
-        PageTable *l1 = vmm_alloc_page_table();
-        if (!l1)
-            return false;
-
-        // Set L2 entry
-        l2->entries[l2_index] =
-                ((uintptr_t)virt_to_phys((uintptr_t)l1) & ~0xFFF) | PG_PRESENT;
-    }
-
-    // Get L1
-    PageTable *l1 = (PageTable *)phys_to_virt(l2->entries[l2_index] & ~0xFFF);
-
-    // Get L1 entry
-    uint64_t l1_entry = l1->entries[l1_index];
-    if (!(l1_entry & PG_PRESENT)) {
-        // Allocate L0
-        PageTable *l0 = vmm_alloc_page_table();
-        if (!l0)
-            return false;
-
-        // Set L1 entry
-        l1->entries[l1_index] =
-                ((uintptr_t)virt_to_phys((uintptr_t)l0) & ~0xFFF) | PG_PRESENT;
-    }
-
-    // Get L0
-    PageTable *l0 = (PageTable *)phys_to_virt(l1->entries[l1_index] & ~0xFFF);
-
-    // Set L0 entry
-    l0->entries[l0_index] = (phys_addr & ~0xFFF) | flags;
-#else
-    // For Sv39, we need to ensure L2, L1, L0 exist
-    if (!current_hierarchy.l2) {
-        current_hierarchy.l2 = vmm_alloc_page_table();
-        if (!current_hierarchy.l2)
-            return false;
-    }
-
-    // Get L2 entry
-    uint64_t l2_entry = current_hierarchy.l2->entries[l2_index];
-    if (!(l2_entry & PG_PRESENT)) {
-        // Allocate L1
-        PageTable *l1 = vmm_alloc_page_table();
-        if (!l1)
-            return false;
-
-        // Set L2 entry
-        current_hierarchy.l2->entries[l2_index] =
-                ((uintptr_t)virt_to_phys((uintptr_t)l1) & ~0xFFF) | PG_PRESENT;
-    }
-
-    // Get L1
-    PageTable *l1 = (PageTable *)phys_to_virt(
-            current_hierarchy.l2->entries[l2_index] & ~0xFFF);
-
-    // Get L1 entry
-    uint64_t l1_entry = l1->entries[l1_index];
-    if (!(l1_entry & PG_PRESENT)) {
-        // Allocate L0
-        PageTable *l0 = vmm_alloc_page_table();
-        if (!l0)
-            return false;
-
-        // Set L1 entry
-        l1->entries[l1_index] =
-                ((uintptr_t)virt_to_phys((uintptr_t)l0) & ~0xFFF) | PG_PRESENT;
-    }
-
-    // Get L0
-    PageTable *l0 = (PageTable *)phys_to_virt(l1->entries[l1_index] & ~0xFFF);
-
-    // Set L0 entry
-    l0->entries[l0_index] = (phys_addr & ~0xFFF) | flags;
-#endif
-
-    // Invalidate the TLB for this address
+inline void vmm_invalidate_page(uintptr_t virt_addr) {
     cpu_invalidate_tlb_addr(virt_addr);
-
-    return true;
 }
 
-// Unmap a virtual address
-bool vmm_unmap_page(uintptr_t virt_addr) {
-    // Get the page table entry
-    uint64_t *pte = vmm_get_pte(virt_addr);
-    if (!pte || !(*pte & PG_PRESENT)) {
+inline bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
+                                       uint64_t phys_addr, uint16_t flags) {
+    uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
+
+    virt_addr &= PAGE_ALIGN_MASK;
+
+    uint64_t *pt = ensure_tables(pml4, virt_addr, PT_LEVEL_PT);
+
+    if (!pt) {
+        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
         return false;
     }
 
-    // Clear the page table entry
-    *pte = 0;
+    pt[vmm_virt_to_pt_index(virt_addr)] =
+            vmm_phys_and_flags_to_table_entry(phys_addr, flags | PG_PRESENT);
 
-    // Invalidate the TLB for this address
-    cpu_invalidate_tlb_addr(virt_addr);
+    vmm_invalidate_page(virt_addr);
 
+    spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
     return true;
 }
 
-// Allocate a new page table
-PageTable *vmm_alloc_page_table(void) {
-    // Allocate a physical page for the page table
-    uintptr_t phys_addr = page_alloc(physical_region);
-    if (!phys_addr) {
-        return NULL;
-    }
-
-    // Convert to virtual address
-    PageTable *pt = (PageTable *)phys_to_virt(phys_addr);
-
-    // Clear the page table
-    memset(pt, 0, sizeof(PageTable));
-
-    return pt;
+inline bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
+                                    uint16_t flags) {
+    return vmm_map_page_containing_in(
+            vmm_phys_to_virt_ptr(cpu_satp_to_root_table_phys(cpu_read_satp())),
+            virt_addr, phys_addr, flags);
 }
 
-// Free a page table
-void vmm_free_page_table(PageTable *pt) {
-    if (!pt) {
-        return;
+inline bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
+                            uint16_t flags) {
+    return vmm_map_page_containing_in(pml4, virt_addr, page, flags);
+}
+
+inline bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags) {
+    return vmm_map_page_containing(virt_addr, page, flags);
+}
+
+uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
+    uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
+
+    uint16_t pml4_index = vmm_virt_to_pml4_index(virt_addr);
+    uint64_t pml4e = pml4[pml4_index];
+
+    if (pml4e & PG_PRESENT) {
+        if (is_leaf(pml4e)) {
+            // unmapping a terapage
+            pml4[pml4_index] = 0;
+
+            vmm_invalidate_page(virt_addr);
+
+            spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+            return vmm_table_entry_to_phys(pml4e);
+        }
+
+        uint64_t *pdpt = vmm_phys_to_virt_ptr(vmm_table_entry_to_phys(pml4e));
+        uint16_t pdpt_index = vmm_virt_to_pdpt_index(virt_addr);
+        uint64_t pdpte = pdpt[pdpt_index];
+
+        if (pdpte & PG_PRESENT) {
+            if (is_leaf(pdpte)) {
+                // unmapping a gigapage
+                pdpt[pdpt_index] = 0;
+
+                vmm_invalidate_page(virt_addr);
+
+                spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+                return vmm_table_entry_to_phys(pdpte);
+            }
+
+            uint64_t *pd = vmm_phys_to_virt_ptr(vmm_table_entry_to_phys(pdpte));
+            uint16_t pd_index = vmm_virt_to_pd_index(virt_addr);
+            uint64_t pde = pd[pd_index];
+
+            if (pde & PG_PRESENT) {
+                if (is_leaf(pde)) {
+                    // unmapping a megapage
+                    pd[pd_index] = 0;
+                    vmm_invalidate_page(virt_addr);
+
+                    spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+                    return vmm_table_entry_to_phys(pde);
+                }
+
+                uint64_t *pt =
+                        vmm_phys_to_virt_ptr(vmm_table_entry_to_phys(pde));
+                uint16_t pt_index = vmm_virt_to_pt_index(virt_addr);
+                uint64_t pte = pt[pt_index];
+
+                if (pte & PG_PRESENT) {
+                    if (is_leaf(pte)) {
+                        // unmapping a megapage
+                        pt[pt_index] = 0;
+
+                        vmm_invalidate_page(virt_addr);
+
+                        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+                        return vmm_table_entry_to_phys(pte);
+                    }
+                }
+            }
+        }
     }
 
-    // Convert to physical address
-    uintptr_t phys_addr = virt_to_phys((uintptr_t)pt);
+    spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+    return 0;
+}
 
-    // Free the physical page
-    page_free(physical_region, phys_addr);
+inline uintptr_t vmm_unmap_page(uintptr_t virt_addr) {
+    return vmm_unmap_page_in(
+            vmm_phys_to_virt_ptr(cpu_satp_to_root_table_phys(cpu_read_satp())),
+            virt_addr);
 }

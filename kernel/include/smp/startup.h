@@ -10,8 +10,9 @@
 #ifndef __ANOS_SMP_STARTUP_H
 #define __ANOS_SMP_STARTUP_H
 
-#include <acpitables.h>
 #include <stdint.h>
+
+#include "x86_64/acpitables.h"
 
 void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic);
 

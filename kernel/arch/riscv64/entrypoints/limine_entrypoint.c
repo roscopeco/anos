@@ -12,19 +12,15 @@
 #include <stdnoreturn.h>
 
 #include "debugprint.h"
-#include "init_pagetables.h"
-#include "kdrivers/cpu.h"
 #include "kprintf.h"
 #include "machine.h"
-#include "pmm/config.h"
 #include "pmm/pagealloc.h"
-#include "sbi.h"
+#include "riscv64/kdrivers/cpu.h"
+#include "riscv64/pmm/config.h"
+#include "riscv64/sbi.h"
+#include "riscv64/vmm/vmmapper.h"
 #include "std/string.h"
 #include "vmm/vmconfig.h"
-#include "vmm/vmmapper.h"
-
-#define unlikely(x) __builtin_expect(!!(x), 0)
-#define likely(x) __builtin_expect(!!(x), 1)
 
 #define MAX_MEMMAP_ENTRIES 64
 
@@ -34,8 +30,6 @@
 #define KERNEL_INIT_STACK_TOP ((STATIC_KERNEL_SPACE + KERNEL_BSS_PHYS))
 
 #define KERNEL_FRAMEBUFFER ((0xffffffff82000000))
-
-#define MAX_MEMMAP_ENTRIES 64
 
 #define LIMINE_COMMON_MAGIC 0xc7b1dd30df4c8b88, 0x0a82e883a194f07b
 #define LIMINE_MEMMAP_REQUEST                                                  \
@@ -186,39 +180,6 @@ noreturn void bootstrap_trampoline(uint16_t fb_width, uint16_t fb_height,
 
 // Forwards
 static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height);
-
-static inline uint16_t vmm_virt_to_table_index(uintptr_t virt_addr,
-                                               uint8_t level) {
-    return ((virt_addr >> ((9 * (level - 1)) + 12)) & 0x1ff);
-}
-
-static inline uintptr_t vmm_virt_to_pml4_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 9 + 9 + 12)) & 0x1ff);
-}
-
-static inline uintptr_t vmm_virt_to_pdpt_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 9 + 12)) & 0x1ff);
-}
-
-static inline uintptr_t vmm_virt_to_pd_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 12)) & 0x1ff);
-}
-
-static inline uintptr_t vmm_virt_to_pt_index(uintptr_t virt_addr) {
-    return ((virt_addr >> 12) & 0x1ff);
-}
-
-static inline uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry) {
-    return ((table_entry >> 10) << 12);
-}
-
-static inline uint16_t vmm_table_entry_to_page_flags(uintptr_t table_entry) {
-    return (uint16_t)(table_entry & 0x3ff);
-}
-
-static inline size_t vmm_level_page_size(uint8_t level) {
-    return (0x1000 << (9 * (level - 1)));
-}
 
 typedef struct {
     uintptr_t phys_addr;
@@ -433,8 +394,8 @@ static inline bool vmm_map_page_no_alloc(uintptr_t virt_addr, uint8_t mmu_mode,
 
     // We've reached the target level, map the page
     entry_index = vmm_virt_to_table_index(virt_addr, target_level + 1);
-    current_table[entry_index] =
-            (page->phys_addr >> 2) | page->page_flags | PG_PRESENT;
+    current_table[entry_index] = vmm_phys_and_flags_to_table_entry(
+            page->phys_addr, page->page_flags | PG_PRESENT);
     cpu_invalidate_tlb_addr(virt_addr);
 
     vmm_vdebugf("Target level %d entry %d is now 0x%016lx\n", target_level,
@@ -669,12 +630,15 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
     physical_region = page_alloc_init_limine(&static_memmap, 0,
                                              STATIC_PMM_VREGION, false);
 
-    uintptr_t test_page = page_alloc(physical_region);
-
 #ifdef DEBUG_PMM
     kprintf("\n\nphysical_region allocated at %p : %ld bytes total / %ld bytes "
             "free\n",
             physical_region, physical_region->size, physical_region->free);
+#endif
+
+#ifdef TEST_RISCV_PMM_INIT
+    uintptr_t test_page = page_alloc(physical_region);
+
     if (test_page & 0xfff) {
         kprintf("Test physical page alloc: failed to allocate test physical "
                 "page!\n");
@@ -684,6 +648,35 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
                 test_page);
     }
 #endif
+
+#ifdef DEBUG_VMM
+    size_t pre_direct_free = physical_region->free;
+#endif
+    vmm_init_direct_mapping(new_pml4, &static_memmap);
+#ifdef DEBUG_VMM
+    size_t post_direct_free = physical_region->free;
+    kprintf("Page tables for VMM Direct Mapping: %ld bytes of physical "
+            "memory\n",
+            pre_direct_free - post_direct_free);
+#endif
+
+#ifdef TEST_RISCV_VMM_INIT
+    uintptr_t new_page_paddr = page_alloc(physical_region);
+    uint64_t *new_page_ptr =
+            (uint64_t *)(new_page_paddr + 0xffff800000000000ULL);
+
+    for (int i = 0; i < 512; i++) {
+        new_page_ptr[i] = i;
+    }
+
+    kprintf("Physical allocated at 0x%016lx, direct map is 0x%016lx, should be "
+            "dirty\n",
+            new_page_paddr, (uintptr_t)new_page_ptr);
+#endif
+
+    uintptr_t new_phys = page_alloc(physical_region);
+
+    vmm_map_page(0x1000, new_phys, PG_READ | PG_WRITE | PG_USER);
 
     kprintf("\n\nThis is as far as we go right now...\n");
 

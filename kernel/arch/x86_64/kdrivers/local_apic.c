@@ -8,15 +8,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "acpitables.h"
 #include "kdrivers/drivers.h"
-#include "kdrivers/hpet.h"
-#include "kdrivers/local_apic.h"
 #include "kdrivers/timer.h"
 #include "kprintf.h"
 #include "machine.h"
 #include "spinlock.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/kdrivers/hpet.h"
+#include "x86_64/kdrivers/local_apic.h"
 
 #define NANOS_IN_20MS (((uint64_t)20000000))
 

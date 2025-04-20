@@ -8,8 +8,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "kdrivers/serial.h"
 #include "machine.h"
+#include "x86_64/kdrivers/serial.h"
 
 bool serial_init(SerialPort port) {
     outb(port + 1, 0x00); // Disable all interrupts

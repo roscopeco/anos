@@ -66,12 +66,15 @@ static inline PerCPUState *state_get_for_any_cpu(uint8_t cpu_num) {
 }
 #endif
 #else
-// Assumes GS is already swapped to KernelGSBase...
-static inline PerCPUState *state_get_for_this_cpu(void) {
-    PerCPUState *ptr;
-    __asm__ volatile("mov %%gs:0, %0" : "=r"(ptr));
-    return ptr;
-}
+
+#if defined __x86_64__
+#include "x86_64/smp/state.h"
+#elif defined __riscv
+#include "riscv64/smp/state.h"
+#else
+#error No arch defined for SMP state.h
+#endif
+
 #endif
 
 void state_register_cpu(uint8_t cpu_num, PerCPUState *state);

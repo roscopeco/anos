@@ -39,7 +39,6 @@
 
 #include <stdint.h>
 
-#include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
 
 void pagetables_init() {

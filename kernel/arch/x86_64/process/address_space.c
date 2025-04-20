@@ -12,15 +12,14 @@
 #include "mock_cpu.h"
 #include "mock_recursive.h"
 #else
-#include "kdrivers/cpu.h"
-#include "vmm/recursive.h"
+#include "x86_64/kdrivers/cpu.h"
 #endif
 
 #include "pmm/pagealloc.h"
-#include "process/address_space.h"
 #include "spinlock.h"
 #include "structs/ref_count_map.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/process/address_space.h"
 
 #ifdef DEBUG_ADDR_SPACE
 #if __STDC_HOSTED__ == 1
@@ -56,7 +55,7 @@ static SpinLock address_space_lock;
 extern MemoryRegion *physical_region;
 
 bool address_space_init(void) {
-    PageTable *pml4 = vmm_recursive_find_pml4();
+    PageTable *pml4 = vmm_find_pml4();
 
     for (int i = KERNEL_BEGIN_ENTRY; i < 512; i++) {
         if ((pml4->entries[i] & PG_PRESENT) == 0) {
@@ -136,7 +135,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     uint64_t lock_flags = spinlock_lock_irqsave(&address_space_lock);
 
     // Find current pml4
-    PageTable *current_pml4 = vmm_recursive_find_pml4();
+    PageTable *current_pml4 = vmm_find_pml4();
 
     // Map in the new one to the "other" spot
     uintptr_t saved_other = current_pml4->entries[RECURSIVE_ENTRY_OTHER];
@@ -202,7 +201,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
             if (shared_phys) {
                 // TODO what if this fails (to alloc table pages)?
                 //
-                vmm_map_page_in(new_pml4_virt, ptr, shared_phys,
+                vmm_map_page_in((uint64_t *)new_pml4_virt, ptr, shared_phys,
                                 PG_PRESENT | PG_USER | PG_COPY_ON_WRITE);
 
                 // TODO pmm_free_shareable(page) needs implementing to check this and handle appropriately...
@@ -243,7 +242,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
             return 0;
         }
 
-        vmm_map_page_in(new_pml4_virt, ptr, stack_page,
+        vmm_map_page_in((uint64_t *)new_pml4_virt, ptr, stack_page,
                         PG_WRITE | PG_PRESENT | PG_USER);
     }
 

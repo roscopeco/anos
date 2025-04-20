@@ -4,8 +4,9 @@
  *
  * Copyright (c) 2024 Ross Bamford
  */
-#include "gdt.h"
 #include "munit.h"
+
+#include "x86_64/gdt.h"
 
 static const GDTEntry empty_entry = {0};
 

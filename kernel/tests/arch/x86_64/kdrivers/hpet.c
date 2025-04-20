@@ -8,10 +8,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "kdrivers/hpet.h"
+#include "munit.h"
+
+#include "mock_recursive.h"
+
 #include "mock_acpitables.h"
 #include "mock_vmm.h"
-#include "munit.h"
+#include "x86_64/kdrivers/hpet.h"
 
 static ACPI_RSDT valid_rsdt = {.header = {
                                        .checksum = 0x23,

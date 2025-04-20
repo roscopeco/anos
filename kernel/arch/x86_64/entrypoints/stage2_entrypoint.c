@@ -9,11 +9,11 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#include "acpitables.h"
-#include "entrypoints/common.h"
-#include "init_pagetables.h"
 #include "machine.h"
-#include "pmm/config.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/entrypoints/common.h"
+#include "x86_64/init_pagetables.h"
+#include "x86_64/pmm/config.h"
 
 #include "debugprint.h"
 

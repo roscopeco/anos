@@ -1,10 +1,13 @@
 ## Memory Map for Anos
 
 > [!NOTE]
-> The low memory and early boot information here applies **only when booted via STAGE2**.
-> When booted with Limine (or other such loader as we may support from time to time)
-> the kernel entrypoint code for that loader is responsible for making the bootloader's
-> environment into something palatable for the kernel proper.
+> The low memory and early boot information here applies **only when booted via STAGE2**,
+> and is **only applicable on x86_64**.
+>
+> When booted with Limine (or other such loader as we may support from time to time),
+> and on other platforms (e.g. RISC-V) the kernel entrypoint code for that platform 
+> and loader is responsible for making the bootloader's environment into something 
+> palatable for the kernel proper before handing off to the common entrypoint.
 
 ### Low Memory
 
@@ -70,22 +73,23 @@ in step or you're likely to experience sadness).
 
 ### Long Mode Initial Page Table Layout
 
-Once long mode gets set up, we set up two mappings in the 
-initial page tables:
+Once long mode gets set up, the platform- and loader-specific bootstraps
+set up a few mappings in the initial page tables:
 
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
-| `0x0000000000000000` | `0x0000000000200000` | Identity mapped to physical bottom 2MiB                      |
-| `0xffffffff80000000` | `0xffffffff801fffff` | First 2MiB of top /negative 2GiB mapped to first 2MiB phys   |
+| `0x0000000000000000` | `0x0000000000200000` | Identity mapped to physical bottom 2MiB (**x86_64 only**)    |
+| `0xffffffff80000000` | `0xffffffff803fffff` | Kernel code / data static mapping (4MiB)                     |
+| `0xffffffff82000000` | `0xffffffff827fffff` | Framebuffer (**UEFI only**, all platforms)                   |
 
-This mapping lets the long mode setup keep running as it was (in the 
-identity-mapped space), up until it jumps directly to the kernel at it's
-(virtual) load address (in the kernel space mapping).
+This mapping lets the long mode setup keep running as it was (in the identity-mapped space),
+up until it jumps directly to the kernel at it's (virtual) load address (in the kernel space
+mapping). This happens at the end of the platform-specific bootstrap.
 
-> **Note**: The second 2MiB of physical is mapped into kernel space for convenience,
-> to make it easy to access the first 2MiB of RAM that's managed by the PMM during init.
->
-> It likely won't stay...
+> [!WARNING]
+> On **x86_64 (only)**, the second 2MiB of physical is mapped into kernel space for 
+> convenience, to make it easy to access the first 2MiB of RAM that's managed by the
+> PMM during init.
 >
 > The first 2MiB is excluded from the PMM, so is manually managed. This is just because
 > there's already a kernel and various data (page tables etc) there by the time the PMM
@@ -95,41 +99,55 @@ identity-mapped space), up until it jumps directly to the kernel at it's
 
 > [!NOTE]
 > From this point on, the map is the same regardless of how we were booted.
+> 
+> On x86_64, ince stage 2 has exited and we're in the kernel proper, the identity 
+> mapping of low RAM is dropped (the first 2MB physical mapping into the top 2GiB 
+> is retained, and for UEFI boot we currently copy the kernel to that physical 
+> space).
+>
+> On RISC-V, because we have no guarantees about physical memory, we instead keep
+> the kernel at it's load address, copy the bootloader mappings into our pagetables,
+> and exclude `EXECUTABLE_AND_MODULES` memory regions from the PMM.
 
-Once stage 2 has exited and we're in the kernel proper, the identity mapping of low RAM 
-is dropped (the first 2MB physical mapping into the top 2GiB is retained).
-
-We also create the mapping for the 128GiB reserved address space for the PMM structures
-at this point, leaving us with:
+We also create the mapping for the 128GiB reserved address space for the PMM
+structures at this point, leaving us with:
 
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
-| `0x0000000000000000` | `0x00007fffffffffff` | User space                                                   |
+| `0x0000000000000000` | `0x00007fffffffffff` | User space (128TiB)                                          |
 | `0x0000800000000000` | `0xffff7fffffffffff` | [_Non-canonical memory hole_]                                |
-| `0xffff800000000000` | `0xffffff7fffffffff` | Virtual Mapping area (127TiB) (see below)                    |
+| `0xffff800000000000` | `0xfffffeffffffffff` | Virtual Mapping area (127TiB) (see below)                    |
+| `0xffffff0000000000` | `0xffffff7fffffffff` | [_Currently unused, 512GiB_]                                 |
 | `0xffffff8000000000` | `0xffffff9fffffefff` | PMM structures area (only the first page is actually present)|
 | `0xffffff9ffffff000` | `0xffffff9fffffffff` | PMM structures guard page (Reserved, never mapped)           |
-| `0xffffffa000000000` | `0xffffffa0000003ff` | Local APIC (for all CPUs) [TODO move to driver space]        |
-| `0xffffffa000000400` | `0xffffffff7fffffff` | [_Currently unused, ~381GiB_]                                |
-| `0xffffffff80000000` | `0xffffffff803fffff` | First 4MiB of top (negative) 2GiB mapped to first 4MiB phys  |
+| `0xffffffa000000000` | `0xffffffa0000003ff` | Local APIC (for all CPUs) [_TODO_ move to driver space]      |
+| `0xffffffa000000400` | `0xffffffff7fffffff` | [_Currently unused, ~382GiB_]                                |
+| `0xffffffff80000000` | `0xffffffff803fffff` | Kernel code / data static mapping (4MiB)                     |
 | `0xffffffff80400000` | `0xffffffff80ffffff` | 256 per-CPU temporary mapping pages (**see notes, below**)   |
 | `0xffffffff81000000` | `0xffffffff8101ffff` | (Temporary) Reserved space for ACPI tables                   |
 | `0xffffffff81020000` | `0xffffffff810fffff` | Kernel driver MMIO mapping space (895KiB, 224 pages)         |
 | `0xffffffff81100000` | `0xffffffff81ffffff` | [_Currently unused, 15MiB_]                                  |
-| `0xffffffff82000000` | `0xffffffff823fffff` | Bootup terminal framebuffer (4MiB)                           |
-| `0xffffffff82400000` | `0xffffffffbfffffff` | [_Currently unused, 988MiB_]                                 |
+| `0xffffffff82000000` | `0xffffffff827fffff` | Bootup terminal framebuffer (8MiB)                           |
+| `0xffffffff82800000` | `0xffffffffbfffffff` | [_Currently unused, 984MiB_]                                 |
 | `0xffffffffc0000000` | `0xffffffffffffffff` | 1GiB FBA space                                               |
 
 #### Notes on specific areas
 
 ##### Virtual mapping area
 
-We reserve the first available 127TB of kernel space for the virtual mapping area. 
-This area covers 255 PML4 entries from 256 to 510, leaving the last entry (512GB) free for 
-the rest of kernel space. This area is currently used for recursive mapping, 
-with PML4 256 and 257 reserved for the recursive entries (256 being the "main" self-mapping,
-always present in all address spaces, and 257 being a second recursive entry available for
-use when copying between address spaces). 
+We reserve the first available 127TiB of kernel space for the virtual mapping area. 
+This area covers 254 PML4 entries from 256 to 509, leaving one entry (510) unused
+and available for per-platform requirements, with the last entry (covering 512GB)
+free for the rest of kernel space.
+
+How this 127TiB is actually used dependent on the platform.
+
+###### x86_64
+
+On x86_64, this area is currently used for recursive mapping, with PML4 256 and 257 reserved
+for the recursive entries (256 being the "main" self-mapping, always present in all address 
+spaces, and 257 being a second recursive entry available for use when copying between 
+address spaces). 
 
 This means that currently, of this 127TiB area, 1TiB is currently used, and the rest 
 is currently unused - the area looks like this currently:
@@ -140,12 +158,27 @@ is currently unused - the area looks like this currently:
 | `0xffff808000000000` | `0xffff80ffffffffff` | rentry 257 mapping space                                     |
 | `0xffff810000000000` | `0xffffff7fffffffff` | [_Currently unused, ~126TiB_]                                |
 
-Ultimately I'll probably just do like Linux used to (on 32-bit) and have huge-page mappings
-for all of physical RAM in this region, which will simplify quite a few things. 
-If/when that becomes a thing, it'll be nice to have plenty of room so I'm keeping the
-127TiB reserved for now.
+###### RISC-V
+
+RISC-V page tables are not amenable to recursive mapping, since a table entry
+cannot be both an intermediate and leaf table at the same time.
+
+For this reason, and because of the physical vs virtual memory capabilities of
+the platform currently, we instead use a simple direct map of all physical RAM,
+set up at boot time.
+
+This has the advantage that converting between physical and virtual addresses
+is a simple addition / subtraction with no table walk necessary.
+
+The downsides of course are that all physical memory is mapped statically in
+the kernel. It also means we have to maintain tables for all of these mappings
+(but we do endeavour to use the largest possible page mappings for these areas
+to minimise the overhead).
 
 ##### ACPI tables
+
+> [!WARNING]
+> This section applies to **x86_64 only**.
 
 > [!NOTE]
 > This section remains accurate on UEFI systems (booted via Limine) - we drop Limine's
@@ -155,9 +188,9 @@ If/when that becomes a thing, it'll be nice to have plenty of room so I'm keepin
 > that the ACPI tables won't be mapped in this region until after the ACPI init routines
 > have been called...
 
-ACPI tables are mapped into a small (8-page currently) reserved space, which is _probably_
-going to be just temporary (just during bootstrap) - not sure there's much point in keeping
-it around once the devices are setup 🤔:
+ACPI tables are mapped into a small (8-page currently) reserved space. Once usermode is
+up this will be remapped read-only, and made available for mapping into the the userspace
+driver management subsystem's address space via a syscall.
 
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
@@ -185,9 +218,11 @@ This is currently used for mapping new pages for COW pages in the pagefault hand
 This space is not represented by page tables at boot, but if there's a page
 fault there the handler will automatically map in a page. 
 
-**This is just for testing, and is not a feature - it will be removed soon!!**.
-
 ##### Hardware mappings
+
+> [!WARNING]
+> This section applies to **x86_64 only**. It needs to be updated for RISC-V
+> as the implementation progresses.
 
 The local APIC is mapped to:
 
@@ -233,9 +268,12 @@ feel like painting myself into any corners just now...
 
 #### Notes / Future Plans
 
+> [!WARNING]
+> This section applies to **x86_64 only**.
+
 This is all fun and games, but will almost certainly be a problem later 
 (i.e. the kernel being stuck at <1MiB size and located at the ~1MiB mark in physical 
-RAM).
+RAM on x86_64).
 
 In the future it'll make sense to make things more robust, and maybe 
 just load the kernel somewhere above 16MiB physical and map accordingly

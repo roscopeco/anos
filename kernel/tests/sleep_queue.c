@@ -5,11 +5,14 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
-#include "sleep_queue.h"
 #include "munit.h"
 
-#include "fba/alloc.h"
 #include "mock_pmm.h"
+#include "mock_recursive.h"
+
+#include "sleep_queue.h"
+
+#include "fba/alloc.h"
 #include "slab/alloc.h"
 #include "vmm/vmalloc.h"
 

@@ -26,7 +26,7 @@ ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23	\
 		-ffreestanding -fno-asynchronous-unwind-tables							\
 		-g -O3																	\
-		-DARCH=$(ARCH)
+		-DARCH=$(ARCH) -DARCH_$(shell echo '$(ARCH)' | tr '[:lower:]' '[:upper:]')
 
 ifeq ($(ARCH),x86_64)
 CFLAGS+=-mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel
@@ -86,6 +86,8 @@ endif
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #	DEBUG_SLEEPY_KERNEL_TASK			Start a noisy kernel task that sleeps on all CPUs
 #	SYSCALL_SCHED_ONLY_THIS_CPU			Syscalls will only schedule things on the current CPU
+#	TEST_RISCV_PMM_INIT					Do a basic test of the PMM on RISC-V after initialisation
+#	TEST_RISCV_VMM_INIT					Do a basic test of the VMM on RISC-V after initialisation
 #
 #	DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL	address_space_create will copy **all** PDPT entries,
 #										not just kernel ones. This is unlikely to ever be a
@@ -102,8 +104,8 @@ endif
 #
 #	WITH_KERNEL_HEART		Enable the old visual heartbeat in the top-right of the console
 #	NO_SMP					Disable SMP (don't spin-up any of the APs)
-#	SMP_TWO_SIPI_ATTEMPTS	Try a second SIPI if an AP doesn't respond to the first
-#	NO_USER_GS				Disable user-mode GS swap at kernel entry/exit (debugging only)
+#	SMP_TWO_SIPI_ATTEMPTS	Try a second SIPI if an AP doesn't respond to the first (x86-only)
+#	NO_USER_GS				Disable user-mode GS swap at kernel entry/exit (x86-only, debugging only)
 #	NAIVE_MEMCPY			Use a naive (byte-wise only) memcpy
 #	TARGET_CPU_USE_SLEEPERS	Consider the size of the sleep queue as well as run queues when selecting a target CPU
 #	NO_BANNER				Disable the startup banner
@@ -232,6 +234,9 @@ STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/machine.o						\
 					$(STAGE3_ARCH_RISCV64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper.o					\
+					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper_init.o				\
+					$(STAGE3_ARCH_RISCV64_DIR)/panic.o							\
+					$(STAGE3_ARCH_RISCV64_DIR)/structs/list.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o
 
 ifeq ($(ARCH),x86_64)
@@ -278,6 +283,7 @@ ifeq ($(ARCH),riscv64)
 STAGE3_OBJS=$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/debugmemmap.o											\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
+			$(STAGE3_DIR)/panic.o												\
 			$(STAGE3_ARCH_OBJS)
 endif
 endif

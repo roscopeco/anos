@@ -8,18 +8,17 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#include "acpitables.h"
-#include "cpuid.h"
 #include "debugprint.h"
-#include "gdt.h"
 #include "interrupts.h"
-#include "kdrivers/cpu.h"
-#include "kdrivers/hpet.h"
-#include "kdrivers/local_apic.h"
 #include "printdec.h"
 #include "std/string.h"
-#include "vmm/recursive.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/cpuid.h"
+#include "x86_64/gdt.h"
+#include "x86_64/kdrivers/cpu.h"
+#include "x86_64/kdrivers/hpet.h"
+#include "x86_64/kdrivers/local_apic.h"
 
 #ifdef DEBUG_SMP_STARTUP
 #include "kprintf.h"
@@ -164,8 +163,7 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
     *(AP_TRAMPOLINE_BSS_UID) = 1;
 
     // Give APs the same pagetables we have to start with
-    *(AP_TRAMPOLINE_BSS_PML4) =
-            vmm_recursive_find_pml4()->entries[RECURSIVE_ENTRY];
+    *(AP_TRAMPOLINE_BSS_PML4) = vmm_find_pml4()->entries[RECURSIVE_ENTRY];
 
     // Once in long-mode, we'll want APs to use our GDT & IDT...
     cpu_store_gdtr(AP_TRAMPOLINE_BSS_GDT);

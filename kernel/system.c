@@ -10,13 +10,13 @@
 
 #include "anos_assert.h"
 #include "fba/alloc.h"
-#include "kdrivers/cpu.h"
 #include "panic.h"
 #include "pmm/pagealloc.h"
 #include "sched.h"
 #include "slab/alloc.h"
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/kdrivers/cpu.h"
 
 #define SYSTEM_BSS_PAGE_COUNT 10
 #define SYSTEM_KERNEL_STACK_PAGE_COUNT 4
