@@ -10,13 +10,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "munit.h"
+
+#include "mock_recursive.h"
+#include "mock_vmm.h"
+
 #include "ipc/channel.h"
 #include "ipc/channel_internal.h"
-#include "munit.h"
 #include "structs/hash.h"
 #include "structs/list.h"
-
-#include "mock_vmm.h"
 
 /* Dummy panic that aborts the test on failure */
 void panic_sloc(const char *msg, const char *filename, const uint64_t line) {

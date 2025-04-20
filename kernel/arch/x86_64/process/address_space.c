@@ -10,6 +10,7 @@
 
 #ifdef UNIT_TESTS
 #include "mock_cpu.h"
+#include "mock_recursive.h"
 #else
 #include "x86_64/kdrivers/cpu.h"
 #endif

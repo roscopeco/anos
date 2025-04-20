@@ -10,7 +10,10 @@
 #ifndef __ANOS_KERNEL_ARCH_X86_64_VM_RECURSIVE_H
 #define __ANOS_KERNEL_ARCH_X86_64_VM_RECURSIVE_H
 
+#include <stddef.h>
 #include <stdint.h>
+
+#include <vmm/vmmapper.h>
 
 // TODO it'd be nice if these were constexpr but then we can't build hosted
 //      tests (Apple clang doesn't support constexpr yet - Jan 2025)
@@ -337,6 +340,44 @@ static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
 static inline uint16_t
 vmm_recursive_pml4_virt_to_recursive_entry(void *virt_pml4) {
     return (((uintptr_t)virt_pml4) & (LVL_MASK << L4_LSHIFT)) >> L1_RSHIFT;
+}
+
+static inline uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr) {
+    return (virt_addr & (LVL_MASK << L1_LSHIFT)) >> L4_RSHIFT;
+}
+
+static inline uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr) {
+    return (virt_addr & (LVL_MASK << L2_LSHIFT)) >> L3_RSHIFT;
+}
+
+static inline uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr) {
+    return (virt_addr & (LVL_MASK << L3_LSHIFT)) >> L2_RSHIFT;
+}
+
+static inline uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr) {
+    return (virt_addr & (LVL_MASK << L4_LSHIFT)) >> L1_RSHIFT;
+}
+
+static inline uint16_t vmm_virt_to_table_index(uintptr_t virt_addr,
+                                               uint8_t level) {
+    return ((virt_addr >> ((9 * (level - 1)) + 12)) & 0x1ff);
+}
+
+static inline size_t vmm_level_page_size(uint8_t level) {
+    return (VM_PAGE_SIZE << (9 * (level - 1)));
+}
+
+static inline uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry) {
+    return table_entry & PAGE_ALIGN_MASK;
+}
+
+static inline uint16_t vmm_table_entry_to_page_flags(uintptr_t table_entry) {
+    return table_entry & PAGE_FLAGS_MASK;
+}
+
+static inline uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys,
+                                                         uint64_t flags) {
+    return (phys & ~0xFFF) | flags;
 }
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_VM_RECURSIVE_H

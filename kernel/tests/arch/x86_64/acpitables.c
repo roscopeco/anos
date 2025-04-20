@@ -5,9 +5,12 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include "acpitables.h"
-#include "mock_vmm.h"
 #include "munit.h"
+
+#include "x86_64/acpitables.h"
+
+#include "mock_recursive.h"
+#include "mock_vmm.h"
 
 static ACPI_RSDP rsdp_bad_checksum = {
         .signature = {'R', 'S', 'D', ' ', 'P', 'T', 'R', ' '},

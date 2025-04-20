@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "acpitables.h"
+#include "x86_64/acpitables.h"
 
 ACPI_SDTHeader *find_result;
 uint32_t find_call_count;

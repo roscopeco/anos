@@ -37,14 +37,14 @@ typedef struct {
 } PageTable;
 
 #ifdef MUNIT_H
-extern PageTable empty_pml4;
+PageTable empty_pml4 __attribute__((__aligned__(4096)));
 
-extern PageTable complete_pml4;
-extern PageTable complete_pdpt;
-extern PageTable complete_pd;
-extern PageTable complete_pt;
+PageTable complete_pml4 __attribute__((__aligned__(4096)));
+PageTable complete_pdpt __attribute__((__aligned__(4096)));
+PageTable complete_pd __attribute__((__aligned__(4096)));
+PageTable complete_pt __attribute__((__aligned__(4096)));
 
-extern PageTable *current_recursive_pml4;
+PageTable *current_recursive_pml4 = &complete_pml4;
 #else
 #include <stdio.h>
 
@@ -55,14 +55,14 @@ extern PageTable *current_recursive_pml4;
 
 #define MEM(arg) ((arg & ~0xfff))
 
-PageTable empty_pml4 __attribute__((__aligned__(4096)));
+extern PageTable empty_pml4;
 
-PageTable complete_pml4 __attribute__((__aligned__(4096)));
-PageTable complete_pdpt __attribute__((__aligned__(4096)));
-PageTable complete_pd __attribute__((__aligned__(4096)));
-PageTable complete_pt __attribute__((__aligned__(4096)));
+extern PageTable complete_pml4;
+extern PageTable complete_pdpt;
+extern PageTable complete_pd;
+extern PageTable complete_pt;
 
-PageTable *current_recursive_pml4 = &complete_pml4;
+extern PageTable *current_recursive_pml4;
 
 static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2,
                                                     uint16_t l3, uint16_t l4,

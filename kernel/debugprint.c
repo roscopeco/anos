@@ -5,12 +5,13 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "banner.h"
-#include "kdrivers/serial.h"
 
 #ifdef SERIAL_TERMINAL
+#include "x86_64/kdrivers/serial.h"
 
 // *********************************
 // Serial

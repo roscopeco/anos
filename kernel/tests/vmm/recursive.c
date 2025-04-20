@@ -5,10 +5,12 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
-#include "vmm/recursive.h"
-#include "munit.h"
 #include <stddef.h>
 #include <stdlib.h>
+
+#include "munit.h"
+
+#include "x86_64/vmm/recursive_paging.h"
 
 static MunitResult test_table_address_0(const MunitParameter params[],
                                         void *fixture) {

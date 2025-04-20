@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "vmm/recursive.h"
+#include "mock_recursive.h"
 #include "vmm/vmmapper.h"
 
 static uint32_t total_page_maps = 0;

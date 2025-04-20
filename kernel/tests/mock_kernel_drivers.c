@@ -7,8 +7,8 @@
 
 #include <stdbool.h>
 
-#include "acpitables.h"
-#include "kdrivers/hpet.h"
+#include "x86_64/acpitables.h"
+#include "x86_64/kdrivers/hpet.h"
 
 static ACPI_RSDT *hpet_init_last_rsdt;
 static uint32_t hpet_init_call_count;
