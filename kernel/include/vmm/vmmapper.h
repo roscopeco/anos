@@ -85,7 +85,7 @@ static inline size_t vmm_level_page_size(uint8_t level);
  *
  * This function invalidates the TLB automatically.
  */
-bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page,
+bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
                      uint16_t flags);
 
 /*

@@ -250,7 +250,7 @@ static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
     return pte;
 }
 
-inline bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page,
+inline bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
                             uint16_t flags) {
 
     uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
@@ -278,7 +278,7 @@ inline bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page,
 }
 
 bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags) {
-    return vmm_map_page_in(vmm_recursive_find_pml4(), virt_addr, page, flags);
+    return vmm_map_page_in((uint64_t *)vmm_find_pml4(), virt_addr, page, flags);
 }
 
 bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
@@ -396,5 +396,5 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
 }
 
 uintptr_t vmm_unmap_page(uintptr_t virt_addr) {
-    return vmm_unmap_page_in((uint64_t *)vmm_recursive_find_pml4(), virt_addr);
+    return vmm_unmap_page_in((uint64_t *)vmm_find_pml4(), virt_addr);
 }

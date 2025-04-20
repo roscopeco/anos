@@ -674,6 +674,10 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
             new_page_paddr, (uintptr_t)new_page_ptr);
 #endif
 
+    uintptr_t new_phys = page_alloc(physical_region);
+
+    vmm_map_page(0x1000, new_phys, PG_READ | PG_WRITE | PG_USER);
+
     kprintf("\n\nThis is as far as we go right now...\n");
 
     halt_and_catch_fire();

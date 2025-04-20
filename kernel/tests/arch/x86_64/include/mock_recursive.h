@@ -104,7 +104,7 @@ static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2,
     return (uintptr_t)(ptl2->entries[l4] & ~(0xfff));
 }
 
-static inline PageTable *vmm_recursive_find_pml4() { return &complete_pml4; }
+static inline PageTable *vmm_find_pml4() { return &complete_pml4; }
 
 static inline PageTable *vmm_recursive_find_pdpt(uint16_t pml4_entry) {
     return (PageTable *)(complete_pml4.entries[pml4_entry] & ~(0xfff));

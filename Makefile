@@ -234,6 +234,7 @@ STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/machine.o						\
 					$(STAGE3_ARCH_RISCV64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper.o					\
+					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper_init.o				\
 					$(STAGE3_ARCH_RISCV64_DIR)/panic.o							\
 					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o
 

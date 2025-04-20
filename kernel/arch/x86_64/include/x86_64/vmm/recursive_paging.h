@@ -151,7 +151,7 @@ static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2,
 /*
  * Find the PML4 using the _current process'_ recursive mapping (specified by `RECURSIVE_ENTRY`).
  */
-static inline PageTable *vmm_recursive_find_pml4() {
+static inline PageTable *vmm_find_pml4() {
     return (PageTable *)(BASE_ADDRESS | RECURSIVE_L1 | RECURSIVE_L2 |
                          RECURSIVE_L3 | RECURSIVE_L4);
 }

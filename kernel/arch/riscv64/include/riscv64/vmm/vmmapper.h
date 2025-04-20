@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include "machine.h"
+#include "riscv64/kdrivers/cpu.h"
 #include "vmm/vmmapper.h"
 
 // Page table entry flags
@@ -28,6 +29,20 @@
 #define PG_DIRTY (1ULL << 7)    // Dirty
 
 #define PAGE_TABLE_ENTRIES ((512))
+
+// Just used to page-align addresses to their containing page
+#define PAGE_ALIGN_MASK ((0xFFFFFFFFFFFFF000))
+
+// Just used to extract page-relative addresses from their containing page
+#define PAGE_RELATIVE_MASK (~PAGE_ALIGN_MASK)
+
+// Just used to extract PTE flags
+#define PAGE_FLAGS_MASK PAGE_RELATIVE_MASK
+
+// Base of the per-CPU temporary mapping pages
+#define PER_CPU_TEMP_PAGE_BASE ((0xFFFFFFFF80400000))
+
+#define IS_USER_ADDRESS(ptr) ((((uint64_t)ptr & 0xffff800000000000) == 0))
 
 typedef struct {
     uint64_t entries[PAGE_TABLE_ENTRIES];
@@ -43,15 +58,18 @@ static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) {
     return DIRECT_MAP_BASE + phys_addr;
 }
 
+static inline void *vmm_phys_to_virt_ptr(uintptr_t phys_addr) {
+    return (void *)vmm_phys_to_virt(phys_addr);
+}
+
 // Convert direct-mapped virtual address to physical address
 static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
     return virt_addr - DIRECT_MAP_BASE;
 }
 
-// Check if an address is in the direct mapping region
-static inline bool vmm_is_direct_mapped(uintptr_t virt_addr) {
-    return (virt_addr >= DIRECT_MAP_BASE) &&
-           (virt_addr < DIRECT_MAP_BASE + 0x7effffffffff); // 127TB
+static inline PageTable *vmm_find_pml4() {
+    return (PageTable *)vmm_phys_to_virt_ptr(
+            cpu_satp_to_root_table_phys(cpu_read_satp()));
 }
 
 static inline uint16_t vmm_virt_to_table_index(uintptr_t virt_addr,

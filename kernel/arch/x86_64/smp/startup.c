@@ -163,8 +163,7 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
     *(AP_TRAMPOLINE_BSS_UID) = 1;
 
     // Give APs the same pagetables we have to start with
-    *(AP_TRAMPOLINE_BSS_PML4) =
-            vmm_recursive_find_pml4()->entries[RECURSIVE_ENTRY];
+    *(AP_TRAMPOLINE_BSS_PML4) = vmm_find_pml4()->entries[RECURSIVE_ENTRY];
 
     // Once in long-mode, we'll want APs to use our GDT & IDT...
     cpu_store_gdtr(AP_TRAMPOLINE_BSS_GDT);
