@@ -36,6 +36,25 @@ typedef struct {
     uint64_t entries[512];
 } PageTable;
 
+// TODO this is brittle as all hell, and makes modifying / refactoring
+// in tests a real pain in the arse.
+//
+// If you're here because some tests started randomly failing to build
+// after some change, it's probably down to this.
+//
+// The usual trick is to:
+//
+//  * Be sure to include "munit.h" **first**
+//  * _then_ include "mock_recursive" afterward, even if your test
+//    doesn't seem to need it.
+//
+// But really this should be fixed properly. Which if recursive goes
+// away it will do, but otherwise, well, welcome to the club :D
+//
+// (Oh, and if you add those two steps in your test, make sure you have
+// a blank line between them or clang-format will "helpfully" reorder
+// them and break everything again...)
+//
 #ifdef MUNIT_H
 PageTable empty_pml4 __attribute__((__aligned__(4096)));
 
