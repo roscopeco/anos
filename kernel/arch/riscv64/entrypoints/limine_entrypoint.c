@@ -634,7 +634,9 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
     kprintf("\n\nphysical_region allocated at %p : %ld bytes total / %ld bytes "
             "free\n",
             physical_region, physical_region->size, physical_region->free);
+#endif
 
+#ifdef TEST_RISCV_PMM_INIT
     uintptr_t test_page = page_alloc(physical_region);
 
     if (test_page & 0xfff) {
@@ -647,7 +649,30 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
     }
 #endif
 
+#ifdef DEBUG_VMM
+    size_t pre_direct_free = physical_region->free;
+#endif
     vmm_init_direct_mapping(new_pml4, &static_memmap);
+#ifdef DEBUG_VMM
+    size_t post_direct_free = physical_region->free;
+    kprintf("Page tables for VMM Direct Mapping: %ld bytes of physical "
+            "memory\n",
+            pre_direct_free - post_direct_free);
+#endif
+
+#ifdef TEST_RISCV_VMM_INIT
+    uintptr_t new_page_paddr = page_alloc(physical_region);
+    uint64_t *new_page_ptr =
+            (uint64_t *)(new_page_paddr + 0xffff800000000000ULL);
+
+    for (int i = 0; i < 512; i++) {
+        new_page_ptr[i] = i;
+    }
+
+    kprintf("Physical allocated at 0x%016lx, direct map is 0x%016lx, should be "
+            "dirty\n",
+            new_page_paddr, (uintptr_t)new_page_ptr);
+#endif
 
     kprintf("\n\nThis is as far as we go right now...\n");
 

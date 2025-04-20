@@ -6,6 +6,26 @@
  * 
  * First time in this file? Well, buckle up, buttercup - you're in
  * for a bit of a ride...
+ * 
+ * On RISC-V, we use a direct mapping, since recursive isn't possible
+ * on that platform. This is used for everything, including management
+ * of page tables themselves, which presents us a bit of a 
+ * chicken-and-egg situation when it comes to actually building the 
+ * direct map during init.
+ * 
+ * A lot of the complexity in here is dealing with that - once the 
+ * direct map is built, it makes the rest of VMM a breeze compared
+ * to x86_64.
+ * 
+ * I try to be as efficient as possible with the mapping, using the 
+ * largest tables possible for each region and breaking it into 
+ * naturally-aligned blocks for larger sizes where possible.
+ * 
+ * Overhead will vary, on qemu with 8GiB RAM, it currently needs 
+ * just over 32KiB for the direct-mapping tables (mapping all of 
+ * physical RAM).
+ * 
+ * There's more info in MemoryMap.md.
  */
 
 #include <stddef.h>
@@ -18,7 +38,18 @@
 #include "riscv64/vmm/vmmapper.h"
 #include "std/string.h"
 
+#ifdef DEBUG_VMM
 #include "kprintf.h"
+#define debugf printf
+#ifdef VERY_NOISY_VMM
+#define vdebugf printf
+#else
+#define vdebugf(...)
+#endif
+#else
+#define debugf(...)
+#define vdebugf(...)
+#endif
 
 #define MAX_PHYS_ADDR (((size_t)127 * 1024 * 1024 * 1024 * 1024)) // 127 TiB
 
@@ -39,14 +70,14 @@ static inline void map_readwrite_and_flush_offs(uint64_t *table,
                                                 uintptr_t base_vaddr,
                                                 uintptr_t base_offs) {
 
-    kprintf("map_readwrite_and_flush: table @ 0x%016lx[%d]: vaddr: "
+    vdebugf("map_readwrite_and_flush: table @ 0x%016lx[%d]: vaddr: "
             "0x%016lx+0x%016lx => paddr: 0x%016lx\n",
             (uintptr_t)table, table_index, base_vaddr, base_offs, base_paddr);
 
     table[table_index] = vmm_phys_and_flags_to_table_entry(
             base_paddr, PG_READ | PG_WRITE | PG_PRESENT);
     cpu_invalidate_tlb_addr(base_vaddr + base_offs);
-    kprintf("map_readwrite_and_flush: done, and done\n");
+    vdebugf("map_readwrite_and_flush: done, and done\n");
 }
 
 static inline void map_readwrite_and_flush(uint64_t *table,
@@ -63,81 +94,100 @@ static inline void unmap_and_flush(uint64_t *table, uint16_t table_index,
 
 static void vmm_init_map_terapage(uint64_t *pml4, uintptr_t base,
                                   uint8_t flags) {
-    kprintf("vmm_init_map_terapage: Mapping phys 0x%016lx with length %ld into "
+    vdebugf("vmm_init_map_terapage: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, TERA_PAGE_SIZE, (uintptr_t)pml4);
 
     if ((base + TERA_PAGE_SIZE) > MAX_PHYS_ADDR) {
-        kprintf("WARN: Refusing to map memory at 0x%016lx [%ld bytes] due to "
-                "address-space overflow\n",
-                base, TERA_PAGE_SIZE);
+        debugf("WARN: Refusing to map memory at 0x%016lx [%ld bytes] due to "
+               "address-space overflow\n",
+               base, TERA_PAGE_SIZE);
         return;
     }
 
     uintptr_t vaddr = vmm_phys_to_virt(base);
-    kprintf("  -> vaddr is 0x%016lx\n", vaddr);
+    vdebugf("  -> vaddr is 0x%016lx\n", vaddr);
 
     uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
     uint64_t pml4e = pml4[pml4_index];
 
     if (pml4e & PG_PRESENT) {
-        kprintf("WARN [BUG]: PML4 for terapage at 0x%016lx is already mapped\n",
-                vaddr);
+        debugf("WARN [BUG]: PML4 for terapage at 0x%016lx is already mapped\n",
+               vaddr);
     }
 
     pml4[pml4e] = vmm_phys_and_flags_to_table_entry(base, flags);
 }
 
+static uint64_t *const ensure_direct_table_map(uint64_t *table,
+                                               uint16_t table_index,
+                                               uint64_t *temp_mapping_pt,
+                                               uint16_t temp_mapping_pt_index) {
+    vdebugf("ensure_direct_table_map: table 0x%016lx[%d] into temp mapping "
+            "0x%016lx[%d]\n",
+            (uintptr_t)table, table_index, (uintptr_t)temp_mapping_pt,
+            temp_mapping_pt_index);
+    const uint64_t table_entry = table[table_index];
+
+    const uintptr_t new_table_vaddr =
+            per_cpu_temp_base_vaddr_for_pt_index(temp_mapping_pt_index);
+    uint64_t *const new_table =
+            per_cpu_temp_base_vptr_for_pt_index(temp_mapping_pt_index);
+
+    if ((table_entry & PG_PRESENT) == 0) {
+        vdebugf("  -> adding a new child table at at index %d\n", table_index);
+
+        const uintptr_t new_table_paddr = page_alloc(physical_region);
+        if (new_table_paddr & 0xfff) {
+            panic("Ran out of memory while building new table for direct "
+                  "mapping");
+        }
+
+        map_readwrite_and_flush(temp_mapping_pt, temp_mapping_pt_index,
+                                new_table_paddr, new_table_vaddr);
+
+        vdebugf("  -> New table is mapped; Clearing...");
+
+        for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) {
+            new_table[i] = 0;
+        }
+
+        table[table_index] =
+                vmm_phys_and_flags_to_table_entry(new_table_paddr, PG_PRESENT);
+    } else {
+        vdebugf("  -> table already present, mapping...\n");
+        map_readwrite_and_flush(temp_mapping_pt, temp_mapping_pt_index,
+                                vmm_table_entry_to_phys(table_entry),
+                                new_table_vaddr);
+    }
+
+    return new_table;
+}
+
 static void vmm_init_map_gigapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
                                   uintptr_t base, uint8_t flags) {
-    kprintf("vmm_init_map_gigapage: Mapping phys 0x%016lx with length %ld into "
+    vdebugf("vmm_init_map_gigapage: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, GIGA_PAGE_SIZE, (uintptr_t)pml4);
 
     if ((base + GIGA_PAGE_SIZE) > MAX_PHYS_ADDR) {
-        kprintf("WARN: Refusing to map memory at 0x%016lx [%ld bytes] due to "
-                "address-space overflow\n",
-                base, GIGA_PAGE_SIZE);
+        debugf("WARN: Refusing to map memory at 0x%016lx [%ld bytes] due to "
+               "address-space overflow\n",
+               base, GIGA_PAGE_SIZE);
         return;
     }
 
     const uintptr_t vaddr = vmm_phys_to_virt(base);
-    kprintf("  -> vaddr is 0x%016lx\n", vaddr);
+    vdebugf("  -> vaddr is 0x%016lx\n", vaddr);
 
+    // ## PDPT
     const uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
-    const uint64_t pml4e = pml4[pml4_index];
-
-    const uintptr_t pdpt_vaddr = per_cpu_temp_base_vaddr_for_pt_index(0);
-    uint64_t *const pdpt = per_cpu_temp_base_vptr_for_pt_index(0);
-
-    if ((pml4e & PG_PRESENT) == 0) {
-        kprintf("  -> adding a new PDPT at PML4 entry at index %d\n",
-                pml4_index);
-
-        const uintptr_t new_pdpt_paddr = page_alloc(physical_region);
-        if (new_pdpt_paddr & 0xfff) {
-            panic("Ran out of memory while building direct mapping");
-        }
-
-        map_readwrite_and_flush(temp_mapping_pt, 0, new_pdpt_paddr, pdpt_vaddr);
-
-        kprintf("  -> New PDPT is mapped; Clearing...");
-
-        for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) {
-            pdpt[i] = 0;
-        }
-
-        pml4[pml4_index] =
-                vmm_phys_and_flags_to_table_entry(new_pdpt_paddr, PG_PRESENT);
-    } else {
-        kprintf("  -> PDPT already exists, mapping...\n");
-        map_readwrite_and_flush(temp_mapping_pt, 0,
-                                vmm_table_entry_to_phys(pml4e), pdpt_vaddr);
-    }
+    uint64_t *const pdpt =
+            ensure_direct_table_map(pml4, pml4_index, temp_mapping_pt, 0);
 
     const uint16_t pdpt_index = vmm_virt_to_pdpt_index(vaddr);
 
-    kprintf("  -> Mapping region at PDPT index %d\n", pdpt_index);
+    vdebugf("  -> Mapping region at PDPT index %d\n", pdpt_index);
 
     if (pdpt[pdpt_index] & PG_PRESENT) {
         panic("Physical memory already direct mapped; region overlap or bug; "
@@ -145,94 +195,40 @@ static void vmm_init_map_gigapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
     }
 
     pdpt[pdpt_index] = vmm_phys_and_flags_to_table_entry(base, flags);
-    unmap_and_flush(temp_mapping_pt, 0, pdpt_vaddr);
+    unmap_and_flush(temp_mapping_pt, 0, (uintptr_t)pdpt);
 
-    kprintf("vmm_init_map_gigapage: Region mapped successfully\n");
+    vdebugf("vmm_init_map_gigapage: Region mapped successfully\n");
 }
 
 static void vmm_init_map_megapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
                                   uintptr_t base, uint8_t flags) {
-    kprintf("vmm_init_map_megapage: Mapping phys 0x%016lx with length %ld into "
+    vdebugf("vmm_init_map_megapage: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, MEGA_PAGE_SIZE, (uintptr_t)pml4);
 
     if ((base + MEGA_PAGE_SIZE) > MAX_PHYS_ADDR) {
-        kprintf("WARN: Refusing to map memory at 0x%016lx [%ld bytes] due to "
-                "address-space overflow\n",
-                base, MEGA_PAGE_SIZE);
+        debugf("WARN: Refusing to map memory at 0x%016lx [%ld bytes] due to "
+               "address-space overflow\n",
+               base, MEGA_PAGE_SIZE);
         return;
     }
 
     const uintptr_t vaddr = vmm_phys_to_virt(base);
-    kprintf("  -> vaddr is 0x%016lx\n", vaddr);
-
-    const uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
-    const uint64_t pml4e = pml4[pml4_index];
-
-    const uintptr_t pdpt_vaddr = per_cpu_temp_base_vaddr_for_pt_index(0);
-    uint64_t *const pdpt = per_cpu_temp_base_vptr_for_pt_index(0);
+    vdebugf("  -> vaddr is 0x%016lx\n", vaddr);
 
     // ## PDPT
-    if ((pml4e & PG_PRESENT) == 0) {
-        kprintf("  -> adding a new PDPT at PML4 entry at index %d\n",
-                pml4_index);
-
-        const uintptr_t new_pdpt_paddr = page_alloc(physical_region);
-        if (new_pdpt_paddr & 0xfff) {
-            panic("Ran out of memory while building new PDPT for direct "
-                  "mapping");
-        }
-
-        map_readwrite_and_flush(temp_mapping_pt, 0, new_pdpt_paddr, pdpt_vaddr);
-
-        kprintf("  -> New PDPT is mapped; Clearing...");
-
-        for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) {
-            pdpt[i] = 0;
-        }
-
-        pml4[pml4_index] =
-                vmm_phys_and_flags_to_table_entry(new_pdpt_paddr, PG_PRESENT);
-    } else {
-        kprintf("  -> PDPT already exists, mapping...\n");
-        map_readwrite_and_flush(temp_mapping_pt, 0,
-                                vmm_table_entry_to_phys(pml4e), pdpt_vaddr);
-    }
+    const uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
+    uint64_t *const pdpt =
+            ensure_direct_table_map(pml4, pml4_index, temp_mapping_pt, 0);
 
     // ## PD
     const uint16_t pdpt_index = vmm_virt_to_pdpt_index(vaddr);
-    const uint64_t pdpte = pdpt[pdpt_index];
-
-    const uintptr_t pd_vaddr = per_cpu_temp_base_vaddr_for_pt_index(1);
-    uint64_t *const pd = per_cpu_temp_base_vptr_for_pt_index(1);
-
-    if ((pdpte & PG_PRESENT) == 0) {
-        kprintf("  -> adding a new PD at PDPT entry at index %d\n", pdpt_index);
-
-        const uintptr_t new_pd_paddr = page_alloc(physical_region);
-        if (new_pd_paddr & 0xfff) {
-            panic("Ran out of memory while building new PD for direct mapping");
-        }
-
-        map_readwrite_and_flush(temp_mapping_pt, 1, new_pd_paddr, pd_vaddr);
-
-        kprintf("  -> New PD is mapped; Clearing...");
-
-        for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) {
-            pd[i] = 0;
-        }
-
-        pdpt[pdpt_index] =
-                vmm_phys_and_flags_to_table_entry(new_pd_paddr, PG_PRESENT);
-    } else {
-        kprintf("  -> PD already exists, mapping...\n");
-        map_readwrite_and_flush(temp_mapping_pt, 1,
-                                vmm_table_entry_to_phys(pdpte), pd_vaddr);
-    }
+    uint64_t *const pd =
+            ensure_direct_table_map(pdpt, pdpt_index, temp_mapping_pt, 1);
 
     uint16_t pd_index = vmm_virt_to_pd_index(vaddr);
 
-    kprintf("  -> Mapping region at PD index %d\n", pd_index);
+    vdebugf("  -> Mapping region at PD index %d\n", pd_index);
 
     if (pd[pd_index] & PG_PRESENT) {
         panic("Physical memory already direct mapped; region overlap or bug; "
@@ -240,25 +236,68 @@ static void vmm_init_map_megapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
     }
 
     pd[pd_index] = vmm_phys_and_flags_to_table_entry(base, flags);
-    unmap_and_flush(temp_mapping_pt, 0, pdpt_vaddr);
-    unmap_and_flush(temp_mapping_pt, 1, pd_vaddr);
+    unmap_and_flush(temp_mapping_pt, 0, (uintptr_t)pdpt);
+    unmap_and_flush(temp_mapping_pt, 1, (uintptr_t)pd);
 
-    kprintf("vmm_init_map_megapage: Region mapped successfully\n");
+    vdebugf("vmm_init_map_megapage: Region mapped successfully\n");
 }
 
 static void vmm_init_map_page(uint64_t *pml4, uint64_t *temp_mapping_pt,
                               uintptr_t base, uint8_t flags) {
-    kprintf("vmm_init_map_page: Mapping phys 0x%016lx with length %ld into "
+    vdebugf("vmm_init_map_page: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, PAGE_SIZE, (uintptr_t)pml4);
+
+    if ((base + PAGE_SIZE) > MAX_PHYS_ADDR) {
+        debugf("WARN: Refusing to map memory at 0x%016lx [%ld bytes] due to "
+               "address-space overflow\n",
+               base, PAGE_SIZE);
+        return;
+    }
+
+    const uintptr_t vaddr = vmm_phys_to_virt(base);
+    vdebugf("  -> vaddr is 0x%016lx\n", vaddr);
+
+    // ## PDPT
+    const uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
+    uint64_t *const pdpt =
+            ensure_direct_table_map(pml4, pml4_index, temp_mapping_pt, 0);
+
+    // ## PD
+    const uint16_t pdpt_index = vmm_virt_to_pdpt_index(vaddr);
+    uint64_t *const pd =
+            ensure_direct_table_map(pdpt, pdpt_index, temp_mapping_pt, 1);
+
+    // ## PT
+    const uint16_t pd_index = vmm_virt_to_pd_index(vaddr);
+    uint64_t *const pt =
+            ensure_direct_table_map(pd, pd_index, temp_mapping_pt, 2);
+
+    uint16_t pt_index = vmm_virt_to_pt_index(vaddr);
+
+    vdebugf("  -> Mapping region at PT index %d\n", pt_index);
+
+    if (pt[pt_index] & PG_PRESENT) {
+        panic("Physical memory already direct mapped; region overlap or bug; "
+              "cannot continue");
+    }
+
+    pt[pt_index] = vmm_phys_and_flags_to_table_entry(base, flags);
+
+    unmap_and_flush(temp_mapping_pt, 0, (uintptr_t)pdpt);
+    unmap_and_flush(temp_mapping_pt, 1, (uintptr_t)pd);
+    unmap_and_flush(temp_mapping_pt, 3, (uintptr_t)pt);
+
+    vdebugf("vmm_init_map_page: Region mapped successfully\n");
 }
 
 static void vmm_init_map_region(uint64_t *pml4, uint64_t *temp_mapping_pt,
                                 Limine_MemMapEntry *entry, bool writeable) {
-    kprintf("vmm_init_map_region: Mapping phys 0x%016lx with length %ld into "
+    vdebugf("vmm_init_map_region: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             entry->base, entry->length, (uintptr_t)pml4);
-    uint8_t flags = PG_PRESENT | PG_READ | (writeable ? PG_WRITE : 0);
+    uint8_t flags =
+            PG_PRESENT | PG_GLOBAL | PG_READ | (writeable ? PG_WRITE : 0);
     uintptr_t base = entry->base;
     uintptr_t length = entry->length;
 
@@ -284,14 +323,14 @@ static void vmm_init_map_region(uint64_t *pml4, uint64_t *temp_mapping_pt,
             base += PAGE_SIZE;
             length -= PAGE_SIZE;
         } else {
-            kprintf("vmm_init_map_region: WARN: %ld byte area < PAGE_SIZE "
-                    "wasted at 0x%016lx\n",
-                    length, base);
+            debugf("vmm_init_map_region: WARN: %ld byte area < PAGE_SIZE "
+                   "wasted at 0x%016lx\n",
+                   length, base);
             return;
         }
     }
 
-    kprintf("vmm_init_map_region: phys 0x%016lx with length %ld mapped into "
+    vdebugf("vmm_init_map_region: phys 0x%016lx with length %ld mapped into "
             "pml4 @ 0x%016lx\n",
             entry->base, entry->length, (uintptr_t)pml4);
 }
@@ -314,7 +353,7 @@ static inline uintptr_t offset_in_terapage(uintptr_t addr) {
 // This just ensures a full set of page-tables exist for for the given temp_map_addr.
 //
 // We use this for temporarily mapping new page tables we need to create during the
-// build of the direct mapping, because we have a chicken-and-egg situation - 
+// build of the direct mapping, because of the aforementioned chicken-and-egg situation - 
 // without the direct map, the usual vmm_ functions for managing page tables don't
 // work, but we do need to be able to map pages in order to build the direct map...
 //
@@ -326,23 +365,23 @@ static inline uintptr_t offset_in_terapage(uintptr_t addr) {
 //
 // It's a hell of a function, but because the process itself is a bit mind-bending
 // I wrote it with a focus on understandability of the actual logic we follow 
-// rather than optimising for performance or cleanliness.
+// rather than optimising for performance or perceived 'cleanliness'.
 //
 // Worth noting also that it's only to be used before userspace is up, since it
 // (ab)uses some of the userspace PML4 mappings to do its work.
 //
 static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t temp_map_addr) {
-    kprintf("ensure_temp_page_tables(0x%016lx, 0x%016lx)\n", (uintptr_t)pml4, temp_map_addr);
+    vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx)\n", (uintptr_t)pml4, temp_map_addr);
 
     uint16_t pml4e = vmm_virt_to_pml4_index(temp_map_addr);
 
-    kprintf("  Will try to get entry %d from the pml4e\n", pml4e);
+    vdebugf("  Will try to get entry %d from the pml4e\n", pml4e);
 
     // Do we have a PDPT covering the region?
     if (unlikely((pml4[pml4e] & PG_PRESENT) == 0)) {
         panic("Kernel space root mapping does not exist");
     } else {
-        kprintf("    PDPT is present, checking PDPT\n");
+        vdebugf("    PDPT is present, checking PDPT\n");
         // Yes - map it as a terapage in low userspace, since we know we're 
         // not using that yet. It'll go at the 512GiB mark.
         //
@@ -376,9 +415,9 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
         // Right, now we have a PDPT mapped with a virtual pointer we can use it...
         uint16_t pdpte = vmm_virt_to_pdpt_index(temp_map_addr);
 
-        kprintf("  Will try to get entry %d from the pdpt\n", pdpte);
+        vdebugf("  Will try to get entry %d from the pdpt\n", pdpte);
         if (unlikely((temp_mapped_pdpt[pdpte] & PG_PRESENT) == 0)) {
-            kprintf("    PD is not present, will create PD and PT\n");
+            vdebugf("    PD is not present, will create PD and PT\n");
 
             // We need to create a PD and a PT, let's do that. We'll use the 
             // next 512GiB of userspace as our temporary mapping. This probably 
@@ -451,7 +490,7 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
             cpu_invalidate_tlb_addr(pdpt_temp_vaddr + pdpt_phys_addr_offs);
 
             // and return the PT vaddr
-            kprintf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)pml4, temp_map_addr, (uintptr_t)temp_mapped_table);
+            vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)pml4, temp_map_addr, (uintptr_t)temp_mapped_table);
             return temp_mapped_table;            
         } else {
             // So we maybe just need a PT, fine. 
@@ -459,7 +498,7 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
             // We'll use the next 512GiB of userspace as our temporary mapping
             // for this one (i.e. mapping at the 1TiB mark). 
             //
-            kprintf("    PD is present, checking PT\n");
+            vdebugf("    PD is present, checking PT\n");
 
             // First let's get hold of the PD
 
@@ -480,10 +519,10 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
             // Right, now we have a PDPT mapped with a virtual pointer we can use it...
             uint16_t pde = vmm_virt_to_pd_index(temp_map_addr);
 
-            kprintf("  Will try to get entry %d from the pd\n", pde);
+            vdebugf("  Will try to get entry %d from the pd\n", pde);
 
             if (likely((temp_mapped_pd[pde] & PG_PRESENT) == 0)) {
-                kprintf("    PT is not present, will create one\n");
+                vdebugf("    PT is not present, will create one\n");
 
                 uintptr_t pt_phys = page_alloc(physical_region);
 
@@ -524,14 +563,14 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
                 cpu_invalidate_tlb_addr(pd_temp_vaddr + pd_phys_addr_offs);
 
                 // and return the PT vaddr
-                kprintf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)pml4, temp_map_addr, (uintptr_t)temp_mapped_table);
+                vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)pml4, temp_map_addr, (uintptr_t)temp_mapped_table);
                 return temp_mapped_table;
             } else {
                 // I see, we don't need anything. This is a potential worry (we might've initialised
                 // things in the wrong order) but fine, we'll map a vaddr for the PT and just return
                 // a pointer to it.
 
-                kprintf("    PT is present, will just map it temporarily\n");
+                vdebugf("    PT is present, will just map it temporarily\n");
 
                 // Figure out the next-lowest 512GiB base and the offset of the phys address...
                 const uintptr_t pt_phys = vmm_table_entry_to_phys(temp_mapped_pd[pde]);
@@ -556,13 +595,13 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
                 cpu_invalidate_tlb_addr(pdpt_temp_vaddr + pdpt_phys_addr_offs);
 
                 // and return the PT vaddr
-                kprintf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)pml4, temp_map_addr, (uintptr_t)temp_mapped_pt);
+                vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)pml4, temp_map_addr, (uintptr_t)temp_mapped_pt);
                 return temp_mapped_pt;
             }
         }
     }
 
-    kprintf("ensure_temp_page_tables(0x%016lx, 0x%016lx): failed, return NULL\n", (uintptr_t)pml4, temp_map_addr);
+    vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): failed, return NULL\n", (uintptr_t)pml4, temp_map_addr);
     return 0;
 }
 
@@ -570,42 +609,28 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
 
 void cleanup_temp_page_tables(uint64_t *const pml4) {
     // This _could_ go about walking the tables and cleaning up exactly
-    // what we ended up mapping in ensure_temp_page_tables, but since
-    // we'll do this exactly once at the end of the whole direct-mapping
-    // process, let's just take the easy way out and remove all the
-    // userspace mappings we might've fiddled with and dump the whole
-    // TLB so we start afresh.
+    // what we ended up mapping in ensure_temp_page_tables and during
+    // the direct map build itself, but since we'll do this exactly
+    // once at the end of the whole direct-mapping process, let's just
+    // take the easy way out and remove all the userspace mappings we
+    // might've fiddled with and dump the whole TLB so we start afresh.
 
     pml4[1] = 0;
     pml4[2] = 0;
     pml4[3] = 0;
+
+    // **boom**
     cpu_invalidate_tlb_all();
 }
 
 void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap) {
-    kprintf("vmm_init_direct_mapping: init with %ld entries at pml4 0x%016lx\n",
+    vdebugf("vmm_init_direct_mapping: init with %ld entries at pml4 0x%016lx\n",
             memmap->entry_count, (uintptr_t)pml4);
 
     uint64_t *temp_pt =
             ensure_temp_page_tables(pml4, vmm_per_cpu_temp_page_addr(0));
 
-    kprintf("ensure tables returns 0x%016lx\n", (uintptr_t)temp_pt);
-
-#ifdef TEST_RISCV_VMM_INIT
-    map_readwrite_and_flush(temp_pt, 0, page_alloc(physical_region),
-                            per_cpu_temp_base_vaddr_for_pt_index(0));
-    map_readwrite_and_flush(temp_pt, 1, page_alloc(physical_region),
-                            per_cpu_temp_base_vaddr_for_pt_index(1));
-    map_readwrite_and_flush(temp_pt, 3, page_alloc(physical_region),
-                            per_cpu_temp_base_vaddr_for_pt_index(3));
-
-    unmap_and_flush(temp_pt, 0, per_cpu_temp_base_vaddr_for_pt_index(0));
-    unmap_and_flush(temp_pt, 1, per_cpu_temp_base_vaddr_for_pt_index(1));
-    unmap_and_flush(temp_pt, 3, per_cpu_temp_base_vaddr_for_pt_index(3));
-
-    cleanup_temp_page_tables(pml4);
-    panic("Go check memory mappings (`info mem` in qemu)");
-#endif
+    vdebugf("ensure tables returns 0x%016lx\n", (uintptr_t)temp_pt);
 
     for (int i = 0; i < memmap->entry_count; i++) {
         switch (memmap->entries[i]->type) {
@@ -619,13 +644,16 @@ void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap) {
             vmm_init_map_region(pml4, temp_pt, memmap->entries[i], false);
             break;
         default:
-            kprintf("vmm_init_direct_mapping: ignored region with type %ld\n",
+            vdebugf("vmm_init_direct_mapping: ignored region with type %ld\n",
                     memmap->entries[i]->type);
         }
     }
 
     cleanup_temp_page_tables(pml4);
 }
+
+// TODO The following is mostly bullshit, to be removed.
+//
 
 // // Initialize the direct mapping for physical memory
 // void vmm_init_direct_mapping(void) {
