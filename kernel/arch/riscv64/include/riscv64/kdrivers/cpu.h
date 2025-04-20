@@ -34,29 +34,30 @@
 
 #define SATP_MODE_MAX_LEVELS SATP_MODE_SV64_LEVELS
 
-// Function to read a CSR
+static inline uint64_t cpu_read_hartid(void) {
+    uint64_t hartid;
+    __asm__ volatile("csrr %0, mhartid" : "=r"(hartid));
+    return hartid;
+}
+
 static inline uint64_t cpu_read_csr(int csr) {
     uint64_t val;
     __asm__ volatile("csrr %0, %1" : "=r"(val) : "i"(csr));
     return val;
 }
 
-// Function to write a CSR
 static inline void cpu_write_csr(int csr, uint64_t val) {
     __asm__ volatile("csrw %0, %1" ::"i"(csr), "r"(val));
 }
 
-// Function to set bits in a CSR
 static inline void cpu_set_csr(int csr, uint64_t mask) {
     __asm__ volatile("csrrs x0, %0, %1" ::"i"(csr), "r"(mask));
 }
 
-// Function to clear bits in a CSR
 static inline void cpu_clear_csr(int csr, uint64_t mask) {
     __asm__ volatile("csrrc x0, %0, %1" ::"i"(csr), "r"(mask));
 }
 
-// Function to read and write a CSR
 static inline uint64_t cpu_swap_csr(int csr, uint64_t new_val) {
     uint64_t old_val;
     __asm__ volatile("csrrw %0, %1, %2"
@@ -65,10 +66,8 @@ static inline uint64_t cpu_swap_csr(int csr, uint64_t new_val) {
     return old_val;
 }
 
-// Function to get the current SATP value
 static inline uint64_t cpu_read_satp(void) { return cpu_read_csr(CSR_SATP); }
 
-// Function to set the SATP register (page table base and mode)
 static inline void cpu_set_satp(uintptr_t pt_base, uint8_t mode) {
     uint64_t satp = ((uint64_t)mode << 60) | (pt_base >> 12);
     cpu_write_csr(CSR_SATP, satp);
@@ -77,12 +76,10 @@ static inline void cpu_set_satp(uintptr_t pt_base, uint8_t mode) {
     __asm__ volatile("sfence.vma");
 }
 
-// Function to invalidate the TLB for a specific address
 static inline void cpu_invalidate_tlb_addr(uintptr_t addr) {
     __asm__ volatile("sfence.vma %0" ::"r"(addr));
 }
 
-// Function to invalidate the entire TLB
 static inline void cpu_invalidate_tlb_all(void) {
     __asm__ volatile("sfence.vma");
 }

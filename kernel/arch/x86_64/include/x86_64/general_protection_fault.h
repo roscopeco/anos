@@ -7,11 +7,11 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_GENERAL_PROTECTION_FAULT_H
-#define __ANOS_KERNEL_GENERAL_PROTECTION_FAULT_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_GENERAL_PROTECTION_FAULT_H
+#define __ANOS_KERNEL_ARCH_X86_64_GENERAL_PROTECTION_FAULT_H
 
 #include <stdint.h>
 
 void handle_general_protection_fault(uint64_t code, uintptr_t origin_addr);
 
-#endif //__ANOS_KERNEL_GENERAL_PROTECTION_FAULT_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_GENERAL_PROTECTION_FAULT_H

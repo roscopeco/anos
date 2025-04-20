@@ -7,8 +7,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_DRIVERS_LOCAL_APIC_H
-#define __ANOS_KERNEL_DRIVERS_LOCAL_APIC_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_DRIVERS_LOCAL_APIC_H
+#define __ANOS_KERNEL_ARCH_X86_64_DRIVERS_LOCAL_APIC_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -66,4 +66,4 @@ uint64_t local_apic_get_count(void);
 
 void local_apic_eoe(void);
 
-#endif //__ANOS_KERNEL_DRIVERS_LOCAL_APIC_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_DRIVERS_LOCAL_APIC_H

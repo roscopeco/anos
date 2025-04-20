@@ -34,7 +34,6 @@
 #include "vmm/vmmapper.h"
 #include "x86_64/kdrivers/cpu.h"
 #include "x86_64/process/address_space.h"
-#include "x86_64/vmm/recursive.h"
 
 #ifdef CONSERVATIVE_BUILD
 #include "panic.h"

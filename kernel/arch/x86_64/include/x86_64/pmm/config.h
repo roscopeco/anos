@@ -7,8 +7,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_PMM_CONFIG_H
-#define __ANOS_KERNEL_PMM_CONFIG_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_PMM_CONFIG_H
+#define __ANOS_KERNEL_ARCH_X86_64_PMM_CONFIG_H
 
 #include <pmm/pagealloc.h>
 
@@ -25,4 +25,4 @@
 
 extern MemoryRegion *physical_region;
 
-#endif //__ANOS_KERNEL_PMM_CONFIG_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_PMM_CONFIG_H

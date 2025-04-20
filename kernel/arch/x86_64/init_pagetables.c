@@ -40,7 +40,6 @@
 #include <stdint.h>
 
 #include "vmm/vmmapper.h"
-#include "x86_64/vmm/recursive.h"
 
 void pagetables_init() {
     // These are the static pagetables that were set up during init.

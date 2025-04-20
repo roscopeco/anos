@@ -26,7 +26,7 @@ ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23	\
 		-ffreestanding -fno-asynchronous-unwind-tables							\
 		-g -O3																	\
-		-DARCH=$(ARCH)
+		-DARCH=$(ARCH) -DARCH_$(shell echo '$(ARCH)' | tr '[:lower:]' '[:upper:]')
 
 ifeq ($(ARCH),x86_64)
 CFLAGS+=-mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel
@@ -232,6 +232,7 @@ STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/machine.o						\
 					$(STAGE3_ARCH_RISCV64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper.o					\
+					$(STAGE3_ARCH_RISCV64_DIR)/panic.o							\
 					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o
 
 ifeq ($(ARCH),x86_64)
@@ -278,6 +279,7 @@ ifeq ($(ARCH),riscv64)
 STAGE3_OBJS=$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/debugmemmap.o											\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
+			$(STAGE3_DIR)/panic.o												\
 			$(STAGE3_ARCH_OBJS)
 endif
 endif

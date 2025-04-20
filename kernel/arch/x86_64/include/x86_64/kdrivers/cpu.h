@@ -7,8 +7,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_DRIVERS_CPU_H
-#define __ANOS_KERNEL_DRIVERS_CPU_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_DRIVERS_CPU_H
+#define __ANOS_KERNEL_ARCH_X86_64_DRIVERS_CPU_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -90,4 +90,4 @@ static inline void cpu_swapgs(void) {
 #endif
 }
 
-#endif //__ANOS_KERNEL_DRIVERS_CPU_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_DRIVERS_CPU_H

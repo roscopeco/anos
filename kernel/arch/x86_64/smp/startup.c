@@ -19,7 +19,6 @@
 #include "x86_64/kdrivers/cpu.h"
 #include "x86_64/kdrivers/hpet.h"
 #include "x86_64/kdrivers/local_apic.h"
-#include "x86_64/vmm/recursive.h"
 
 #ifdef DEBUG_SMP_STARTUP
 #include "kprintf.h"

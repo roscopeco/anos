@@ -37,7 +37,7 @@ void arch_panic_stop_all_processors(void);
 
 static inline void print_header_vec(char *msg, uint8_t vector) {
     debugattr(0x0C);
-    debugstr("\n\n##################");
+    debugstr("\n\n###################################");
     debugattr(0x04);
     debugstr("[");
     debugattr(0x08);
@@ -45,8 +45,8 @@ static inline void print_header_vec(char *msg, uint8_t vector) {
     debugattr(0x04);
     debugstr("]");
     debugattr(0x0C);
-    debugstr("###################\n");
-    debugattr(0x4C);
+    debugstr("###################################\n");
+    debugattr(0xC0);
     debugstr("PANIC");
     debugattr(0x0C);
     debugstr("      : ");
@@ -62,7 +62,7 @@ static inline void print_header_vec(char *msg, uint8_t vector) {
 
 static inline void print_header_no_vec(const char *msg) {
     debugattr(0x0C);
-    debugstr("\n\n##################");
+    debugstr("\n\n###################################");
     debugattr(0x04);
     debugstr("[");
     debugattr(0x08);
@@ -70,8 +70,8 @@ static inline void print_header_no_vec(const char *msg) {
     debugattr(0x04);
     debugstr("]");
     debugattr(0x0C);
-    debugstr("###################\n");
-    debugattr(0x4C);
+    debugstr("###################################\n");
+    debugattr(0xC0);
     debugstr("PANIC");
     debugattr(0x0C);
     debugstr("      : ");
@@ -221,7 +221,11 @@ static inline void print_fault_addr(uint64_t fault_addr) {
 
 static inline void print_footer(void) {
     debugattr(0x0C);
-    debugstr("\n################# Halting... ##################\n");
+    debugstr("\n##################################");
+    debugattr(0x04);
+    debugstr(" Halting... ");
+    debugattr(0x0C);
+    debugstr("#################################\n");
     debugstr("\n");
     debugattr(0x07);
 }

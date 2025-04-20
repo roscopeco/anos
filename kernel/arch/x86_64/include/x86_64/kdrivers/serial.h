@@ -7,8 +7,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_DRIVERS_SERIAL_H
-#define __ANOS_KERNEL_DRIVERS_SERIAL_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_DRIVERS_SERIAL_H
+#define __ANOS_KERNEL_ARCH_X86_64_DRIVERS_SERIAL_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -25,4 +25,4 @@ char serial_recvchar(SerialPort port);
 bool serial_tx_empty(SerialPort port);
 void serial_sendchar(SerialPort port, char a);
 
-#endif //__ANOS_KERNEL_DRIVERS_SERIAL_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_DRIVERS_SERIAL_H

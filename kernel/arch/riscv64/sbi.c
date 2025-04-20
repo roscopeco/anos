@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "sbi.h"
+#include "riscv64/sbi.h"
 
 SbiResult sbi_ecall(int ext, int fid, unsigned long arg0, unsigned long arg1,
                     unsigned long arg2, unsigned long arg3, unsigned long arg4,

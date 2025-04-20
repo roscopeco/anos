@@ -7,8 +7,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_DRIVERS_HPET_H
-#define __ANOS_KERNEL_DRIVERS_HPET_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_DRIVERS_HPET_H
+#define __ANOS_KERNEL_ARCH_X86_64_DRIVERS_HPET_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -87,4 +87,4 @@ static inline bool hpet_can_legacy(uint64_t hpet_caps) {
 bool hpet_init(ACPI_RSDT *rsdt);
 KernelTimer *hpet_as_timer(void);
 
-#endif //__ANOS_KERNEL_DRIVERS_HPET_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_DRIVERS_HPET_H

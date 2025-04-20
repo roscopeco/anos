@@ -7,8 +7,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_PROCESS_ADDRESS_SPACE_H
-#define __ANOS_KERNEL_PROCESS_ADDRESS_SPACE_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_PROCESS_ADDRESS_SPACE_H
+#define __ANOS_KERNEL_ARCH_X86_64_PROCESS_ADDRESS_SPACE_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -46,4 +46,4 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
                                uint64_t init_stack_len, uint64_t region_count,
                                AddressSpaceRegion regions[]);
 
-#endif //__ANOS_KERNEL_PROCESS_ADDRESS_SPACE_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_PROCESS_ADDRESS_SPACE_H

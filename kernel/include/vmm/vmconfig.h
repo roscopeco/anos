@@ -13,7 +13,15 @@
 #include "anos_assert.h"
 
 #define VM_KERNEL_SPACE_START ((0xffff800000000000))
-#define VM_PAGE_SIZE ((0x1000))
+
+#if defined __x86_64__
+#include "x86_64/vmm/vmconfig.h"
+#elif defined __riscv
+#include "riscv64/vmm/vmconfig.h"
+#else
+#error Undefined or unsupported architecture
+#endif
+
 #define VM_PAGE_LINEAR_SHIFT ((__builtin_ctz(VM_PAGE_SIZE)))
 
 static_assert(VM_PAGE_SIZE >> VM_PAGE_LINEAR_SHIFT == 1,

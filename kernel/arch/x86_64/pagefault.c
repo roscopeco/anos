@@ -14,7 +14,6 @@
 #include "std/string.h"
 #include "structs/ref_count_map.h"
 #include "vmm/vmmapper.h"
-#include "x86_64/vmm/recursive.h"
 
 extern MemoryRegion *physical_region;
 

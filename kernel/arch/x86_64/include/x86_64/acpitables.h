@@ -7,8 +7,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_ACPITABLES_H
-#define __ANOS_KERNEL_ACPITABLES_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_ACPITABLES_H
+#define __ANOS_KERNEL_ARCH_X86_64_ACPITABLES_H
 
 #include <stdint.h>
 
@@ -113,4 +113,4 @@ static inline ACPI_MADT *acpi_tables_find_madt(ACPI_RSDT *rsdt) {
     return (ACPI_MADT *)acpi_tables_find(rsdt, "APIC");
 }
 
-#endif //__ANOS_KERNEL_ACPITABLES_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_ACPITABLES_H

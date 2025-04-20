@@ -7,8 +7,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_GDT_H
-#define __ANOS_KERNEL_GDT_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_GDT_H
+#define __ANOS_KERNEL_ARCH_X86_64_GDT_H
 
 #include <stdint.h>
 
@@ -78,4 +78,4 @@ void *gdt_entry_to_tss(GDTSystemEntry *tss_entry);
 // Get a per-CPU TSS pointer
 void *gdt_per_cpu_tss(uint8_t cpu_id);
 
-#endif //__ANOS_KERNEL_GDT_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_GDT_H

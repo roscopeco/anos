@@ -10,10 +10,8 @@
 
 #ifdef UNIT_TESTS
 #include "mock_cpu.h"
-#include "mock_recursive.h"
 #else
 #include "x86_64/kdrivers/cpu.h"
-#include "x86_64/vmm/recursive.h"
 #endif
 
 #include "pmm/pagealloc.h"

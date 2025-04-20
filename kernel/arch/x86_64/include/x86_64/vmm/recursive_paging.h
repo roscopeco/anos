@@ -7,8 +7,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_VM_RECURSIVE_H
-#define __ANOS_KERNEL_VM_RECURSIVE_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_VM_RECURSIVE_H
+#define __ANOS_KERNEL_ARCH_X86_64_VM_RECURSIVE_H
 
 #include <stdint.h>
 
@@ -339,20 +339,4 @@ vmm_recursive_pml4_virt_to_recursive_entry(void *virt_pml4) {
     return (((uintptr_t)virt_pml4) & (LVL_MASK << L4_LSHIFT)) >> L1_RSHIFT;
 }
 
-static inline uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr) {
-    return (virt_addr & (LVL_MASK << L1_LSHIFT)) >> L4_RSHIFT;
-}
-
-static inline uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr) {
-    return (virt_addr & (LVL_MASK << L2_LSHIFT)) >> L3_RSHIFT;
-}
-
-static inline uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr) {
-    return (virt_addr & (LVL_MASK << L3_LSHIFT)) >> L2_RSHIFT;
-}
-
-static inline uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr) {
-    return (virt_addr & (LVL_MASK << L4_LSHIFT)) >> L1_RSHIFT;
-}
-
-#endif //__ANOS_KERNEL_VM_RECURSIVE_H
+#endif //__ANOS_KERNEL_ARCH_X86_64_VM_RECURSIVE_H

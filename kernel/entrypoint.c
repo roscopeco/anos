@@ -37,7 +37,6 @@
 #include "x86_64/kdrivers/cpu.h"
 #include "x86_64/kdrivers/local_apic.h"
 #include "x86_64/process/address_space.h"
-#include "x86_64/vmm/recursive.h"
 
 static ACPI_RSDT *acpi_root_table;
 
