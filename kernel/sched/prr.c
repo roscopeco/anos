@@ -336,6 +336,7 @@ void sched_schedule(void) {
         }
 
         if (current->sched->state != TASK_STATE_BLOCKED &&
+            current->sched->state != TASK_STATE_TERMINATED &&
             current->sched->ts_remain > 0 &&
             (candidate_next->sched->class <= current->sched->class ||
              (candidate_next->sched->class == current->sched->class &&

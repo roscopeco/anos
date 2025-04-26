@@ -170,6 +170,13 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
 
     task->this.next = (void *)0;
 
+    // Add to process' task list
+    // TODO add at end, to ensure destruction in reverse order?
+    ProcessTask *process_task = slab_alloc_block();
+    process_task->this.next = (ListNode *)owner->tasks;
+    process_task->task = task;
+    owner->tasks = process_task;
+
     return task;
 }
 
@@ -188,4 +195,23 @@ Task *task_create_kernel(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                          uintptr_t func, TaskClass class) {
     return task_create_new(owner, sp, sys_ssp,
                            (uintptr_t)kernel_thread_entrypoint, func, class);
+}
+
+void task_remove_from_process(Task *task) {
+    if (!task || !task->owner)
+        return;
+
+    ProcessTask **curr = (ProcessTask **)&task->owner->tasks;
+
+    while (*curr) {
+        if ((*curr)->task == task) {
+            ProcessTask *to_remove = *curr;
+
+            *curr = (ProcessTask *)(*curr)->this.next;
+            slab_free(to_remove);
+
+            return;
+        }
+        curr = (ProcessTask **)&(*curr)->this.next;
+    }
 }

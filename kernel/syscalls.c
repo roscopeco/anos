@@ -158,18 +158,11 @@ static SyscallResult handle_create_process(uintptr_t stack_base,
         dst_ptr->len_bytes = src_ptr->len_bytes;
     }
 
-    uintptr_t new_stack = page_alloc(physical_region);
-
-    if (!new_stack) {
-        return SYSCALL_FAILURE;
-    }
-
     uintptr_t new_pml4 = address_space_create(stack_base, stack_size,
                                               region_count, ad_regions);
 
     if (!new_pml4) {
         debugstr("Failed to create address space\n");
-        page_free(physical_region, new_stack);
         return SYSCALL_FAILURE;
     }
 
@@ -178,7 +171,13 @@ static SyscallResult handle_create_process(uintptr_t stack_base,
     if (!new_process) {
         // TODO LEAK address_space_destroy!
         debugstr("Failed to create new process\n");
-        page_free(physical_region, new_stack);
+        return SYSCALL_FAILURE;
+    }
+
+    uintptr_t new_stack = process_page_alloc(new_process, physical_region);
+
+    if (!new_stack) {
+        process_destroy(new_process);
         return SYSCALL_FAILURE;
     }
 
@@ -242,7 +241,6 @@ static inline void undo_partial_map(uintptr_t virtual_base,
         }
 #endif
         vmm_unmap_page(unmap_addr);
-
         // TODO likely some opportunity to make this more
         //      efficient, it's spinning through the owned
         //      page list to free each individual page...
@@ -250,7 +248,8 @@ static inline void undo_partial_map(uintptr_t virtual_base,
     }
 }
 
-SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base) {
+SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base,
+                                 uint64_t type, uint64_t flags, uint64_t arg) {
     if (size == 0) {
         // we don't map empty regions...
         return 0;
@@ -374,7 +373,7 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
         return handle_create_process(arg0, arg1, arg2,
                                      (ProcessMemoryRegion *)arg3, arg4);
     case 7:
-        return handle_map_virtual(arg0, arg1);
+        return handle_map_virtual(arg0, arg1, arg2, arg3, arg4);
     case 8:
         return handle_send_message(arg0, arg1, arg2, (void *)arg3);
     case 9:

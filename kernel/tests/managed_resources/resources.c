@@ -6,9 +6,8 @@
 static int dummy_free_calls = 0;
 
 // Dummy free function
-void dummy_free_func(void *resource, uint64_t data) {
+void dummy_free_func(ManagedResource *resource) {
     (void)resource;
-    (void)data;
     dummy_free_calls++;
 }
 

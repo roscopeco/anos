@@ -28,6 +28,7 @@ typedef enum {
     TASK_STATE_BLOCKED = 0,
     TASK_STATE_READY,
     TASK_STATE_RUNNING,
+    TASK_STATE_TERMINATED,
 } __attribute__((packed)) TaskState;
 
 /**

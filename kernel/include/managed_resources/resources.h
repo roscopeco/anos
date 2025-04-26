@@ -15,14 +15,21 @@
 #include "anos_assert.h"
 #include "structs/list.h"
 
-typedef void (*ResourceFreeFunc)(void *, uint64_t data);
+typedef struct ManagedResource ManagedResource;
+
+/*
+ * Function called to free ManagedResources.
+ *
+ * NOTE: This is responsible for freeing the ManagedResource struct
+ * itself, as well as the managed resource it references.
+ */
+typedef void (*ResourceFreeFunc)(ManagedResource *resource);
 
 typedef struct ManagedResource {
     ListNode this;
     ResourceFreeFunc free_func;
     void *resource_ptr;
-    uint64_t free_data;
-    uint64_t reserved[4];
+    uintptr_t data[5];
 } ManagedResource;
 
 void managed_resources_free_all(ManagedResource *head);

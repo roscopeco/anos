@@ -10,7 +10,11 @@
 
 void managed_resources_free_all(ManagedResource *head) {
     while (head) {
-        head->free_func(head->resource_ptr, head->free_data);
-        head = (ManagedResource *)head->this.next;
+        // free_func is responsible for freeing the struct,
+        // so stash this away first...
+        ManagedResource *next = (ManagedResource *)head->this.next;
+
+        head->free_func(head);
+        head = next;
     }
 }
