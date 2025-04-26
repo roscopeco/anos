@@ -17,10 +17,6 @@ SERVERS_ROOT_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(SERVERS_ROOT_DIR)/..)
 THIS_DIR=$(SERVERS_ROOT_DIR)/$(SERVER_NAME)
 
-# Servers load at 0x0000000001000000 (16MiB)
-#
-ENTRYPOINT_ADDR?=0x01000000
-
 BINARY_NAME=$(BINARY).bin
 BINARY_UC=$(shell echo '$(BINARY)' | tr '[:lower:]' '[:upper:]')
 ALL_TARGETS=$(BINARY_NAME)
