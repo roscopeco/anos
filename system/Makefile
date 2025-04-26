@@ -11,7 +11,6 @@ XRANLIB?=$(TARGET_TRIPLE)-ranlib
 ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 		-fno-asynchronous-unwind-tables 										\
-		-mcmodel=large															\
 		-g																		\
 		-O3																		\
 
