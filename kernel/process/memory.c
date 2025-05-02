@@ -3,13 +3,6 @@
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
- *
- * Aims: 
- *   * No (de)allocation while holding locks.
- *   * Safe with deferred allocation in page fault handler
- *   * Safe even on allocators that use internal mutexes (glibc, jemalloc, slab...).
- *   * Retains correct block compaction and list unlinking.
- *   * Doesn’t require heap memory tracking inside the lock.
  */
 
 #include <stdbool.h>
@@ -27,162 +20,104 @@
 
 bool process_add_owned_page(Process *proc, MemoryRegion *region,
                             uintptr_t phys_addr, bool shared) {
-    if (!proc || !proc->pages_lock)
+    if (!proc) {
         return false;
-
-    if (shared && refcount_map_increment(phys_addr) == 0)
-        return false;
-
-    ProcessPages *new_pages = NULL;
-    ProcessPageBlock *new_blk = NULL;
-
-    if (!proc->pages) {
-        new_pages = fba_alloc_block();
-        if (!new_pages) {
-            if (shared)
-                refcount_map_decrement(phys_addr);
-            return false;
-        }
-        new_pages->head = NULL;
     }
 
-    spinlock_lock_irqsave(proc->pages_lock);
+    uint64_t flags = spinlock_lock_irqsave(proc->pages_lock);
 
     if (!proc->pages) {
-        proc->pages = new_pages;
-        new_pages = NULL;
+        proc->pages = fba_alloc_block();
+        if (!proc->pages) {
+            spinlock_unlock_irqrestore(proc->pages_lock, flags);
+            return false;
+        }
+        proc->pages->head = NULL;
+    }
+
+    if (shared && refcount_map_increment(phys_addr) == 0) {
+        spinlock_unlock_irqrestore(proc->pages_lock, flags);
+        return false;
     }
 
     ProcessPageBlock *blk = proc->pages->head;
     while (blk && blk->count >= PAGES_PER_BLOCK)
         blk = blk->next;
 
-    if (blk) {
-        blk->pages[blk->count++] =
-                (ProcessPageEntry){.addr = phys_addr, .region = region};
-        spinlock_unlock_irqrestore(proc->pages_lock, 0);
-        if (new_pages)
-            fba_free(new_pages);
-        return true;
+    if (!blk) {
+        blk = fba_alloc_block();
+        if (!blk) {
+            spinlock_unlock_irqrestore(proc->pages_lock, flags);
+            return false;
+        }
+        blk->count = 0;
+        blk->next = proc->pages->head;
+        proc->pages->head = blk;
     }
 
-    spinlock_unlock_irqrestore(proc->pages_lock, 0);
-
-    new_blk = fba_alloc_block();
-    if (!new_blk) {
-        if (shared)
-            refcount_map_decrement(phys_addr);
-        if (new_pages)
-            fba_free(new_pages);
-        return false;
-    }
-    new_blk->count = 0;
-    new_blk->next = NULL;
-
-    spinlock_lock_irqsave(proc->pages_lock);
-
-    blk = proc->pages->head;
-    while (blk && blk->count >= PAGES_PER_BLOCK)
-        blk = blk->next;
-
-    if (blk) {
-        blk->pages[blk->count++] =
-                (ProcessPageEntry){.addr = phys_addr, .region = region};
-        spinlock_unlock_irqrestore(proc->pages_lock, 0);
-        fba_free(new_blk);
-        if (new_pages)
-            fba_free(new_pages);
-        return true;
-    }
-
-    new_blk->next = proc->pages->head;
-    proc->pages->head = new_blk;
-    new_blk->pages[new_blk->count++] =
-            (ProcessPageEntry){.addr = phys_addr, .region = region};
-
-    spinlock_unlock_irqrestore(proc->pages_lock, 0);
-    if (new_pages)
-        fba_free(new_pages);
+    blk->pages[blk->count++] =
+            (ProcessPageEntry){.region = region, .addr = phys_addr};
+    spinlock_unlock_irqrestore(proc->pages_lock, flags);
     return true;
 }
 
 bool process_remove_owned_page(Process *proc, uintptr_t phys_addr) {
-    if (!proc || !proc->pages || !proc->pages_lock)
+    if (!proc || !proc->pages)
         return false;
 
+    uint64_t flags = spinlock_lock_irqsave(proc->pages_lock);
+
+    ProcessPageBlock *blk = proc->pages->head;
     ProcessPageBlock *prev = NULL;
-    ProcessPageBlock *blk = NULL;
-    ProcessPageEntry removed_entry = {0};
-    ProcessPageBlock *block_to_free = NULL;
-    bool found = false;
 
-    spinlock_lock_irqsave(proc->pages_lock);
-
-    blk = proc->pages->head;
     while (blk) {
         for (uint16_t i = 0; i < blk->count; ++i) {
             if (blk->pages[i].addr == phys_addr) {
-                removed_entry = blk->pages[i];
-                found = true;
+                uint32_t prev_ref = refcount_map_decrement(phys_addr);
+
+                if (prev_ref <= 1) {
+                    page_free(blk->pages[i].region, phys_addr);
+                }
+
                 blk->pages[i] = blk->pages[--blk->count];
 
+                // If block becomes empty, remove it
                 if (blk->count == 0) {
                     if (prev) {
                         prev->next = blk->next;
                     } else {
                         proc->pages->head = blk->next;
                     }
-                    block_to_free = blk;
+                    fba_free(blk);
                 }
-                goto done;
+
+                spinlock_unlock_irqrestore(proc->pages_lock, flags);
+                return true;
             }
         }
         prev = blk;
         blk = blk->next;
     }
 
-done:
-    spinlock_unlock_irqrestore(proc->pages_lock, 0);
-
-    if (found) {
-        uint32_t prev = refcount_map_decrement(removed_entry.addr);
-        if (prev <= 1) {
-            page_free(removed_entry.region, removed_entry.addr);
-        }
-
-        if (block_to_free) {
-            fba_free(block_to_free);
-        }
-    }
-
-    return found;
+    spinlock_unlock_irqrestore(proc->pages_lock, flags);
+    return false;
 }
 
 void process_release_owned_pages(Process *proc) {
-    if (!proc || !proc->pages_lock)
-        return;
-
-    ProcessPageBlock *blk = NULL;
-
-    spinlock_lock_irqsave(proc->pages_lock);
-
-    if (!proc->pages) {
-        spinlock_unlock_irqrestore(proc->pages_lock, 0);
+    if (!proc || !proc->pages) {
         return;
     }
 
-    blk = proc->pages->head;
-    proc->pages->head = NULL;
-    fba_free(proc->pages);
-    proc->pages = NULL;
+    uint64_t flags = spinlock_lock_irqsave(proc->pages_lock);
 
-    spinlock_unlock_irqrestore(proc->pages_lock, 0);
-
+    ProcessPageBlock *blk = proc->pages->head;
     while (blk) {
         for (uint16_t i = 0; i < blk->count; ++i) {
-            uintptr_t addr = blk->pages[i].addr;
-            MemoryRegion *region = blk->pages[i].region;
+            uint64_t addr = blk->pages[i].addr;
+            void *region = blk->pages[i].region;
+
             uint32_t prev = refcount_map_decrement(addr);
+
             if (prev <= 1) {
                 page_free(region, addr);
             }
@@ -191,7 +126,14 @@ void process_release_owned_pages(Process *proc) {
         fba_free(blk);
         blk = next;
     }
+
+    fba_free(proc->pages);
+    proc->pages = NULL;
+
+    spinlock_unlock_irqrestore(proc->pages_lock, flags);
 }
+
+// --- Process Memory Allocator API ---
 
 uintptr_t process_page_alloc(Process *proc, MemoryRegion *region) {
     if (!proc) {
