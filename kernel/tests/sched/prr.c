@@ -84,8 +84,8 @@ static MunitResult test_sched_init_with_ssp(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
-    // Process is at the base of the slab area, plus 64 bytes (Slab* is at the base)
-    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 64);
+    // Process is at the base of the slab area, plus 128 bytes (Slab* is at the base, then spinlock)
+    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 128);
 
     munit_assert_uint64(mock_task_get_last_create_new_sp(), ==, 0);
     munit_assert_uint64(mock_task_get_last_create_new_sys_ssp(), ==, sys_stack);
@@ -130,8 +130,8 @@ static MunitResult test_sched_init_with_all(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
-    // Process is at the base of the slab area, plus 64 bytes (Slab* is at the base)
-    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 64);
+    // Process is at the base of the slab area, plus 128 bytes (Slab* is at the base, then spinlock)
+    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 128);
 
     munit_assert_uint64(mock_task_get_last_create_new_sp(), ==, TEST_SYS_SP);
     munit_assert_uint64(mock_task_get_last_create_new_sys_ssp(), ==, sys_stack);
@@ -178,8 +178,8 @@ test_sched_init_with_realtime_prio(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
-    // Process is at the base of the slab area, plus 64 bytes (Slab* is at the base)
-    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 64);
+    // Process is at the base of the slab area, plus 128 bytes (Slab* is at the base, then spinlock)
+    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 128);
 
     munit_assert_uint64(mock_task_get_last_create_new_sp(), ==, TEST_SYS_SP);
     munit_assert_uint64(mock_task_get_last_create_new_sys_ssp(), ==, sys_stack);
@@ -225,8 +225,8 @@ static MunitResult test_sched_init_with_high_prio(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
-    // Process is at the base of the slab area, plus 64 bytes (Slab* is at the base)
-    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 64);
+    // Process is at the base of the slab area, plus 128 bytes (Slab* is at the base, then spinlock)
+    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 128);
 
     munit_assert_uint64(mock_task_get_last_create_new_sp(), ==, TEST_SYS_SP);
     munit_assert_uint64(mock_task_get_last_create_new_sys_ssp(), ==, sys_stack);
@@ -271,8 +271,8 @@ static MunitResult test_sched_init_with_idle_prio(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 2);
 
-    // Process (allocated first) is at the base of the slab area, plus 64 bytes (Slab* is at the base)
-    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 64);
+    // Process is at the base of the slab area, plus 128 bytes (Slab* is at the base, then spinlock)
+    munit_assert_ptr_equal(task->owner, slab_area_base(page_area_ptr) + 128);
 
     munit_assert_uint64(mock_task_get_last_create_new_sp(), ==, TEST_SYS_SP);
     munit_assert_uint64(mock_task_get_last_create_new_sys_ssp(), ==, sys_stack);

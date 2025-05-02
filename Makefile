@@ -276,6 +276,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/structs/hash.o										\
 			$(STAGE3_DIR)/ipc/channel.o											\
 			$(STAGE3_DIR)/ipc/named.o											\
+			$(STAGE3_DIR)/process/memory.o										\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 else

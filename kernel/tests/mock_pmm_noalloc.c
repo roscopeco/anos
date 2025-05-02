@@ -28,11 +28,11 @@ void mock_pmm_reset() {
     next_page_addr = 0x1000;
 }
 
-uint64_t page_alloc(MemoryRegion *region) {
+uintptr_t page_alloc(MemoryRegion *region) {
     total_page_allocs++;
     uint64_t result = next_page_addr;
     next_page_addr += 0x1000;
     return result;
 }
 
-void page_free(MemoryRegion *region, uint64_t page) { total_page_frees++; }
+void page_free(MemoryRegion *region, uintptr_t page) { total_page_frees++; }

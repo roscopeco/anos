@@ -250,7 +250,7 @@ static inline bool stack_empty(MemoryRegion *region) {
     return region->sp < ((MemoryBlock *)(region + 1));
 }
 
-uint64_t page_alloc_m(MemoryRegion *region, uint64_t count) {
+uintptr_t page_alloc_m(MemoryRegion *region, uint64_t count) {
     uint64_t lock_flags = spinlock_lock_irqsave(&region->lock);
 
     if (stack_empty(region)) {
@@ -305,7 +305,7 @@ uint64_t page_alloc_m(MemoryRegion *region, uint64_t count) {
     return 0xFF;
 }
 
-uint64_t page_alloc(MemoryRegion *region) {
+uintptr_t page_alloc(MemoryRegion *region) {
     uint64_t lock_flags = spinlock_lock_irqsave(&region->lock);
 
     if (stack_empty(region)) {
@@ -333,7 +333,7 @@ uint64_t page_alloc(MemoryRegion *region) {
     }
 }
 
-void page_free(MemoryRegion *region, uint64_t page) {
+void page_free(MemoryRegion *region, uintptr_t page) {
     // No-op unaligned addresses...
     if (page & 0xFFF) {
         return;

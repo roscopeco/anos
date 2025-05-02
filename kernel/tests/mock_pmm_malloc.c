@@ -31,7 +31,7 @@ void mock_pmm_reset() {
     total_page_allocs = 0;
 }
 
-uint64_t page_alloc(MemoryRegion *region) {
+uintptr_t page_alloc(MemoryRegion *region) {
     if (page_ptr == (MOCK_PMM_MAX_PAGES - 1)) {
         fprintf(stderr, "\n\nWARN: Mock page allocator is out of space 😱\n\n");
         return 0xff;
@@ -42,7 +42,7 @@ uint64_t page_alloc(MemoryRegion *region) {
     return (uint64_t)pages[page_ptr++];
 }
 
-void page_free(MemoryRegion *region, uint64_t page) {
+void page_free(MemoryRegion *region, uintptr_t page) {
     total_page_frees++;
 
     // don't bother freeing for now...

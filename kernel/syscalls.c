@@ -24,6 +24,7 @@
 #include "pmm/pagealloc.h"
 #include "printhex.h"
 #include "process.h"
+#include "process/memory.h"
 #include "sched.h"
 #include "sleep.h"
 #include "smp/state.h"
@@ -226,7 +227,7 @@ static inline void undo_partial_map(uintptr_t virtual_base,
     if ((new_page & 0xff) == 0) {
         // we allocated a page, so must be failing because there's already a page
         // mapped here... We need to free the page we allocated.
-        page_free(physical_region, new_page);
+        process_page_free(task_current()->owner, new_page);
     }
 
     // Either way, we're failing, so need to undo what we've already done...
@@ -241,7 +242,11 @@ static inline void undo_partial_map(uintptr_t virtual_base,
         }
 #endif
         vmm_unmap_page(unmap_addr);
-        page_free(physical_region, page);
+
+        // TODO likely some opportunity to make this more
+        //      efficient, it's spinning through the owned
+        //      page list to free each individual page...
+        process_page_free(task_current()->owner, page);
     }
 }
 
@@ -260,7 +265,8 @@ SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base) {
     uintptr_t virtual_end = virtual_base + size;
     for (uintptr_t addr = virtual_base; addr < virtual_end;
          addr += VM_PAGE_SIZE) {
-        uintptr_t new_page = page_alloc(physical_region);
+        uintptr_t new_page =
+                process_page_alloc(task_current()->owner, physical_region);
 
         if (new_page & 0xff || vmm_virt_to_phys_page(addr)) {
             undo_partial_map(virtual_base, addr, new_page);

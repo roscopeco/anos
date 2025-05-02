@@ -245,6 +245,9 @@ kernel/tests/build/ipc/named: kernel/tests/munit.o kernel/tests/ipc/named.o kern
 kernel/tests/build/structs/shift_array: kernel/tests/munit.o kernel/tests/structs/shift_array.o kernel/tests/build/structs/shift_array.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/process/memory: kernel/tests/munit.o kernel/tests/process/memory.o kernel/tests/build/process/memory.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -293,7 +296,9 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/ipc/channel										\
 			kernel/tests/build/structs/strhash									\
 			kernel/tests/build/ipc/named										\
-			kernel/tests/build/structs/shift_array
+			kernel/tests/build/structs/shift_array								\
+			kernel/tests/build/process/memory
+
 
 ifeq ($(HOST_ARCH),i386)	# macOS
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\

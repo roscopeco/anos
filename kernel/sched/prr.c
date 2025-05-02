@@ -74,6 +74,10 @@ static Process *system_process;
 
 void sched_idle_thread(void);
 
+void process_release_owned_pages(Process *process) {
+    // nothing
+}
+
 static inline PerCPUSchedState *get_this_cpu_sched_state(void) {
     PerCPUState *cpu_state = state_get_for_this_cpu();
     return (PerCPUSchedState *)cpu_state->sched_data;
