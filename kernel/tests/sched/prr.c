@@ -37,7 +37,8 @@ uintptr_t get_pagetable_root() { return TEST_PAGETABLE_ROOT; }
 
 static char *mock_tss[256];
 
-void panic_sloc(char *msg) { /* nothing*/ }
+void panic_sloc(char *msg) { /* nothing */ }
+void process_release_owned_pages(Process *process) { /* nothing */ }
 
 static inline void *slab_area_base(void *page_area_ptr) {
     // skip one page used by FBA, and three unused by slab alignment

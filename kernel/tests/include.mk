@@ -3,6 +3,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/smp/*.o	\
 				kernel/tests/kdrivers/*.o											\
 				kernel/tests/ipc/*.o												\
+				kernel/tests/process/*.o											\
 				kernel/tests/arch/x86_64/*.o										\
 				kernel/tests/arch/x86_64/sched/*.o									\
 				kernel/tests/arch/x86_64/kdrivers/*.o								\
@@ -10,12 +11,14 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/structs/*.o								\
 				kernel/tests/arch/x86_64/vmm/*.o									\
 				kernel/tests/arch/riscv64/*.o										\
+				kernel/tests/arch/riscv64/vmm/*.o									\
 				kernel/tests/*.gcda kernel/tests/pmm/*.gcda kernel/tests/vmm/*.gcda	\
 				kernel/tests/structs/*.gcda kernel/tests/pci/*.gcda 				\
 				kernel/tests/fba/*.gcda kernel/tests/slab/*.gcda 					\
 				kernel/tests/sched/*.gcda kernel/tests/smp/*.gcda					\
 				kernel/tests/kdrivers/*.gcda										\
 				kernel/tests/ipc/*.gcda												\
+				kernel/tests/process/*.gcda											\
 				kernel/tests/arch/x86_64/*.gcda										\
 				kernel/tests/arch/x86_64/sched/*.gcda								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcda							\
@@ -23,12 +26,14 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/structs/*.gcda								\
 				kernel/tests/arch/x86_64/vmm/*.gcda									\
 				kernel/tests/arch/riscv64/*.gcda									\
+				kernel/tests/arch/riscv64/vmm/*.gcda								\
 				kernel/tests/*.gcno kernel/tests/pmm/*.gcno kernel/tests/vmm/*.gcno	\
 				kernel/tests/structs/*.gcno kernel/tests/pci/*.gcno 				\
 				kernel/tests/fba/*.gcno kernel/tests/slab/*.gcno 					\
 				kernel/tests/sched/*.gcno kernel/tests/smp/*.gcno					\
 				kernel/tests/kdrivers/*.gcno										\
 				kernel/tests/ipc/*.gcno												\
+				kernel/tests/process/*.gcno											\
 				kernel/tests/arch/x86_64/*.gcno										\
 				kernel/tests/arch/x86_64/sched/*.gcno								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcno							\
@@ -37,6 +42,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/structs/*.gcno								\
 				kernel/tests/arch/x86_64/vmm/*.gcno									\
 				kernel/tests/arch/riscv64/*.gcno									\
+				kernel/tests/arch/riscv64/vmm/*.gcno								\
 				kernel/tests/build													\
 				gcov/kernel
 

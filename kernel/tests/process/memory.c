@@ -5,10 +5,12 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "munit.h"
 
@@ -20,9 +22,19 @@
 
 #define MAX_FAKE_PAGES 128
 
+#define THREADS 4
+#define ALLOCS_PER_THREAD 16
+
+typedef struct {
+    Process *proc;
+    int id;
+    bool run_release;
+} ThreadArg;
+
 static uint64_t fake_pages[MAX_FAKE_PAGES];
 static bool fake_page_allocated[MAX_FAKE_PAGES];
 static uint32_t fake_refcount[MAX_FAKE_PAGES];
+static pthread_mutex_t alloc_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static MemoryRegion dummy_region;
 
@@ -38,25 +50,54 @@ void *fba_alloc_block(void) { return calloc(1, 4096); }
 
 void fba_free(void *page) { free(page); }
 
+void *thread_alloc_free(void *arg) {
+    ThreadArg *targ = arg;
+    for (int i = 0; i < ALLOCS_PER_THREAD; i++) {
+        uint64_t addr = process_page_alloc(targ->proc, &dummy_region);
+        if (addr != 0xFFFFFFFFFFFFFFFF) {
+            if (i % 2 == 0) {
+                process_page_free(targ->proc, addr);
+            } else {
+                usleep(100); // slow things down to encourage races
+            }
+        }
+    }
+    return NULL;
+}
+
+void *thread_stress_release(void *arg) {
+    ThreadArg *targ = arg;
+    for (int i = 0; i < 8; i++) {
+        usleep(150); // Interleave
+        process_release_owned_pages(targ->proc);
+    }
+    return NULL;
+}
+
 uintptr_t page_alloc(MemoryRegion *region) {
     (void)region;
+    pthread_mutex_lock(&alloc_lock);
     for (int i = 0; i < MAX_FAKE_PAGES; i++) {
         if (!fake_page_allocated[i]) {
             fake_page_allocated[i] = true;
+            pthread_mutex_unlock(&alloc_lock);
             return fake_pages[i];
         }
     }
-    return 0xFFFFFFFFFFFFFFFF; // fail
+    pthread_mutex_unlock(&alloc_lock);
+    return 0xFFFFFFFFFFFFFFFF;
 }
 
 void page_free(MemoryRegion *region, uintptr_t addr) {
     (void)region;
+    pthread_mutex_lock(&alloc_lock);
     for (int i = 0; i < MAX_FAKE_PAGES; i++) {
         if (fake_pages[i] == addr) {
             fake_page_allocated[i] = false;
-            return;
+            break;
         }
     }
+    pthread_mutex_unlock(&alloc_lock);
 }
 
 uint32_t refcount_map_increment(uintptr_t addr) {
@@ -80,15 +121,14 @@ uint32_t refcount_map_decrement(uintptr_t addr) {
 }
 
 uint64_t spinlock_lock_irqsave(SpinLock *lock) {
-    (void)lock;
+    pthread_mutex_lock((pthread_mutex_t *)&lock->lock);
     return 0;
 }
 
 void spinlock_unlock_irqrestore(SpinLock *lock, uint64_t flags) {
-    (void)lock;
     (void)flags;
+    pthread_mutex_unlock((pthread_mutex_t *)&lock->lock);
 }
-
 static MunitResult test_process_page_alloc_free(const MunitParameter params[],
                                                 void *data) {
     (void)params;
@@ -184,6 +224,9 @@ static MunitResult test_shared_pages_refcounting(const MunitParameter params[],
     munit_assert_true(process_remove_owned_page(&proc, addr));
     munit_assert_int(fake_refcount[0], ==, 0);
 
+    // We don't free the actual memory for the page list until...
+    process_release_owned_pages(&proc);
+
     return MUNIT_OK;
 }
 
@@ -203,6 +246,9 @@ static MunitResult test_double_free_is_safe(const MunitParameter params[],
     uint64_t addr = process_page_alloc(&proc, &dummy_region);
     munit_assert_true(process_page_free(&proc, addr));
     munit_assert_false(process_page_free(&proc, addr));
+
+    // We don't free the actual memory for the page list until...
+    process_release_owned_pages(&proc);
 
     return MUNIT_OK;
 }
@@ -259,6 +305,71 @@ static MunitResult test_block_expansion(const MunitParameter params[],
     return MUNIT_OK;
 }
 
+static MunitResult test_concurrent_allocs(const MunitParameter params[],
+                                          void *data) {
+    (void)params;
+    (void)data;
+    reset_fakes();
+
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    SpinLock lock = {.lock = (uint64_t)&mutex};
+    Process proc = {
+            .pid = 99,
+            .pages_lock = &lock,
+            .pages = NULL,
+    };
+
+    pthread_t threads[THREADS];
+    ThreadArg args[THREADS];
+
+    for (int i = 0; i < THREADS; i++) {
+        args[i].proc = &proc;
+        pthread_create(&threads[i], NULL, thread_alloc_free, &args[i]);
+    }
+
+    for (int i = 0; i < THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    process_release_owned_pages(&proc);
+    return MUNIT_OK;
+}
+
+static MunitResult
+test_stress_concurrent_alloc_and_release(const MunitParameter params[],
+                                         void *data) {
+    (void)params;
+    (void)data;
+    reset_fakes();
+
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    SpinLock lock = {.lock = (uint64_t)&mutex};
+    Process proc = {
+            .pid = 100,
+            .pages_lock = &lock,
+            .pages = NULL,
+    };
+
+    pthread_t threads[THREADS];
+    ThreadArg args[THREADS];
+
+    for (int i = 0; i < THREADS; i++) {
+        args[i].proc = &proc;
+        args[i].id = i;
+        args[i].run_release = false;
+        pthread_create(&threads[i], NULL, thread_alloc_free, &args[i]);
+    }
+
+    for (int i = 0; i < THREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    process_release_owned_pages(&proc);
+
+    process_release_owned_pages(&proc);
+    return MUNIT_OK;
+}
+
 static MunitTest tests[] = {
         {"/alloc_free", test_process_page_alloc_free, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
@@ -273,6 +384,11 @@ static MunitTest tests[] = {
         {"/alloc_failure", test_alloc_failure_handling, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
         {"/block_expansion", test_block_expansion, NULL, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/concurrent_allocs", test_concurrent_allocs, NULL, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/stress_concurrent_alloc_release",
+         test_stress_concurrent_alloc_and_release, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
