@@ -124,7 +124,7 @@ noreturn void start_system(void) {
     // BSS/Data we need... We'll just map a couple pages for now...
 
     // Set up pages for the user bss / data
-    uint64_t user_bss = 0x0000000080000000;
+    uint64_t user_bss = 0x0000000040000000;
     for (int i = 0; i < SYSTEM_BSS_PAGE_COUNT; i++) {
         uint64_t user_bss_phys = page_alloc(physical_region);
         vmm_map_page(user_bss + (i * VM_PAGE_SIZE), user_bss_phys,
