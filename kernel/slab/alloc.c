@@ -14,6 +14,16 @@
 
 #define NULL (((void *)0))
 
+#ifdef CONSERVATIVE_BUILD
+#include "panic.h"
+#ifdef CONSERVATIVE_PANICKY
+#define konservative panic
+#else
+#include "kprintf.h"
+#define konservative kprintf
+#endif
+#endif
+
 static ListNode *partial;
 static ListNode *full;
 
@@ -106,11 +116,20 @@ void *slab_alloc_block() {
 }
 
 void slab_free(void *block) {
+    if (!block) {
+#ifdef CONSERVATIVE_BUILD
+        konservative("WARN: slab_free on NULL block");
+#endif
+        return;
+    }
+
     Slab *slab = slab_base(block);
 
     if (!slab) {
         // Not in FBA, so not a slab.
-        // TODO warn or something, this should always be a bug...
+#ifdef CONSERVATIVE_BUILD
+        konservative("WARN: slab_free on non-slab");
+#endif
         return;
     }
 

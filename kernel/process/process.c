@@ -68,19 +68,23 @@ Process *process_create(uintptr_t pml4) {
 }
 
 static inline void destroy_process_tasks(Process *process) {
-    ProcessTask *task = process->tasks;
+    ProcessTask *process_task = process->tasks;
 
-    while (task) {
+    while (process_task) {
 #ifdef CONSERVATIVE_BUILD
-        if (!task->task) {
+        if (!process_task->task) {
             konservative("[BUG] Destroy NULL Task");
         }
 #endif
 
-        task_destroy(task->task);
-        ProcessTask *next = (ProcessTask *)task->this.next;
-        slab_free(task);
-        task = next;
+        task_destroy(process_task->task);
+        ProcessTask *next = (ProcessTask *)process_task->this.next;
+        slab_free(process_task);
+
+        // updating process->tasks at the same time here in case
+        // we panic and want to use what's left of the list...
+        //
+        process->tasks = process_task = next;
     }
 }
 

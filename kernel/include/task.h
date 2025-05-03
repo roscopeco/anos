@@ -88,4 +88,6 @@ Task *task_create_user(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
 Task *task_create_kernel(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                          uintptr_t func, TaskClass class);
 
+void task_remove_from_process(Task *task);
+
 #endif //__ANOS_KERNEL_TASK_H

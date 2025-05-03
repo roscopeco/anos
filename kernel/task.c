@@ -46,8 +46,13 @@
 #ifdef CONSERVATIVE_PANICKY
 #define konservative panic
 #else
+#ifdef UNIT_TESTS
+void mock_kprintf(const char *msg);
+#define konservative mock_kprintf
+#else
 #include "kprintf.h"
 #define konservative kprintf
+#endif
 #endif
 #endif
 
@@ -192,6 +197,11 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
 
 void task_destroy(Task *task) {
 #ifdef CONSERVATIVE_BUILD
+    if (!task) {
+        konservative("[BUG] Destroy task with NULL task");
+        return;
+    }
+
     if (!task->sched) {
         konservative("[BUG] Destroy task with NULL sched");
     }
@@ -200,16 +210,18 @@ void task_destroy(Task *task) {
         konservative("[BUG] Destroy task with NULL data area");
     }
 
-    if (task->sched->state != TASK_STATE_TERMINATED) {
+    if (task->sched && (task->sched->state != TASK_STATE_TERMINATED)) {
         // always panic in this case, we're going to crash soon anyway
         // if we wipe out a task that's running or queued....
         panic("[BUG] Destroy task with state other than TASK_STATE_TERMINATED");
     }
 #endif
 
-    fba_free(task->data);
-    slab_free(task->sched);
-    slab_free(task);
+    if (task) {
+        fba_free(task->data);
+        slab_free(task->sched);
+        slab_free(task);
+    }
 }
 
 Task *task_create_user(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
