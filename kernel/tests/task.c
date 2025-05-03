@@ -55,17 +55,24 @@ static MunitResult test_task_create_new(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 3);
 
-    // TaskSched (allocated first) is at the base of the slab area, plus 64 bytes
-    munit_assert_ptr_equal(task->sched, slab_area_base(page_area_ptr) + 64);
+    // Task is at the base of the FBA area, plus 8KiB bytes (for FBA overhead)
+    munit_assert_ptr_equal(task, page_area_ptr + 0x2000);
 
-    // Task (allocated second) is at the base of the slab area, plus 128 bytes
-    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 128);
+    // Task sched is actually the ssched member in the 4KiB task struct...
+    munit_assert_ptr_equal(task->sched, &task->ssched);
 
+    // Task data is actually the sdata member in the 4KiB task struct...
+    munit_assert_ptr_equal(task->data, &task->sdata);
+
+    // Check basic details
     munit_assert_ptr_equal(task->owner, &mock_owner);
 
     munit_assert_uint64(task->sched->tid, ==, 2);
     munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
     munit_assert_uint64(task->rsp0, ==, sys_stack);
+
+    munit_assert_uint8(task->sched->state, ==, TASK_STATE_READY);
+    munit_assert_uint8(task->sched->killed, ==, 0);
 
     // -128 because reg space was reserved, and func was pushed
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);
@@ -95,17 +102,24 @@ static MunitResult test_task_create_kernel(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 3);
 
-    // TaskSched (allocated first) is at the base of the slab area, plus 64 bytes
-    munit_assert_ptr_equal(task->sched, slab_area_base(page_area_ptr) + 64);
+    // Task is at the base of the FBA area, plus 8KiB bytes (for FBA overhead)
+    munit_assert_ptr_equal(task, page_area_ptr + 0x2000);
 
-    // Task (allocated second) is at the base of the slab area, plus 128 bytes
-    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 128);
+    // Task sched is actually the ssched member in the 4KiB task struct...
+    munit_assert_ptr_equal(task->sched, &task->ssched);
 
+    // Task data is actually the sdata member in the 4KiB task struct...
+    munit_assert_ptr_equal(task->data, &task->sdata);
+
+    // Check basic details
     munit_assert_ptr_equal(task->owner, &mock_owner);
 
     munit_assert_uint64(task->sched->tid, ==, 2);
     munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
     munit_assert_uint64(task->rsp0, ==, sys_stack);
+
+    munit_assert_uint8(task->sched->state, ==, TASK_STATE_READY);
+    munit_assert_uint8(task->sched->killed, ==, 0);
 
     // -128 because reg space was reserved, and func was pushed
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);
@@ -135,17 +149,24 @@ static MunitResult test_task_create_user(const MunitParameter params[],
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
                         PAGES_PER_SLAB + 3);
 
-    // TaskSched (allocated first) is at the base of the slab area, plus 64 bytes
-    munit_assert_ptr_equal(task->sched, slab_area_base(page_area_ptr) + 64);
+    // Task is at the base of the FBA area, plus 8KiB bytes (for FBA overhead)
+    munit_assert_ptr_equal(task, page_area_ptr + 0x2000);
 
-    // Task (allocated second) is at the base of the slab area, plus 128 bytes
-    munit_assert_ptr_equal(task, slab_area_base(page_area_ptr) + 128);
+    // Task sched is actually the ssched member in the 4KiB task struct...
+    munit_assert_ptr_equal(task->sched, &task->ssched);
 
+    // Task data is actually the sdata member in the 4KiB task struct...
+    munit_assert_ptr_equal(task->data, &task->sdata);
+
+    // Check basic details
     munit_assert_ptr_equal(task->owner, &mock_owner);
 
     munit_assert_uint64(task->sched->tid, ==, 2);
     munit_assert_uint64(task->pml4, ==, TEST_PAGETABLE_ROOT);
     munit_assert_uint64(task->rsp0, ==, sys_stack);
+
+    munit_assert_uint8(task->sched->state, ==, TASK_STATE_READY);
+    munit_assert_uint8(task->sched->killed, ==, 0);
 
     // -128 because reg space was reserved, and func was pushed
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);

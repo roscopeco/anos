@@ -42,7 +42,7 @@ typedef struct {
     TaskState state;    // 11
     TaskClass class;    // 12
     uint8_t prio;       // 13
-    uint8_t res1;       // 14
+    uint8_t killed;     // 14
     uint16_t res2;      // 16
     uint64_t reserved[6];
 } __attribute__((packed)) TaskSched;
@@ -53,8 +53,8 @@ typedef struct {
  */
 typedef struct Task {
     ListNode this;    // 8 bytes
-    void *data;       // 16 - arch specific data
-    TaskSched *sched; // 24 - scheduler data
+    void *data;       // 16 - arch specific data (points into this struct)
+    TaskSched *sched; // 24 - scheduler data (points into this struct)
     uintptr_t rsp0;   // 32
     uintptr_t ssp;    // 40
     Process *owner;   // 48
@@ -63,9 +63,14 @@ typedef struct Task {
     uintptr_t pml4; // 56
 
     uintptr_t usp_stash; // 64
+
+    TaskSched ssched;        // 128
+    uint64_t reserved0[112]; // 1024
+    uint8_t sdata[2048];     // 3072
+    uint64_t reserved1[128]; // 4096
 } __attribute__((packed)) Task;
 
-static_assert_sizeof(Task, ==, 64);
+static_assert_sizeof(Task, ==, 4096);
 static_assert_sizeof(TaskSched, ==, 64);
 
 void task_init(void *tss);

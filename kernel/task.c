@@ -120,29 +120,14 @@ void kernel_thread_entrypoint(void);
 Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                       uintptr_t bootstrap, uintptr_t func, TaskClass class) {
 
-    void *data = fba_alloc_block();
-
-    if (data == NULL) {
-        return NULL;
-    }
-
-    TaskSched *sched = slab_alloc_block();
-
-    if (sched == NULL) {
-        fba_free(data);
-        return NULL;
-    }
-
-    Task *task = slab_alloc_block();
+    Task *task = fba_alloc_block();
 
     if (task == NULL) {
-        fba_free(data);
-        slab_free(sched);
         return NULL;
     }
 
-    task->data = data;
-    task->sched = sched;
+    task->data = &task->sdata;
+    task->sched = &task->ssched;
 
     task->sched->tid = next_tid++;
 
@@ -177,6 +162,7 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
     task->pml4 = owner->pml4;
     task->sched->ts_remain = DEFAULT_TIMESLICE;
     task->sched->state = TASK_STATE_READY;
+    task->sched->killed = 0;
 
     // TODO pass these in, or inherit from owner
     //      if the latter, have a separate call to change them...
@@ -218,9 +204,7 @@ void task_destroy(Task *task) {
 #endif
 
     if (task) {
-        fba_free(task->data);
-        slab_free(task->sched);
-        slab_free(task);
+        fba_free(task);
     }
 }
 
