@@ -6,6 +6,7 @@
  */
 
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -121,13 +122,15 @@ uint32_t refcount_map_decrement(uintptr_t addr) {
 }
 
 uint64_t spinlock_lock_irqsave(SpinLock *lock) {
-    pthread_mutex_lock((pthread_mutex_t *)&lock->lock);
-    return 0;
+    while (atomic_exchange_explicit(&lock->lock, 1, memory_order_acquire)) {
+        __asm__ volatile("pause");
+    }
+    return 0; // no IRQ flags in user mode}
 }
 
 void spinlock_unlock_irqrestore(SpinLock *lock, uint64_t flags) {
     (void)flags;
-    pthread_mutex_unlock((pthread_mutex_t *)&lock->lock);
+    atomic_store_explicit(&lock->lock, 0, memory_order_release);
 }
 static MunitResult test_process_page_alloc_free(const MunitParameter params[],
                                                 void *data) {
@@ -311,8 +314,7 @@ static MunitResult test_concurrent_allocs(const MunitParameter params[],
     (void)data;
     reset_fakes();
 
-    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-    SpinLock lock = {.lock = (uint64_t)&mutex};
+    SpinLock lock = {0};
     Process proc = {
             .pid = 99,
             .pages_lock = &lock,
@@ -342,8 +344,7 @@ test_stress_concurrent_alloc_and_release(const MunitParameter params[],
     (void)data;
     reset_fakes();
 
-    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-    SpinLock lock = {.lock = (uint64_t)&mutex};
+    SpinLock lock = {0};
     Process proc = {
             .pid = 100,
             .pages_lock = &lock,

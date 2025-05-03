@@ -18,8 +18,14 @@
 
 #include "anos_assert.h"
 
+#ifdef UNIT_TESTS
+#define ATOMIC_FOR_TESTS _Atomic
+#else
+#define ATOMIC_FOR_TESTS
+#endif
+
 typedef struct {
-    uint64_t lock;
+    ATOMIC_FOR_TESTS uint64_t lock;
     uint64_t fill_cache_line[7];
 } SpinLock;
 
