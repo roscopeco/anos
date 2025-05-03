@@ -25,10 +25,11 @@ typedef enum {
 } __attribute__((packed)) TaskClass;
 
 typedef enum {
-    TASK_STATE_BLOCKED = 0,
-    TASK_STATE_READY,
-    TASK_STATE_RUNNING,
-    TASK_STATE_TERMINATED,
+    TASK_STATE_BLOCKED = 0, // Task is blocked on some condition
+    TASK_STATE_READY,       // Task is ready to go
+    TASK_STATE_RUNNING,     // Task is actively running
+    TASK_STATE_TERMINATING, // Task is ready to terminate (may still be running)
+    TASK_STATE_TERMINATED,  // Task is terminated - definitely not running
 } __attribute__((packed)) TaskState;
 
 /**
@@ -52,8 +53,8 @@ typedef struct {
  */
 typedef struct Task {
     ListNode this;    // 8 bytes
-    void *data;       // 16
-    TaskSched *sched; // 24
+    void *data;       // 16 - arch specific data
+    TaskSched *sched; // 24 - scheduler data
     uintptr_t rsp0;   // 32
     uintptr_t ssp;    // 40
     Process *owner;   // 48

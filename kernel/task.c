@@ -41,6 +41,16 @@
 #define NULL (((void *)0))
 #endif
 
+#ifdef CONSERVATIVE_BUILD
+#include "panic.h"
+#ifdef CONSERVATIVE_PANICKY
+#define konservative panic
+#else
+#include "kprintf.h"
+#define konservative kprintf
+#endif
+#endif
+
 typedef per_cpu struct {
     Task *task_current_ptr;
     void *task_tss_ptr; // opaque, we only access from assembly...
@@ -181,6 +191,23 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
 }
 
 void task_destroy(Task *task) {
+#ifdef CONSERVATIVE_BUILD
+    if (!task->sched) {
+        konservative("[BUG] Destroy task with NULL sched");
+    }
+
+    if (!task->data) {
+        konservative("[BUG] Destroy task with NULL data area");
+    }
+
+    if (task->sched->state != TASK_STATE_TERMINATED) {
+        // always panic in this case, we're going to crash soon anyway
+        // if we wipe out a task that's running or queued....
+        panic("[BUG] Destroy task with state other than TASK_STATE_TERMINATED");
+    }
+#endif
+
+    fba_free(task->data);
     slab_free(task->sched);
     slab_free(task);
 }

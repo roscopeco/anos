@@ -335,8 +335,14 @@ void sched_schedule(void) {
             --current->sched->ts_remain;
         }
 
+#ifdef CONSERVATIVE_BUILD
+        if (current->sched->state == TASK_STATE_TERMINATED) {
+            panic("[BUG] A terminated task is running!");
+        }
+#endif
+
         if (current->sched->state != TASK_STATE_BLOCKED &&
-            current->sched->state != TASK_STATE_TERMINATED &&
+            current->sched->state != TASK_STATE_TERMINATING &&
             current->sched->ts_remain > 0 &&
             (candidate_next->sched->class <= current->sched->class ||
              (candidate_next->sched->class == current->sched->class &&
@@ -365,6 +371,8 @@ void sched_schedule(void) {
     if (current && current->sched->state == TASK_STATE_RUNNING) {
         current->sched->state = TASK_STATE_READY;
         sched_enqueue(current);
+    } else if (current && current->sched->state == TASK_STATE_TERMINATING) {
+        current->sched->state = TASK_STATE_TERMINATED;
     }
 
     next->sched->ts_remain = DEFAULT_TIMESLICE;

@@ -25,6 +25,16 @@
 #define STATIC_EXCEPT_TESTS static
 #endif
 
+#ifdef CONSERVATIVE_BUILD
+#ifdef CONSERVATIVE_PANICKY
+#include "panic.h"
+#define konservative panic
+#else
+#include "kprintf.h"
+#define konservative kprintf
+#endif
+#endif
+
 STATIC_EXCEPT_TESTS _Atomic volatile uint64_t next_pid;
 
 void process_init(void) { next_pid = 1; }
@@ -61,8 +71,14 @@ static inline void destroy_process_tasks(Process *process) {
     ProcessTask *task = process->tasks;
 
     while (task) {
+#ifdef CONSERVATIVE_BUILD
+        if (!task->task) {
+            konservative("[BUG] Destroy NULL Task");
+        }
+#endif
+
         task_destroy(task->task);
-        ProcessTask *next = (ProcessTask*)task->this.next;
+        ProcessTask *next = (ProcessTask *)task->this.next;
         slab_free(task);
         task = next;
     }

@@ -30,6 +30,8 @@ static Process mock_owner;
 void kernel_thread_entrypoint(void);
 void user_thread_entrypoint(void);
 
+void panic_sloc(char *msg) { munit_assert(false); }
+
 static inline void *slab_area_base(void *page_area_ptr) {
     // skip one page used by FBA, and three unused by slab alignment
     return (void *)((uint64_t)page_area_ptr + 0x4000);
