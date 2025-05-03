@@ -75,7 +75,7 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
  * but will only generally be used for memory-mapped buffers for devices,
  * so will likely be used mostly early in kernel start-up...
  */
-uint64_t page_alloc_m(MemoryRegion *region, uint64_t count);
+uintptr_t page_alloc_m(MemoryRegion *region, uint64_t count);
 
 /*
  * Allocate a single physical page.
@@ -87,13 +87,13 @@ uint64_t page_alloc_m(MemoryRegion *region, uint64_t count);
  * If unsuccessful, an unaligned number (with 0xFF in the least-significant
  * byte) will be returned.
  */
-uint64_t page_alloc(MemoryRegion *region);
+uintptr_t page_alloc(MemoryRegion *region);
 
 /*
  * Free a physical page.
  *
  * Currently, only 4KiB pages are supported.
  */
-void page_free(MemoryRegion *region, uint64_t page);
+void page_free(MemoryRegion *region, uintptr_t page);
 
 #endif //__ANOS_KERNEL_PMM_PAGEALLOC_H

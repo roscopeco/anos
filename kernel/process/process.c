@@ -8,7 +8,9 @@
 #include <stdint.h>
 
 #include "process.h"
+#include "process/memory.h"
 #include "slab/alloc.h"
+#include "spinlock.h"
 
 #ifndef NULL
 #define NULL (((void *)0))
@@ -25,16 +27,28 @@ Process *process_create(uintptr_t pml4) {
     }
 #endif
 
+    SpinLock *lock = slab_alloc_block();
+
+    if (!lock) {
+        return NULL;
+    }
+
     Process *process = slab_alloc_block();
 
     if (!process) {
+        slab_free(lock);
         return NULL;
     }
 
     process->pid = next_pid++;
     process->pml4 = pml4;
+    process->pages_lock = lock;
 
     return process;
 }
 
-void process_destroy(Process *process) { slab_free(process); }
+void process_destroy(Process *process) {
+    process_release_owned_pages(process);
+    slab_free(process->pages_lock);
+    slab_free(process);
+}

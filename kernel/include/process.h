@@ -15,11 +15,16 @@
 
 #include "anos_assert.h"
 
-typedef struct {
+#include "process/memory.h"
+#include "spinlock.h"
+
+typedef struct Process {
     uint64_t reserved0[2]; // 16 bytes
     uint64_t pid;          // 24
     uintptr_t pml4;        // 32
-    uint64_t reserved[4];  // 64
+    SpinLock *pages_lock;  // 40
+    ProcessPages *pages;   // 48
+    uint64_t reserved[2];  // 64
 } Process;
 
 static_assert_sizeof(Process, ==, 64);

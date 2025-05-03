@@ -276,6 +276,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/structs/hash.o										\
 			$(STAGE3_DIR)/ipc/channel.o											\
 			$(STAGE3_DIR)/ipc/named.o											\
+			$(STAGE3_DIR)/process/memory.o										\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 else
@@ -342,6 +343,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_RISCV64_DIR)/*.elf								\
 				$(STAGE3_ARCH_RISCV64_DIR)/vmm/*.o								\
 				$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/*.o						\
+				$(STAGE3_ARCH_RISCV64_DIR)/structs/*.o							\
 				$(STAGE3_ARCH_RISCV64_DIR)/*.o
 
 ifeq ($(CONSERVATIVE_BUILD),true)
