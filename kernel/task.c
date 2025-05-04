@@ -65,6 +65,10 @@ static_assert_sizeof(PerCPUTaskState, <=, STATE_TASK_DATA_MAX);
 
 static _Atomic volatile uint64_t next_tid;
 
+void user_thread_entrypoint(void);
+void kernel_thread_entrypoint(void);
+void thread_exitpoint(void);
+
 static inline PerCPUTaskState *get_cpu_task_state(void) {
     PerCPUState *cpu_state = state_get_for_this_cpu();
     return (PerCPUTaskState *)cpu_state->task_data;
@@ -114,9 +118,6 @@ void task_switch(Task *next) {
     task_do_switch(next);
 }
 
-void user_thread_entrypoint(void);
-void kernel_thread_entrypoint(void);
-
 Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                       uintptr_t bootstrap, uintptr_t func, TaskClass class) {
 
@@ -148,7 +149,7 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
     *((uint64_t *)task->ssp) = bootstrap;
 
     // space for initial registers except rdi, rsi, values don't care...
-    task->ssp -= 104;
+    task->ssp -= 8 * (TASK_SAVED_REGISTER_COUNT - 2);
 
     // push address of thread user stack, this will get popped into rsi...
     task->ssp -= 8;
@@ -162,7 +163,7 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
     task->pml4 = owner->pml4;
     task->sched->ts_remain = DEFAULT_TIMESLICE;
     task->sched->state = TASK_STATE_READY;
-    task->sched->killed = 0;
+    task->sched->status_flags = 0;
 
     // TODO pass these in, or inherit from owner
     //      if the latter, have a separate call to change them...
@@ -204,6 +205,12 @@ void task_destroy(Task *task) {
 #endif
 
     if (task) {
+        PerCPUTaskState *task_state = get_cpu_task_state();
+
+        if (task == task_state->task_current_ptr) {
+            task_state->task_current_ptr = NULL;
+        }
+
         fba_free(task);
     }
 }
@@ -237,4 +244,37 @@ void task_remove_from_process(Task *task) {
         }
         curr = (ProcessTask **)&(*curr)->this.next;
     }
+}
+
+#include "kprintf.h"
+#include "sched.h"
+
+noreturn void task_current_exitpoint(void) {
+    Task *task = task_current();
+    Process *owner = task->owner;
+
+    tdebug("Thread %ld (process %ld) is exiting..\n", task->sched->tid,
+           owner->pid);
+
+    task_remove_from_process(task);
+
+    // Things are about to get... interesting.
+    //
+    // We need to destroy this task (and its stack) while we're still running.
+    // This means we're very limited in the things we can do after this point -
+    // and we need to make sure nothing jumps in while we're doing it and reuses
+    // the stack we're about to free but are still using...
+    //
+    // The scheduler **must** remain locked throughout obviously...
+
+    if (owner->tasks == NULL) {
+        tdebug("Last thread for process %ld exited, killing process\n",
+               owner->pid);
+        process_destroy(owner);
+    }
+
+    task_destroy(task);
+    sched_schedule();
+
+    __builtin_unreachable();
 }

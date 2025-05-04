@@ -38,6 +38,8 @@ void kernel_thread_entrypoint(void);
 void user_thread_entrypoint(void);
 
 void panic_sloc(char *msg) { panic_called = true; }
+void process_destroy(Process *process) { /* nothing*/ }
+void sched_schedule(void) { /* nothing*/ }
 
 static inline void *slab_area_base(void *page_area_ptr) {
     // skip one page used by FBA, and three unused by slab alignment
@@ -72,7 +74,7 @@ static MunitResult test_task_create_new(const MunitParameter params[],
     munit_assert_uint64(task->rsp0, ==, sys_stack);
 
     munit_assert_uint8(task->sched->state, ==, TASK_STATE_READY);
-    munit_assert_uint8(task->sched->killed, ==, 0);
+    munit_assert_uint8(task->sched->status_flags, ==, 0);
 
     // -128 because reg space was reserved, and func was pushed
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);
@@ -119,7 +121,7 @@ static MunitResult test_task_create_kernel(const MunitParameter params[],
     munit_assert_uint64(task->rsp0, ==, sys_stack);
 
     munit_assert_uint8(task->sched->state, ==, TASK_STATE_READY);
-    munit_assert_uint8(task->sched->killed, ==, 0);
+    munit_assert_uint8(task->sched->status_flags, ==, 0);
 
     // -128 because reg space was reserved, and func was pushed
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);
@@ -166,7 +168,7 @@ static MunitResult test_task_create_user(const MunitParameter params[],
     munit_assert_uint64(task->rsp0, ==, sys_stack);
 
     munit_assert_uint8(task->sched->state, ==, TASK_STATE_READY);
-    munit_assert_uint8(task->sched->killed, ==, 0);
+    munit_assert_uint8(task->sched->status_flags, ==, 0);
 
     // -128 because reg space was reserved, and func was pushed
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);

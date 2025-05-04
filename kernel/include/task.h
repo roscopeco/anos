@@ -17,6 +17,24 @@
 
 #define DEFAULT_TIMESLICE (((uint8_t)10))
 
+/**
+ * These define the number of registers that the arch-specific task switch
+ * pushes and pops to the stack during a switch.
+ * 
+ * It should be the total number of 64-bit values that are pushed after the
+ * return address.
+ */
+#if defined ARCH_X86_64
+#define TASK_SAVED_REGISTER_COUNT ((15))
+#elif defined ARCH_RISCV64
+#define TASK_SAVED_REGISTER_COUNT ((31))
+#elif defined UNIT_TESTS
+#define TASK_SAVED_REGISTER_COUNT ((15))
+#else
+#error TASK_SAVED_REGISTER_COUNT not defined for this architecture in task.h!
+#endif
+#define TASK_SAVED_REGISTER_BYTES ((TASK_SAVED_REGISTER_COUNT * 8))
+
 typedef enum {
     TASK_CLASS_IDLE = 0,
     TASK_CLASS_NORMAL,
@@ -32,18 +50,24 @@ typedef enum {
     TASK_STATE_TERMINATED,  // Task is terminated - definitely not running
 } __attribute__((packed)) TaskState;
 
+// clang-format off
+// These are bits in the flags member of TaskSched...
+#define TASK_SCHED_FLAG_KILLED ((1 << 0))  // Trigger has been pulled
+#define TASK_SCHED_FLAG_DYING ((1 << 1))   // Task is actively dying, or is dead (see TaskState for confirmation)
+// clang-format on
+
 /**
  * Task scheduler data - Stuff not needed in best-case fast
  * path (e.g. syscalls).
  */
 typedef struct {
-    uintptr_t tid;      // 8
-    uint16_t ts_remain; // 10
-    TaskState state;    // 11
-    TaskClass class;    // 12
-    uint8_t prio;       // 13
-    uint8_t killed;     // 14
-    uint16_t res2;      // 16
+    uintptr_t tid;         // 8
+    uint16_t ts_remain;    // 10
+    TaskState state;       // 11
+    TaskClass class;       // 12
+    uint8_t prio;          // 13
+    uint16_t status_flags; // 15
+    uint8_t res2;          // 16
     uint64_t reserved[6];
 } __attribute__((packed)) TaskSched;
 
@@ -71,7 +95,6 @@ typedef struct Task {
 } __attribute__((packed)) Task;
 
 static_assert_sizeof(Task, ==, 4096);
-static_assert_sizeof(TaskSched, ==, 64);
 
 void task_init(void *tss);
 Task *task_current();
@@ -94,5 +117,10 @@ Task *task_create_kernel(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
                          uintptr_t func, TaskClass class);
 
 void task_remove_from_process(Task *task);
+
+/*
+ * Must be called with scheduler locked!
+ */
+noreturn void task_current_exitpoint(void);
 
 #endif //__ANOS_KERNEL_TASK_H

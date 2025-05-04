@@ -295,6 +295,13 @@ bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp,
     return init_sleepy_kernel_task(state, bootstrap_func);
 }
 
+#include "kprintf.h"
+
+static inline bool thread_to_be_killed(Task *task) {
+    return (task->sched->status_flags & TASK_SCHED_FLAG_KILLED) &&
+           !(task->sched->status_flags & TASK_SCHED_FLAG_DYING);
+}
+
 void sched_schedule(void) {
     PerCPUSchedState *state = get_this_cpu_sched_state();
 
@@ -331,22 +338,35 @@ void sched_schedule(void) {
 
     // Decrement timeslice
     if (current) {
-        if (current->sched->ts_remain > 0) {
-            --current->sched->ts_remain;
-        }
-
 #ifdef CONSERVATIVE_BUILD
         if (current->sched->state == TASK_STATE_TERMINATED) {
             panic("[BUG] A terminated task is running!");
         }
 #endif
 
-        if (current->sched->state != TASK_STATE_BLOCKED &&
-            current->sched->state != TASK_STATE_TERMINATING &&
-            current->sched->ts_remain > 0 &&
-            (candidate_next->sched->class <= current->sched->class ||
-             (candidate_next->sched->class == current->sched->class &&
-              candidate_next->sched->prio >= current->sched->prio))) {
+        if (current->sched->ts_remain > 0) {
+            --current->sched->ts_remain;
+        }
+
+        if (thread_to_be_killed(current)) {
+            // This task has been killed, but has not started dying yet.
+            // Let's kick that off now.
+            //
+            // Set the dying flag (so we don't do this again) and exit the thread...
+
+            vdebug("sched_schedule: Current thread is killed\n");
+            current->sched->status_flags |= TASK_SCHED_FLAG_DYING;
+            task_current_exitpoint();
+
+            // task_current_exitpoint is noreturn and will end up calling back to the
+            // scheduler anyway once it's killed.
+            __builtin_unreachable();
+
+        } else if (current->sched->state != TASK_STATE_BLOCKED &&
+                   current->sched->ts_remain > 0 &&
+                   (candidate_next->sched->class <= current->sched->class ||
+                    (candidate_next->sched->class == current->sched->class &&
+                     candidate_next->sched->prio >= current->sched->prio))) {
             printf("TIMESLICE CONTINUES\n");
             // timeslice continues, and nothing higher priority is preempting, so stick with it
             vdebug("No preempting task, and  ");
@@ -371,8 +391,6 @@ void sched_schedule(void) {
     if (current && current->sched->state == TASK_STATE_RUNNING) {
         current->sched->state = TASK_STATE_READY;
         sched_enqueue(current);
-    } else if (current && current->sched->state == TASK_STATE_TERMINATING) {
-        current->sched->state = TASK_STATE_TERMINATED;
     }
 
     next->sched->ts_remain = DEFAULT_TIMESLICE;

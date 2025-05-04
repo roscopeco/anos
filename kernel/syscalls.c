@@ -351,6 +351,24 @@ SyscallResult handle_find_named_channel(char *name) {
     return named_channel_find(name);
 }
 
+void thread_exitpoint(void);
+
+SyscallResult handle_kill_current_task() {
+    Task *current = task_current();
+
+    if (current) {
+        sched_lock_this_cpu();
+
+        current->sched->status_flags |= TASK_SCHED_FLAG_KILLED;
+
+        sched_schedule();
+
+        __builtin_unreachable();
+    } else {
+        return 0;
+    }
+}
+
 SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
                                 SyscallArg arg2, SyscallArg arg3,
                                 SyscallArg arg4, SyscallArg syscall_num) {
@@ -391,6 +409,8 @@ SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
         return handle_deregister_named_channel((char *)arg0);
     case 15:
         return handle_find_named_channel((char *)arg0);
+    case 16:
+        return handle_kill_current_task();
     default:
         return SYSCALL_BAD_NUMBER;
     }
