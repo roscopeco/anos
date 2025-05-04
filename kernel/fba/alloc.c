@@ -386,3 +386,11 @@ void fba_free(void *block) {
 
     spinlock_unlock_irqrestore(&fba_lock, lock_flags);
 }
+
+void fba_free_blocks(void *block, uint32_t count) {
+    uint8_t *end = ((uint8_t *)block) + (count * VM_PAGE_SIZE);
+    for (uint8_t *current = (uint8_t *)block; current < end;
+         current += VM_PAGE_SIZE) {
+        fba_free(current);
+    }
+}

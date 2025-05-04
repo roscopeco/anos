@@ -264,6 +264,9 @@ kernel/tests/build/process/memory: kernel/tests/munit.o kernel/tests/process/mem
 kernel/tests/build/process/process: kernel/tests/munit.o kernel/tests/process/process.o kernel/tests/build/process/process.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/process/capability_map: kernel/tests/munit.o kernel/tests/process/capability_map.o kernel/tests/build/process/capability_map.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/managed_resources/resources: kernel/tests/munit.o kernel/tests/managed_resources/resources.o kernel/tests/build/managed_resources/resources.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -318,6 +321,7 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/shift_array								\
 			kernel/tests/build/process/process									\
 			kernel/tests/build/process/memory									\
+			kernel/tests/build/process/capability_map							\
 			kernel/tests/build/managed_resources/resources
 
 ifeq ($(HOST_ARCH),i386)	# macOS
