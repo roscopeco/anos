@@ -22,7 +22,11 @@
 #define MSR_KernelGSBase ((0xC0000102))
 
 #ifndef MAX_CPU_COUNT
+#ifndef NO_SMP
 #define MAX_CPU_COUNT ((16))
+#else
+#define MAX_CPU_COUNT ((1))
+#endif
 #endif
 
 static_assert(MAX_CPU_COUNT > 0, "Cannot build a kernel for zero CPUs!");

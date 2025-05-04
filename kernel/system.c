@@ -121,7 +121,7 @@ noreturn void start_system(void) {
     }
 
     // TODO the way this is set up currently, there's no way to know how much
-    // BSS/Data we need... We'll just map a couple pages for now...
+    // BSS/Data we need... We'll just map a few pages for now...
 
     // Set up pages for the user bss / data
     uint64_t user_bss = 0x0000000040000000;

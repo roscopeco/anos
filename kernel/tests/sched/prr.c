@@ -34,6 +34,10 @@ Task *test_sched_prr_get_runnable_head(TaskClass level);
 Task *test_sched_prr_set_runnable_head(TaskClass level, Task *task);
 
 uintptr_t get_pagetable_root() { return TEST_PAGETABLE_ROOT; }
+noreturn void task_current_exitpoint(void) {
+    while (1)
+        ;
+}
 
 static char *mock_tss[256];
 

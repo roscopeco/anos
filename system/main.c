@@ -32,6 +32,8 @@
 extern AnosRAMFSHeader _system_ramfs_start;
 
 static char __attribute__((aligned(0x1000))) ramfs_driver_thread_stack[0x1000];
+static char __attribute__((aligned(0x1000))) kamikaze_thread_stack[0x1000];
+
 static uint64_t ramfs_channel;
 
 static inline void banner() {
@@ -198,8 +200,18 @@ static void ramfs_driver_thread(void) {
     }
 }
 
+static void kamikaze_thread(void) {
+    printf("Kamikaze thread must die!!\n");
+    anos_kill_current_task();
+}
+
 int main(int argc, char **argv) {
     banner();
+
+    if (!anos_create_thread(kamikaze_thread,
+                            (uintptr_t)kamikaze_thread_stack)) {
+        printf("Failed to create kamikaze thread...\n");
+    }
 
     AnosMemInfo meminfo;
     if (anos_get_mem_info(&meminfo) == 0) {
