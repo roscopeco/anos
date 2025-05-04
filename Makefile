@@ -323,6 +323,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/structs/*.o $(STAGE3_DIR)/sched/*.o				\
 				$(STAGE3_DIR)/smp/*.o $(STAGE3_DIR)/process/*.o					\
 				$(STAGE3_DIR)/ipc/*.o											\
+				$(STAGE3_DIR)/managed_resources/*.o								\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
