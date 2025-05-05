@@ -1,3 +1,26 @@
+/*
+ * Capability Cookie Generator - RISC-V
+ * anos - An Operating System
+ * 
+ * Copyright (c) 2025 Ross Bamford
+ *
+ * This RISC-V implementation generates unique, non-forgeable 64-bit
+ * capability tokens ("cookies") using:
+ *
+ *   - rdcycle for high-resolution monotonic timestamps
+ *   - mhartid to identify the current core (hart)
+ *   - Per-hart atomic counter to avoid reuse and ensure ordering
+ *   - A MurmurHash-style final mixing step to decorrelate inputs
+ *
+ * This approach guarantees:
+ *   - Global uniqueness across all harts
+ *   - Tokens are never zero
+ *   - No static state beyond a per-hart counter table
+ *
+ * No hardware RNG is assumed or required. The resulting cookies are
+ * suitable for indexing secure kernel (capability maps).
+ */
+
 #include <stdatomic.h>
 #include <stdint.h>
 

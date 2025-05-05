@@ -1,3 +1,27 @@
+/*
+ * Capability Cookie Generator - x86_64
+ * anos - An Operating System
+ *
+ * Copyright (c) 2025 Ross Bamford
+ *
+ * This implementation generates secure, unique 64-bit capability tokens
+ * ("cookies") on x86_64 systems using a combination of:
+ *
+ *   - RDSEED (preferred) or RDRAND for hardware entropy
+ *   - TSC (Time Stamp Counter) for time-based uniqueness
+ *   - Per-core ID to avoid cross-CPU collisions
+ *   - A fallback atomic counter in case hardware RNG is unavailable
+ *
+ * The components are mixed using a strong bit-mixing function to ensure
+ * high entropy and low correlation between tokens.
+ *
+ * Tokens are guaranteed to be non-zero, unpredictable, and unique across
+ * all CPUs.
+ *
+ * This code is self-contained and does not require allocation or
+ * external state beyond basic PerCPUState info and atomics.
+ */
+
 #include <stdint.h>
 
 #include "smp/state.h"
