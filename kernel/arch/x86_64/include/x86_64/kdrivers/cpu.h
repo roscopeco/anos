@@ -94,4 +94,28 @@ static inline void cpu_swapgs(void) {
 #endif
 }
 
+static inline bool cpu_rdseed64(uint64_t *value) {
+    unsigned char ok;
+    __asm__ volatile("rdseed %0; setc %1" : "=r"(*value), "=qm"(ok) : : "cc");
+    return ok;
+}
+
+static inline bool cpu_rdseed32(uint32_t *value) {
+    unsigned char ok;
+    __asm__ volatile("rdseed %0; setc %1" : "=r"(*value), "=qm"(ok) : : "cc");
+    return ok;
+}
+
+static inline bool cpu_rdrand64(uint64_t *value) {
+    unsigned char ok;
+    __asm__ volatile("rdrand %0; setc %1" : "=r"(*value), "=qm"(ok) : : "cc");
+    return ok;
+}
+
+static inline bool cpu_rdrand32(uint32_t *value) {
+    unsigned char ok;
+    __asm__ volatile("rdrand %0; setc %1" : "=r"(*value), "=qm"(ok) : : "cc");
+    return ok;
+}
+
 #endif //__ANOS_KERNEL_ARCH_X86_64_DRIVERS_CPU_H

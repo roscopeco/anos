@@ -14,6 +14,14 @@
 
 #include "vmm/vmconfig.h"
 
+#ifndef MAX_CPU_COUNT
+#ifndef NO_SMP
+#define MAX_CPU_COUNT ((16))
+#else
+#define MAX_CPU_COUNT ((1))
+#endif
+#endif
+
 // CSR (Control and Status Register) numbers
 #define CSR_SATP 0x180 // Supervisor Address Translation and Protection
 #define CSR_SIE 0x104  // Supervisor Interrupt Enable
@@ -90,6 +98,18 @@ static inline uint8_t cpu_satp_mode(uint64_t satp) {
 
 static inline uintptr_t cpu_satp_to_root_table_phys(uint64_t satp) {
     return ((satp & 0xFFFFFFFFFFF) << VM_PAGE_LINEAR_SHIFT);
+}
+
+static inline uint64_t cpu_read_rdcycle(void) {
+    uint64_t val;
+    __asm__ volatile("rdcycle %0" : "=r"(val));
+    return val;
+}
+
+static inline uint64_t cpu_read_rdtime(void) {
+    uint64_t val;
+    __asm__ volatile("rdtime %0" : "=r"(val));
+    return val;
 }
 
 #endif // __ANOS_KERNEL_ARCH_RISCV64_KDRIVERS_CPU_H

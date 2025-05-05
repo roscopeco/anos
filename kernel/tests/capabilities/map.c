@@ -13,7 +13,7 @@
 
 #include "munit.h"
 
-#include "process/capability_map.h"
+#include "capabilities/map.h"
 
 #define MOCK_HEAP_BLOCKS 4096
 static void *mock_blocks[MOCK_HEAP_BLOCKS];

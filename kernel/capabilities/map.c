@@ -6,7 +6,7 @@
 #include "slab/alloc.h"
 #include "spinlock.h"
 
-#include "process/capability_map.h"
+#include "capabilities/map.h"
 
 #define INITIAL_CAPACITY 64
 #define MAX_LOAD_FACTOR 0.75

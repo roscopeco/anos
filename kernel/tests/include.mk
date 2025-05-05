@@ -71,16 +71,19 @@ TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm
 				kernel/tests/build/ipc												\
 				kernel/tests/build/process											\
 				kernel/tests/build/managed_resources								\
+				kernel/tests/build/capabilities										\
 				kernel/tests/build/arch/x86_64										\
 				kernel/tests/build/arch/x86_64/sched								\
 				kernel/tests/build/arch/x86_64/process								\
 				kernel/tests/build/arch/x86_64/structs								\
 				kernel/tests/build/arch/x86_64/kdrivers								\
 				kernel/tests/build/arch/x86_64/vmm									\
+				kernel/tests/build/arch/x86_64/capabilities							\
 				kernel/tests/build/arch/riscv64										\
 				kernel/tests/build/arch/riscv64/structs								\
 				kernel/tests/build/arch/riscv64/kdrivers							\
-				kernel/tests/build/arch/riscv64/vmm
+				kernel/tests/build/arch/riscv64/vmm									\
+				kernel/tests/build/arch/riscv64/capabilities
 
 ifeq (, $(shell which lcov))
 $(warning LCOV not installed, coverage will be skipped)
@@ -127,6 +130,9 @@ kernel/tests/build/process:
 kernel/tests/build/managed_resources:
 	mkdir -p kernel/tests/build/managed_resources
 
+kernel/tests/build/capabilities:
+	mkdir -p kernel/tests/build/capabilities
+
 kernel/tests/build/arch/x86_64:
 	mkdir -p kernel/tests/build/arch/x86_64
 
@@ -145,6 +151,9 @@ kernel/tests/build/arch/x86_64/structs:
 kernel/tests/build/arch/x86_64/vmm:
 	mkdir -p kernel/tests/build/arch/x86_64/vmm
 
+kernel/tests/build/arch/x86_64/capabilities:
+	mkdir -p kernel/tests/build/arch/x86_64/capabilities
+
 kernel/tests/build/arch/riscv64:
 	mkdir -p kernel/tests/build/arch/riscv64
 
@@ -156,6 +165,9 @@ kernel/tests/build/arch/riscv64/kdrivers:
 
 kernel/tests/build/arch/riscv64/vmm:
 	mkdir -p kernel/tests/build/arch/riscv64/vmm
+
+kernel/tests/build/arch/riscv64/capabilities:
+	mkdir -p kernel/tests/build/arch/riscv64/capabilities
 
 kernel/tests/build/%.o: kernel/%.c $(TEST_BUILD_DIRS)
 	$(CC) -DUNIT_TESTS $(KERNEL_TEST_CFLAGS) -c -o $@ $<
@@ -264,7 +276,7 @@ kernel/tests/build/process/memory: kernel/tests/munit.o kernel/tests/process/mem
 kernel/tests/build/process/process: kernel/tests/munit.o kernel/tests/process/process.o kernel/tests/build/process/process.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/process/capability_map: kernel/tests/munit.o kernel/tests/process/capability_map.o kernel/tests/build/process/capability_map.o
+kernel/tests/build/capabilities/map: kernel/tests/munit.o kernel/tests/capabilities/map.o kernel/tests/build/capabilities/map.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/managed_resources/resources: kernel/tests/munit.o kernel/tests/managed_resources/resources.o kernel/tests/build/managed_resources/resources.o
@@ -291,8 +303,23 @@ kernel/tests/build/arch/x86_64/process/address_space_create: kernel/tests/munit.
 kernel/tests/build/arch/x86_64/std_routines: kernel/tests/munit.o kernel/tests/arch/x86_64/std_routines.o kernel/tests/build/arch/x86_64/std_routines.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/arch/x86_64/kdrivers/cpu: kernel/tests/munit.o kernel/tests/arch/x86_64/kdrivers/cpu.o kernel/tests/build/arch/x86_64/kdrivers/cpu.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/riscv64/spinlock: kernel/tests/munit.o kernel/tests/arch/riscv64/spinlock.o kernel/tests/build/arch/riscv64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
+kernel/tests/build/arch/riscv64/kdrivers/cpu: kernel/tests/munit.o kernel/tests/arch/riscv64/kdrivers/cpu.o kernel/tests/build/arch/riscv64/kdrivers/cpu.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
+ifeq ($(HOST_ARCH),riscv64)
+kernel/tests/build/capabilities/cookies: kernel/tests/munit.o kernel/tests/build/arch/riscv64/capabilities/cookies.o kernel/tests/capabilities/cookies.o kernel/tests/build/arch/riscv64/kdrivers/cpu.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+else
+kernel/tests/build/capabilities/cookies: kernel/tests/munit.o kernel/tests/build/arch/x86_64/capabilities/cookies.o kernel/tests/capabilities/cookies.o kernel/tests/build/arch/x86_64/kdrivers/cpu.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+endif
+
 
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
@@ -321,8 +348,9 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/shift_array								\
 			kernel/tests/build/process/process									\
 			kernel/tests/build/process/memory									\
-			kernel/tests/build/process/capability_map							\
-			kernel/tests/build/managed_resources/resources
+			kernel/tests/build/capabilities/map							\
+			kernel/tests/build/managed_resources/resources						\
+			kernel/tests/build/capabilities/cookies
 
 ifeq ($(HOST_ARCH),i386)	# macOS
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
@@ -331,7 +359,8 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
-			kernel/tests/build/arch/x86_64/std_routines
+			kernel/tests/build/arch/x86_64/std_routines							\
+			kernel/tests/build/arch/x86_64/kdrivers/cpu
 else
 ifeq ($(HOST_ARCH),x86_64)	# Linux
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
@@ -340,7 +369,8 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
-			kernel/tests/build/arch/x86_64/std_routines
+			kernel/tests/build/arch/x86_64/std_routines							\
+			kernel/tests/build/arch/x86_64/kdrivers/cpu
 else
 ifeq ($(HOST_ARCH),arm64)
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
@@ -349,10 +379,12 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
-			kernel/tests/build/arch/x86_64/std_routines
+			kernel/tests/build/arch/x86_64/std_routines							\
+			kernel/tests/build/arch/x86_64/kdrivers/cpu
 else
 ifeq ($(HOST_ARCH),riscv64)
-ALL_TESTS+= kernel/tests/build/arch/riscv64/spinlock
+ALL_TESTS+= kernel/tests/build/arch/riscv64/spinlock							\
+			kernel/tests/build/arch/riscv64/kdrivers/cpu
 endif
 endif
 endif
