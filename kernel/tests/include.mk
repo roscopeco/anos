@@ -348,9 +348,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/shift_array								\
 			kernel/tests/build/process/process									\
 			kernel/tests/build/process/memory									\
-			kernel/tests/build/capabilities/map							\
-			kernel/tests/build/managed_resources/resources						\
-			kernel/tests/build/capabilities/cookies
+			kernel/tests/build/capabilities/map									\
+			kernel/tests/build/managed_resources/resources
 
 ifeq ($(HOST_ARCH),i386)	# macOS
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
@@ -360,7 +359,8 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines							\
-			kernel/tests/build/arch/x86_64/kdrivers/cpu
+			kernel/tests/build/arch/x86_64/kdrivers/cpu							\
+			kernel/tests/build/capabilities/cookies
 else
 ifeq ($(HOST_ARCH),x86_64)	# Linux
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
@@ -370,7 +370,8 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines							\
-			kernel/tests/build/arch/x86_64/kdrivers/cpu
+			kernel/tests/build/arch/x86_64/kdrivers/cpu							\
+			kernel/tests/build/capabilities/cookies
 else
 ifeq ($(HOST_ARCH),arm64)
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
@@ -381,10 +382,12 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines							\
 			kernel/tests/build/arch/x86_64/kdrivers/cpu
+# capabilities test can't run here, rosetta apparently doesn't support RDSEED etc...
 else
 ifeq ($(HOST_ARCH),riscv64)
 ALL_TESTS+= kernel/tests/build/arch/riscv64/spinlock							\
-			kernel/tests/build/arch/riscv64/kdrivers/cpu
+			kernel/tests/build/arch/riscv64/kdrivers/cpu						\
+			kernel/tests/build/capabilities/cookies
 endif
 endif
 endif
