@@ -124,7 +124,7 @@ static MunitTest tests[] = {
          MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite suite = {"/capability_cookies", tests, NULL, 1,
+static const MunitSuite suite = {"/caps/cookies", tests, NULL, 1,
                                  MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *const argv[]) {

@@ -216,8 +216,8 @@ static MunitTest CapabilityMapests[] = {
          CapabilityMapeardown, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite cap_map_suite = {"/cap_map", CapabilityMapests, NULL, 1,
-                                         MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite cap_map_suite = {"/caps/map", CapabilityMapests, NULL,
+                                         1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[]) {
     return munit_suite_main(&cap_map_suite, NULL, argc, argv);
