@@ -324,6 +324,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/smp/*.o $(STAGE3_DIR)/process/*.o					\
 				$(STAGE3_DIR)/ipc/*.o											\
 				$(STAGE3_DIR)/managed_resources/*.o								\
+				$(STAGE3_DIR)/capabilities/*.o									\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
@@ -339,6 +340,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/process/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_X86_64_DIR)/structs/*.o							\
+				$(STAGE3_ARCH_X86_64_DIR)/capabilities/*.o						\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o	\
 	       		$(STAGE3_ARCH_RISCV64_DIR)/*.dis 								\
@@ -346,6 +348,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_RISCV64_DIR)/vmm/*.o								\
 				$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_RISCV64_DIR)/structs/*.o							\
+				$(STAGE3_ARCH_RISCV64_DIR)/capabilities/*.o						\
 				$(STAGE3_ARCH_RISCV64_DIR)/*.o
 
 ifeq ($(CONSERVATIVE_BUILD),true)
