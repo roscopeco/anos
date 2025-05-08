@@ -20,12 +20,22 @@
  */
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdnoreturn.h>
 #include <string.h>
 
+#ifndef UNIT_TESTS
 #include <anos/syscalls.h>
+#else
+uint64_t anos_find_named_channel(const char *name);
+uint64_t anos_send_message(uint64_t cookie, uint64_t tag, int len, void *msg);
+char *anos_map_virtual(uint64_t size, uint64_t addr);
+void anos_kprint(const char *msg);
+void anos_task_sleep_current_secs(int secs);
+#endif
 
 #include "elf.h"
+#include "loader.h"
 #include "printf.h"
 
 #ifdef DEBUG_SERVER_LOADER
@@ -33,11 +43,6 @@
 #else
 #define debugf(...)
 #endif
-
-#define VM_PAGE_SIZE ((0x1000))
-
-#define SYS_VFS_TAG_GET_SIZE ((0x1))
-#define SYS_VFS_TAG_LOAD_PAGE ((0x2))
 
 typedef void (*ServerEntrypoint)(void);
 
@@ -111,6 +116,7 @@ static bool on_program_header(const int num, const Elf64ProgramHeader *phdr,
 }
 
 static void unmap_system_memory() {
+#ifndef UNIT_TESTS
     // NOTE keep this in-step with setup in main.c!
     uintptr_t code_start = (uintptr_t)&_code_start;
     uintptr_t code_end = (uintptr_t)&_code_end - (uintptr_t)&_code_start;
@@ -127,6 +133,7 @@ static void unmap_system_memory() {
     for (uintptr_t page = bss_start; page < bss_end; page += VM_PAGE_SIZE) {
         // TODO Unmap virtual syscall!
     }
+#endif
 }
 
 noreturn void initial_server_loader(void *initial_sp) {

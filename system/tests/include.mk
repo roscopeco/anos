@@ -44,7 +44,7 @@ system/tests/build/path: system/tests/munit.o system/tests/path.o system/tests/b
 
 ALL_TESTS=system/tests/build/ramfs system/tests/build/path
 
-PHONY: test
+PHONY: test-system
 test-system: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test || exit 1; done'
 
