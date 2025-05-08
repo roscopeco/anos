@@ -1,13 +1,13 @@
 # The Three Pillars
 
-![The Three Pillars Diagram of Simplicity, Security, and Speed](../images/diagrams/Three%20Pillars.png)
-
-> [!WARN]
+> [!WARNING]
 > This idea is still not _fully_ formed in my mind, so I might not
 > articulate it especially well here.
 > 
 > I'll come back to this document as what I'm trying to say 
 > continues to settle in my head.
+
+![The Three Pillars Diagram of Simplicity, Security, and Speed](../images/diagrams/Three%20Pillars.png)
 
 Anos is designed and built around three key pillars: **Simplicity**, **Security** and **Speed**.
 
