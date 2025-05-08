@@ -87,13 +87,14 @@ static void reset_mock_allocator(void) {
     }
 }
 
-static void *cap_map_setup(const MunitParameter params[], void *user_data) {
+static void *capability_map_setup(const MunitParameter params[],
+                                  void *user_data) {
     reset_mock_allocator();
     spinlock_calls = 0;
     unlock_calls = 0;
     CapabilityMap *map = malloc(sizeof(CapabilityMap));
     munit_assert_not_null(map);
-    munit_assert_true(cap_map_init(map));
+    munit_assert_true(capability_map_init(map));
     return map;
 }
 
@@ -108,8 +109,8 @@ static MunitResult test_basic_insert_lookup(const MunitParameter params[],
                                             void *fixture) {
     CapabilityMap *map = fixture;
     int value = 42;
-    munit_assert_true(cap_map_insert(map, 1234, &value));
-    munit_assert_ptr_equal(cap_map_lookup(map, 1234), &value);
+    munit_assert_true(capability_map_insert(map, 1234, &value));
+    munit_assert_ptr_equal(capability_map_lookup(map, 1234), &value);
     return MUNIT_OK;
 }
 
@@ -117,10 +118,10 @@ static MunitResult test_update_existing_key(const MunitParameter params[],
                                             void *fixture) {
     CapabilityMap *map = fixture;
     int a = 1, b = 2;
-    munit_assert_true(cap_map_insert(map, 77, &a));
-    munit_assert_ptr_equal(cap_map_lookup(map, 77), &a);
-    munit_assert_true(cap_map_insert(map, 77, &b));
-    munit_assert_ptr_equal(cap_map_lookup(map, 77), &b);
+    munit_assert_true(capability_map_insert(map, 77, &a));
+    munit_assert_ptr_equal(capability_map_lookup(map, 77), &a);
+    munit_assert_true(capability_map_insert(map, 77, &b));
+    munit_assert_ptr_equal(capability_map_lookup(map, 77), &b);
     return MUNIT_OK;
 }
 
@@ -128,10 +129,10 @@ static MunitResult test_delete_key(const MunitParameter params[],
                                    void *fixture) {
     CapabilityMap *map = fixture;
     int x = 55;
-    munit_assert_true(cap_map_insert(map, 1000, &x));
-    munit_assert_ptr_equal(cap_map_lookup(map, 1000), &x);
-    munit_assert_true(cap_map_delete(map, 1000));
-    munit_assert_null(cap_map_lookup(map, 1000));
+    munit_assert_true(capability_map_insert(map, 1000, &x));
+    munit_assert_ptr_equal(capability_map_lookup(map, 1000), &x);
+    munit_assert_true(capability_map_delete(map, 1000));
+    munit_assert_null(capability_map_lookup(map, 1000));
     return MUNIT_OK;
 }
 
@@ -140,10 +141,11 @@ static MunitResult test_rehashing_and_growth(const MunitParameter params[],
     CapabilityMap *map = fixture;
     size_t count = 1000;
     for (size_t i = 0; i < count; ++i) {
-        munit_assert_true(cap_map_insert(map, i, (void *)(uintptr_t)(i + 1)));
+        munit_assert_true(
+                capability_map_insert(map, i, (void *)(uintptr_t)(i + 1)));
     }
     for (size_t i = 0; i < count; ++i) {
-        munit_assert_ptr_equal(cap_map_lookup(map, i),
+        munit_assert_ptr_equal(capability_map_lookup(map, i),
                                (void *)(uintptr_t)(i + 1));
     }
     return MUNIT_OK;
@@ -154,12 +156,14 @@ test_sparse_and_collision_behavior(const MunitParameter params[],
                                    void *fixture) {
     CapabilityMap *map = fixture;
     int val1 = 111, val2 = 222, val3 = 333;
-    munit_assert_true(cap_map_insert(map, 0xdeadbeef, &val1));
-    munit_assert_true(cap_map_insert(map, 0xdeadbeef ^ 0x1000, &val2));
-    munit_assert_true(cap_map_insert(map, 0xdeadbeef ^ 0x2000, &val3));
-    munit_assert_ptr_equal(cap_map_lookup(map, 0xdeadbeef), &val1);
-    munit_assert_ptr_equal(cap_map_lookup(map, 0xdeadbeef ^ 0x1000), &val2);
-    munit_assert_ptr_equal(cap_map_lookup(map, 0xdeadbeef ^ 0x2000), &val3);
+    munit_assert_true(capability_map_insert(map, 0xdeadbeef, &val1));
+    munit_assert_true(capability_map_insert(map, 0xdeadbeef ^ 0x1000, &val2));
+    munit_assert_true(capability_map_insert(map, 0xdeadbeef ^ 0x2000, &val3));
+    munit_assert_ptr_equal(capability_map_lookup(map, 0xdeadbeef), &val1);
+    munit_assert_ptr_equal(capability_map_lookup(map, 0xdeadbeef ^ 0x1000),
+                           &val2);
+    munit_assert_ptr_equal(capability_map_lookup(map, 0xdeadbeef ^ 0x2000),
+                           &val3);
     return MUNIT_OK;
 }
 
@@ -168,19 +172,19 @@ static MunitResult test_stress_insert_delete(const MunitParameter params[],
     CapabilityMap *map = fixture;
     const size_t count = 100000;
     for (uint64_t i = 0; i < count; ++i) {
-        munit_assert_true(cap_map_insert(map, i, (void *)(uintptr_t)i));
+        munit_assert_true(capability_map_insert(map, i, (void *)(uintptr_t)i));
     }
     for (uint64_t i = 0; i < count; i += 2) {
-        munit_assert_true(cap_map_delete(map, i));
+        munit_assert_true(capability_map_delete(map, i));
     }
     for (uint64_t i = 0; i < count; ++i) {
         if (i % 2 == 0)
-            munit_assert_null(cap_map_lookup(map, i));
+            munit_assert_null(capability_map_lookup(map, i));
         else
-            munit_assert_ptr_equal(cap_map_lookup(map, i),
+            munit_assert_ptr_equal(capability_map_lookup(map, i),
                                    (void *)(uintptr_t)i);
     }
-    munit_assert_true(cap_map_cleanup(map));
+    munit_assert_true(capability_map_cleanup(map));
 
     return MUNIT_OK;
 }
@@ -189,10 +193,10 @@ static MunitResult test_locking_was_done(const MunitParameter params[],
                                          void *fixture) {
     CapabilityMap *map = fixture;
     int x = 123;
-    munit_assert_true(cap_map_insert(map, 1, &x));
-    munit_assert_ptr_equal(cap_map_lookup(map, 1), &x);
-    munit_assert_true(cap_map_delete(map, 1));
-    munit_assert_true(cap_map_cleanup(map));
+    munit_assert_true(capability_map_insert(map, 1, &x));
+    munit_assert_ptr_equal(capability_map_lookup(map, 1), &x);
+    munit_assert_true(capability_map_delete(map, 1));
+    munit_assert_true(capability_map_cleanup(map));
 
     munit_assert(spinlock_calls > 0);
     munit_assert(spinlock_calls == unlock_calls);
@@ -200,25 +204,26 @@ static MunitResult test_locking_was_done(const MunitParameter params[],
 }
 
 static MunitTest CapabilityMapests[] = {
-        {"/insert_lookup", test_basic_insert_lookup, cap_map_setup,
+        {"/insert_lookup", test_basic_insert_lookup, capability_map_setup,
          CapabilityMapeardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/update_existing", test_update_existing_key, cap_map_setup,
+        {"/update_existing", test_update_existing_key, capability_map_setup,
          CapabilityMapeardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/delete", test_delete_key, cap_map_setup, CapabilityMapeardown,
+        {"/delete", test_delete_key, capability_map_setup, CapabilityMapeardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/rehashing", test_rehashing_and_growth, cap_map_setup,
+        {"/rehashing", test_rehashing_and_growth, capability_map_setup,
          CapabilityMapeardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/collisions", test_sparse_and_collision_behavior, cap_map_setup,
+        {"/collisions", test_sparse_and_collision_behavior,
+         capability_map_setup, CapabilityMapeardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/stress", test_stress_insert_delete, capability_map_setup,
          CapabilityMapeardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/stress", test_stress_insert_delete, cap_map_setup,
-         CapabilityMapeardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/lock_check", test_locking_was_done, cap_map_setup,
+        {"/lock_check", test_locking_was_done, capability_map_setup,
          CapabilityMapeardown, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite cap_map_suite = {"/caps/map", CapabilityMapests, NULL,
-                                         1, MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite capability_map_suite = {
+        "/caps/map", CapabilityMapests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[]) {
-    return munit_suite_main(&cap_map_suite, NULL, argc, argv);
+    return munit_suite_main(&capability_map_suite, NULL, argc, argv);
 }

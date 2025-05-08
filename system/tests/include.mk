@@ -5,10 +5,10 @@ CLEAN_ARTIFACTS+=system/tests/*.o													\
 				gcov/system
 
 UBSAN_CFLAGS=-fsanitize=undefined,address -fno-sanitize-recover=all
-SYSTEM_TEST_CFLAGS=-g 																		\
+SYSTEM_TEST_CFLAGS=-g 																\
 	-Isystem/include 																\
 	-Isystem/tests/include 															\
-	-O3 -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
+	-O$(OPTIMIZE) -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
 
 HOST_ARCH=$(shell uname -p)
 

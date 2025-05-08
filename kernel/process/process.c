@@ -61,6 +61,7 @@ Process *process_create(uintptr_t pml4) {
 
     process->pid = next_pid++;
     process->pml4 = pml4;
+    process->pages = NULL;
     process->pages_lock = lock;
     process->res_head = process->res_tail = NULL;
 

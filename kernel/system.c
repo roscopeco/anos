@@ -14,6 +14,7 @@
 #include "pmm/pagealloc.h"
 #include "sched.h"
 #include "slab/alloc.h"
+#include "syscalls.h"
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
 #include "x86_64/kdrivers/cpu.h"
@@ -124,6 +125,11 @@ noreturn void start_system(void) {
     // BSS/Data we need... We'll just map a few pages for now...
 
     // Set up pages for the user bss / data
+    //
+    // Pages mapped here will **not** be process pages, since we don't have
+    // a Process* for SYSTEM yet, but it doesn't particularly matter since
+    // system _should_ never die (and eventually we'll panic if it does).
+    //
     uint64_t user_bss = 0x0000000040000000;
     for (int i = 0; i < SYSTEM_BSS_PAGE_COUNT; i++) {
         uint64_t user_bss_phys = page_alloc(physical_region);
@@ -139,12 +145,15 @@ noreturn void start_system(void) {
         vmm_map_page(user_stack, user_stack_phys, flags | PG_WRITE);
     }
 
+    // grant all syscall capabilities to SYSTEM...
+    uint64_t *user_starting_sp = syscall_init_capabilities((void *)user_bss);
+
     // ... the FBA can give us a kernel stack...
     void *kernel_stack =
             fba_alloc_blocks(SYSTEM_KERNEL_STACK_PAGE_COUNT); // 16KiB
 
     // create a process and task for system
-    if (!sched_init((uintptr_t)user_stack + SYSTEM_USER_STACK_BYTES,
+    if (!sched_init((uintptr_t)user_starting_sp,
                     (uintptr_t)kernel_stack + SYSTEM_KERNEL_STACK_BYTES,
                     (uintptr_t)0x0000000001000000,
                     (uintptr_t)user_thread_entrypoint, TASK_CLASS_NORMAL)) {

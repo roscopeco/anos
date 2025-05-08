@@ -15,6 +15,7 @@
 
 #include "anos_assert.h"
 #include "interrupts.h"
+#include "x86_64/cpuid.h"
 #include "x86_64/gdt.h"
 
 #define MSR_FSBase ((0xC0000100))
@@ -94,7 +95,43 @@ static inline void cpu_swapgs(void) {
 #endif
 }
 
+// 0 = not checked, -1 = don't have, 1 = have
+static int __have__cpu__rdseed;
+
 static inline bool cpu_rdseed64(uint64_t *value) {
+    // TODO we should probably just check this statically at startup...
+    //
+    // There's also a potentially weird race here, but only if the
+    // system is multi-processor but not symmetric, and we get
+    // somehow scheduled onto another (older, but still x86_64)
+    // CPU during this func - in theory there could be a #UD.
+    //
+    // I don't care about this, because in those circumstances I
+    // think this will be the least of my worries...
+    //
+    if (__have__cpu__rdseed < 1) {
+        if (__have__cpu__rdseed == -1) {
+            // already know we don't have it...
+            return false;
+        }
+
+        // otherwise, check it
+        uint32_t eax, ebx, ecx, edx;
+        if (cpuid(0x7, &eax, &ebx, &ecx, &edx)) {
+            if (ebx & (1 << 18)) {
+                // we have it (we're on broadwell or later)
+                __have__cpu__rdseed = 1;
+            } else {
+                // we don't have it (we're on haswell)
+                __have__cpu__rdseed = -1;
+                return false;
+            }
+        } else {
+            // still don't know, we'll check again next time...
+            return false;
+        }
+    }
+
     unsigned char ok;
     __asm__ volatile("rdseed %0; setc %1" : "=r"(*value), "=qm"(ok) : : "cc");
     return ok;

@@ -28,14 +28,14 @@ typedef struct {
 } ProcessTask;
 
 typedef struct Process {
-    uint64_t reserved0;        // 16 bytes
-    SpinLock *pages_lock;      // 40
+    uint64_t cap_failures;     // 8 bytes
+    SpinLock *pages_lock;      // 16
     uint64_t pid;              // 24
     uintptr_t pml4;            // 32
-    ProcessPages *pages;       // 48
-    ProcessTask *tasks;        // 40
-    ManagedResource *res_head; // 48
-    ManagedResource *res_tail; // 56
+    ProcessPages *pages;       // 40
+    ProcessTask *tasks;        // 48
+    ManagedResource *res_head; // 56
+    ManagedResource *res_tail; // 64
 } Process;
 
 static_assert_sizeof(ProcessTask, ==, 64);

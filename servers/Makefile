@@ -16,7 +16,7 @@ $(MKRAMFS_BIN): $(MKRAMFS_DIR)
 	$(MAKE) -C $< $(MKRAMFS)
 
 test_server/test_server.bin: server_common.mk test_server/Makefile Makefile test_server/main.c
-	$(MAKE) -C test_server test_server.bin
+	$(MAKE) -C test_server test_server.elf
 
 system_ramfs: $(MKRAMFS_BIN) test_server/test_server.bin
-	$(MKRAMFS_BIN) system.ramfs test_server/test_server.bin
+	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf

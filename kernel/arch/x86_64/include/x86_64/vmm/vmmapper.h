@@ -55,6 +55,11 @@
 #define PG_USER ((1 << 2))
 
 /*
+ * Page XD (Execute-disable)
+ */
+#define PG_NOEXEC ((1 << 63))
+
+/*
  * Page COW attribute (STAGE3-specific)
  */
 #define PG_COPY_ON_WRITE ((1 << 6))

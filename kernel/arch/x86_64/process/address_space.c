@@ -16,10 +16,12 @@
 #endif
 
 #include "pmm/pagealloc.h"
+#include "process/address_space.h"
+#include "sched.h"
+#include "smp/state.h"
 #include "spinlock.h"
 #include "structs/ref_count_map.h"
 #include "vmm/vmmapper.h"
-#include "x86_64/process/address_space.h"
 
 #ifdef DEBUG_ADDR_SPACE
 #if __STDC_HOSTED__ == 1
@@ -86,7 +88,10 @@ bool address_space_init(void) {
 
 uintptr_t address_space_create(uintptr_t init_stack_vaddr,
                                uint64_t init_stack_len, uint64_t region_count,
-                               AddressSpaceRegion regions[]) {
+                               AddressSpaceRegion regions[],
+                               uint64_t stack_value_count,
+                               uint64_t *stack_values) {
+
     // align stack vaddr
     init_stack_vaddr &= ~(0xfff);
     uintptr_t init_stack_end = init_stack_vaddr + init_stack_len;
@@ -125,6 +130,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     }
 #endif
 
+    // NOTE: pagetable memory is **not** process-owned.
     uintptr_t new_pml4_phys = page_alloc(physical_region);
 
     if (new_pml4_phys & 0xff) {
@@ -216,10 +222,14 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     }
 #endif
 
+    // This is used in the loop below, and once the loop completes it'll
+    // point to the last (bottom) page in the stack.
+    uintptr_t stack_page = 0xff;
+
     // sort out the requested initial stack
     for (uintptr_t ptr = init_stack_vaddr; ptr < init_stack_end;
          ptr += VM_PAGE_SIZE) {
-        uintptr_t stack_page = page_alloc(physical_region);
+        stack_page = page_alloc(physical_region);
 
         if (stack_page & 0xff) {
             debugstr("Failed to allocate stack page for ");
@@ -245,6 +255,33 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
         vmm_map_page_in((uint64_t *)new_pml4_virt, ptr, stack_page,
                         PG_WRITE | PG_PRESENT | PG_USER);
     }
+
+    // TODO this is the wrong place to do this, really...
+    //
+    // Copy in the requested initial stack values to the bottom
+    // stack page. We'll need to temporarily map it.
+
+    // TODO potential race condition here, if we get rescheduled onto
+    // a different CPU, and this CPU then goes on to do stuff that
+    // needs the temp mapping, this will go wrong.
+    //
+    // Could be done with locking or a crititcal section of some
+    // sort, but I dislike the whole per-CPU temp mapping idea tbh, need
+    // to come up with something better...
+
+    PerCPUState *state = state_get_for_this_cpu();
+    uintptr_t per_cpu_temp_page = vmm_per_cpu_temp_page_addr(state->cpu_id);
+
+    vmm_map_page(per_cpu_temp_page, stack_page, PG_WRITE | PG_PRESENT);
+
+    uint64_t volatile *stack_bottom =
+            ((uint64_t *)(per_cpu_temp_page + VM_PAGE_SIZE));
+
+    for (int i = 0; i < stack_value_count; i++) {
+        *--stack_bottom = stack_values[i];
+    }
+
+    vmm_unmap_page(per_cpu_temp_page);
 
     // Zero out other recursive
     new_pml4_virt->entries[RECURSIVE_ENTRY_OTHER] = 0;

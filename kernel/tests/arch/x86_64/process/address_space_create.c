@@ -17,7 +17,7 @@
 #include "spinlock.h"
 #include "vmm/vmmapper.h"
 
-#include "x86_64/process/address_space.h"
+#include "process/address_space.h"
 
 extern MemoryRegion *physical_region;
 

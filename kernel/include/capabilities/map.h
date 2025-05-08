@@ -27,7 +27,7 @@
  *
  * Notes:
  * - No shrinking is performed automatically.
- * - We'll need to trigger compaction via `cap_map_cleanup()`. (still TODO)
+ * - We'll need to trigger compaction via `capability_map_cleanup()`. (still TODO)
  * - Fully self-contained, safe for shared use in kernel subsystems. 
  */
 
@@ -66,30 +66,30 @@ static_assert_sizeof(CapabilityMap, ==, 64);
  * Initialize a capability map.
  * Returns true on success, false on allocation failure.
  */
-bool cap_map_init(CapabilityMap *map);
+bool capability_map_init(CapabilityMap *map);
 
 /*
  * Insert a new key-value pair into the map, or update the value if the key exists.
  * Returns true on success, false on allocation failure (during resize).
  */
-bool cap_map_insert(CapabilityMap *map, uint64_t key, void *value);
+bool capability_map_insert(CapabilityMap *map, uint64_t key, void *value);
 
 /*
  * Look up a key in the map.
  * Returns the stored value, or NULL if the key is not found.
  */
-void *cap_map_lookup(CapabilityMap *map, uint64_t key);
+void *capability_map_lookup(CapabilityMap *map, uint64_t key);
 
 /*
  * Delete a key from the map.
  * Returns true if the key was present and deleted, false otherwise.
  */
-bool cap_map_delete(CapabilityMap *map, uint64_t key);
+bool capability_map_delete(CapabilityMap *map, uint64_t key);
 
 /*
  * Rebuild table to remove tombstones.
  * Returns true on success, false on allocation failure.
  */
-bool cap_map_cleanup(CapabilityMap *map);
+bool capability_map_cleanup(CapabilityMap *map);
 
 #endif // __ANOS_KERNEL_PROCESS_CAPABILITY_MAP_H

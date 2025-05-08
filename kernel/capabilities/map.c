@@ -52,7 +52,13 @@ static bool resize(CapabilityMap *map, size_t new_capacity) {
     return true;
 }
 
-bool cap_map_init(CapabilityMap *map) {
+bool capability_map_init(CapabilityMap *map) {
+    if (!map) {
+        return false;
+    }
+
+    memset(map, 0, sizeof(*map));
+
     map->lock = slab_alloc_block();
 
     if (!map->lock) {
@@ -60,7 +66,6 @@ bool cap_map_init(CapabilityMap *map) {
     }
 
     spinlock_init(map->lock);
-    memset(map, 0, sizeof(*map));
 
     size_t bytes = INITIAL_CAPACITY * sizeof(CapabilityMapEntry);
     size_t blocks = (bytes + 4095) / 4096;
@@ -80,7 +85,7 @@ bool cap_map_init(CapabilityMap *map) {
     return true;
 }
 
-bool cap_map_insert(CapabilityMap *map, uint64_t key, void *value) {
+bool capability_map_insert(CapabilityMap *map, uint64_t key, void *value) {
     uint64_t flags = spinlock_lock_irqsave(map->lock);
 
     if ((double)(map->size + 1) / map->capacity > MAX_LOAD_FACTOR) {
@@ -120,7 +125,7 @@ bool cap_map_insert(CapabilityMap *map, uint64_t key, void *value) {
     return true;
 }
 
-void *cap_map_lookup(CapabilityMap *map, uint64_t key) {
+void *capability_map_lookup(CapabilityMap *map, uint64_t key) {
     if (!map->entries) {
         return NULL;
     }
@@ -143,7 +148,7 @@ void *cap_map_lookup(CapabilityMap *map, uint64_t key) {
     return NULL;
 }
 
-bool cap_map_delete(CapabilityMap *map, uint64_t key) {
+bool capability_map_delete(CapabilityMap *map, uint64_t key) {
     if (!map->entries) {
         return false;
     }
@@ -169,7 +174,7 @@ bool cap_map_delete(CapabilityMap *map, uint64_t key) {
 }
 
 // Cleanup: rebuild table to remove tombstones
-bool cap_map_cleanup(CapabilityMap *map) {
+bool capability_map_cleanup(CapabilityMap *map) {
     uint64_t flags = spinlock_lock_irqsave(map->lock);
     bool result = resize(map, map->capacity);
     spinlock_unlock_irqrestore(map->lock, flags);

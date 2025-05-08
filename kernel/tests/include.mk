@@ -64,7 +64,7 @@ KERNEL_TEST_CFLAGS=-g 																\
 	-Ikernel/arch/$(ARCH)/include 													\
 	-Ikernel/tests/include 															\
 	-Ikernel/tests/arch/$(ARCH)/include 											\
-	-O3 -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
+	-O$(OPTIMIZE) -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
 
 HOST_ARCH=$(shell uname -p)
 

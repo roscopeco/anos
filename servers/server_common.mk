@@ -11,7 +11,7 @@ ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 		-fno-asynchronous-unwind-tables 										\
 		-g																		\
-		-O3																		\
+		-O$(OPTIMIZE)
 
 SERVERS_ROOT_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(SERVERS_ROOT_DIR)/..)

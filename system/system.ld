@@ -18,7 +18,7 @@ SECTIONS
 {
   .text :
   {
-    _code = .;
+    _code_start = .;
     *(.text.init)
     . = ALIGN(16);
     *(.text*)

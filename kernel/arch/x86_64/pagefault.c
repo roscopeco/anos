@@ -42,6 +42,13 @@ void handle_page_fault(uint64_t code, uint64_t fault_addr,
                     panic_page_fault(origin_addr, fault_addr, code);
                 }
 
+                // TODO potential race condition here, if we get rescheduled onto
+                // a different CPU, and this CPU then goes on to do stuff that
+                // needs the temp mapping, this will go wrong.
+                //
+                // I dislike the whole per-CPU temp mapping idea tbh, need to
+                // come up with something better...
+
                 PerCPUState *state = state_get_for_this_cpu();
                 uintptr_t per_cpu_temp_page =
                         vmm_per_cpu_temp_page_addr(state->cpu_id);
