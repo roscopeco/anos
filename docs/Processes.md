@@ -39,7 +39,7 @@ up with the more-detailed view from the SYSTEM perspective.
 
 #### Less-privileged (user) process startup flow
 
-> [!WARN]
+> [!WARNING]
 > At the time of writing, this part of the flow is not yet 
 > implemented, so the details below are subject to change.
 > 
