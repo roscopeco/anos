@@ -203,7 +203,7 @@ PointerAlignment: Right
 PPIndentWidth:   -1
 QualifierAlignment: Leave
 ReferenceAlignment: Pointer
-ReflowComments:  "IndentOnly"
+ReflowComments: false
 RemoveBracesLLVM: false
 RemoveParentheses: Leave
 RemoveSemicolon: false
