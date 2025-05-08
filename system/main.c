@@ -40,8 +40,11 @@ extern AnosRAMFSHeader _system_ramfs_start;
 
 static char __attribute__((
         aligned(VM_PAGE_SIZE))) ramfs_driver_thread_stack[VM_PAGE_SIZE];
+
+#ifdef TEST_THREAD_KILL
 static char __attribute__((
         aligned(VM_PAGE_SIZE))) kamikaze_thread_stack[VM_PAGE_SIZE];
+#endif
 
 static uint64_t ramfs_channel;
 
@@ -209,10 +212,12 @@ static void ramfs_driver_thread(void) {
     }
 }
 
+#ifdef TEST_THREAD_KILL
 static void kamikaze_thread(void) {
     printf("Kamikaze thread must die!!\n");
     anos_kill_current_task();
 }
+#endif
 
 static inline unsigned int round_up_to_page_size(size_t size) {
     return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
@@ -221,10 +226,12 @@ static inline unsigned int round_up_to_page_size(size_t size) {
 int main(int argc, char **argv) {
     banner();
 
+#ifdef TEST_THREAD_KILL
     if (!anos_create_thread(kamikaze_thread,
                             (uintptr_t)kamikaze_thread_stack)) {
         printf("Failed to create kamikaze thread...\n");
     }
+#endif
 
     AnosMemInfo meminfo;
     if (anos_get_mem_info(&meminfo) == 0) {

@@ -21,6 +21,8 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #	DEBUG_SYS_IPC			Debug IPC messages received by SYSTEM
 #	DEBUG_SERVER_LOADER		Debug the initial server program loader
 #
+#	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
+#
 CDEFS=
 
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
