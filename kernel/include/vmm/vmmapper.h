@@ -19,53 +19,59 @@
 
 #include "vmm/vmconfig.h"
 
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support constexpr yet - Jan 2025
+#ifndef constexpr
+#define constexpr const
+#endif
+#endif
+
 // Base of the per-CPU temporary mapping pages
 #define PER_CPU_TEMP_PAGE_BASE ((0xFFFFFFFF80400000))
 
 // This is where we map the PMM region(s)
-static const uintptr_t STATIC_KERNEL_SPACE = 0xFFFFFFFF80000000;
+static constexpr uintptr_t STATIC_KERNEL_SPACE = 0xFFFFFFFF80000000;
 
 // Direct mapping base address (from MemoryMap.md)
-static const uintptr_t DIRECT_MAP_BASE = 0xffff800000000000;
+static constexpr uintptr_t DIRECT_MAP_BASE = 0xffff800000000000;
 
 #define IS_USER_ADDRESS(ptr) ((((uint64_t)ptr & 0xffff800000000000) == 0))
 
 /*
  *  Find the per-CPU temporary page base for the given CPU.
  */
-static inline uintptr_t vmm_per_cpu_temp_page_addr(uint8_t cpu);
+static uintptr_t vmm_per_cpu_temp_page_addr(uint8_t cpu);
 
 // Convert direct-mapped virtual address to physical address
-static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr);
+static uintptr_t vmm_virt_to_phys(uintptr_t virt_addr);
 
 // Get the table index for a virtual address at a given table level
-static inline uint16_t vmm_virt_to_table_index(uintptr_t virt_addr,
-                                               uint8_t level);
+static uint16_t vmm_virt_to_table_index(uintptr_t virt_addr, uint8_t level);
 
 // Get the PML4 index for a given virtual address
-static inline uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr);
+static uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr);
 
-// Get the the PDPT index for a given virtual address
-static inline uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr);
+// Get the PDPT index for a given virtual address
+static uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr);
 
 // Get the PD index for a given virtual address
-static inline uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr);
+static uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr);
 
 // Get the PT index for a given virtual address
-static inline uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr);
+static uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr);
 
 // Extract the physical address from a page table entry
-static inline uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry);
+static uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry);
 
 // Extract the flags from a page table entry
-static inline uint16_t vmm_table_entry_to_page_flags(uintptr_t table_entry);
+static uint16_t vmm_table_entry_to_page_flags(uintptr_t table_entry);
 
 // Build a table entry from physical address and flags
-static inline uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys,
-                                                         uint64_t flags);
+static uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys,
+                                                  uint64_t flags);
 
 // Get the page size for a large page mapped at the given table level
-static inline size_t vmm_level_page_size(uint8_t level);
+static size_t vmm_level_page_size(uint8_t level);
 
 #if defined __x86_64__
 #include "x86_64/vmm/vmmapper.h"
