@@ -58,7 +58,7 @@ From the user perspective (i.e. the point of view held by most
 regular client programs in Anos), the general startup flow is 
 quite simple:
 
-![Process Startup - User Perspective](../images/diagrams/Process%20Startup%20-%20User%20Perspective.png)
+![Process Startup - User Perspective](../images/diagrams/Process%20Creation%20-%20User%20Perspective.svg)
 
 The user program is shielded from most of the intricacies of
 starting a new process, and does not need to concern itself 
