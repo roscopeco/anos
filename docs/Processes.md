@@ -102,7 +102,9 @@ Briefly, we need to:
 The way this works in Anos is designed around the core 
 design principles in the [Three Pillars](ThreePillars.md).
 
+In more detail, the flow looks like this:
 
+![Detailed Process Startup Flow](../images/diagrams/Process%20Creation%20-%20System%20Perspective.svg)
 
 
 
