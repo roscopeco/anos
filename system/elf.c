@@ -27,7 +27,7 @@
 ssize_t load_page(ElfPagedReader *r, const off_t offset) {
     const off_t aligned = offset & ~(VM_PAGE_SIZE - 1);
     if (aligned != r->current_page_offset) {
-        debugf("Loading page at 0x%016x\n", offset);
+        debugf("Loading page at 0x%016lx\n", offset);
         uint64_t *const pos = (uint64_t *)r->page;
         *pos = offset;
 
