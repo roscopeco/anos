@@ -230,7 +230,7 @@ SYSCALL_HANDLER(create_process) {
     sched_unlock_this_cpu();
 #else
     PerCPUState *target_cpu = sched_find_target_cpu();
-    uint64_t lock_flags = sched_lock_any_cpu(target_cpu);
+    const uint64_t lock_flags = sched_lock_any_cpu(target_cpu);
     sched_unblock_on(new_task, target_cpu);
     sched_unlock_any_cpu(target_cpu, lock_flags);
 #endif
