@@ -13,6 +13,7 @@
 #include <stdnoreturn.h>
 
 #include "debugprint.h"
+#include "kprintf.h"
 #include "machine.h"
 #include "printdec.h"
 #include "printhex.h"
@@ -30,10 +31,35 @@
 
 #define IS_KERNEL_CODE(addr) (((addr & 0xFFFFFFFF80000000) != 0))
 
+#define STACK_TRACE_MAX ((20))
+
 static SpinLock panic_lock;
 static bool smp_is_up;
 
 void arch_panic_stop_all_processors(void);
+
+static void print_stack_trace() {
+    uintptr_t *ebp, *eip;
+    uint8_t count = 0;
+
+    __asm__ volatile("mov %%rbp, %0" : "=r"(ebp));
+
+    debugattr(0x0C);
+    debugstr("\n\nExecution trace:\n");
+
+    while (ebp && (count++ < STACK_TRACE_MAX)) {
+        eip = ebp + 1;
+        debugattr(0x08);
+        debugstr("   [");
+        debugattr(0x07);
+        printhex64(*eip, debugchar);
+        debugattr(0x08);
+        debugstr("] ");
+        debugattr(0xf);
+        debugstr("<unknown>\n"); // TODO lookup symbol
+        ebp = (uintptr_t *)*ebp;
+    }
+}
 
 static inline void print_header_vec(char *msg, uint8_t vector) {
     debugattr(0x0C);
@@ -244,6 +270,7 @@ noreturn void panic_sloc(const char *msg, const char *filename,
     print_header_no_vec(msg);
     print_loc(filename, line);
     print_cpu();
+    print_stack_trace();
     print_footer();
 
     spinlock_unlock_irqrestore(&panic_lock, lock_flags);
@@ -267,6 +294,7 @@ noreturn void panic_page_fault_sloc(uintptr_t origin_addr, uintptr_t fault_addr,
     print_page_fault_code(code);
     print_origin_ip(origin_addr);
     print_fault_addr(fault_addr);
+    print_stack_trace();
     print_footer();
 
     spinlock_unlock_irqrestore(&panic_lock, lock_flags);
@@ -289,6 +317,7 @@ noreturn void panic_general_protection_fault_sloc(uint64_t code,
     print_cpu();
     print_code(code);
     print_origin_ip(origin_addr);
+    print_stack_trace();
     print_footer();
 
     spinlock_unlock_irqrestore(&panic_lock, lock_flags);
@@ -311,6 +340,7 @@ noreturn void panic_exception_with_code_sloc(uint8_t vector, uint64_t code,
     print_cpu();
     print_code(code);
     print_origin_ip(origin_addr);
+    print_stack_trace();
     print_footer();
 
     spinlock_unlock_irqrestore(&panic_lock, lock_flags);
@@ -332,6 +362,7 @@ noreturn void panic_exception_no_code_sloc(uint8_t vector,
     print_loc(filename, line);
     print_cpu();
     print_origin_ip(origin_addr);
+    print_stack_trace();
     print_footer();
 
     spinlock_unlock_irqrestore(&panic_lock, lock_flags);

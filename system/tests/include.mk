@@ -5,10 +5,10 @@ CLEAN_ARTIFACTS+=system/tests/*.o													\
 				gcov/system
 
 UBSAN_CFLAGS=-fsanitize=undefined,address -fno-sanitize-recover=all
-SYSTEM_TEST_CFLAGS=-g 																		\
+SYSTEM_TEST_CFLAGS=-g 																\
 	-Isystem/include 																\
 	-Isystem/tests/include 															\
-	-O3 -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
+	-O$(OPTIMIZE) -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
 
 HOST_ARCH=$(shell uname -p)
 
@@ -44,7 +44,7 @@ system/tests/build/path: system/tests/munit.o system/tests/path.o system/tests/b
 
 ALL_TESTS=system/tests/build/ramfs system/tests/build/path
 
-PHONY: test
+.PHONY: test-system
 test-system: $(ALL_TESTS)
 	sh -c 'for test in $^; do $$test || exit 1; done'
 
@@ -52,7 +52,7 @@ ifeq (, $(shell which lcov))
 coverage-system:
 	@echo "LCOV not installed, coverage cannot be generated"
 else
-PHONY: gcov
+.PHONY: gcov/system
 
 gcov/system:
 	mkdir -p $@

@@ -35,7 +35,8 @@ bool address_space_init(void);
  * * Allocate a new address space
  * * Copy all kernel PDPTs into it
  * * Map the space covered by `regions` as COW shared
- * * Allocate pages to cover `init_stack_len` bytes and map it at `init_stack_vaddr`.
+ * * Allocate pages to cover `init_stack_len` bytes and map it at `init_stack_vaddr`
+ * * Set up initial values at the bottom of the stack
  * 
  * Currently, on failure, this will leak some memory - that'll be fixed once
  * I put a proper address space destroy function in.
@@ -44,6 +45,8 @@ bool address_space_init(void);
  */
 uintptr_t address_space_create(uintptr_t init_stack_vaddr,
                                uint64_t init_stack_len, uint64_t region_count,
-                               AddressSpaceRegion regions[]);
+                               AddressSpaceRegion regions[],
+                               uint64_t stack_value_count,
+                               uint64_t *stack_values);
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_PROCESS_ADDRESS_SPACE_H

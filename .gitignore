@@ -23,3 +23,5 @@ servers/**/*.bin
 servers/**/*.elf
 servers/system.ramfs
 uefi/riscv64/edk2/RISCV_VIRT_VARS.fd
+.idea
+native_tests/elf

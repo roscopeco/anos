@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#include "capabilities.h"
 #include "cpuid.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
@@ -23,6 +24,7 @@
 #include "pmm/pagealloc.h"
 #include "printdec.h"
 #include "printhex.h"
+#include "process/address_space.h"
 #include "sched.h"
 #include "slab/alloc.h"
 #include "sleep.h"
@@ -36,7 +38,6 @@
 #include "x86_64/acpitables.h"
 #include "x86_64/kdrivers/cpu.h"
 #include "x86_64/kdrivers/local_apic.h"
-#include "x86_64/process/address_space.h"
 
 static ACPI_RSDT *acpi_root_table;
 
@@ -209,6 +210,11 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
     task_init(get_this_cpu_tss());
     process_init();
     sleep_init();
+
+    if (!capabilities_init()) {
+        panic("Capability subsystem initialisation failed");
+    };
+
     ipc_channel_init();
     named_channel_init();
 

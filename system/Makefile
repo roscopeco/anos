@@ -12,21 +12,23 @@ ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 		-fno-asynchronous-unwind-tables 										\
 		-g																		\
-		-O3																		\
+		-O$(OPTIMIZE)
 
 # The following C defines are recognised by system and enable various things
 #
 #   DEBUG_INT_SYSCALLS		Use int 0x69 instead of syscall instruction
-#	DEBUG_TEST_SYSCALL		Sanity-check the TEST syscall at user-mode startup
 #	DEBUG_INIT_RAMFS		Dump info about the initial RAMFS loaded by system
 #	DEBUG_SYS_IPC			Debug IPC messages received by SYSTEM
+#	DEBUG_SERVER_LOADER		Debug the initial server program loader
+#
+#	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
 #
 CDEFS=
 
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(THIS_DIR)/..)
 
-# System loads at 0x0000000001000000 (16MiB)
+# System loads at 0x0000000001000000 (16MiB)
 #
 SYSTEM_ADDR?=0x01000000
 
@@ -39,6 +41,7 @@ SYSTEM_OBJS=main.o																\
 			ramfs.o																\
 			path.o																\
 			loader.o															\
+			elf.o																\
 			system_ramfs_linkable.o
 
 ALL_TARGETS=$(SYSTEM_BIN)

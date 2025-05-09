@@ -59,8 +59,6 @@
 
 #define INT_FLAG_ENABLED ((0x200))
 
-uint64_t get_cpu_flags(void);
-
 noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
                                      uintptr_t thread_userstack) {
     // Scheduler will **always** be locked when we get here!
@@ -70,21 +68,24 @@ noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
     tdbgx8(thread_entrypoint);
     tdebug("\n");
 
+    // clang-format off
     // Switch to user mode
     __asm__ volatile(
             "mov %0, %%rsp\n\t" // Set stack pointer
+            "mov %0, %%rdi\n\t" // Setup SP arg for loader
             "push $0x1B\n\t"    // Push user data segment selector (GDT entry 3)
             "push %0\n\t"       // Push user stack pointer
             "pushfq\n\t"        // Push RFLAGS
             "push $0x23\n\t"    // Push user code segment selector (GDT entry 4)
             "push %1\n\t"       // Push user code entry point
 #ifndef NO_USER_GS
-            "swapgs\n\t" // Swap to user-mode GS
+            "swapgs\n\t"        // Swap to user-mode GS
 #endif
-            "iretq\n\t" // "Return" to user mode
+            "iretq\n\t"         // "Return" to user mode
             :
             : "r"(thread_userstack), "r"(thread_entrypoint)
             : "memory");
+    // clang-format on
 
     __builtin_unreachable();
 }

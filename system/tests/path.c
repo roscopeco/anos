@@ -22,13 +22,13 @@ static MunitResult test_valid_simple(const MunitParameter params[],
     (void)params;
     (void)data;
 
-    char input[] = "boot:/test_server.bin";
+    char input[] = "boot:/test_server.elf";
     char *mount = NULL, *path = NULL;
 
     bool result = parse_file_path(input, sizeof(input), &mount, &path);
     munit_assert_true(result);
     munit_assert_string_equal(mount, "boot");
-    munit_assert_string_equal(path, "/test_server.bin");
+    munit_assert_string_equal(path, "/test_server.elf");
 
     return MUNIT_OK;
 }

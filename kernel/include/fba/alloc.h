@@ -31,5 +31,6 @@ void *fba_alloc_blocks_aligned(uint32_t count, uint8_t page_align);
 void *fba_alloc_blocks(uint32_t count);
 void *fba_alloc_block();
 void fba_free(void *block);
+void fba_free_blocks(void *block, uint32_t count);
 
 #endif //__ANOS_KERNEL_PMM_FBA_ALLOC_H

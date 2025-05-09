@@ -5,14 +5,17 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/ipc/*.o												\
 				kernel/tests/process/*.o											\
 				kernel/tests/managed_resources/*.o									\
+				kernel/tests/capabilities/*.o										\
 				kernel/tests/arch/x86_64/*.o										\
 				kernel/tests/arch/x86_64/sched/*.o									\
 				kernel/tests/arch/x86_64/kdrivers/*.o								\
 				kernel/tests/arch/x86_64/process/*.o								\
 				kernel/tests/arch/x86_64/structs/*.o								\
 				kernel/tests/arch/x86_64/vmm/*.o									\
+				kernel/tests/arch/x86_64/capabilities/*.o							\
 				kernel/tests/arch/riscv64/*.o										\
 				kernel/tests/arch/riscv64/vmm/*.o									\
+				kernel/tests/arch/riscv64/capabilities/*.o							\
 				kernel/tests/*.gcda kernel/tests/pmm/*.gcda kernel/tests/vmm/*.gcda	\
 				kernel/tests/structs/*.gcda kernel/tests/pci/*.gcda 				\
 				kernel/tests/fba/*.gcda kernel/tests/slab/*.gcda 					\
@@ -21,14 +24,17 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/ipc/*.gcda												\
 				kernel/tests/process/*.gcda											\
 				kernel/tests/managed_resources/*.gcda								\
+				kernel/tests/capabilities/*.gcda									\
 				kernel/tests/arch/x86_64/*.gcda										\
 				kernel/tests/arch/x86_64/sched/*.gcda								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcda							\
 				kernel/tests/arch/x86_64/process/*.gcda								\
 				kernel/tests/arch/x86_64/structs/*.gcda								\
 				kernel/tests/arch/x86_64/vmm/*.gcda									\
+				kernel/tests/arch/x86_64/capabilities/*.gcda						\
 				kernel/tests/arch/riscv64/*.gcda									\
 				kernel/tests/arch/riscv64/vmm/*.gcda								\
+				kernel/tests/arch/riscv64/capabilities/*.gcda						\
 				kernel/tests/*.gcno kernel/tests/pmm/*.gcno kernel/tests/vmm/*.gcno	\
 				kernel/tests/structs/*.gcno kernel/tests/pci/*.gcno 				\
 				kernel/tests/fba/*.gcno kernel/tests/slab/*.gcno 					\
@@ -37,6 +43,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/ipc/*.gcno												\
 				kernel/tests/process/*.gcno											\
 				kernel/tests/managed_resources/*.gcno								\
+				kernel/tests/capabilities/*.gcno									\
 				kernel/tests/arch/x86_64/*.gcno										\
 				kernel/tests/arch/x86_64/sched/*.gcno								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcno							\
@@ -44,8 +51,10 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/arch/x86_64/structs/*.gcno								\
 				kernel/tests/arch/x86_64/structs/*.gcno								\
 				kernel/tests/arch/x86_64/vmm/*.gcno									\
+				kernel/tests/arch/x86_64/capabilities/*.gcno						\
 				kernel/tests/arch/riscv64/*.gcno									\
 				kernel/tests/arch/riscv64/vmm/*.gcno								\
+				kernel/tests/arch/riscv64/capabilities/*.gcno						\
 				kernel/tests/build													\
 				gcov/kernel
 
@@ -55,7 +64,7 @@ KERNEL_TEST_CFLAGS=-g 																\
 	-Ikernel/arch/$(ARCH)/include 													\
 	-Ikernel/tests/include 															\
 	-Ikernel/tests/arch/$(ARCH)/include 											\
-	-O3 -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
+	-O$(OPTIMIZE) -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
 
 HOST_ARCH=$(shell uname -p)
 
@@ -71,16 +80,19 @@ TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm
 				kernel/tests/build/ipc												\
 				kernel/tests/build/process											\
 				kernel/tests/build/managed_resources								\
+				kernel/tests/build/capabilities										\
 				kernel/tests/build/arch/x86_64										\
 				kernel/tests/build/arch/x86_64/sched								\
 				kernel/tests/build/arch/x86_64/process								\
 				kernel/tests/build/arch/x86_64/structs								\
 				kernel/tests/build/arch/x86_64/kdrivers								\
 				kernel/tests/build/arch/x86_64/vmm									\
+				kernel/tests/build/arch/x86_64/capabilities							\
 				kernel/tests/build/arch/riscv64										\
 				kernel/tests/build/arch/riscv64/structs								\
 				kernel/tests/build/arch/riscv64/kdrivers							\
-				kernel/tests/build/arch/riscv64/vmm
+				kernel/tests/build/arch/riscv64/vmm									\
+				kernel/tests/build/arch/riscv64/capabilities
 
 ifeq (, $(shell which lcov))
 $(warning LCOV not installed, coverage will be skipped)
@@ -127,6 +139,9 @@ kernel/tests/build/process:
 kernel/tests/build/managed_resources:
 	mkdir -p kernel/tests/build/managed_resources
 
+kernel/tests/build/capabilities:
+	mkdir -p kernel/tests/build/capabilities
+
 kernel/tests/build/arch/x86_64:
 	mkdir -p kernel/tests/build/arch/x86_64
 
@@ -145,6 +160,9 @@ kernel/tests/build/arch/x86_64/structs:
 kernel/tests/build/arch/x86_64/vmm:
 	mkdir -p kernel/tests/build/arch/x86_64/vmm
 
+kernel/tests/build/arch/x86_64/capabilities:
+	mkdir -p kernel/tests/build/arch/x86_64/capabilities
+
 kernel/tests/build/arch/riscv64:
 	mkdir -p kernel/tests/build/arch/riscv64
 
@@ -156,6 +174,9 @@ kernel/tests/build/arch/riscv64/kdrivers:
 
 kernel/tests/build/arch/riscv64/vmm:
 	mkdir -p kernel/tests/build/arch/riscv64/vmm
+
+kernel/tests/build/arch/riscv64/capabilities:
+	mkdir -p kernel/tests/build/arch/riscv64/capabilities
 
 kernel/tests/build/%.o: kernel/%.c $(TEST_BUILD_DIRS)
 	$(CC) -DUNIT_TESTS $(KERNEL_TEST_CFLAGS) -c -o $@ $<
@@ -264,6 +285,9 @@ kernel/tests/build/process/memory: kernel/tests/munit.o kernel/tests/process/mem
 kernel/tests/build/process/process: kernel/tests/munit.o kernel/tests/process/process.o kernel/tests/build/process/process.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/capabilities/map: kernel/tests/munit.o kernel/tests/capabilities/map.o kernel/tests/build/capabilities/map.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/managed_resources/resources: kernel/tests/munit.o kernel/tests/managed_resources/resources.o kernel/tests/build/managed_resources/resources.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -288,8 +312,23 @@ kernel/tests/build/arch/x86_64/process/address_space_create: kernel/tests/munit.
 kernel/tests/build/arch/x86_64/std_routines: kernel/tests/munit.o kernel/tests/arch/x86_64/std_routines.o kernel/tests/build/arch/x86_64/std_routines.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/arch/x86_64/kdrivers/cpu: kernel/tests/munit.o kernel/tests/arch/x86_64/kdrivers/cpu.o kernel/tests/build/arch/x86_64/kdrivers/cpu.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/riscv64/spinlock: kernel/tests/munit.o kernel/tests/arch/riscv64/spinlock.o kernel/tests/build/arch/riscv64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
+kernel/tests/build/arch/riscv64/kdrivers/cpu: kernel/tests/munit.o kernel/tests/arch/riscv64/kdrivers/cpu.o kernel/tests/build/arch/riscv64/kdrivers/cpu.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
+ifeq ($(HOST_ARCH),riscv64)
+kernel/tests/build/capabilities/cookies: kernel/tests/munit.o kernel/tests/build/arch/riscv64/capabilities/cookies.o kernel/tests/capabilities/cookies.o kernel/tests/build/arch/riscv64/kdrivers/cpu.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+else
+kernel/tests/build/capabilities/cookies: kernel/tests/munit.o kernel/tests/build/arch/x86_64/capabilities/cookies.o kernel/tests/capabilities/cookies.o kernel/tests/build/arch/x86_64/kdrivers/cpu.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+endif
+
 
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
@@ -318,6 +357,7 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/shift_array								\
 			kernel/tests/build/process/process									\
 			kernel/tests/build/process/memory									\
+			kernel/tests/build/capabilities/map									\
 			kernel/tests/build/managed_resources/resources
 
 ifeq ($(HOST_ARCH),i386)	# macOS
@@ -327,7 +367,9 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
-			kernel/tests/build/arch/x86_64/std_routines
+			kernel/tests/build/arch/x86_64/std_routines							\
+			kernel/tests/build/arch/x86_64/kdrivers/cpu							\
+			kernel/tests/build/capabilities/cookies
 else
 ifeq ($(HOST_ARCH),x86_64)	# Linux
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
@@ -336,7 +378,9 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
-			kernel/tests/build/arch/x86_64/std_routines
+			kernel/tests/build/arch/x86_64/std_routines							\
+			kernel/tests/build/arch/x86_64/kdrivers/cpu							\
+			kernel/tests/build/capabilities/cookies
 else
 ifeq ($(HOST_ARCH),arm64)
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
@@ -345,10 +389,14 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
 			kernel/tests/build/arch/x86_64/process/address_space_create			\
-			kernel/tests/build/arch/x86_64/std_routines
+			kernel/tests/build/arch/x86_64/std_routines							\
+			kernel/tests/build/arch/x86_64/kdrivers/cpu
+# capabilities test can't run here, rosetta apparently doesn't support RDSEED etc...
 else
 ifeq ($(HOST_ARCH),riscv64)
-ALL_TESTS+= kernel/tests/build/arch/riscv64/spinlock
+ALL_TESTS+= kernel/tests/build/arch/riscv64/spinlock							\
+			kernel/tests/build/arch/riscv64/kdrivers/cpu						\
+			kernel/tests/build/capabilities/cookies
 endif
 endif
 endif

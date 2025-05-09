@@ -1,3 +1,18 @@
+# Makefile for anos.
+# Copyright (c) 2025 Ross Bamford
+# See LICENSE.md and related documents
+#
+# You can pass a few options to `make` when running this to
+# influence the build / behaviour:
+#
+#	* ARCH=[x86_64 | riscv64]	Select target architecture
+# 	* OPTIMIZE=n 				Set GCC optimization level to `n`
+#	* SERIAL_TERMINAL=true		Enable (legacy-only) serial terminal
+#
+# See also the C defines further down in this file for
+# more direct compile-time option settings.
+#
+
 ARCH?=x86_64
 
 # We don't yet have a custom riscv toolchain, which means
@@ -16,6 +31,7 @@ ASM?=riscv64-elf-gcc
 endif
 endif
 
+OPTIMIZE?=3
 XLD?=$(TARGET_TRIPLE)-ld
 XOBJCOPY?=$(TARGET_TRIPLE)-objcopy
 XOBJDUMP?=$(TARGET_TRIPLE)-objdump
@@ -25,8 +41,10 @@ BOCHS?=bochs
 ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23	\
 		-ffreestanding -fno-asynchronous-unwind-tables							\
-		-g -O3																	\
+		-g -O$(OPTIMIZE)														\
 		-DARCH=$(ARCH) -DARCH_$(shell echo '$(ARCH)' | tr '[:lower:]' '[:upper:]')
+
+export OPTIMIZE
 
 ifeq ($(ARCH),x86_64)
 CFLAGS+=-mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel
@@ -225,6 +243,7 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/panic_asm.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/panic.o							\
 					$(STAGE3_ARCH_X86_64_DIR)/debugmadt.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/capabilities/cookies.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
 STAGE3_ARCH_RISCV64_DIR=$(STAGE3_DIR)/arch/riscv64
@@ -237,6 +256,7 @@ STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper_init.o				\
 					$(STAGE3_ARCH_RISCV64_DIR)/panic.o							\
 					$(STAGE3_ARCH_RISCV64_DIR)/structs/list.o					\
+					$(STAGE3_ARCH_RISCV64_DIR)/capabilities/cookies.o			\
 					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o
 
 ifeq ($(ARCH),x86_64)
@@ -278,6 +298,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/ipc/named.o											\
 			$(STAGE3_DIR)/process/memory.o										\
 			$(STAGE3_DIR)/managed_resources/resources.o							\
+			$(STAGE3_DIR)/capabilities/map.o									\
+			$(STAGE3_DIR)/capabilities/capabilities.o							\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 else
@@ -323,6 +345,8 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/structs/*.o $(STAGE3_DIR)/sched/*.o				\
 				$(STAGE3_DIR)/smp/*.o $(STAGE3_DIR)/process/*.o					\
 				$(STAGE3_DIR)/ipc/*.o											\
+				$(STAGE3_DIR)/managed_resources/*.o								\
+				$(STAGE3_DIR)/capabilities/*.o									\
 		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
 		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
@@ -338,6 +362,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/process/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_X86_64_DIR)/structs/*.o							\
+				$(STAGE3_ARCH_X86_64_DIR)/capabilities/*.o						\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o	\
 	       		$(STAGE3_ARCH_RISCV64_DIR)/*.dis 								\
@@ -345,6 +370,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_RISCV64_DIR)/vmm/*.o								\
 				$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_RISCV64_DIR)/structs/*.o							\
+				$(STAGE3_ARCH_RISCV64_DIR)/capabilities/*.o						\
 				$(STAGE3_ARCH_RISCV64_DIR)/*.o
 
 ifeq ($(CONSERVATIVE_BUILD),true)

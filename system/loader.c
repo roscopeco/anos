@@ -6,23 +6,50 @@
  * 
  * This serves as the entrypoint for a new process loaded
  * from the RAMFS by SYSTEM.
+ * 
+ * NOTE: This is a bit weird, because although this is SYSTEM
+ * code, it actually runs in the context of the new process.
+ * 
+ * So for the first bit of every new process, SYSTEM's code 
+ * and data/bss etc are mapped in, and the process has SYSTEM's
+ * capabilities so it can load the binary and map static 
+ * memory etc.
+ * 
+ * The code here is responsible for removing those mappings 
+ * before handing control over to the user code.
  */
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdnoreturn.h>
+#include <string.h>
 
+#ifndef UNIT_TESTS
 #include <anos/syscalls.h>
-
-#include "printf.h"
-
-#ifndef NULL
-#define NULL (((void *)0))
+#else
+uint64_t anos_find_named_channel(const char *name);
+uint64_t anos_send_message(uint64_t cookie, uint64_t tag, int len, void *msg);
+char *anos_map_virtual(uint64_t size, uint64_t addr);
+void anos_kprint(const char *msg);
+void anos_task_sleep_current_secs(int secs);
 #endif
 
-#define SYS_VFS_TAG_GET_SIZE ((0x1))
-#define SYS_VFS_TAG_LOAD_PAGE ((0x2))
+#include "elf.h"
+#include "loader.h"
+#include "printf.h"
+
+#ifdef DEBUG_SERVER_LOADER
+#define debugf printf
+#else
+#define debugf(...)
+#endif
 
 typedef void (*ServerEntrypoint)(void);
+
+const extern void *_code_start;
+const extern void *_code_end;
+const extern void *_bss_start;
+const extern void *_bss_end;
 
 static noreturn void sleep_loop(void) {
     while (1) {
@@ -30,80 +57,133 @@ static noreturn void sleep_loop(void) {
     }
 }
 
-static void strcpy_hack(char *dst, char *src) {
-    while (*src) {
-        *dst++ = *src++;
-    }
-    *dst = 0;
+// TODO we shouldn't have inline x86_64 in here!!!
+static noreturn void restore_stack_and_jump(void *stack_ptr,
+                                            void (*target)(void)) {
+    __asm__ volatile("mov %0, %%rsp\n"
+                     "jmp *%1\n"
+                     :
+                     : "r"(stack_ptr), "r"(target));
+    __builtin_unreachable();
 }
 
-noreturn int initial_server_loader(void) {
-    anos_kprint("\nLoading 'boot:/test_server.bin'...\n");
+static bool on_program_header(const int num, const Elf64ProgramHeader *phdr,
+                              uint64_t ramfs_cookie) {
+    if ((phdr->p_offset & (VM_PAGE_SIZE - 1)) != 0) {
+        debugf("ERROR: Segment %d file offset 0x%016lx not page aligned\n", num,
+               phdr->p_offset);
+        return false;
+    }
 
-    uint64_t sys_vfs_cookie = anos_find_named_channel("SYSTEM::VFS");
+    if ((phdr->p_vaddr & (VM_PAGE_SIZE - 1)) != 0) {
+        debugf("ERROR: Segment %d vaddr 0x%16lx not page aligned\n", num,
+               phdr->p_vaddr);
+        return false;
+    }
+
+    debugf("LOAD segment %2d: file=0x%016lx vaddr=0x%016lx filesz=0x%016lx "
+           "memsz=0x%016lx\n",
+           num, phdr->p_offset, phdr->p_vaddr, phdr->p_filesz, phdr->p_memsz);
+
+    // TODO support flags in syscall for RO / RW / NX etc...
+    char *buffer = anos_map_virtual(phdr->p_memsz, phdr->p_vaddr);
+
+    if (!buffer) {
+        return false;
+    }
+
+    memset(buffer, 0, phdr->p_memsz);
+
+    if (phdr->p_filesz > 0) {
+        for (int i = 0; i < phdr->p_filesz; i += 0x1000) {
+            char *msg_buffer = (char *)(phdr->p_vaddr + i);
+            uint64_t *const pos = (uint64_t *)(phdr->p_vaddr + i);
+            *pos = i + phdr->p_offset;
+
+            strcpy(msg_buffer + sizeof(uint64_t), "boot:/test_server.elf");
+
+            const int loaded_bytes = anos_send_message(
+                    ramfs_cookie, SYS_VFS_TAG_LOAD_PAGE, 26, msg_buffer);
+
+            if (!loaded_bytes) {
+                anos_kprint("FAILED TO LOAD: 0 bytes\n");
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+static void unmap_system_memory() {
+#ifndef UNIT_TESTS
+    // NOTE keep this in-step with setup in main.c!
+    uintptr_t code_start = (uintptr_t)&_code_start;
+    uintptr_t code_end = (uintptr_t)&_code_end - (uintptr_t)&_code_start;
+    uintptr_t bss_start = (uintptr_t)&_bss_start;
+    uintptr_t bss_end = (uintptr_t)&_bss_end - (uintptr_t)&_bss_start;
+
+    // TODO this isn't actually going to work this way, we're still running
+    //      code in this mapping, unmapping it like this won't end well...
+    //
+    for (uintptr_t page = code_start; page < code_end; page += VM_PAGE_SIZE) {
+        // TODO Unmap virtual syscall!
+    }
+
+    for (uintptr_t page = bss_start; page < bss_end; page += VM_PAGE_SIZE) {
+        // TODO Unmap virtual syscall!
+    }
+#endif
+}
+
+noreturn void initial_server_loader(void *initial_sp) {
+    printf("\nLoading 'boot:/test_server.elf'...\n");
+
+    const uint64_t sys_vfs_cookie = anos_find_named_channel("SYSTEM::VFS");
 
     if (!sys_vfs_cookie) {
-        anos_kprint("Failed to find named VFS channel\n");
+        printf("Failed to find named VFS channel\n");
         sleep_loop();
     }
 
     char *msg_buffer = anos_map_virtual(0x1000, 0x1fff000);
 
-    strcpy_hack(msg_buffer, "boot:/test_server.bin");
+    strcpy(msg_buffer, "boot:/test_server.elf");
 
-    uint64_t sys_ramfs_cookie =
+    const uint64_t sys_ramfs_cookie =
             anos_send_message(sys_vfs_cookie, 1, 22, msg_buffer);
 
     if (!sys_ramfs_cookie) {
-        anos_kprint("FAILED TO FIND RAMFS DRIVER\n");
+        anos_kprint("Failed to find RAMFS driver. Dying.\n");
         while (true) {
             sleep_loop();
         }
     }
 
-    uint64_t exec_size = anos_send_message(
+    const uint64_t exec_size = anos_send_message(
             sys_ramfs_cookie, SYS_VFS_TAG_GET_SIZE, 22, msg_buffer);
 
     if (exec_size) {
-        bool success = true;
-        char *buffer = anos_map_virtual(exec_size, 0x2000000);
+        ElfPagedReader reader = {.current_page_offset = -1,
+                                 .fs_cookie = sys_ramfs_cookie,
+                                 .page = msg_buffer};
 
-        if (buffer) {
-            for (int i = 0; i < exec_size; i += 0x1000) {
-                uint64_t *pos = (uint64_t *)msg_buffer;
-                *pos = i;
-                strcpy_hack(msg_buffer + sizeof(uint64_t),
-                            "boot:/test_server.bin");
+        const uintptr_t entrypoint =
+                elf_map_elf64(&reader, on_program_header, sys_ramfs_cookie);
+        if (entrypoint) {
+            const ServerEntrypoint sep = (ServerEntrypoint)(entrypoint);
 
-                int loaded_bytes = anos_send_message(sys_ramfs_cookie,
-                                                     SYS_VFS_TAG_LOAD_PAGE, 26,
-                                                     msg_buffer);
+            unmap_system_memory();
 
-                if (loaded_bytes) {
-                    for (int j = 0; j < loaded_bytes; j++) {
-                        buffer[i + j] = msg_buffer[j];
-                    }
-                } else {
-                    anos_kprint("FAILED TO LOAD: 0 bytes\n");
-                    success = false;
-                    break;
-                }
-            }
-
-            if (success) {
-                ServerEntrypoint sep = (ServerEntrypoint)0x2000000;
-                sep();
-            } else {
-                anos_kprint("Unable to load executable\n");
-            }
-        } else {
-            anos_kprint("Unable to map memory\n");
+            restore_stack_and_jump(initial_sp, sep);
         }
+
+        anos_kprint("Unable to load executable\n");
     } else {
         anos_kprint("Unable to get size\n");
     }
 
-    anos_kprint("Initial server exec failed. Dying.\n");
+    anos_kprint("Server exec failed. Dying.\n");
 
     sleep_loop();
 

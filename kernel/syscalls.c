@@ -16,6 +16,8 @@
 
 #include <stdint.h>
 
+#include "capabilities/cookies.h"
+#include "capabilities/map.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
 #include "ipc/channel.h"
@@ -24,47 +26,42 @@
 #include "pmm/pagealloc.h"
 #include "printhex.h"
 #include "process.h"
+#include "process/address_space.h"
 #include "process/memory.h"
 #include "sched.h"
+#include "slab/alloc.h"
 #include "sleep.h"
 #include "smp/state.h"
 #include "std/string.h"
 #include "syscalls.h"
 #include "task.h"
+#include "throttle.h"
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
-#include "x86_64/kdrivers/cpu.h"
-#include "x86_64/process/address_space.h"
 
 #ifdef CONSERVATIVE_BUILD
 #include "panic.h"
 #endif
 
+#define MIN_PROCESS_STACK_HEADROOM ((1024))
+#define STACK_VALUE_SIZE ((sizeof(uintptr_t)))
+
+extern CapabilityMap global_capability_map;
+
 typedef void (*ThreadFunc)(void);
 
 extern MemoryRegion *physical_region;
 
-#ifdef DEBUG_TEST_SYSCALL
-static SyscallResult handle_anos_testcall(SyscallArg arg0, SyscallArg arg1,
-                                          SyscallArg arg2, SyscallArg arg3,
-                                          SyscallArg arg4) {
-    debugstr("TESTCALL: ");
-    printhex8(arg0, debugchar);
-    debugstr(" : ");
-    printhex8(arg1, debugchar);
-    debugstr(" : ");
-    printhex8(arg2, debugchar);
-    debugstr(" : ");
-    printhex8(arg3, debugchar);
-    debugstr(" : ");
-    printhex8(arg4, debugchar);
-    debugstr(" = ");
+#define SYSCALL_ARGS                                                           \
+    SyscallArg arg0, SyscallArg arg1, SyscallArg arg2, SyscallArg arg3,        \
+            SyscallArg arg4
+#define SYSCALL_NAME(name) handle_##name
+#define SYSCALL_HANDLER(name)                                                  \
+    static SyscallResult SYSCALL_NAME(name)(SYSCALL_ARGS)
 
-    return 42;
-}
-#endif
+SYSCALL_HANDLER(debugprint) {
+    char *message = (char *)arg0;
 
-static SyscallResult handle_debugprint(char *message) {
     if (IS_USER_ADDRESS(message)) {
         kprintf("%s", message);
     }
@@ -72,14 +69,18 @@ static SyscallResult handle_debugprint(char *message) {
     return SYSCALL_OK;
 }
 
-static SyscallResult handle_debugchar(char chr) {
+SYSCALL_HANDLER(debugchar) {
+    char chr = (char)arg0;
+
     debugchar(chr);
 
     return SYSCALL_OK;
 }
 
-static SyscallResult handle_create_thread(ThreadFunc func,
-                                          uintptr_t user_stack) {
+SYSCALL_HANDLER(create_thread) {
+    ThreadFunc func = (ThreadFunc)arg0;
+    uintptr_t user_stack = (uintptr_t)arg1;
+
     Task *task = task_create_user(task_current()->owner, user_stack, 0,
                                   (uintptr_t)func, TASK_CLASS_NORMAL);
 
@@ -97,7 +98,9 @@ static SyscallResult handle_create_thread(ThreadFunc func,
     return task->sched->tid;
 }
 
-static SyscallResult handle_memstats(AnosMemInfo *mem_info) {
+SYSCALL_HANDLER(memstats) {
+    AnosMemInfo *mem_info = (AnosMemInfo *)arg0;
+
     if (IS_USER_ADDRESS(mem_info)) {
         mem_info->physical_total = physical_region->size;
         mem_info->physical_avail = physical_region->free;
@@ -106,7 +109,9 @@ static SyscallResult handle_memstats(AnosMemInfo *mem_info) {
     return SYSCALL_OK;
 }
 
-static SyscallResult handle_sleep(uint64_t nanos) {
+SYSCALL_HANDLER(sleep) {
+    uint64_t nanos = (uint64_t)arg0;
+
     uint64_t lock_flags = sched_lock_this_cpu();
     sleep_task(task_current(), nanos);
     sched_unlock_this_cpu(lock_flags);
@@ -114,26 +119,41 @@ static SyscallResult handle_sleep(uint64_t nanos) {
     return SYSCALL_OK;
 }
 
-static SyscallResult handle_create_process(uintptr_t stack_base,
-                                           uint64_t stack_size,
-                                           uint64_t region_count,
-                                           ProcessMemoryRegion *regions,
-                                           uintptr_t entry_point) {
+SYSCALL_HANDLER(create_process) {
+    ProcessCreateParams *process_create_params = (ProcessCreateParams *)arg0;
+
+    // Validate process create is in userspace
+    if (!IS_USER_ADDRESS(process_create_params)) {
+        return SYSCALL_BADARGS;
+    }
+
     // Validate stack arguments
-    if (stack_base >= VM_KERNEL_SPACE_START ||
-        (stack_base + stack_size) >= VM_KERNEL_SPACE_START) {
+    if (process_create_params->stack_base >= VM_KERNEL_SPACE_START ||
+        (process_create_params->stack_base +
+         process_create_params->stack_size) >= VM_KERNEL_SPACE_START) {
         return SYSCALL_BADARGS;
     }
 
-    // Validate regions argument
-    if (region_count > MAX_PROCESS_REGIONS) {
+    // Ensure number of requested stack values is valid
+    if (process_create_params->stack_value_count > MAX_STACK_VALUES) {
         return SYSCALL_BADARGS;
     }
 
-    AddressSpaceRegion ad_regions[region_count];
+    // Ensure enough space on stack for the requested values + minimum headroom
+    if ((process_create_params->stack_value_count * STACK_VALUE_SIZE) >
+        (process_create_params->stack_size - MIN_PROCESS_STACK_HEADROOM)) {
+        return SYSCALL_BADARGS;
+    }
 
-    for (int i = 0; i < region_count; i++) {
-        ProcessMemoryRegion *src_ptr = &regions[i];
+    // Validate regions arguments
+    if (process_create_params->region_count > MAX_PROCESS_REGIONS) {
+        return SYSCALL_BADARGS;
+    }
+
+    AddressSpaceRegion ad_regions[process_create_params->region_count];
+
+    for (int i = 0; i < process_create_params->region_count; i++) {
+        ProcessMemoryRegion *src_ptr = &process_create_params->regions[i];
         AddressSpaceRegion *dst_ptr = &ad_regions[i];
 
         if (((uintptr_t)src_ptr) > VM_KERNEL_SPACE_START) {
@@ -158,8 +178,12 @@ static SyscallResult handle_create_process(uintptr_t stack_base,
         dst_ptr->len_bytes = src_ptr->len_bytes;
     }
 
-    uintptr_t new_pml4 = address_space_create(stack_base, stack_size,
-                                              region_count, ad_regions);
+    uintptr_t new_pml4 = address_space_create(
+            process_create_params->stack_base,
+            process_create_params->stack_size,
+            process_create_params->region_count, ad_regions,
+            process_create_params->stack_value_count,
+            process_create_params->stack_values);
 
     if (!new_pml4) {
         debugstr("Failed to create address space\n");
@@ -174,20 +198,18 @@ static SyscallResult handle_create_process(uintptr_t stack_base,
         return SYSCALL_FAILURE;
     }
 
-    uintptr_t new_stack = process_page_alloc(new_process, physical_region);
-
-    if (!new_stack) {
-        process_destroy(new_process);
-        return SYSCALL_FAILURE;
-    }
-
-    Task *new_task = task_create_user(new_process, stack_base + stack_size, 0,
-                                      entry_point, TASK_CLASS_NORMAL);
+    Task *new_task =
+            task_create_user(new_process,
+                             process_create_params->stack_base +
+                                     process_create_params->stack_size -
+                                     (process_create_params->stack_value_count *
+                                      sizeof(uintptr_t)),
+                             0, (uintptr_t)process_create_params->entry_point,
+                             TASK_CLASS_NORMAL);
 
     if (!new_task) {
         // TODO LEAK address_space_destroy!
         debugstr("Failed to create new task\n");
-        page_free(physical_region, new_stack);
         process_destroy(new_process);
         return SYSCALL_FAILURE;
     }
@@ -208,7 +230,7 @@ static SyscallResult handle_create_process(uintptr_t stack_base,
     sched_unlock_this_cpu();
 #else
     PerCPUState *target_cpu = sched_find_target_cpu();
-    uint64_t lock_flags = sched_lock_any_cpu(target_cpu);
+    const uint64_t lock_flags = sched_lock_any_cpu(target_cpu);
     sched_unblock_on(new_task, target_cpu);
     sched_unlock_any_cpu(target_cpu, lock_flags);
 #endif
@@ -248,8 +270,13 @@ static inline void undo_partial_map(uintptr_t virtual_base,
     }
 }
 
-SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base,
-                                 uint64_t type, uint64_t flags, uint64_t arg) {
+SYSCALL_HANDLER(map_virtual) {
+    size_t size = (size_t)arg0;
+    uintptr_t virtual_base = (uintptr_t)arg1;
+    uint64_t type = (uint64_t)arg2;
+    uint64_t flags = (uint64_t)arg3;
+    uint64_t arg = (uint64_t)arg4;
+
     if (size == 0) {
         // we don't map empty regions...
         return 0;
@@ -288,8 +315,12 @@ SyscallResult handle_map_virtual(uint64_t size, uintptr_t virtual_base,
 // they're kind of all over the place at the moment...
 //
 
-SyscallResult handle_send_message(uint64_t channel_cookie, uint64_t tag,
-                                  size_t size, void *buffer) {
+SYSCALL_HANDLER(send_message) {
+    uint64_t channel_cookie = (uint64_t)arg0;
+    uint64_t tag = (uint64_t)arg1;
+    size_t size = (size_t)arg2;
+    void *buffer = (void *)arg3;
+
     if (IS_USER_ADDRESS(buffer)) {
         return ipc_channel_send(channel_cookie, tag, size, buffer);
     }
@@ -297,8 +328,11 @@ SyscallResult handle_send_message(uint64_t channel_cookie, uint64_t tag,
     return 0;
 }
 
-SyscallResult handle_recv_message(uint64_t channel_cookie, uint64_t *tag,
-                                  size_t *size, void *buffer) {
+SYSCALL_HANDLER(recv_message) {
+    uint64_t channel_cookie = (uint64_t)arg0;
+    uint64_t *tag = (uint64_t *)arg1;
+    size_t *size = (size_t *)arg2;
+    void *buffer = (void *)arg3;
 
     if (IS_USER_ADDRESS(tag) && IS_USER_ADDRESS(size) &&
         IS_USER_ADDRESS(buffer)) {
@@ -308,18 +342,26 @@ SyscallResult handle_recv_message(uint64_t channel_cookie, uint64_t *tag,
     return 0;
 }
 
-SyscallResult handle_reply_message(uint64_t message_cookie, uint64_t reply) {
+SYSCALL_HANDLER(reply_message) {
+    uint64_t message_cookie = (uint64_t)arg0;
+    uint64_t reply = (uint64_t)arg1;
+
     return ipc_channel_reply(message_cookie, reply);
 }
 
-SyscallResult handle_create_channel(void) { return ipc_channel_create(); }
+SYSCALL_HANDLER(create_channel) { return ipc_channel_create(); }
 
-SyscallResult handle_destroy_channel(uint64_t cookie) {
+SYSCALL_HANDLER(destroy_channel) {
+    uint64_t cookie = (uint64_t)arg0;
+
     ipc_channel_destroy(cookie);
     return SYSCALL_OK;
 }
 
-SyscallResult handle_register_named_channel(uint64_t cookie, char *name) {
+SYSCALL_HANDLER(register_named_channel) {
+    uint64_t cookie = (uint64_t)arg0;
+    char *name = (char *)arg1;
+
     if (!IS_USER_ADDRESS(name)) {
         return SYSCALL_BADARGS;
     }
@@ -331,7 +373,9 @@ SyscallResult handle_register_named_channel(uint64_t cookie, char *name) {
     }
 }
 
-SyscallResult handle_deregister_named_channel(char *name) {
+SYSCALL_HANDLER(deregister_named_channel) {
+    char *name = (char *)arg0;
+
     if (!IS_USER_ADDRESS(name)) {
         return SYSCALL_BADARGS;
     }
@@ -343,7 +387,9 @@ SyscallResult handle_deregister_named_channel(char *name) {
     }
 }
 
-SyscallResult handle_find_named_channel(char *name) {
+SYSCALL_HANDLER(find_named_channel) {
+    char *name = (char *)arg0;
+
     if (!IS_USER_ADDRESS(name)) {
         return 0;
     }
@@ -353,7 +399,7 @@ SyscallResult handle_find_named_channel(char *name) {
 
 void thread_exitpoint(void);
 
-SyscallResult handle_kill_current_task() {
+SYSCALL_HANDLER(kill_current_task) {
     Task *current = task_current();
 
     if (current) {
@@ -369,49 +415,113 @@ SyscallResult handle_kill_current_task() {
     }
 }
 
+static uint64_t init_syscall_capability(CapabilityMap *map,
+                                        SyscallId syscall_id,
+                                        SyscallHandler handler) {
+    if (!map) {
+        return 0;
+    }
+
+    SyscallCapability *capability = slab_alloc_block();
+
+    if (!capability) {
+        return 0;
+    }
+
+    uint64_t cookie = capability_cookie_generate();
+
+    if (!cookie) {
+        slab_free(capability);
+        return 0;
+    }
+
+    capability->this.type = CAPABILITY_TYPE_SYSCALL;
+    capability->this.subtype = 1;
+    capability->syscall_id = syscall_id;
+    capability->flags = 0;
+    capability->handler = handler;
+
+    if (!capability_map_insert(map, cookie, capability)) {
+        slab_free(capability);
+        return 0;
+    }
+
+    return cookie;
+}
+
+#define STACKED_LONGS_PER_CAPABILITY ((2))
+
+#define stack_syscall_capability_cookie(id, handler)                           \
+    do {                                                                       \
+        uint64_t cookie =                                                      \
+                init_syscall_capability(&global_capability_map, id, handler);  \
+        if (!cookie) {                                                         \
+            return NULL;                                                       \
+        }                                                                      \
+        *--current_stack = cookie;                                             \
+        *--current_stack = id;                                                 \
+    } while (0)
+
+uint64_t *syscall_init_capabilities(uint64_t *stack) {
+    uint64_t *current_stack = stack;
+
+    // Stack all syscall capability cookies...
+    stack_syscall_capability_cookie(SYSCALL_ID_DEBUG_PRINT,
+                                    SYSCALL_NAME(debugprint));
+    stack_syscall_capability_cookie(SYSCALL_ID_DEBUG_CHAR,
+                                    SYSCALL_NAME(debugchar));
+    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_THREAD,
+                                    SYSCALL_NAME(create_thread));
+    stack_syscall_capability_cookie(SYSCALL_ID_MEMSTATS,
+                                    SYSCALL_NAME(memstats));
+    stack_syscall_capability_cookie(SYSCALL_ID_SLEEP, SYSCALL_NAME(sleep));
+    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_PROCESS,
+                                    SYSCALL_NAME(create_process));
+    stack_syscall_capability_cookie(SYSCALL_ID_MAP_VIRTUAL,
+                                    SYSCALL_NAME(map_virtual));
+    stack_syscall_capability_cookie(SYSCALL_ID_SEND_MESSAGE,
+                                    SYSCALL_NAME(send_message));
+    stack_syscall_capability_cookie(SYSCALL_ID_RECV_MESSAGE,
+                                    SYSCALL_NAME(recv_message));
+    stack_syscall_capability_cookie(SYSCALL_ID_REPLY_MESSAGE,
+                                    SYSCALL_NAME(reply_message));
+    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_CHANNEL,
+                                    SYSCALL_NAME(create_channel));
+    stack_syscall_capability_cookie(SYSCALL_ID_DESTROY_CHANNEL,
+                                    SYSCALL_NAME(destroy_channel));
+    stack_syscall_capability_cookie(SYSCALL_ID_REGISTER_NAMED_CHANNEL,
+                                    SYSCALL_NAME(register_named_channel));
+    stack_syscall_capability_cookie(SYSCALL_ID_DEREGISTER_NAMED_CHANNEL,
+                                    SYSCALL_NAME(deregister_named_channel));
+    stack_syscall_capability_cookie(SYSCALL_ID_FIND_NAMED_CHANNEL,
+                                    SYSCALL_NAME(find_named_channel));
+    stack_syscall_capability_cookie(SYSCALL_ID_KILL_CURRENT_TASK,
+                                    SYSCALL_NAME(kill_current_task));
+
+    // Stack a pointer to the first cookie (at the top of the stack)
+    --current_stack;
+    *current_stack = (uint64_t)(current_stack + 1);
+
+    // Stack the number of cookies
+    *--current_stack = (SYSCALL_ID_END - 1);
+
+    return current_stack;
+}
+
 SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
                                 SyscallArg arg2, SyscallArg arg3,
-                                SyscallArg arg4, SyscallArg syscall_num) {
-    switch (syscall_num) {
-#ifdef DEBUG_TEST_SYSCALL
-    case 0:
-        return handle_anos_testcall(arg0, arg1, arg2, arg3, arg4);
-#endif
-    case 1:
-        return handle_debugprint((char *)arg0);
-    case 2:
-        return handle_debugchar((char)arg0);
-    case 3:
-        return handle_create_thread((ThreadFunc)arg0, (uintptr_t)arg1);
-    case 4:
-        return handle_memstats((AnosMemInfo *)arg0);
-    case 5:
-        return handle_sleep(arg0);
-    case 6:
-        return handle_create_process(arg0, arg1, arg2,
-                                     (ProcessMemoryRegion *)arg3, arg4);
-    case 7:
-        return handle_map_virtual(arg0, arg1, arg2, arg3, arg4);
-    case 8:
-        return handle_send_message(arg0, arg1, arg2, (void *)arg3);
-    case 9:
-        return handle_recv_message(arg0, (uint64_t *)arg1, (size_t *)arg2,
-                                   (void *)arg3);
-    case 10:
-        return handle_reply_message(arg0, arg1);
-    case 11:
-        return handle_create_channel();
-    case 12:
-        return handle_destroy_channel(arg0);
-    case 13:
-        return handle_register_named_channel(arg0, (char *)arg1);
-    case 14:
-        return handle_deregister_named_channel((char *)arg0);
-    case 15:
-        return handle_find_named_channel((char *)arg0);
-    case 16:
-        return handle_kill_current_task();
-    default:
-        return SYSCALL_BAD_NUMBER;
+                                SyscallArg arg4, SyscallArg capability_cookie) {
+
+    Process *proc = task_current()->owner;
+
+    SyscallCapability *cap = (SyscallCapability *)capability_map_lookup(
+            &global_capability_map, (uint64_t)capability_cookie);
+
+    if (!cap || !cap->handler) {
+        throttle_abuse(proc);
+        return SYSCALL_INCAPABLE;
     }
+
+    throttle_reset(proc);
+    return cap->handler(arg0, arg1, arg2, arg3, arg4);
 }

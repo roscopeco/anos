@@ -11,13 +11,13 @@ ASFLAGS=-f elf64 -F dwarf -g
 CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 		-fno-asynchronous-unwind-tables 										\
 		-g																		\
-		-O3																		\
+		-O$(OPTIMIZE)
 
 SERVERS_ROOT_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(SERVERS_ROOT_DIR)/..)
 THIS_DIR=$(SERVERS_ROOT_DIR)/$(SERVER_NAME)
 
-BINARY_NAME=$(BINARY).bin
+BINARY_NAME=$(BINARY).elf
 BINARY_UC=$(shell echo '$(BINARY)' | tr '[:lower:]' '[:upper:]')
 ALL_TARGETS=$(BINARY_NAME)
 CLEAN_ARTIFACTS=$(THIS_DIR)/*.dis $(THIS_DIR)/*.elf $(THIS_DIR)/*.o $(THIS_DIR)/$(BINARY_NAME)
@@ -43,13 +43,9 @@ clean:
 %.o: %.c
 	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) $(CFLAGS) -c -o $@ $<
 
-$(BINARY).elf: $(BINARY_OBJS)
+$(BINARY_NAME): $(BINARY_OBJS)
 	$(XCC) -o $@ $^
 	chmod a-x $@
 
-$(BINARY).dis: $(BINARY).elf
+$(BINARY).dis: $(BINARY_NAME)
 	$(XOBJDUMP) -D -mi386 -Maddr32,data32 $< > $@
-
-$(BINARY_NAME): $(BINARY).elf $(BINARY).dis
-	$(XOBJCOPY) --strip-debug -O binary $< $@
-	chmod a-x $@

@@ -29,10 +29,22 @@
 #define FS_QUERY_OBJECT_SIZE ((1))
 #define FS_LOAD_OBJECT_PAGE ((2))
 
+#define VM_PAGE_SIZE ((0x1000))
+
+extern void *_code_start;
+extern void *_code_end;
+extern void *_bss_start;
+extern void *_bss_end;
+
 extern AnosRAMFSHeader _system_ramfs_start;
 
-static char __attribute__((aligned(0x1000))) ramfs_driver_thread_stack[0x1000];
-static char __attribute__((aligned(0x1000))) kamikaze_thread_stack[0x1000];
+static char __attribute__((
+        aligned(VM_PAGE_SIZE))) ramfs_driver_thread_stack[VM_PAGE_SIZE];
+
+#ifdef TEST_THREAD_KILL
+static char __attribute__((
+        aligned(VM_PAGE_SIZE))) kamikaze_thread_stack[VM_PAGE_SIZE];
+#endif
 
 static uint64_t ramfs_channel;
 
@@ -41,7 +53,7 @@ static inline void banner() {
            libanos_version());
 }
 
-noreturn int initial_server_loader(void);
+noreturn void initial_server_loader(void);
 
 #ifdef DEBUG_INIT_RAMFS
 static void dump_fs(AnosRAMFSHeader *ramfs) {
@@ -200,18 +212,26 @@ static void ramfs_driver_thread(void) {
     }
 }
 
+#ifdef TEST_THREAD_KILL
 static void kamikaze_thread(void) {
     printf("Kamikaze thread must die!!\n");
     anos_kill_current_task();
+}
+#endif
+
+static inline unsigned int round_up_to_page_size(size_t size) {
+    return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
 }
 
 int main(int argc, char **argv) {
     banner();
 
+#ifdef TEST_THREAD_KILL
     if (!anos_create_thread(kamikaze_thread,
                             (uintptr_t)kamikaze_thread_stack)) {
         printf("Failed to create kamikaze thread...\n");
     }
+#endif
 
     AnosMemInfo meminfo;
     if (anos_get_mem_info(&meminfo) == 0) {
@@ -227,15 +247,51 @@ int main(int argc, char **argv) {
     dump_fs(ramfs);
 #endif
 
+    // We need to map in SYSTEM's code and BSS segments temporarily,
+    // so that the initial_server_loader (loader.c) can do its thing
+    // in the new process - it needs our capabilities etc to be
+    // able to actually load the binary.
+    //
+    // The code there is responsible for removing these mappings
+    // before handing off control to the new process.
+    //
+    // NOTE keep this in-step with unmapping in loader.c!
     ProcessMemoryRegion regions[2] = {
             {
-                    .start = 0x1000000,
-                    .len_bytes = 0x3000,
+                    .start = (uintptr_t)&_code_start,
+                    .len_bytes = round_up_to_page_size((uintptr_t)&_code_end -
+                                                       (uintptr_t)&_code_start),
             },
-            {.start = 0x80000000, .len_bytes = 0x10000}};
+            {
+                    .start = (uintptr_t)&_bss_start,
+                    .len_bytes = round_up_to_page_size((uintptr_t)&_bss_end -
+                                                       (uintptr_t)&_bss_start),
+            },
+    };
 
-    uint64_t new_pid = anos_create_process(0x7ffff000, 0x1000, 2, regions,
-                                           (uintptr_t)initial_server_loader);
+    extern uint64_t __syscall_capabilities[];
+
+    uint64_t stack_values[8] = {
+            __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
+            SYSCALL_ID_DEBUG_PRINT,
+            __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
+            SYSCALL_ID_DEBUG_CHAR,
+            __syscall_capabilities[SYSCALL_ID_SLEEP],
+            SYSCALL_ID_SLEEP,
+            0x000000007fffffd0, // 0x0000000080000000 - (6*8)
+            3};
+
+    ProcessCreateParams process_create_params;
+
+    process_create_params.entry_point = initial_server_loader;
+    process_create_params.stack_base = 0x7ffff000;
+    process_create_params.stack_size = 0x1000;
+    process_create_params.region_count = 2;
+    process_create_params.regions = regions;
+    process_create_params.stack_value_count = 8;
+    process_create_params.stack_values = stack_values;
+
+    uint64_t new_pid = anos_create_process(&process_create_params);
     if (new_pid < 0) {
         printf("Failed to create new process\n");
     }
