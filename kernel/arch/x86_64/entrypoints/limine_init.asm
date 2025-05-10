@@ -214,6 +214,8 @@ GDT:
   tss_segment 14
   tss_segment 15
 
+align 16
+
 GDT_DESC:
   ; GDT Descriptor
   dw  GDT_DESC-GDT-1      ; Size (computed from here - start)
@@ -223,21 +225,37 @@ GDT_DESC:
 ; we'll sort those out in the kernel when we're actually
 ; task switching...
 ;
+align 16
 define_tss 0
+align 16
 define_tss 1
+align 16
 define_tss 2
+align 16
 define_tss 3
+align 16
 define_tss 4
+align 16
 define_tss 5
+align 16
 define_tss 6
+align 16
 define_tss 7
+align 16
 define_tss 8
+align 16
 define_tss 9
+align 16
 define_tss 10
+align 16
 define_tss 11
+align 16
 define_tss 12
+align 16
 define_tss 13
+align 16
 define_tss 14
+align 16
 define_tss 15
 
 
