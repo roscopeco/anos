@@ -277,6 +277,11 @@ SYSCALL_HANDLER(map_virtual) {
     uint64_t flags = (uint64_t)arg3;
     uint64_t arg = (uint64_t)arg4;
 
+    if (!IS_USER_ADDRESS(virtual_base)) {
+        // nice try...
+        return 0;
+    }
+
     if (size == 0) {
         // we don't map empty regions...
         return 0;
