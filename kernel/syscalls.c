@@ -242,9 +242,9 @@ static inline uintptr_t page_align(uintptr_t addr) {
     return addr & 0xfff ? (addr + VM_PAGE_SIZE) & ~(0xfff) : addr;
 }
 
-static inline void undo_partial_map(uintptr_t virtual_base,
-                                    uintptr_t virtual_last,
-                                    uintptr_t new_page) {
+static inline void undo_partial_map(const uintptr_t virtual_base,
+                                    const uintptr_t virtual_last,
+                                    const uintptr_t new_page) {
     if ((new_page & 0xff) == 0) {
         // we allocated a page, so must be failing because there's already a page
         // mapped here... We need to free the page we allocated.
@@ -277,11 +277,6 @@ SYSCALL_HANDLER(map_virtual) {
     uint64_t flags = (uint64_t)arg3;
     uint64_t arg = (uint64_t)arg4;
 
-    if (!IS_USER_ADDRESS(virtual_base)) {
-        // nice try...
-        return 0;
-    }
-
     if (size == 0) {
         // we don't map empty regions...
         return 0;
@@ -289,6 +284,16 @@ SYSCALL_HANDLER(map_virtual) {
 
     virtual_base = page_align(virtual_base);
     size = page_align(size);
+
+    if (!IS_USER_ADDRESS(virtual_base)) {
+        // nice try...
+        return 0;
+    }
+
+    if (!IS_USER_ADDRESS(virtual_base + size)) {
+        // also nope...
+        return 0;
+    }
 
     // Let's try to map it in, just using small pages for now...
     const uintptr_t virtual_end = virtual_base + size;
@@ -312,6 +317,31 @@ SYSCALL_HANDLER(map_virtual) {
     memclr((void *)virtual_base, size);
 
     return virtual_base;
+}
+
+SYSCALL_HANDLER(unmap_virtual) {
+    size_t size = (size_t)arg0;
+    uintptr_t virtual_base = (uintptr_t)arg1;
+
+    virtual_base = page_align(virtual_base);
+    size = page_align(size);
+
+    if (!IS_USER_ADDRESS(virtual_base)) {
+        return SYSCALL_BADARGS;
+    }
+
+    if (!IS_USER_ADDRESS(virtual_base + size)) {
+        return SYSCALL_BADARGS;
+    }
+
+    while (size > 0) {
+        vmm_unmap_page(virtual_base);
+
+        virtual_base += VM_PAGE_SIZE;
+        size -= VM_PAGE_SIZE;
+    }
+
+    return SYSCALL_OK;
 }
 
 // TODO we need a nicer scheme for return values in all of the below...
@@ -500,6 +530,8 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
                                     SYSCALL_NAME(find_named_channel));
     stack_syscall_capability_cookie(SYSCALL_ID_KILL_CURRENT_TASK,
                                     SYSCALL_NAME(kill_current_task));
+    stack_syscall_capability_cookie(SYSCALL_ID_UNMAP_VIRTUAL,
+                                    SYSCALL_NAME(unmap_virtual));
 
     // Stack a pointer to the first cookie (at the top of the stack)
     --current_stack;
@@ -518,14 +550,14 @@ SyscallResult handle_syscall_69(const SyscallArg arg0, const SyscallArg arg1,
 
     Process *proc = task_current()->owner;
 
-    SyscallCapability *cap = capability_map_lookup(&global_capability_map,
-                                                   (uint64_t)capability_cookie);
+    const SyscallCapability *cap = capability_map_lookup(
+            &global_capability_map, (uint64_t)capability_cookie);
 
-    if (!cap || !cap->handler) {
-        throttle_abuse(proc);
-        return SYSCALL_INCAPABLE;
+    if (cap && cap->handler) {
+        throttle_reset(proc);
+        return cap->handler(arg0, arg1, arg2, arg3, arg4);
     }
 
-    throttle_reset(proc);
-    return cap->handler(arg0, arg1, arg2, arg3, arg4);
+    throttle_abuse(proc);
+    return SYSCALL_INCAPABLE;
 }
