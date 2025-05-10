@@ -8,7 +8,7 @@
  * the platform-specific parts from arch/$ARCH/include.
  */
 
-// clang-format Language: C
+// clang-format Language: Cpp
 
 #ifndef __ANOS_KERNEL_VM_MAPPER_H
 #define __ANOS_KERNEL_VM_MAPPER_H
@@ -34,8 +34,6 @@ static constexpr uintptr_t STATIC_KERNEL_SPACE = 0xFFFFFFFF80000000;
 
 // Direct mapping base address (from MemoryMap.md)
 static constexpr uintptr_t DIRECT_MAP_BASE = 0xffff800000000000;
-
-#define IS_USER_ADDRESS(ptr) ((((uint64_t)ptr & 0xffff800000000000) == 0))
 
 /*
  *  Find the per-CPU temporary page base for the given CPU.

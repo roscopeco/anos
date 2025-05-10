@@ -8,7 +8,7 @@
  * the platform-specific parts from arch/$ARCH/include.
  */
 
-// clang-format Language: C
+// clang-format Language: Cpp
 
 #ifndef __ANOS_KERNEL_ARCH_X86_64_VM_MAPPER_H
 #define __ANOS_KERNEL_ARCH_X86_64_VM_MAPPER_H
@@ -84,7 +84,7 @@
 // Base of the per-CPU temporary mapping pages
 #define PER_CPU_TEMP_PAGE_BASE ((0xFFFFFFFF80400000))
 
-#define IS_USER_ADDRESS(ptr) ((((uint64_t)ptr & 0xffff800000000000) == 0))
+#define IS_USER_ADDRESS(ptr) (((((uint64_t)(ptr)) & 0xffff800000000000) == 0))
 
 /*
  *  Find the per-CPU temporary page base for the given CPU.
