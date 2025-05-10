@@ -181,7 +181,7 @@ static inline PageTable *vmm_virt_to_pml4(uintptr_t virt_addr) {
 }
 
 static inline uint16_t
-vmm_recursive_pml4_virt_to_recursive_entry(void *virt_pml4) {
+vmm_recursive_pml4_virt_to_recursive_entry(const void *virt_pml4) {
     return 256;
 }
 

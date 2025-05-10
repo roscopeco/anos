@@ -269,8 +269,9 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     // sort, but I dislike the whole per-CPU temp mapping idea tbh, need
     // to come up with something better...
 
-    PerCPUState *state = state_get_for_this_cpu();
-    uintptr_t per_cpu_temp_page = vmm_per_cpu_temp_page_addr(state->cpu_id);
+    const PerCPUState *state = state_get_for_this_cpu();
+    const uintptr_t per_cpu_temp_page =
+            vmm_per_cpu_temp_page_addr(state->cpu_id);
 
     vmm_map_page(per_cpu_temp_page, stack_page, PG_WRITE | PG_PRESENT);
 
