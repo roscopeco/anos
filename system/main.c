@@ -11,6 +11,7 @@
 #include <anos/syscalls.h>
 #include <anos/types.h>
 
+#include "loader.h"
 #include "path.h"
 #include "printf.h"
 #include "ramfs.h"
@@ -60,8 +61,6 @@ static inline void banner() {
     printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION,
            libanos_version());
 }
-
-noreturn void initial_server_loader(void);
 
 #ifdef DEBUG_INIT_RAMFS
 static void dump_fs(AnosRAMFSHeader *ramfs) {
@@ -232,9 +231,6 @@ static inline unsigned int round_up_to_page_size(size_t size) {
     return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
 }
 
-#define INIT_STACK_CAP_SIZE_LONGS (2)
-#define INIT_STACK_STATIC_VALUE_COUNT (5)
-
 int64_t create_server_process(const char *file_name) {
     // We need to map in SYSTEM's code and BSS segments temporarily,
     // so that the initial_server_loader (loader.c) can do its thing
@@ -292,12 +288,6 @@ int64_t create_server_process(const char *file_name) {
             init_stack_argc,
             init_stack_cap_ptr,
             init_stack_cap_count,
-
-            // executable filename, popped into args by initial_server_loader
-            // trampoline, and accessed only while SYSTEM code and data is
-            // still mapped, so no need to copy this...
-            //
-            (uint64_t)file_name,
     };
 
     ProcessCreateParams process_create_params;
