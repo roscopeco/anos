@@ -106,9 +106,39 @@ In more detail, the flow looks like this:
 
 ![Detailed Process Startup Flow](../images/diagrams/Process%20Creation%20-%20System%20Perspective.svg)
 
+### Initial Stack Layout
 
+> [!NOTE]
+> The kernel is entirely non-opinionated when it comes to 
+> process stack layout - it's purely a userspace concern. 
+> 
+> The information here documents how SYSTEM approaches it, in 
+> concert with the standard Anos Toolchain's `crt0.asm` and
+> standard library code.
+> 
+> The kernel plays a supporting role in ensuring the stack is
+> copied into the new process address space, but the _contents_
+> of that copy are completely controlled by SYSTEM.
 
+When a new process is created, SYSTEM uses a standard stack layout
+to pass required information to it:
 
+* Capabilities
+* Command-line
+
+The initial process stack looks like this:
+
+<img alt="New Process - Initial Stack Layout" width="500" src="../images/diagrams/New%20Process%20-%20Initial%20Stack%20Layout.svg">
+
+SYSTEM ensures that when the new process' entrypoint is called,
+the stack is set up like this, and the stack pointer is set up
+correctly.
+
+The standard library's `crt0` then pops the values for the pointers
+as appropriate, setting capabilities up in an internal capability
+map (where the `anos_` syscall routines will look for them) and
+passing `argc` and `argv` into the `main` function as you 
+probably expect.
 
 
 
