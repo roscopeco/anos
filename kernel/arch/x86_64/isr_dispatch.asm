@@ -86,7 +86,7 @@ trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
 
   ; Set up stack frame (so we can do sane backtrace)...
   call  .stack_frame_setup                ; push $rip first
-.stack_frame_setup
+.stack_frame_setup:
   push  0                                 ; then push 0 for previous base pointer
   mov   rbp,rsp                           ; Set base pointer to point there
   call  handle_exception_wc               ; Call the with-code handler
@@ -111,7 +111,7 @@ trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_1`
 
 ; Set up stack frame (so we can do sane backtrace)...
   call  .stack_frame_setup                ; push $rip first
-.stack_frame_setup
+.stack_frame_setup:
   push  0                                 ; then push 0 for previous base pointer
   mov   rbp,rsp                           ; Set base pointer to point there
   call  handle_exception_nc               ; Call the no-code handler
