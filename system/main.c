@@ -231,7 +231,7 @@ static inline unsigned int round_up_to_page_size(size_t size) {
     return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
 }
 
-int64_t create_server_process(const char *file_name) {
+int64_t create_server_process(const char *file_name, uint64_t stack_size) {
     // We need to map in SYSTEM's code and BSS segments temporarily,
     // so that the initial_server_loader (loader.c) can do its thing
     // in the new process - it needs our capabilities etc to be
@@ -293,8 +293,8 @@ int64_t create_server_process(const char *file_name) {
     ProcessCreateParams process_create_params;
 
     process_create_params.entry_point = initial_server_loader;
-    process_create_params.stack_base = 0x7ffff000;
-    process_create_params.stack_size = 0x1000;
+    process_create_params.stack_base = STACK_TOP - stack_size;
+    process_create_params.stack_size = stack_size;
     process_create_params.region_count = 2;
     process_create_params.regions = regions;
     process_create_params.stack_value_count = init_stack_value_count;
@@ -327,7 +327,8 @@ int main(int argc, char **argv) {
     dump_fs(ramfs);
 #endif
 
-    const int64_t new_pid = create_server_process("boot:/test_server.elf");
+    const int64_t new_pid =
+            create_server_process("boot:/test_server.elf", 0x100000);
     if (new_pid < 0) {
         printf("Failed to create server process\n");
     }

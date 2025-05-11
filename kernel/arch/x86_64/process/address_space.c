@@ -227,6 +227,8 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     uintptr_t stack_page = 0xff;
 
     // sort out the requested initial stack
+    //
+    // TODO should only allocate one here, and let #PF handler sort the rest...
     for (uintptr_t ptr = init_stack_vaddr; ptr < init_stack_end;
          ptr += VM_PAGE_SIZE) {
         stack_page = page_alloc(physical_region);
