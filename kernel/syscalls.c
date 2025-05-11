@@ -533,12 +533,22 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
     stack_syscall_capability_cookie(SYSCALL_ID_UNMAP_VIRTUAL,
                                     SYSCALL_NAME(unmap_virtual));
 
+    // Stack dummy argc/argv for now
+    // TODO this needs refactoring, syscall init shouldn't be responsible
+    //      for this
+    *--current_stack = 0;
+    *--current_stack = 0;
+
     // Stack a pointer to the first cookie (at the top of the stack)
     --current_stack;
-    *current_stack = (uint64_t)(current_stack + 1);
+    *current_stack = (uint64_t)(current_stack + 3);
 
     // Stack the number of cookies
     *--current_stack = (SYSCALL_ID_END - 1);
+
+    // TODO syscall init also shouldn't be handling this, it's a null
+    //      dummy filename to keep the crt0 code happy.
+    *--current_stack = 0;
 
     return current_stack;
 }

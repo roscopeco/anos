@@ -14,7 +14,12 @@ __attribute__((constructor)) void testing_init(void) {
     anos_kprint("Beep Boop process is up...\n");
 }
 
-int main(int argc, char **argv) {
+int main(const int argc, char **argv) {
+    for (int i = 0; i < argc; i++) {
+        anos_kprint(argv[i]);
+        anos_kprint("\n");
+    }
+
     while (1) {
         anos_task_sleep_current_secs(5);
         anos_kprint("<beep>\n");

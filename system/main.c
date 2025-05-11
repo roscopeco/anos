@@ -232,7 +232,10 @@ static inline unsigned int round_up_to_page_size(size_t size) {
     return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
 }
 
-int64_t create_server_process() {
+#define INIT_STACK_CAP_SIZE_LONGS (2)
+#define INIT_STACK_STATIC_VALUE_COUNT (5)
+
+int64_t create_server_process(const char *file_name) {
     // We need to map in SYSTEM's code and BSS segments temporarily,
     // so that the initial_server_loader (loader.c) can do its thing
     // in the new process - it needs our capabilities etc to be
@@ -259,17 +262,42 @@ int64_t create_server_process() {
 
     constexpr uint8_t init_stack_cap_count = 3;
     const uintptr_t init_stack_cap_ptr =
-            ((uintptr_t)(&__user_stack_top)) - (init_stack_cap_count * 2 * 8);
+            ((uintptr_t)(&__user_stack_top)) -
+            (init_stack_cap_count * INIT_STACK_CAP_SIZE_LONGS *
+             sizeof(uintptr_t));
 
-    uint64_t stack_values[init_stack_cap_count * 2 + 2] = {
+    constexpr uint8_t init_stack_argc = 1;
+    const uintptr_t init_stack_argv_ptr =
+            init_stack_cap_ptr - (init_stack_argc * sizeof(uintptr_t));
+
+    constexpr uint8_t init_stack_value_count =
+            init_stack_cap_count * INIT_STACK_CAP_SIZE_LONGS + init_stack_argc +
+            INIT_STACK_STATIC_VALUE_COUNT;
+
+    uint64_t stack_values[init_stack_value_count] = {
+            // Initial capabilities
             __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
             SYSCALL_ID_DEBUG_PRINT,
             __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
             SYSCALL_ID_DEBUG_CHAR,
             __syscall_capabilities[SYSCALL_ID_SLEEP],
             SYSCALL_ID_SLEEP,
+
+            // argc
+            // TODO stack the rest of argv here...
+            (uint64_t)file_name,
+
+            // static pointers / counts
+            init_stack_argv_ptr,
+            init_stack_argc,
             init_stack_cap_ptr,
             init_stack_cap_count,
+
+            // executable filename, popped into args by initial_server_loader
+            // trampoline, and accessed only while SYSTEM code and data is
+            // still mapped, so no need to copy this...
+            //
+            (uint64_t)file_name,
     };
 
     ProcessCreateParams process_create_params;
@@ -279,7 +307,7 @@ int64_t create_server_process() {
     process_create_params.stack_size = 0x1000;
     process_create_params.region_count = 2;
     process_create_params.regions = regions;
-    process_create_params.stack_value_count = 8;
+    process_create_params.stack_value_count = init_stack_value_count;
     process_create_params.stack_values = stack_values;
 
     return anos_create_process(&process_create_params);
@@ -309,7 +337,7 @@ int main(int argc, char **argv) {
     dump_fs(ramfs);
 #endif
 
-    const int64_t new_pid = create_server_process();
+    const int64_t new_pid = create_server_process("boot:/test_server.elf");
     if (new_pid < 0) {
         printf("Failed to create server process\n");
     }
