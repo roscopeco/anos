@@ -13,6 +13,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// We allow up to 33 pages (128KiB) at the top of the stack for initial
+// arg values etc.
+#define INIT_STACK_ARG_PAGES_COUNT ((33))
+
 typedef struct {
     uintptr_t start;
     uint64_t len_bytes;
@@ -47,6 +51,6 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
                                uint64_t init_stack_len, uint64_t region_count,
                                AddressSpaceRegion regions[],
                                uint64_t stack_value_count,
-                               uint64_t *stack_values);
+                               const uint64_t *stack_values);
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_PROCESS_ADDRESS_SPACE_H

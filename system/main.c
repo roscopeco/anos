@@ -328,7 +328,7 @@ int main(int argc, char **argv) {
 #endif
 
     const int64_t new_pid =
-            create_server_process("boot:/test_server.elf", 0x100000);
+            create_server_process("boot:/test_server.elf", 0x1000);
     if (new_pid < 0) {
         printf("Failed to create server process\n");
     }

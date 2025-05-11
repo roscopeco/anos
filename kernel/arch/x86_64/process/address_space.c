@@ -87,10 +87,11 @@ bool address_space_init(void) {
 }
 
 uintptr_t address_space_create(uintptr_t init_stack_vaddr,
-                               uint64_t init_stack_len, uint64_t region_count,
+                               const uint64_t init_stack_len,
+                               const uint64_t region_count,
                                AddressSpaceRegion regions[],
-                               uint64_t stack_value_count,
-                               uint64_t *stack_values) {
+                               const uint64_t stack_value_count,
+                               const uint64_t *stack_values) {
 
     // align stack vaddr
     init_stack_vaddr &= ~(0xfff);
@@ -222,16 +223,24 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     }
 #endif
 
-    // This is used in the loop below, and once the loop completes it'll
-    // point to the last (bottom) page in the stack.
-    uintptr_t stack_page = 0xff;
+    // We track the (up to) 32 physical pages at the top of the stack,
+    // so we can use them below when copying stack initial values...
+    //
+    // We have 33 pages since argc data is allowed to be 128KiB,
+    // or 32 pages, so we keep an extra one for the capabilities etc...
+    //
+    uint64_t top_phys_stack_pages[INIT_STACK_ARG_PAGES_COUNT];
+    uint8_t current_top_phys_page_idx = 0;
 
-    // sort out the requested initial stack
+    // sort out the requested initial stack, we allocate it in reverse so
+    // that the ARG_PAGES pages we store in the top_phys_stack_pages array will
+    // actually be the ones at the top of the stack...
     //
     // TODO should only allocate one here, and let #PF handler sort the rest...
-    for (uintptr_t ptr = init_stack_vaddr; ptr < init_stack_end;
-         ptr += VM_PAGE_SIZE) {
-        stack_page = page_alloc(physical_region);
+    for (uintptr_t ptr = init_stack_end - VM_PAGE_SIZE; ptr >= init_stack_vaddr;
+         ptr -= VM_PAGE_SIZE) {
+
+        const uintptr_t stack_page = page_alloc(physical_region);
 
         if (stack_page & 0xff) {
             debugstr("Failed to allocate stack page for ");
@@ -254,6 +263,12 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
             return 0;
         }
 
+        // record this if we're still in arg pages, since we might need it for
+        // copying stack init values later...
+        if (current_top_phys_page_idx < INIT_STACK_ARG_PAGES_COUNT) {
+            top_phys_stack_pages[current_top_phys_page_idx++] = stack_page;
+        }
+
         vmm_map_page_in((uint64_t *)new_pml4_virt, ptr, stack_page,
                         PG_WRITE | PG_PRESENT | PG_USER);
     }
@@ -270,18 +285,26 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     // Could be done with locking or a crititcal section of some
     // sort, but I dislike the whole per-CPU temp mapping idea tbh, need
     // to come up with something better...
+    //
+    // (it's actually worse than that - all it needs is for us to get
+    // interrupted by some other thread in this process that also uses the temp
+    // mapping page, and we're done - it's global (to the address space) state.
 
     const PerCPUState *state = state_get_for_this_cpu();
     const uintptr_t per_cpu_temp_page =
             vmm_per_cpu_temp_page_addr(state->cpu_id);
 
-    vmm_map_page(per_cpu_temp_page, stack_page, PG_WRITE | PG_PRESENT);
-
-    uint64_t volatile *stack_bottom =
-            ((uint64_t *)(per_cpu_temp_page + VM_PAGE_SIZE));
+    uint64_t volatile *temp_stack_bottom = (uint64_t *)per_cpu_temp_page;
 
     for (int i = 0; i < stack_value_count; i++) {
-        *--stack_bottom = stack_values[i];
+        if (temp_stack_bottom == (uint64_t *)per_cpu_temp_page) {
+            // reached bottom of temp page, need to map the next one
+            const uintptr_t phys = top_phys_stack_pages[i >> 9];
+            vmm_map_page(per_cpu_temp_page, phys, PG_WRITE | PG_PRESENT);
+            temp_stack_bottom = (uint64_t *)(per_cpu_temp_page + VM_PAGE_SIZE);
+        }
+
+        *--temp_stack_bottom = stack_values[i];
     }
 
     vmm_unmap_page(per_cpu_temp_page);
