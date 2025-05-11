@@ -128,7 +128,7 @@ to pass required information to it:
 
 The initial process stack looks like this:
 
-<img alt="New Process - Initial Stack Layout" width="500" src="../images/diagrams/New%20Process%20-%20Initial%20Stack%20Layout.svg">
+<img alt="New Process - Initial Stack Layout" src="../images/diagrams/New%20Process%20-%20Initial%20Stack%20Layout.svg">
 
 SYSTEM ensures that when the new process' entrypoint is called,
 the stack is set up like this, and the stack pointer is set up
