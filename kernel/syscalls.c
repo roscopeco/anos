@@ -19,12 +19,10 @@
 #include "capabilities/cookies.h"
 #include "capabilities/map.h"
 #include "debugprint.h"
-#include "fba/alloc.h"
 #include "ipc/channel.h"
 #include "ipc/named.h"
 #include "kprintf.h"
 #include "pmm/pagealloc.h"
-#include "printhex.h"
 #include "process.h"
 #include "process/address_space.h"
 #include "process/memory.h"
@@ -38,6 +36,10 @@
 #include "throttle.h"
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
+
+#ifdef DEBUG_PROCESS_SYSCALLS
+#include "printhex.h"
+#endif
 
 #ifdef CONSERVATIVE_BUILD
 #include "panic.h"
@@ -135,14 +137,14 @@ SYSCALL_HANDLER(create_process) {
     }
 
     // Ensure number of requested stack values is valid
-    if (process_create_params->stack_value_count > MAX_STACK_VALUES) {
+    if (process_create_params->stack_value_count > MAX_STACK_VALUE_COUNT) {
         return SYSCALL_BADARGS;
     }
 
     // Ensure enough space on stack for the requested values + minimum headroom
     if ((process_create_params->stack_value_count * STACK_VALUE_SIZE) >
         (process_create_params->stack_size - MIN_PROCESS_STACK_HEADROOM)) {
-        return SYSCALL_BADARGS;
+        return (int64_t)SYSCALL_BADARGS;
     }
 
     // Validate regions arguments

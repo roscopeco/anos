@@ -95,7 +95,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
 
     // align stack vaddr
     init_stack_vaddr &= ~(0xfff);
-    uintptr_t init_stack_end = init_stack_vaddr + init_stack_len;
+    const uintptr_t init_stack_end = init_stack_vaddr + init_stack_len;
 
 #ifdef CONSERVATIVE_BUILD
     // Only doing these checks in conservative build, syscall.c checks args
@@ -105,6 +105,13 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     // Don't let them explicitly map kernel space (even though we are anyhow)
     if (init_stack_vaddr >= VM_KERNEL_SPACE_START ||
         init_stack_end >= VM_KERNEL_SPACE_START) {
+        return 0;
+    }
+
+    // Don't let them pass more than our allowed number of initial stack
+    // values
+    if (stack_value_count > init_stack_len / sizeof(uintptr_t) ||
+        stack_value_count > MAX_STACK_VALUE_COUNT) {
         return 0;
     }
 

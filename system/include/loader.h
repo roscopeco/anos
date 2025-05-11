@@ -28,6 +28,13 @@
 #define MAX_ARG_LENGTH ((256))
 #define MAX_ARG_COUNT ((512))
 
+// TODO these need keeping in sync with address_space.h from the kernel!
+// We allow up to 33 pages (128KiB) at the top of the stack for initial
+// arg values etc.
+#define INIT_STACK_ARG_PAGES_COUNT ((33))
+
+#define MAX_STACK_VALUE_COUNT ((INIT_STACK_ARG_PAGES_COUNT - 1) * VM_PAGE_SIZE / (sizeof(uintptr_t))
+
 noreturn void initial_server_loader(void *initial_sp);
 
 #endif

@@ -231,7 +231,8 @@ static inline unsigned int round_up_to_page_size(size_t size) {
     return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
 }
 
-int64_t create_server_process(const char *file_name, uint64_t stack_size) {
+int64_t create_server_process(const char *file_name,
+                              const uint64_t stack_size) {
     // We need to map in SYSTEM's code and BSS segments temporarily,
     // so that the initial_server_loader (loader.c) can do its thing
     // in the new process - it needs our capabilities etc to be
@@ -266,7 +267,7 @@ int64_t create_server_process(const char *file_name, uint64_t stack_size) {
     const uintptr_t init_stack_argv_ptr =
             init_stack_cap_ptr - (init_stack_argc * sizeof(uintptr_t));
 
-    constexpr uint8_t init_stack_value_count =
+    constexpr uint16_t init_stack_value_count =
             init_stack_cap_count * INIT_STACK_CAP_SIZE_LONGS + init_stack_argc +
             INIT_STACK_STATIC_VALUE_COUNT;
 
@@ -328,9 +329,10 @@ int main(int argc, char **argv) {
 #endif
 
     const int64_t new_pid =
-            create_server_process("boot:/test_server.elf", 0x1000);
+            create_server_process("boot:/test_server.elf", 0x100000);
     if (new_pid < 0) {
-        printf("Failed to create server process\n");
+        printf("%s: Failed to create server process\n",
+               "boot:/test_server.elf");
     }
 
     const uint64_t vfs_channel = anos_create_channel();
