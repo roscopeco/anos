@@ -244,40 +244,42 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     // actually be the ones at the top of the stack...
     //
     // TODO should only allocate one here, and let #PF handler sort the rest...
-    for (uintptr_t ptr = init_stack_end - VM_PAGE_SIZE; ptr >= init_stack_vaddr;
-         ptr -= VM_PAGE_SIZE) {
+    if (init_stack_len) {
+        for (uintptr_t ptr = init_stack_end - VM_PAGE_SIZE;
+             ptr >= init_stack_vaddr; ptr -= VM_PAGE_SIZE) {
 
-        const uintptr_t stack_page = page_alloc(physical_region);
+            const uintptr_t stack_page = page_alloc(physical_region);
 
-        if (stack_page & 0xff) {
-            debugstr("Failed to allocate stack page for ");
-            printhex64(ptr, debugchar);
-            debugstr("\n");
+            if (stack_page & 0xff) {
+                debugstr("Failed to allocate stack page for ");
+                printhex64(ptr, debugchar);
+                debugstr("\n");
 
-            // TODO there's a bit to sort out here...
-            //
-            //   * Free the pages we've allocated so far
-            //   * Free the page tables for the address space
-            //   * Free the address space itself
-            //
-            // This will need a proper free_address_space routine, which I don't
-            // have yet, so we'll just fail and leak the memory for now...
+                // TODO there's a bit to sort out here...
+                //
+                //   * Free the pages we've allocated so far
+                //   * Free the page tables for the address space
+                //   * Free the address space itself
+                //
+                // This will need a proper free_address_space routine, which I don't
+                // have yet, so we'll just fail and leak the memory for now...
 
-            current_pml4->entries[RECURSIVE_ENTRY_OTHER] = saved_other;
-            cpu_invalidate_page((uintptr_t)new_pml4_virt);
-            spinlock_unlock_irqrestore(&address_space_lock, lock_flags);
+                current_pml4->entries[RECURSIVE_ENTRY_OTHER] = saved_other;
+                cpu_invalidate_page((uintptr_t)new_pml4_virt);
+                spinlock_unlock_irqrestore(&address_space_lock, lock_flags);
 
-            return 0;
+                return 0;
+            }
+
+            // record this if we're still in arg pages, since we might need it for
+            // copying stack init values later...
+            if (current_top_phys_page_idx < INIT_STACK_ARG_PAGES_COUNT) {
+                top_phys_stack_pages[current_top_phys_page_idx++] = stack_page;
+            }
+
+            vmm_map_page_in((uint64_t *)new_pml4_virt, ptr, stack_page,
+                            PG_WRITE | PG_PRESENT | PG_USER);
         }
-
-        // record this if we're still in arg pages, since we might need it for
-        // copying stack init values later...
-        if (current_top_phys_page_idx < INIT_STACK_ARG_PAGES_COUNT) {
-            top_phys_stack_pages[current_top_phys_page_idx++] = stack_page;
-        }
-
-        vmm_map_page_in((uint64_t *)new_pml4_virt, ptr, stack_page,
-                        PG_WRITE | PG_PRESENT | PG_USER);
     }
 
     // TODO this is the wrong place to do this, really...

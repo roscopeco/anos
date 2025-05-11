@@ -86,11 +86,22 @@
 
 #define IS_USER_ADDRESS(ptr) (((((uint64_t)(ptr)) & 0xffff800000000000) == 0))
 
+#ifdef UNIT_TESTS
+#ifndef MUNIT_H
+extern
+#endif
+        uint8_t mock_cpu_temp_page[0x1000];
+#endif
+
 /*
  *  Find the per-CPU temporary page base for the given CPU.
  */
-static inline uintptr_t vmm_per_cpu_temp_page_addr(uint8_t cpu) {
+static inline uintptr_t vmm_per_cpu_temp_page_addr(const uint8_t cpu) {
+#ifndef UNIT_TESTS
     return PER_CPU_TEMP_PAGE_BASE + (cpu << 12);
+#else
+    return (uintptr_t)mock_cpu_temp_page;
+#endif
 }
 
 #ifndef UNIT_TESTS
