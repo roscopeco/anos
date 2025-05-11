@@ -546,10 +546,6 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
     // Stack the number of cookies
     *--current_stack = (SYSCALL_ID_END - 1);
 
-    // TODO syscall init also shouldn't be handling this, it's a null
-    //      dummy filename to keep the crt0 code happy.
-    *--current_stack = 0;
-
     return current_stack;
 }
 
