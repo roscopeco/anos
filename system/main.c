@@ -11,9 +11,17 @@
 #include <anos/syscalls.h>
 #include <anos/types.h>
 
+#include "loader.h"
 #include "path.h"
 #include "printf.h"
 #include "ramfs.h"
+
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support constexpr yet - Jan 2025
+#ifndef constexpr
+#define constexpr const
+#endif
+#endif
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -35,6 +43,7 @@ extern void *_code_start;
 extern void *_code_end;
 extern void *_bss_start;
 extern void *_bss_end;
+extern void *__user_stack_top;
 
 extern AnosRAMFSHeader _system_ramfs_start;
 
@@ -52,8 +61,6 @@ static inline void banner() {
     printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION,
            libanos_version());
 }
-
-noreturn void initial_server_loader(void);
 
 #ifdef DEBUG_INIT_RAMFS
 static void dump_fs(AnosRAMFSHeader *ramfs) {
@@ -90,7 +97,8 @@ static void dump_fs(AnosRAMFSHeader *ramfs) {
 #define dump_fs(...)
 #endif
 
-static void handle_file_size_query(uint64_t message_cookie, size_t message_size,
+static void handle_file_size_query(const uint64_t message_cookie,
+                                   const size_t message_size,
                                    char *message_buffer) {
     char *mount_point, *path;
 
@@ -125,8 +133,8 @@ typedef struct {
     char name[];
 } FileLoadPageQuery;
 
-static void handle_file_load_page_query(uint64_t message_cookie,
-                                        size_t message_size,
+static void handle_file_load_page_query(const uint64_t message_cookie,
+                                        const size_t message_size,
                                         void *message_buffer) {
     char *mount_point, *path;
     FileLoadPageQuery *pq = message_buffer;
@@ -171,7 +179,7 @@ static void handle_file_load_page_query(uint64_t message_cookie,
     }
 }
 
-static void ramfs_driver_thread(void) {
+static noreturn void ramfs_driver_thread(void) {
     while (true) {
         uint64_t tag;
         size_t message_size;
@@ -223,30 +231,8 @@ static inline unsigned int round_up_to_page_size(size_t size) {
     return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
 }
 
-int main(int argc, char **argv) {
-    banner();
-
-#ifdef TEST_THREAD_KILL
-    if (!anos_create_thread(kamikaze_thread,
-                            (uintptr_t)kamikaze_thread_stack)) {
-        printf("Failed to create kamikaze thread...\n");
-    }
-#endif
-
-    AnosMemInfo meminfo;
-    if (anos_get_mem_info(&meminfo) == 0) {
-        printf("%ld / %ld bytes used / free\n",
-               meminfo.physical_total - meminfo.physical_avail,
-               meminfo.physical_avail);
-    } else {
-        printf("WARN: Get mem info failed\n");
-    }
-
-#ifdef DEBUG_INIT_RAMFS
-    AnosRAMFSHeader *ramfs = (AnosRAMFSHeader *)&_system_ramfs_start;
-    dump_fs(ramfs);
-#endif
-
+int64_t create_server_process(const char *file_name,
+                              const uint64_t stack_size) {
     // We need to map in SYSTEM's code and BSS segments temporarily,
     // so that the initial_server_loader (loader.c) can do its thing
     // in the new process - it needs our capabilities etc to be
@@ -271,32 +257,85 @@ int main(int argc, char **argv) {
 
     extern uint64_t __syscall_capabilities[];
 
-    uint64_t stack_values[8] = {
+    constexpr uint8_t init_stack_cap_count = 3;
+    const uintptr_t init_stack_cap_ptr =
+            ((uintptr_t)(&__user_stack_top)) -
+            (init_stack_cap_count * INIT_STACK_CAP_SIZE_LONGS *
+             sizeof(uintptr_t));
+
+    constexpr uint8_t init_stack_argc = 1;
+    const uintptr_t init_stack_argv_ptr =
+            init_stack_cap_ptr - (init_stack_argc * sizeof(uintptr_t));
+
+    constexpr uint16_t init_stack_value_count =
+            init_stack_cap_count * INIT_STACK_CAP_SIZE_LONGS + init_stack_argc +
+            INIT_STACK_STATIC_VALUE_COUNT;
+
+    uint64_t stack_values[init_stack_value_count] = {
+            // Initial capabilities
             __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
             SYSCALL_ID_DEBUG_PRINT,
             __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
             SYSCALL_ID_DEBUG_CHAR,
             __syscall_capabilities[SYSCALL_ID_SLEEP],
             SYSCALL_ID_SLEEP,
-            0x000000007fffffd0, // 0x0000000080000000 - (6*8)
-            3};
+
+            // argc
+            // TODO stack the rest of argv here...
+            (uint64_t)file_name,
+
+            // static pointers / counts
+            init_stack_argv_ptr,
+            init_stack_argc,
+            init_stack_cap_ptr,
+            init_stack_cap_count,
+    };
 
     ProcessCreateParams process_create_params;
 
     process_create_params.entry_point = initial_server_loader;
-    process_create_params.stack_base = 0x7ffff000;
-    process_create_params.stack_size = 0x1000;
+    process_create_params.stack_base = STACK_TOP - stack_size;
+    process_create_params.stack_size = stack_size;
     process_create_params.region_count = 2;
     process_create_params.regions = regions;
-    process_create_params.stack_value_count = 8;
+    process_create_params.stack_value_count = init_stack_value_count;
     process_create_params.stack_values = stack_values;
 
-    uint64_t new_pid = anos_create_process(&process_create_params);
-    if (new_pid < 0) {
-        printf("Failed to create new process\n");
+    return anos_create_process(&process_create_params);
+}
+
+int main(int argc, char **argv) {
+    banner();
+
+#ifdef TEST_THREAD_KILL
+    if (!anos_create_thread(kamikaze_thread,
+                            (uintptr_t)kamikaze_thread_stack)) {
+        printf("Failed to create kamikaze thread...\n");
+    }
+#endif
+
+    AnosMemInfo meminfo;
+    if (anos_get_mem_info(&meminfo) == 0) {
+        printf("%ld / %ld bytes used / free\n",
+               meminfo.physical_total - meminfo.physical_avail,
+               meminfo.physical_avail);
+    } else {
+        printf("WARN: Get mem info failed\n");
     }
 
-    uint64_t vfs_channel = anos_create_channel();
+#ifdef DEBUG_INIT_RAMFS
+    AnosRAMFSHeader *ramfs = (AnosRAMFSHeader *)&_system_ramfs_start;
+    dump_fs(ramfs);
+#endif
+
+    const int64_t new_pid =
+            create_server_process("boot:/test_server.elf", 0x100000);
+    if (new_pid < 0) {
+        printf("%s: Failed to create server process\n",
+               "boot:/test_server.elf");
+    }
+
+    const uint64_t vfs_channel = anos_create_channel();
     ramfs_channel = anos_create_channel();
 
     if (vfs_channel && ramfs_channel) {

@@ -38,6 +38,7 @@ static bool smp_is_up;
 
 void arch_panic_stop_all_processors(void);
 
+#ifdef ARCH_X86_64
 static void print_stack_trace() {
     uintptr_t *ebp, *eip;
     uint8_t count = 0;
@@ -60,6 +61,9 @@ static void print_stack_trace() {
         ebp = (uintptr_t *)*ebp;
     }
 }
+#else
+#define print_stack_trace()
+#endif
 
 static inline void print_header_vec(char *msg, uint8_t vector) {
     debugattr(0x0C);

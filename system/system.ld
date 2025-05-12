@@ -14,6 +14,8 @@ MEMORY {
     DATA    : org = 0x0000000040000000,  l = 0x0040000000     /* 1GiB for bss/data, stack goes below this */
 }
 
+PROVIDE(__user_stack_top = 0x0000000080000000);
+
 SECTIONS
 {
   .text :

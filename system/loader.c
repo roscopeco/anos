@@ -118,26 +118,24 @@ static bool on_program_header(const int num, const Elf64ProgramHeader *phdr,
 static void unmap_system_memory() {
 #ifndef UNIT_TESTS
     // NOTE keep this in-step with setup in main.c!
-    uintptr_t code_start = (uintptr_t)&_code_start;
-    uintptr_t code_end = (uintptr_t)&_code_end - (uintptr_t)&_code_start;
-    uintptr_t bss_start = (uintptr_t)&_bss_start;
-    uintptr_t bss_end = (uintptr_t)&_bss_end - (uintptr_t)&_bss_start;
+    // const uintptr_t code_start = (uintptr_t)&_code_start;
+    // const uintptr_t code_end = (uintptr_t)&_code_end;
+    // const size_t code_len = code_end - code_start;
+    const uintptr_t bss_start = (uintptr_t)&_bss_start;
+    const uintptr_t bss_end = (uintptr_t)&_bss_end;
+    const size_t bss_len = bss_end - bss_start;
 
     // TODO this isn't actually going to work this way, we're still running
     //      code in this mapping, unmapping it like this won't end well...
     //
-    for (uintptr_t page = code_start; page < code_end; page += VM_PAGE_SIZE) {
-        // TODO Unmap virtual syscall!
-    }
+    // anos_unmap_virtual(code_len, code_start);
 
-    for (uintptr_t page = bss_start; page < bss_end; page += VM_PAGE_SIZE) {
-        // TODO Unmap virtual syscall!
-    }
+    anos_unmap_virtual(bss_len, bss_start);
 #endif
 }
 
-noreturn void initial_server_loader(void *initial_sp) {
-    printf("\nLoading 'boot:/test_server.elf'...\n");
+noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
+    printf("\nLoading '%s'...\n", filename);
 
     const uint64_t sys_vfs_cookie = anos_find_named_channel("SYSTEM::VFS");
 
@@ -148,7 +146,7 @@ noreturn void initial_server_loader(void *initial_sp) {
 
     char *msg_buffer = anos_map_virtual(0x1000, 0x1fff000);
 
-    strcpy(msg_buffer, "boot:/test_server.elf");
+    strncpy(msg_buffer, filename, 1024);
 
     const uint64_t sys_ramfs_cookie =
             anos_send_message(sys_vfs_cookie, 1, 22, msg_buffer);

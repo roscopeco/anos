@@ -24,7 +24,8 @@ extern handle_syscall_69
   push  r8
   push  r9
   push  r10
-  push  r11  
+  push  r11
+  push  rbp
 %endmacro
 
 %macro pusha_sysv 0
@@ -33,6 +34,7 @@ extern handle_syscall_69
 %endmacro
 
 %macro popa_sysv_not_rax 0
+  pop   rbp
   pop   r11                               ; Restore registers except rax for returns...
   pop   r10
   pop   r9
@@ -76,14 +78,21 @@ extern handle_syscall_69
 global trap_dispatcher_%+%1               ; Ensure declared global
 trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
   trap_conditional_swapgs_with_code
-  pusha_sysv
-  
-  mov   rdi,%1                            ; Put the trap number in the first C argument
-  mov   rsi,72[rsp]                       ; Error code from stack into the second C argument
-  mov   rdx,80[rsp]                       ; Peek return address into third C argument
-  call  handle_exception_wc               ; Call the with-code handler
+  pusha_sysv                              ; Push all caller-saved registers
 
-  popa_sysv
+  mov   rdi,%1                            ; Put the trap number in the first C argument
+  mov   rsi,80[rsp]                       ; Error code from stack into the second C argument
+  mov   rdx,88[rsp]                       ; Peek return address into third C argument
+
+  ; Set up stack frame (so we can do sane backtrace)...
+  call  .stack_frame_setup                ; push $rip first
+.stack_frame_setup:
+  push  0                                 ; then push 0 for previous base pointer
+  mov   rbp,rsp                           ; Set base pointer to point there
+  call  handle_exception_wc               ; Call the with-code handler
+  add   rsp,16                            ; Discard the stack frame
+
+  popa_sysv                               ; Restore all caller-saved registers
 
   add   rsp,8                             ; Discard the error code
 
@@ -95,16 +104,23 @@ trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_0`
 global trap_dispatcher_%+%1               ; Ensure declared global
 trap_dispatcher_%+%1:                     ; Name e.g. `trap_dispatcher_1`
   trap_conditional_swapgs_no_code
-  pusha_sysv
+  pusha_sysv                              ; Push all caller-saved registers
   
   mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
-  mov   rsi,72[rsp]                       ; Peek return address into second C argument
+  mov   rsi,80[rsp]                       ; Peek return address into second C argument
+
+; Set up stack frame (so we can do sane backtrace)...
+  call  .stack_frame_setup                ; push $rip first
+.stack_frame_setup:
+  push  0                                 ; then push 0 for previous base pointer
+  mov   rbp,rsp                           ; Set base pointer to point there
   call  handle_exception_nc               ; Call the no-code handler
+  add   rsp,16                            ; Discard the stack frame
 
-  popa_sysv
+  popa_sysv                               ; Restore all caller-saved registers
+
   trap_conditional_swapgs_no_code
-
-  iretq                                    ; And done...
+  iretq                                   ; And done...
 %endmacro
 
 trap_dispatcher_no_code      0             ; Division Error

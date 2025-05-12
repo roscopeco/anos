@@ -49,8 +49,14 @@
     ((uint64_t *)((entry | STATIC_KERNEL_SPACE) & PAGE_ALIGN_MASK))
 #endif
 
-#ifndef NULL
-#define NULL (((void *)0))
+#if (__STDC_VERSION__ < 202000)
+#ifdef NULL
+#define nullptr NULL
+#else
+#define nullptr (((void *)0))
+#endif
+#ifndef nullptr
+#endif
 #endif
 
 extern MemoryRegion *physical_region;
@@ -71,7 +77,7 @@ inline void vmm_invalidate_page(uintptr_t virt_addr) {
 #endif
 }
 
-static inline void clear_table(uint64_t *table) {
+static void clear_table(uint64_t *table) {
     V_DEBUGSTR("!! CLEAR TABLE @ ");
     V_PRINTHEX64(table, debugchar);
     V_DEBUGSTR("\n");
@@ -90,13 +96,13 @@ static inline void clear_table(uint64_t *table) {
 //      We should move some of the logic back to recursive.h and tidy it up
 //      so this isn't so tightly coupled.
 //
-static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
-                               bool is_user) {
+static uint64_t *ensure_tables(const uint16_t recursive_entry,
+                               const uintptr_t virt_addr, const bool is_user) {
     // TODO this shouldn't leave the new tables as WRITE,
     // and also needs to handle the case where they exist but
     // are not WRITE....
 
-    uint16_t pml4n = vmm_virt_to_pml4_index(virt_addr);
+    const uint16_t pml4n = vmm_virt_to_pml4_index(virt_addr);
     uint64_t *pml4e = (uint64_t *)vmm_recursive_table_address(
             recursive_entry, recursive_entry, recursive_entry, recursive_entry,
             pml4n << 3);
@@ -119,12 +125,12 @@ static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
         // not present, needs mapping from pdpt down
         V_DEBUGSTR("    !! PML4E not present (no PDPT) - will allocate ...\n");
 
-        uint64_t new_pdpt = page_alloc(physical_region) | PG_PRESENT |
-                            PG_WRITE | (is_user ? PG_USER : 0);
+        const uint64_t new_pdpt = page_alloc(physical_region) | PG_PRESENT |
+                                  PG_WRITE | (is_user ? PG_USER : 0);
 
         if (!new_pdpt) {
             C_DEBUGSTR("WARN: Failed to allocate page directory pointer table");
-            return NULL;
+            return nullptr;
         }
 
         // Map the page
@@ -148,7 +154,7 @@ static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
         V_DEBUGSTR("    !! PML4E IS present (-> PDPT)\n");
     }
 
-    uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
+    const uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
     uint64_t *pdpte = (uint64_t *)vmm_recursive_table_address(
             recursive_entry, recursive_entry, recursive_entry, pml4n,
             pdptn << 3);
@@ -163,12 +169,12 @@ static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
         // not present, needs mapping from pd down
         V_DEBUGSTR("    !! PDPTE not present (no PD) - will allocate ...\n");
 
-        uint64_t new_pd = page_alloc(physical_region) | PG_PRESENT | PG_WRITE |
-                          (is_user ? PG_USER : 0);
+        const uint64_t new_pd = page_alloc(physical_region) | PG_PRESENT |
+                                PG_WRITE | (is_user ? PG_USER : 0);
 
         if (!new_pd) {
             C_DEBUGSTR("WARN: Failed to allocate page directory");
-            return NULL;
+            return nullptr;
         }
 
         // Map the page
@@ -193,7 +199,7 @@ static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
         V_DEBUGSTR("    !! PDPTE IS present (-> PD)\n");
     }
 
-    uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
+    const uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
     uint64_t *pde = (uint64_t *)vmm_recursive_table_address(
             recursive_entry, recursive_entry, pml4n, pdptn, pdn << 3);
 
@@ -207,12 +213,12 @@ static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
         // not present, needs mapping from pt
         V_DEBUGSTR("    !! PDE not present (no PT) - will allocate ...\n");
 
-        uint64_t new_pt = page_alloc(physical_region) | PG_PRESENT | PG_WRITE |
-                          (is_user ? PG_USER : 0);
+        const uint64_t new_pt = page_alloc(physical_region) | PG_PRESENT |
+                                PG_WRITE | (is_user ? PG_USER : 0);
 
         if (!new_pt) {
             C_DEBUGSTR("WARN: Failed to allocate page table");
-            return NULL;
+            return nullptr;
         }
 
         // Map the page
@@ -237,7 +243,7 @@ static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
         V_DEBUGSTR("    !! PDE IS present (-> PT)\n");
     }
 
-    uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
+    const uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
     uint64_t *pte = (uint64_t *)vmm_recursive_table_address(
             recursive_entry, pml4n, pdptn, pdn, ptn << 3);
 
@@ -250,10 +256,10 @@ static uint64_t *ensure_tables(uint16_t recursive_entry, uintptr_t virt_addr,
     return pte;
 }
 
-inline bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
-                            uint16_t flags) {
+inline bool vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr,
+                            const uint64_t page, const uint16_t flags) {
 
-    uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
 
     C_DEBUGSTR("==> MAP: ");
     C_PRINTHEX64(virt_addr, debugchar);
@@ -264,7 +270,8 @@ inline bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
     // This finds the PML4 entry that the PML4 we were given is referring to.
     // it's kind of a mess, but gives us the recursive entry in use.
     //
-    uint16_t recursive_entry = vmm_recursive_pml4_virt_to_recursive_entry(pml4);
+    const uint16_t recursive_entry =
+            vmm_recursive_pml4_virt_to_recursive_entry(pml4);
     uint64_t *pte = ensure_tables(recursive_entry, virt_addr, flags);
 
     V_DEBUGSTR("==> Ensured PTE @ ");
@@ -277,17 +284,19 @@ inline bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
     return true;
 }
 
-bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags) {
+bool vmm_map_page(const uintptr_t virt_addr, const uint64_t page,
+                  const uint16_t flags) {
     return vmm_map_page_in((uint64_t *)vmm_find_pml4(), virt_addr, page, flags);
 }
 
-bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
-                             uint16_t flags) {
+bool vmm_map_page_containing(uintptr_t virt_addr, const uint64_t phys_addr,
+                             const uint16_t flags) {
     return vmm_map_page(virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }
 
-bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
-                                uint64_t phys_addr, uint16_t flags) {
+bool vmm_map_page_containing_in(uint64_t *pml4, const uintptr_t virt_addr,
+                                const uint64_t phys_addr,
+                                const uint16_t flags) {
     return vmm_map_page_in(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }
 
@@ -295,7 +304,7 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
 // spot we're using as recursive in the given PML4!
 //
 uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
-    uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
 
     C_DEBUGSTR("Unmap virtual ");
     C_PRINTHEX64((uint64_t)virt_addr, debugchar);
@@ -305,9 +314,10 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     C_PRINTHEX64(PML4ENTRY(virt_addr), debugchar);
     C_DEBUGSTR("]\n");
 
-    uint16_t recursive_entry = vmm_recursive_pml4_virt_to_recursive_entry(pml4);
-    uint16_t pml4n = vmm_virt_to_pml4_index(virt_addr);
-    uint64_t *pml4e = (uint64_t *)vmm_recursive_table_address(
+    const uint16_t recursive_entry =
+            vmm_recursive_pml4_virt_to_recursive_entry(pml4);
+    const uint16_t pml4n = vmm_virt_to_pml4_index(virt_addr);
+    const uint64_t *pml4e = (uint64_t *)vmm_recursive_table_address(
             recursive_entry, recursive_entry, recursive_entry, recursive_entry,
             pml4n << 3);
 
@@ -324,8 +334,8 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
         return 0;
     }
 
-    uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
-    uint64_t *pdpte = (uint64_t *)vmm_recursive_table_address(
+    const uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
+    const uint64_t *pdpte = (uint64_t *)vmm_recursive_table_address(
             recursive_entry, recursive_entry, recursive_entry, pml4n,
             pdptn << 3);
 
@@ -342,8 +352,8 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
         return 0;
     }
 
-    uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
-    uint64_t *pde = (uint64_t *)vmm_recursive_table_address(
+    const uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
+    const uint64_t *pde = (uint64_t *)vmm_recursive_table_address(
             recursive_entry, recursive_entry, pml4n, pdptn, pdn << 3);
 
     C_DEBUGSTR("    pde @ ");
@@ -359,7 +369,7 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
         return 0;
     }
 
-    uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
+    const uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
     uint64_t *pte = (uint64_t *)vmm_recursive_table_address(
             recursive_entry, pml4n, pdptn, pdn, ptn << 3);
 
@@ -376,7 +386,7 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
         return 0;
     }
 
-    uintptr_t phys = *pte & PAGE_ALIGN_MASK;
+    const uintptr_t phys = *pte & PAGE_ALIGN_MASK;
 
 #ifdef VERY_NOISY_VMM
     C_DEBUGSTR("zeroing entry: ");
@@ -395,6 +405,6 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     return phys;
 }
 
-uintptr_t vmm_unmap_page(uintptr_t virt_addr) {
+uintptr_t vmm_unmap_page(const uintptr_t virt_addr) {
     return vmm_unmap_page_in((uint64_t *)vmm_find_pml4(), virt_addr);
 }

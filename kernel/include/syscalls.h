@@ -21,21 +21,18 @@
 // Maximum number of regions when creating a new process
 #define MAX_PROCESS_REGIONS ((16))
 
-// Initial stack values must fit into one page
-#define MAX_STACK_VALUES ((512))
-
 typedef int64_t SyscallArg;
 
 typedef enum {
-    SYSCALL_OK = 0,
-    SYSCALL_FAILURE = -1,
-    SYSCALL_BAD_NUMBER = -2,
-    SYSCALL_NOT_IMPL = -3,
-    SYSCALL_BADARGS = -4,
-    SYSCALL_BAD_NAME = -5,
+    SYSCALL_OK = 0ULL,
+    SYSCALL_FAILURE = -1ULL,
+    SYSCALL_BAD_NUMBER = -2ULL,
+    SYSCALL_NOT_IMPL = -3ULL,
+    SYSCALL_BADARGS = -4ULL,
+    SYSCALL_BAD_NAME = -5ULL,
 
     /* reserved */
-    SYSCALL_INCAPABLE = -254
+    SYSCALL_INCAPABLE = -254ULL
 } SyscallResult;
 
 typedef struct {
@@ -86,6 +83,7 @@ typedef enum {
     SYSCALL_ID_DEREGISTER_NAMED_CHANNEL,
     SYSCALL_ID_FIND_NAMED_CHANNEL,
     SYSCALL_ID_KILL_CURRENT_TASK,
+    SYSCALL_ID_UNMAP_VIRTUAL,
 
     // sentinel
     SYSCALL_ID_END,

@@ -19,12 +19,10 @@
 #include "capabilities/cookies.h"
 #include "capabilities/map.h"
 #include "debugprint.h"
-#include "fba/alloc.h"
 #include "ipc/channel.h"
 #include "ipc/named.h"
 #include "kprintf.h"
 #include "pmm/pagealloc.h"
-#include "printhex.h"
 #include "process.h"
 #include "process/address_space.h"
 #include "process/memory.h"
@@ -38,6 +36,10 @@
 #include "throttle.h"
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
+
+#ifdef DEBUG_PROCESS_SYSCALLS
+#include "printhex.h"
+#endif
 
 #ifdef CONSERVATIVE_BUILD
 #include "panic.h"
@@ -70,7 +72,7 @@ SYSCALL_HANDLER(debugprint) {
 }
 
 SYSCALL_HANDLER(debugchar) {
-    char chr = (char)arg0;
+    const char chr = (char)arg0;
 
     debugchar(chr);
 
@@ -78,8 +80,8 @@ SYSCALL_HANDLER(debugchar) {
 }
 
 SYSCALL_HANDLER(create_thread) {
-    ThreadFunc func = (ThreadFunc)arg0;
-    uintptr_t user_stack = (uintptr_t)arg1;
+    const ThreadFunc func = (ThreadFunc)arg0;
+    const uintptr_t user_stack = (uintptr_t)arg1;
 
     Task *task = task_create_user(task_current()->owner, user_stack, 0,
                                   (uintptr_t)func, TASK_CLASS_NORMAL);
@@ -90,7 +92,7 @@ SYSCALL_HANDLER(create_thread) {
     sched_unlock_this_cpu();
 #else
     PerCPUState *target_cpu = sched_find_target_cpu();
-    uint64_t lock_flags = sched_lock_any_cpu(target_cpu);
+    const uint64_t lock_flags = sched_lock_any_cpu(target_cpu);
     sched_unblock_on(task, target_cpu);
     sched_unlock_any_cpu(target_cpu, lock_flags);
 #endif
@@ -110,9 +112,9 @@ SYSCALL_HANDLER(memstats) {
 }
 
 SYSCALL_HANDLER(sleep) {
-    uint64_t nanos = (uint64_t)arg0;
+    const uint64_t nanos = (uint64_t)arg0;
 
-    uint64_t lock_flags = sched_lock_this_cpu();
+    const uint64_t lock_flags = sched_lock_this_cpu();
     sleep_task(task_current(), nanos);
     sched_unlock_this_cpu(lock_flags);
 
@@ -135,14 +137,14 @@ SYSCALL_HANDLER(create_process) {
     }
 
     // Ensure number of requested stack values is valid
-    if (process_create_params->stack_value_count > MAX_STACK_VALUES) {
+    if (process_create_params->stack_value_count > MAX_STACK_VALUE_COUNT) {
         return SYSCALL_BADARGS;
     }
 
     // Ensure enough space on stack for the requested values + minimum headroom
     if ((process_create_params->stack_value_count * STACK_VALUE_SIZE) >
         (process_create_params->stack_size - MIN_PROCESS_STACK_HEADROOM)) {
-        return SYSCALL_BADARGS;
+        return (int64_t)SYSCALL_BADARGS;
     }
 
     // Validate regions arguments
@@ -242,9 +244,9 @@ static inline uintptr_t page_align(uintptr_t addr) {
     return addr & 0xfff ? (addr + VM_PAGE_SIZE) & ~(0xfff) : addr;
 }
 
-static inline void undo_partial_map(uintptr_t virtual_base,
-                                    uintptr_t virtual_last,
-                                    uintptr_t new_page) {
+static inline void undo_partial_map(const uintptr_t virtual_base,
+                                    const uintptr_t virtual_last,
+                                    const uintptr_t new_page) {
     if ((new_page & 0xff) == 0) {
         // we allocated a page, so must be failing because there's already a page
         // mapped here... We need to free the page we allocated.
@@ -285,13 +287,21 @@ SYSCALL_HANDLER(map_virtual) {
     virtual_base = page_align(virtual_base);
     size = page_align(size);
 
-    uint64_t page_count = size >> VM_PAGE_LINEAR_SHIFT;
+    if (!IS_USER_ADDRESS(virtual_base)) {
+        // nice try...
+        return 0;
+    }
+
+    if (!IS_USER_ADDRESS(virtual_base + size)) {
+        // also nope...
+        return 0;
+    }
 
     // Let's try to map it in, just using small pages for now...
-    uintptr_t virtual_end = virtual_base + size;
+    const uintptr_t virtual_end = virtual_base + size;
     for (uintptr_t addr = virtual_base; addr < virtual_end;
          addr += VM_PAGE_SIZE) {
-        uintptr_t new_page =
+        const uintptr_t new_page =
                 process_page_alloc(task_current()->owner, physical_region);
 
         if (new_page & 0xff || vmm_virt_to_phys_page(addr)) {
@@ -311,14 +321,39 @@ SYSCALL_HANDLER(map_virtual) {
     return virtual_base;
 }
 
+SYSCALL_HANDLER(unmap_virtual) {
+    size_t size = (size_t)arg0;
+    uintptr_t virtual_base = (uintptr_t)arg1;
+
+    virtual_base = page_align(virtual_base);
+    size = page_align(size);
+
+    if (!IS_USER_ADDRESS(virtual_base)) {
+        return SYSCALL_BADARGS;
+    }
+
+    if (!IS_USER_ADDRESS(virtual_base + size)) {
+        return SYSCALL_BADARGS;
+    }
+
+    while (size > 0) {
+        vmm_unmap_page(virtual_base);
+
+        virtual_base += VM_PAGE_SIZE;
+        size -= VM_PAGE_SIZE;
+    }
+
+    return SYSCALL_OK;
+}
+
 // TODO we need a nicer scheme for return values in all of the below...
 // they're kind of all over the place at the moment...
 //
 
 SYSCALL_HANDLER(send_message) {
-    uint64_t channel_cookie = (uint64_t)arg0;
-    uint64_t tag = (uint64_t)arg1;
-    size_t size = (size_t)arg2;
+    const uint64_t channel_cookie = (uint64_t)arg0;
+    const uint64_t tag = (uint64_t)arg1;
+    const size_t size = (size_t)arg2;
     void *buffer = (void *)arg3;
 
     if (IS_USER_ADDRESS(buffer)) {
@@ -329,7 +364,7 @@ SYSCALL_HANDLER(send_message) {
 }
 
 SYSCALL_HANDLER(recv_message) {
-    uint64_t channel_cookie = (uint64_t)arg0;
+    const uint64_t channel_cookie = (uint64_t)arg0;
     uint64_t *tag = (uint64_t *)arg1;
     size_t *size = (size_t *)arg2;
     void *buffer = (void *)arg3;
@@ -343,8 +378,8 @@ SYSCALL_HANDLER(recv_message) {
 }
 
 SYSCALL_HANDLER(reply_message) {
-    uint64_t message_cookie = (uint64_t)arg0;
-    uint64_t reply = (uint64_t)arg1;
+    const uint64_t message_cookie = (uint64_t)arg0;
+    const uint64_t reply = (uint64_t)arg1;
 
     return ipc_channel_reply(message_cookie, reply);
 }
@@ -352,14 +387,14 @@ SYSCALL_HANDLER(reply_message) {
 SYSCALL_HANDLER(create_channel) { return ipc_channel_create(); }
 
 SYSCALL_HANDLER(destroy_channel) {
-    uint64_t cookie = (uint64_t)arg0;
+    const uint64_t cookie = (uint64_t)arg0;
 
     ipc_channel_destroy(cookie);
     return SYSCALL_OK;
 }
 
 SYSCALL_HANDLER(register_named_channel) {
-    uint64_t cookie = (uint64_t)arg0;
+    const uint64_t cookie = (uint64_t)arg0;
     char *name = (char *)arg1;
 
     if (!IS_USER_ADDRESS(name)) {
@@ -382,9 +417,9 @@ SYSCALL_HANDLER(deregister_named_channel) {
 
     if (named_channel_deregister(name) != 0) {
         return SYSCALL_OK;
-    } else {
-        return SYSCALL_BAD_NAME;
     }
+
+    return SYSCALL_BAD_NAME;
 }
 
 SYSCALL_HANDLER(find_named_channel) {
@@ -400,7 +435,7 @@ SYSCALL_HANDLER(find_named_channel) {
 void thread_exitpoint(void);
 
 SYSCALL_HANDLER(kill_current_task) {
-    Task *current = task_current();
+    const Task *current = task_current();
 
     if (current) {
         sched_lock_this_cpu();
@@ -497,10 +532,18 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
                                     SYSCALL_NAME(find_named_channel));
     stack_syscall_capability_cookie(SYSCALL_ID_KILL_CURRENT_TASK,
                                     SYSCALL_NAME(kill_current_task));
+    stack_syscall_capability_cookie(SYSCALL_ID_UNMAP_VIRTUAL,
+                                    SYSCALL_NAME(unmap_virtual));
+
+    // Stack dummy argc/argv for now
+    // TODO this needs refactoring, syscall init shouldn't be responsible
+    //      for this
+    *--current_stack = 0;
+    *--current_stack = 0;
 
     // Stack a pointer to the first cookie (at the top of the stack)
     --current_stack;
-    *current_stack = (uint64_t)(current_stack + 1);
+    *current_stack = (uint64_t)(current_stack + 3);
 
     // Stack the number of cookies
     *--current_stack = (SYSCALL_ID_END - 1);
@@ -508,20 +551,21 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
     return current_stack;
 }
 
-SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
-                                SyscallArg arg2, SyscallArg arg3,
-                                SyscallArg arg4, SyscallArg capability_cookie) {
+SyscallResult handle_syscall_69(const SyscallArg arg0, const SyscallArg arg1,
+                                const SyscallArg arg2, const SyscallArg arg3,
+                                const SyscallArg arg4,
+                                const SyscallArg capability_cookie) {
 
     Process *proc = task_current()->owner;
 
-    SyscallCapability *cap = (SyscallCapability *)capability_map_lookup(
+    const SyscallCapability *cap = capability_map_lookup(
             &global_capability_map, (uint64_t)capability_cookie);
 
-    if (!cap || !cap->handler) {
-        throttle_abuse(proc);
-        return SYSCALL_INCAPABLE;
+    if (cap && cap->handler) {
+        throttle_reset(proc);
+        return cap->handler(arg0, arg1, arg2, arg3, arg4);
     }
 
-    throttle_reset(proc);
-    return cap->handler(arg0, arg1, arg2, arg3, arg4);
+    throttle_abuse(proc);
+    return SYSCALL_INCAPABLE;
 }
