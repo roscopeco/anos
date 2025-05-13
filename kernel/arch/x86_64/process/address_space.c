@@ -87,10 +87,10 @@ bool address_space_init(void) {
 }
 
 uintptr_t address_space_create(uintptr_t init_stack_vaddr,
-                               const uint64_t init_stack_len,
-                               const uint64_t region_count,
+                               const size_t init_stack_len,
+                               const int region_count,
                                AddressSpaceRegion regions[],
-                               const uint64_t stack_value_count,
+                               const int stack_value_count,
                                const uint64_t *stack_values) {
 
     // align stack vaddr
@@ -237,7 +237,6 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     // or 32 pages, so we keep an extra one for the capabilities etc...
     //
     uint64_t top_phys_stack_pages[INIT_STACK_ARG_PAGES_COUNT];
-    uint8_t current_top_phys_page_idx = 0;
 
     // sort out the requested initial stack, we allocate it in reverse so
     // that the ARG_PAGES pages we store in the top_phys_stack_pages array will
@@ -245,6 +244,8 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     //
     // TODO should only allocate one here, and let #PF handler sort the rest...
     if (init_stack_len) {
+        uint8_t current_top_phys_page_idx = 0;
+
         for (uintptr_t ptr = init_stack_end - VM_PAGE_SIZE;
              ptr >= init_stack_vaddr; ptr -= VM_PAGE_SIZE) {
 
@@ -305,7 +306,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
 
     uint64_t volatile *temp_stack_bottom = (uint64_t *)per_cpu_temp_page;
 
-    for (int i = 0; i < stack_value_count; i++) {
+    for (int i = stack_value_count - 1; i >= 0; i--) {
         if (temp_stack_bottom == (uint64_t *)per_cpu_temp_page) {
             // reached bottom of temp page, need to map the next one
             const uintptr_t phys = top_phys_stack_pages[i >> 9];

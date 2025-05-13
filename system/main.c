@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdnoreturn.h>
+#include <string.h>
 
 #include <anos/syscalls.h>
 #include <anos/types.h>
@@ -39,6 +40,22 @@
 
 #define VM_PAGE_SIZE ((0x1000))
 
+typedef struct {
+    uint64_t capability_id;
+    uint64_t capability_cookie;
+} InitCapability;
+
+typedef struct {
+    uint64_t value_count;
+    uintptr_t *data;
+    size_t allocated_size;
+} InitStackValues;
+
+typedef struct {
+    uint64_t start_byte_ofs;
+    char name[];
+} FileLoadPageQuery;
+
 extern void *_code_start;
 extern void *_code_end;
 extern void *_bss_start;
@@ -47,8 +64,15 @@ extern void *__user_stack_top;
 
 extern AnosRAMFSHeader _system_ramfs_start;
 
+extern uint64_t __syscall_capabilities[];
+
 static char __attribute__((
         aligned(VM_PAGE_SIZE))) ramfs_driver_thread_stack[VM_PAGE_SIZE];
+
+int strnlen(const char *param, int maxlen);
+
+static char __attribute__((aligned(VM_PAGE_SIZE))) argv_p[4096];
+static char __attribute__((aligned(VM_PAGE_SIZE))) newstack_p[4096];
 
 #ifdef TEST_THREAD_KILL
 static char __attribute__((
@@ -127,11 +151,6 @@ static void handle_file_size_query(const uint64_t message_cookie,
         anos_reply_message(message_cookie, 0);
     }
 }
-
-typedef struct {
-    uint64_t start_byte_ofs;
-    char name[];
-} FileLoadPageQuery;
 
 static void handle_file_load_page_query(const uint64_t message_cookie,
                                         const size_t message_size,
@@ -227,12 +246,144 @@ static void kamikaze_thread(void) {
 }
 #endif
 
-static inline unsigned int round_up_to_page_size(size_t size) {
+static inline unsigned int round_up_to_page_size(const size_t size) {
     return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
 }
 
-int64_t create_server_process(const char *file_name,
-                              const uint64_t stack_size) {
+static inline unsigned int round_up_to_machine_word_size(const size_t size) {
+    return (size + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1);
+}
+
+static bool build_new_process_init_values(const uintptr_t stack_top_addr,
+                                          const uint16_t cap_count,
+                                          const InitCapability *capabilities,
+                                          const uint16_t argc,
+                                          const char *argv[],
+                                          InitStackValues *out_init_values) {
+    if (!out_init_values) {
+        return false;
+    }
+
+    if (argc > MAX_ARG_COUNT) {
+        return false;
+    }
+
+    // TODO this is a bit inefficient, running through args twice...
+    uint64_t total_argv_len = 0;
+    if (argc > 0 && argv) {
+        for (int i = 0; i < argc; i++) {
+            if (argv[i]) {
+                total_argv_len += strnlen(argv[i], MAX_ARG_LENGTH - 1) + 1;
+            }
+        }
+    }
+
+    // round up to machine words and convert to value count
+    const uint64_t total_argv_words =
+            round_up_to_machine_word_size(total_argv_len) / sizeof(uintptr_t);
+
+    const uint64_t value_count = total_argv_words + (cap_count * 2) + argc +
+                                 INIT_STACK_STATIC_VALUE_COUNT;
+
+    if (value_count > MAX_STACK_VALUE_COUNT) {
+        return false;
+    }
+
+    // MAX_ARGC is 512, so we only need a page for this...
+    uintptr_t *argv_pointers = (uintptr_t *)argv_p;
+
+    if (!argv_pointers) {
+        return false;
+    }
+
+    const uint64_t stack_blocks_needed = value_count / 512;
+    uintptr_t *new_stack = (uintptr_t *)newstack_p;
+
+    if (stack_blocks_needed > 1) {
+        // TODO remove this once we have malloc'd blocks!
+        return false;
+    }
+
+    if (!new_stack) {
+        // todo free argv pointer page
+        return false;
+    }
+
+    const uintptr_t stack_bottom_addr =
+            stack_top_addr - (sizeof(uintptr_t) * value_count);
+
+    // copy string data first...
+    uint8_t *str_data_ptr =
+            (uint8_t *)new_stack + value_count * sizeof(uintptr_t);
+
+    for (int i = argc - 1; i >= 0; i--) {
+        if (argv[i]) {
+            const int len = strnlen(argv[i], MAX_ARG_LENGTH - 1);
+
+            *--str_data_ptr =
+                    '\0'; // ensure null term because strncpy doesn't...
+            str_data_ptr -= len;
+            strncpy((char *)str_data_ptr, argv[i], len);
+
+            argv_pointers[i] = stack_bottom_addr +
+                               ((uintptr_t)str_data_ptr - (uintptr_t)new_stack);
+        } else {
+            str_data_ptr -= 1;
+            *str_data_ptr = 0;
+        }
+    }
+
+    const uint8_t string_padding = (uintptr_t)str_data_ptr % sizeof(uintptr_t);
+    for (int i = 0; i < string_padding; i++) {
+        *--str_data_ptr = 0;
+    }
+
+    // copy capabilities
+    uintptr_t *long_data_pointer = (uintptr_t *)str_data_ptr;
+
+    if (cap_count > 0 && capabilities) {
+        for (int i = cap_count - 1; i >= 0; i--) {
+            *--long_data_pointer = capabilities[i].capability_cookie;
+            *--long_data_pointer = capabilities[i].capability_id;
+        }
+    }
+
+    const uintptr_t cap_ptr =
+            (cap_count > 0 && capabilities)
+                    ? stack_bottom_addr + ((uintptr_t)long_data_pointer -
+                                           (uintptr_t)new_stack)
+                    : 0;
+
+    // copy argv array
+    for (int i = argc - 1; i >= 0; i--) {
+        *--long_data_pointer = argv_pointers[i];
+    }
+
+    const uintptr_t argv_ptr =
+            stack_bottom_addr +
+            ((uintptr_t)long_data_pointer - (uintptr_t)new_stack);
+
+    // set up argv / argc
+    *--long_data_pointer = argv_ptr;
+    *--long_data_pointer = argc;
+
+    // set up capv / capc
+    *--long_data_pointer = cap_ptr;
+    *--long_data_pointer = cap_count;
+
+    out_init_values->value_count = value_count;
+    out_init_values->data = new_stack;
+    out_init_values->allocated_size = stack_blocks_needed;
+
+    return true;
+}
+
+/*
+ * When calling this, the executable name must be argv[0]!
+ */
+int64_t create_server_process(const uint64_t stack_size, const uint16_t capc,
+                              const InitCapability *capv, const uint16_t argc,
+                              const char *argv[]) {
     // We need to map in SYSTEM's code and BSS segments temporarily,
     // so that the initial_server_loader (loader.c) can do its thing
     // in the new process - it needs our capabilities etc to be
@@ -255,41 +406,13 @@ int64_t create_server_process(const char *file_name,
             },
     };
 
-    extern uint64_t __syscall_capabilities[];
+    InitStackValues init_stack_values;
 
-    constexpr uint8_t init_stack_cap_count = 3;
-    const uintptr_t init_stack_cap_ptr =
-            ((uintptr_t)(&__user_stack_top)) -
-            (init_stack_cap_count * INIT_STACK_CAP_SIZE_LONGS *
-             sizeof(uintptr_t));
-
-    constexpr uint8_t init_stack_argc = 1;
-    const uintptr_t init_stack_argv_ptr =
-            init_stack_cap_ptr - (init_stack_argc * sizeof(uintptr_t));
-
-    constexpr uint16_t init_stack_value_count =
-            init_stack_cap_count * INIT_STACK_CAP_SIZE_LONGS + init_stack_argc +
-            INIT_STACK_STATIC_VALUE_COUNT;
-
-    uint64_t stack_values[init_stack_value_count] = {
-            // Initial capabilities
-            __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
-            SYSCALL_ID_DEBUG_PRINT,
-            __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
-            SYSCALL_ID_DEBUG_CHAR,
-            __syscall_capabilities[SYSCALL_ID_SLEEP],
-            SYSCALL_ID_SLEEP,
-
-            // argc
-            // TODO stack the rest of argv here...
-            (uint64_t)file_name,
-
-            // static pointers / counts
-            init_stack_argv_ptr,
-            init_stack_argc,
-            init_stack_cap_ptr,
-            init_stack_cap_count,
-    };
+    if (!build_new_process_init_values(0x80000000, capc, capv, argc, argv,
+                                       &init_stack_values)) {
+        // failed to init stack...
+        return 0;
+    }
 
     ProcessCreateParams process_create_params;
 
@@ -298,10 +421,12 @@ int64_t create_server_process(const char *file_name,
     process_create_params.stack_size = stack_size;
     process_create_params.region_count = 2;
     process_create_params.regions = regions;
-    process_create_params.stack_value_count = init_stack_value_count;
-    process_create_params.stack_values = stack_values;
+    process_create_params.stack_value_count = init_stack_values.value_count;
+    process_create_params.stack_values = init_stack_values.data;
 
     return anos_create_process(&process_create_params);
+
+    // TODO free stack_values
 }
 
 int main(int argc, char **argv) {
@@ -328,8 +453,28 @@ int main(int argc, char **argv) {
     dump_fs(ramfs);
 #endif
 
-    const int64_t new_pid =
-            create_server_process("boot:/test_server.elf", 0x100000);
+    const InitCapability new_process_caps[] = {
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
+                    .capability_id = SYSCALL_ID_DEBUG_PRINT,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
+                    .capability_id = SYSCALL_ID_DEBUG_CHAR,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_SLEEP],
+                    .capability_id = SYSCALL_ID_SLEEP,
+            },
+    };
+
+    const char *new_process_argv[] = {"boot:/test_server.elf", "Hello, world!"};
+
+    const int64_t new_pid = create_server_process(0x100000, 3, new_process_caps,
+                                                  2, new_process_argv);
     if (new_pid < 0) {
         printf("%s: Failed to create server process\n",
                "boot:/test_server.elf");
