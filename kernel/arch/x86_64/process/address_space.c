@@ -63,7 +63,7 @@ bool address_space_init(void) {
         if ((pml4->entries[i] & PG_PRESENT) == 0) {
 
             // Allocate a page for this PDPT
-            uintptr_t new_pdpt = page_alloc(physical_region);
+            const uintptr_t new_pdpt = page_alloc(physical_region);
             if (new_pdpt & 0xff) {
                 // failed
                 return false;
@@ -77,8 +77,8 @@ bool address_space_init(void) {
             cpu_invalidate_page((uintptr_t)vaddr);
 
             // Zero out the new table
-            for (int i = 0; i < 512; i++) {
-                vaddr[i] = 0;
+            for (int j = 0; j < 512; j++) {
+                vaddr[j] = 0;
             }
         }
     }
@@ -117,7 +117,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
 
     // align shared regions
     for (int i = 0; i < region_count; i++) {
-        AddressSpaceRegion *ptr = &regions[i];
+        const AddressSpaceRegion *ptr = &regions[i];
 
         if (((uintptr_t)ptr->start) > VM_KERNEL_SPACE_START) {
             return 0;
@@ -139,20 +139,20 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
 #endif
 
     // NOTE: pagetable memory is **not** process-owned.
-    uintptr_t new_pml4_phys = page_alloc(physical_region);
+    const uintptr_t new_pml4_phys = page_alloc(physical_region);
 
     if (new_pml4_phys & 0xff) {
         debugstr("Unable to allocate new PML4");
         return 0;
     }
 
-    uint64_t lock_flags = spinlock_lock_irqsave(&address_space_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&address_space_lock);
 
     // Find current pml4
     PageTable *current_pml4 = vmm_find_pml4();
 
     // Map in the new one to the "other" spot
-    uintptr_t saved_other = current_pml4->entries[RECURSIVE_ENTRY_OTHER];
+    const uintptr_t saved_other = current_pml4->entries[RECURSIVE_ENTRY_OTHER];
     current_pml4->entries[RECURSIVE_ENTRY_OTHER] =
             new_pml4_phys | PG_WRITE | PG_PRESENT;
 
@@ -201,7 +201,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     printhex8(region_count, debugchar);
     debugstr(" shared region(s)\n");
     for (int i = 0; i < region_count; i++) {
-        uintptr_t region_end = regions[i].start + regions[i].len_bytes;
+        const uintptr_t region_end = regions[i].start + regions[i].len_bytes;
 
         for (uintptr_t ptr = regions[i].start; ptr < region_end;
              ptr += VM_PAGE_SIZE) {
@@ -210,7 +210,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
             printhex64(ptr, debugchar);
             debugstr("\n");
 
-            uintptr_t shared_phys = vmm_virt_to_phys_page(ptr);
+            const uintptr_t shared_phys = vmm_virt_to_phys_page(ptr);
 
             if (shared_phys) {
                 // TODO what if this fails (to alloc table pages)?
