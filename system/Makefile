@@ -43,6 +43,7 @@ SYSTEM_OBJS=main.o																\
 			loader.o															\
 			elf.o																\
 			trampolines.o														\
+			process.o															\
 			system_ramfs_linkable.o
 
 ALL_TARGETS=$(SYSTEM_BIN)

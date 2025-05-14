@@ -11,17 +11,10 @@
 #include <anos/syscalls.h>
 #include <anos/types.h>
 
-#include "loader.h"
 #include "path.h"
 #include "printf.h"
+#include "process.h"
 #include "ramfs.h"
-
-#if (__STDC_VERSION__ < 202000)
-// TODO Apple clang doesn't support constexpr yet - Jan 2025
-#ifndef constexpr
-#define constexpr const
-#endif
-#endif
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -39,13 +32,14 @@
 
 #define VM_PAGE_SIZE ((0x1000))
 
-extern void *_code_start;
-extern void *_code_end;
-extern void *_bss_start;
-extern void *_bss_end;
-extern void *__user_stack_top;
+typedef struct {
+    uint64_t start_byte_ofs;
+    char name[];
+} FileLoadPageQuery;
 
 extern AnosRAMFSHeader _system_ramfs_start;
+
+extern uint64_t __syscall_capabilities[];
 
 static char __attribute__((
         aligned(VM_PAGE_SIZE))) ramfs_driver_thread_stack[VM_PAGE_SIZE];
@@ -127,11 +121,6 @@ static void handle_file_size_query(const uint64_t message_cookie,
         anos_reply_message(message_cookie, 0);
     }
 }
-
-typedef struct {
-    uint64_t start_byte_ofs;
-    char name[];
-} FileLoadPageQuery;
 
 static void handle_file_load_page_query(const uint64_t message_cookie,
                                         const size_t message_size,
@@ -227,83 +216,6 @@ static void kamikaze_thread(void) {
 }
 #endif
 
-static inline unsigned int round_up_to_page_size(size_t size) {
-    return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
-}
-
-int64_t create_server_process(const char *file_name,
-                              const uint64_t stack_size) {
-    // We need to map in SYSTEM's code and BSS segments temporarily,
-    // so that the initial_server_loader (loader.c) can do its thing
-    // in the new process - it needs our capabilities etc to be
-    // able to actually load the binary.
-    //
-    // The code there is responsible for removing these mappings
-    // before handing off control to the new process.
-    //
-    // NOTE keep this in-step with unmapping in loader.c!
-    ProcessMemoryRegion regions[2] = {
-            {
-                    .start = (uintptr_t)&_code_start,
-                    .len_bytes = round_up_to_page_size((uintptr_t)&_code_end -
-                                                       (uintptr_t)&_code_start),
-            },
-            {
-                    .start = (uintptr_t)&_bss_start,
-                    .len_bytes = round_up_to_page_size((uintptr_t)&_bss_end -
-                                                       (uintptr_t)&_bss_start),
-            },
-    };
-
-    extern uint64_t __syscall_capabilities[];
-
-    constexpr uint8_t init_stack_cap_count = 3;
-    const uintptr_t init_stack_cap_ptr =
-            ((uintptr_t)(&__user_stack_top)) -
-            (init_stack_cap_count * INIT_STACK_CAP_SIZE_LONGS *
-             sizeof(uintptr_t));
-
-    constexpr uint8_t init_stack_argc = 1;
-    const uintptr_t init_stack_argv_ptr =
-            init_stack_cap_ptr - (init_stack_argc * sizeof(uintptr_t));
-
-    constexpr uint16_t init_stack_value_count =
-            init_stack_cap_count * INIT_STACK_CAP_SIZE_LONGS + init_stack_argc +
-            INIT_STACK_STATIC_VALUE_COUNT;
-
-    uint64_t stack_values[init_stack_value_count] = {
-            // Initial capabilities
-            __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
-            SYSCALL_ID_DEBUG_PRINT,
-            __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
-            SYSCALL_ID_DEBUG_CHAR,
-            __syscall_capabilities[SYSCALL_ID_SLEEP],
-            SYSCALL_ID_SLEEP,
-
-            // argc
-            // TODO stack the rest of argv here...
-            (uint64_t)file_name,
-
-            // static pointers / counts
-            init_stack_argv_ptr,
-            init_stack_argc,
-            init_stack_cap_ptr,
-            init_stack_cap_count,
-    };
-
-    ProcessCreateParams process_create_params;
-
-    process_create_params.entry_point = initial_server_loader;
-    process_create_params.stack_base = STACK_TOP - stack_size;
-    process_create_params.stack_size = stack_size;
-    process_create_params.region_count = 2;
-    process_create_params.regions = regions;
-    process_create_params.stack_value_count = init_stack_value_count;
-    process_create_params.stack_values = stack_values;
-
-    return anos_create_process(&process_create_params);
-}
-
 int main(int argc, char **argv) {
     banner();
 
@@ -328,8 +240,28 @@ int main(int argc, char **argv) {
     dump_fs(ramfs);
 #endif
 
-    const int64_t new_pid =
-            create_server_process("boot:/test_server.elf", 0x100000);
+    const InitCapability new_process_caps[] = {
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
+                    .capability_id = SYSCALL_ID_DEBUG_PRINT,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
+                    .capability_id = SYSCALL_ID_DEBUG_CHAR,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_SLEEP],
+                    .capability_id = SYSCALL_ID_SLEEP,
+            },
+    };
+
+    const char *new_process_argv[] = {"boot:/test_server.elf", "Hello, world!"};
+
+    const int64_t new_pid = create_server_process(0x100000, 3, new_process_caps,
+                                                  2, new_process_argv);
     if (new_pid < 0) {
         printf("%s: Failed to create server process\n",
                "boot:/test_server.elf");

@@ -11,6 +11,7 @@
 #define __ANOS_KERNEL_ARCH_X86_64_PROCESS_ADDRESS_SPACE_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 // We allow up to 33 pages (128KiB) at the top of the stack for initial
@@ -50,9 +51,9 @@ bool address_space_init(void);
  * Returns the physical address of the new PML4.
  */
 uintptr_t address_space_create(uintptr_t init_stack_vaddr,
-                               uint64_t init_stack_len, uint64_t region_count,
+                               size_t init_stack_len, int region_count,
                                AddressSpaceRegion regions[],
-                               uint64_t stack_value_count,
+                               int stack_value_count,
                                const uint64_t *stack_values);
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_PROCESS_ADDRESS_SPACE_H

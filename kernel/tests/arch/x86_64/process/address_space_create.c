@@ -194,12 +194,12 @@ static MunitResult test_stack_values_copied(const MunitParameter params[],
 
     munit_assert_not_null((void *)result);
 
-    uint64_t *mock_stacked_page = (uint64_t *)mock_cpu_temp_page;
+    const uint64_t *mock_stacked_page = (uint64_t *)mock_cpu_temp_page;
 
-    munit_assert_uint64(mock_stacked_page[511], ==, 0xDEAD);
-    munit_assert_uint64(mock_stacked_page[510], ==, 0xBEEF);
-    munit_assert_uint64(mock_stacked_page[509], ==, 0xFEED);
-    munit_assert_uint64(mock_stacked_page[508], ==, 0xFACE);
+    munit_assert_uint64(mock_stacked_page[511], ==, 0xFACE);
+    munit_assert_uint64(mock_stacked_page[510], ==, 0xFEED);
+    munit_assert_uint64(mock_stacked_page[509], ==, 0xBEEF);
+    munit_assert_uint64(mock_stacked_page[508], ==, 0xDEAD);
 
     return MUNIT_OK;
 }

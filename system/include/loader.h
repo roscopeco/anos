@@ -33,7 +33,8 @@
 // arg values etc.
 #define INIT_STACK_ARG_PAGES_COUNT ((33))
 
-#define MAX_STACK_VALUE_COUNT ((INIT_STACK_ARG_PAGES_COUNT - 1) * VM_PAGE_SIZE / (sizeof(uintptr_t))
+#define MAX_STACK_VALUE_COUNT                                                  \
+    ((INIT_STACK_ARG_PAGES_COUNT - 1) * VM_PAGE_SIZE / (sizeof(uintptr_t)))
 
 noreturn void initial_server_loader(void *initial_sp);
 
