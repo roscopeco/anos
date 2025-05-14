@@ -291,6 +291,9 @@ kernel/tests/build/capabilities/map: kernel/tests/munit.o kernel/tests/capabilit
 kernel/tests/build/managed_resources/resources: kernel/tests/munit.o kernel/tests/managed_resources/resources.o kernel/tests/build/managed_resources/resources.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/structs/region_tree: kernel/tests/munit.o kernel/tests/structs/region_tree.o kernel/tests/build/structs/region_tree.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -358,7 +361,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/process/process									\
 			kernel/tests/build/process/memory									\
 			kernel/tests/build/capabilities/map									\
-			kernel/tests/build/managed_resources/resources
+			kernel/tests/build/managed_resources/resources						\
+			kernel/tests/build/structs/region_tree
 
 ifeq ($(HOST_ARCH),i386)	# macOS
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
