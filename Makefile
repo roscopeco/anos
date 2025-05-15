@@ -300,6 +300,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/managed_resources/resources.o							\
 			$(STAGE3_DIR)/capabilities/map.o									\
 			$(STAGE3_DIR)/capabilities/capabilities.o							\
+			$(STAGE3_DIR)/structs/region_tree.o									\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 else

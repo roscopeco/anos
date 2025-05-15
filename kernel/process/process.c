@@ -49,21 +49,33 @@ Process *process_create(uintptr_t pml4) {
     SpinLock *lock = slab_alloc_block();
 
     if (!lock) {
-        return NULL;
+        return nullptr;
+    }
+
+    ProcessMemoryInfo *meminfo = slab_alloc_block();
+
+    if (!meminfo) {
+        slab_free(lock);
+        return nullptr;
     }
 
     Process *process = slab_alloc_block();
 
     if (!process) {
         slab_free(lock);
-        return NULL;
+        slab_free(meminfo);
+        return nullptr;
     }
 
     process->pid = next_pid++;
     process->pml4 = pml4;
-    process->pages = NULL;
-    process->pages_lock = lock;
-    process->res_head = process->res_tail = NULL;
+
+    meminfo->pages = nullptr;
+    meminfo->pages_lock = lock;
+    meminfo->res_head = meminfo->res_tail = nullptr;
+    meminfo->regions = nullptr;
+
+    process->meminfo = meminfo;
 
     return process;
 }
@@ -91,9 +103,10 @@ static inline void destroy_process_tasks(Process *process) {
 
 void process_destroy(Process *process) {
     destroy_process_tasks(process);
-    managed_resources_free_all(process->res_head);
+    managed_resources_free_all(process->meminfo->res_head);
     process_release_owned_pages(process);
-    slab_free(process->pages_lock);
+    region_tree_free_all(&process->meminfo->regions);
+    slab_free(process->meminfo->pages_lock);
     slab_free(process);
 }
 
@@ -103,16 +116,16 @@ bool process_add_managed_resource(Process *process,
         return false;
     }
 
-    managed_resource->this.next = NULL;
+    managed_resource->this.next = nullptr;
 
-    if (process->res_tail) {
-        process->res_tail->this.next = (ListNode *)managed_resource;
+    if (process->meminfo->res_tail) {
+        process->meminfo->res_tail->this.next = (ListNode *)managed_resource;
     } else {
         // List was empty
-        process->res_head = managed_resource;
+        process->meminfo->res_head = managed_resource;
     }
 
-    process->res_tail = managed_resource;
+    process->meminfo->res_tail = managed_resource;
 
     return true;
 }
@@ -123,22 +136,22 @@ bool process_remove_managed_resource(Process *process,
         return false;
     }
 
-    ManagedResource *prev = NULL;
-    ManagedResource *curr = process->res_head;
+    ManagedResource *prev = nullptr;
+    ManagedResource *curr = process->meminfo->res_head;
 
     while (curr) {
         if (curr == managed_resource) {
             if (prev) {
                 prev->this.next = curr->this.next;
             } else {
-                process->res_head = (ManagedResource *)curr->this.next;
+                process->meminfo->res_head = (ManagedResource *)curr->this.next;
             }
 
-            if (process->res_tail == managed_resource) {
-                process->res_tail = prev;
+            if (process->meminfo->res_tail == managed_resource) {
+                process->meminfo->res_tail = prev;
             }
 
-            managed_resource->this.next = NULL; // clean up
+            managed_resource->this.next = nullptr; // clean up
             return true;
         }
 

@@ -12,6 +12,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "slab/alloc.h"
+
 #define USERSPACE_LIMIT 0x8000000000000000ULL
 
 typedef struct Region {
@@ -24,9 +26,9 @@ typedef struct Region {
     int height;
 } Region;
 
-static int height(const Region *node) { return node ? node->height : 0; }
+static int height(Region *node) { return node ? node->height : 0; }
 
-static int max(const int a, const int b) { return a > b ? a : b; }
+static int max(int a, int b) { return a > b ? a : b; }
 
 static Region *rotate_right(Region *y) {
     Region *x = y->left;
@@ -54,22 +56,19 @@ static Region *rotate_left(Region *x) {
     return y;
 }
 
-static int get_balance(const Region *node) {
+static int get_balance(Region *node) {
     return node ? height(node->left) - height(node->right) : 0;
 }
 
 Region *region_tree_insert(Region *node, Region *new_region) {
-    if (!new_region || new_region->end <= new_region->start) {
+    if (!new_region || new_region->end <= new_region->start)
         return node; // invalid region
-    }
 
-    if (new_region->end > USERSPACE_LIMIT) {
+    if (new_region->end > USERSPACE_LIMIT)
         return node; // kernel-space mapping not allowed
-    }
 
-    if (!node) {
+    if (!node)
         return new_region;
-    }
 
     if (new_region->start < node->start) {
         node->left = region_tree_insert(node->left, new_region);
@@ -79,7 +78,7 @@ Region *region_tree_insert(Region *node, Region *new_region) {
 
     node->height = 1 + max(height(node->left), height(node->right));
 
-    const int balance = get_balance(node);
+    int balance = get_balance(node);
 
     // Left Left
     if (balance > 1 && new_region->start < node->left->start)
@@ -119,38 +118,30 @@ Region *region_tree_lookup(Region *node, uintptr_t addr) {
 
 void region_tree_visit_all(Region *node, void (*fn)(Region *, void *),
                            void *data) {
-    if (!node) {
+    if (!node)
         return;
-    }
-
     region_tree_visit_all(node->left, fn, data);
     fn(node, data);
     region_tree_visit_all(node->right, fn, data);
 }
 
-bool region_tree_resize(Region *node, const uintptr_t new_end) {
-    if (!node || new_end <= node->start || new_end > USERSPACE_LIMIT) {
+bool region_tree_resize(Region *node, uintptr_t new_end) {
+    if (!node || new_end <= node->start || new_end > USERSPACE_LIMIT)
         return false;
-    }
-
     node->end = new_end;
     return true;
 }
 
 static Region *min_value_node(Region *node) {
     Region *current = node;
-
-    while (current && current->left) {
+    while (current && current->left)
         current = current->left;
-    }
-
     return current;
 }
 
 Region *region_tree_remove(Region *root, uintptr_t start) {
-    if (!root) {
+    if (!root)
         return NULL;
-    }
 
     if (start < root->start) {
         root->left = region_tree_remove(root->left, start);
@@ -159,10 +150,10 @@ Region *region_tree_remove(Region *root, uintptr_t start) {
     } else {
         if (!root->left || !root->right) {
             Region *temp = root->left ? root->left : root->right;
+            slab_free(root);
             return temp;
         } else {
-            const Region *temp = min_value_node(root->right);
-
+            Region *temp = min_value_node(root->right);
             root->start = temp->start;
             root->end = temp->end;
             root->metadata = temp->metadata;
@@ -190,4 +181,19 @@ Region *region_tree_remove(Region *root, uintptr_t start) {
     }
 
     return root;
+}
+
+void region_tree_free_all(Region **root) {
+    if (!root || !*root)
+        return;
+
+    Region *node = *root;
+    Region *left = node->left;
+    Region *right = node->right;
+
+    region_tree_free_all(&left);
+    region_tree_free_all(&right);
+    slab_free(node);
+
+    *root = nullptr;
 }

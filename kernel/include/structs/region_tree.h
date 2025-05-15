@@ -73,6 +73,11 @@ void region_tree_visit_all(Region *node, void (*fn)(Region *, void *),
 bool region_tree_resize(Region *node, uintptr_t new_end);
 
 /*
+ * region_tree_free_all - Free a whole region tree.
+ */
+void region_tree_free_all(Region **root);
+
+/*
  * region_tree_maybe_coalesce - (Optional) Merge adjacent compatible regions
  * This function is not implemented yet, but may be used in future if user
  * syscall patterns lead to excessive fragmentation.
