@@ -35,6 +35,17 @@
 #endif
 #endif
 
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support nullptr yet - May 2025
+#ifndef nullptr
+#ifdef NULL
+#define nullptr NULL
+#else
+#define nullptr (((void *)0))
+#endif
+#endif
+#endif
+
 STATIC_EXCEPT_TESTS _Atomic volatile uint64_t next_pid;
 
 void process_init(void) { next_pid = 1; }

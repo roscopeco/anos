@@ -246,7 +246,7 @@ kernel/tests/build/vmm/recursive: kernel/tests/munit.o kernel/tests/vmm/recursiv
 kernel/tests/build/task: kernel/tests/munit.o kernel/tests/task.o kernel/tests/build/task.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/build/structs/pq.o kernel/tests/build/sched/idle.o kernel/tests/build/process/process.o kernel/tests/build/managed_resources/resources.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_task.o kernel/tests/mock_spinlock.o
+kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/build/structs/pq.o kernel/tests/build/sched/idle.o kernel/tests/build/process/process.o kernel/tests/build/managed_resources/resources.o kernel/tests/build/structs/region_tree.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_task.o kernel/tests/mock_spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/arch/x86_64/sched/lock: kernel/tests/munit.o kernel/tests/arch/x86_64/sched/lock.o kernel/tests/build/arch/x86_64/sched/lock.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
@@ -282,7 +282,7 @@ kernel/tests/build/structs/shift_array: kernel/tests/munit.o kernel/tests/struct
 kernel/tests/build/process/memory: kernel/tests/munit.o kernel/tests/process/memory.o kernel/tests/build/process/memory.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/process/process: kernel/tests/munit.o kernel/tests/process/process.o kernel/tests/build/process/process.o
+kernel/tests/build/process/process: kernel/tests/munit.o kernel/tests/process/process.o kernel/tests/build/process/process.o kernel/tests/build/structs/region_tree.o kernel/tests/mock_slab_malloc.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/capabilities/map: kernel/tests/munit.o kernel/tests/capabilities/map.o kernel/tests/build/capabilities/map.o

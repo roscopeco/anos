@@ -15,6 +15,17 @@
 #include "process/memory.h"
 #include "structs/ref_count_map.h"
 
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support nullptr yet - May 2025
+#ifndef nullptr
+#ifdef NULL
+#define nullptr NULL
+#else
+#define nullptr (((void *)0))
+#endif
+#endif
+#endif
+
 #define PAGES_PER_BLOCK                                                        \
     ((4096 - sizeof(struct ProcessPageBlock *)) / sizeof(ProcessPageEntry))
 

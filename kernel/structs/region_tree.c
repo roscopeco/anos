@@ -15,6 +15,17 @@
 #include "slab/alloc.h"
 #include "structs/region_tree.h"
 
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support nullptr yet - May 2025
+#ifndef nullptr
+#ifdef NULL
+#define nullptr NULL
+#else
+#define nullptr (((void *)0))
+#endif
+#endif
+#endif
+
 static int height(Region *node) { return node ? node->height : 0; }
 
 static int max(int a, int b) { return a > b ? a : b; }

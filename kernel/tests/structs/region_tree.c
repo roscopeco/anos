@@ -13,6 +13,8 @@
 
 #include "structs/region_tree.h"
 
+void slab_free(uintptr_t addr) { /* nothing */ }
+
 static Region *make_region(uintptr_t start, uintptr_t end) {
     static Region pool[128];
     static size_t used = 0;
@@ -20,7 +22,7 @@ static Region *make_region(uintptr_t start, uintptr_t end) {
     Region *r = &pool[used++];
     *r = (Region){.start = start,
                   .end = end,
-                  .metadata = NULL,
+                  .flags = 0,
                   .left = NULL,
                   .right = NULL,
                   .height = 1};
