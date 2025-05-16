@@ -14,6 +14,7 @@
 #include "process.h"
 
 #include "mock_slab.h"
+#include "slab/alloc.h"
 
 static ManagedResource *freed_resources_head = NULL;
 
@@ -54,6 +55,10 @@ static MunitResult test_process_init_and_create(const MunitParameter params[],
     // 1 for Process, one for ProcessMemoryInfo, one for lock
     munit_assert_int(mock_slab_get_alloc_count(), ==, 3);
 
+    slab_free(p->meminfo->pages_lock);
+    slab_free(p->meminfo);
+    slab_free((void *)p);
+
     return MUNIT_OK;
 }
 
@@ -92,7 +97,7 @@ static MunitResult test_process_destroy(const MunitParameter params[],
     // Check that resources were freed
     munit_assert_ptr_equal(freed_resources_head, resources);
     munit_assert_int(mock_slab_get_free_count(), ==,
-                     2); // 1 for process, 1 for task
+                     3); // 1 for process, 1 for meminfo 1 for task
 
     return MUNIT_OK;
 }

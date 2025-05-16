@@ -118,6 +118,7 @@ void process_destroy(Process *process) {
     process_release_owned_pages(process);
     region_tree_free_all(&process->meminfo->regions);
     slab_free(process->meminfo->pages_lock);
+    slab_free(process->meminfo);
     slab_free(process);
 }
 
