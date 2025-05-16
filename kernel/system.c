@@ -128,38 +128,6 @@ noreturn void start_system(void) {
                      system_start_phys + (i << 12), flags);
     }
 
-#if 0
-    // TODO the way this is set up currently, there's no way to know how much
-    // BSS/Data we need... We'll just map a few pages for now...
-
-    // Set up pages for the user bss / data
-    //
-    // Pages mapped here will **not** be process pages, since we don't have
-    // a Process* for SYSTEM yet, but it doesn't particularly matter since
-    // system _should_ never die (and eventually we'll panic if it does).
-    //
-    uint64_t user_bss = 0x0000000040000000;
-    for (int i = 0; i < SYSTEM_BSS_PAGE_COUNT; i++) {
-        uintptr_t user_bss_phys = page_alloc(physical_region);
-        vmm_map_page(user_bss + (i * VM_PAGE_SIZE), user_bss_phys,
-                     flags | PG_WRITE);
-    }
-
-    // ... and a page below that for the user stack
-    uint64_t user_stack = user_bss;
-    for (int i = 0; i < SYSTEM_USER_STACK_PAGE_COUNT; i++) {
-        user_stack -= VM_PAGE_SIZE;
-        uint64_t user_stack_phys = page_alloc(physical_region);
-        vmm_map_page(user_stack, user_stack_phys, flags | PG_WRITE);
-    }
-
-    // grant all syscall capabilities to SYSTEM...
-    uint64_t *user_starting_sp = syscall_init_capabilities((void *)user_bss);
-
-    // ... the FBA can give us a kernel stack...
-    void *kernel_stack =
-            fba_alloc_blocks(SYSTEM_KERNEL_STACK_PAGE_COUNT); // 16KiB
-#else
     extern uintptr_t kernel_zero_page;
     // TODO the way this is set up currently, there's no way to know how much
     //      BSS/Data we need... We'll just map a few pages for now...
@@ -194,7 +162,6 @@ noreturn void start_system(void) {
     // mode switch...
     void *kernel_stack =
             fba_alloc_blocks(SYSTEM_KERNEL_STACK_PAGE_COUNT); // 16KiB
-#endif
 
     // create a process and task for system
     if (!sched_init((uintptr_t)user_starting_sp,
