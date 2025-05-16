@@ -33,6 +33,8 @@
 #include "std/string.h"
 #include "structs/region_tree.h"
 #include "syscalls.h"
+
+#include "printhex.h"
 #include "task.h"
 #include "throttle.h"
 #include "vmm/vmconfig.h"
@@ -241,7 +243,7 @@ SYSCALL_HANDLER(create_process) {
     return new_process->pid;
 }
 
-static inline uintptr_t page_align(uintptr_t addr) {
+static inline uintptr_t page_align(const uintptr_t addr) {
     return addr & 0xfff ? (addr + VM_PAGE_SIZE) & ~(0xfff) : addr;
 }
 
@@ -461,12 +463,12 @@ SYSCALL_HANDLER(kill_current_task) {
 
 static Region *region_tree_find_adjacent(Region *node, const uintptr_t start,
                                          const uintptr_t end,
-                                         const void *metadata) {
+                                         const uint64_t flags) {
     while (node) {
-        if (end == node->start && metadata == node->metadata) {
+        if (end == node->start && flags == node->flags) {
             return node;
         }
-        if (start == node->end && metadata == node->metadata) {
+        if (start == node->end && flags == node->flags) {
             return node;
         }
         if (end <= node->start) {
@@ -498,7 +500,15 @@ static bool region_tree_overlaps(const Region *node, const uintptr_t start,
 SYSCALL_HANDLER(create_region) {
     const uintptr_t start = (uintptr_t)arg0;
     const uintptr_t end = (uintptr_t)arg1;
-    void *metadata = (void *)arg2;
+    const uint64_t flags = (uint64_t)arg2;
+
+#ifdef DEBUG_REGION_SYSCALLS
+    debugstr("CREATE REGION! 0x");
+    printhex64(start, debugchar);
+    debugstr(" - 0x");
+    printhex64(end, debugchar);
+    debugstr("\n");
+#endif
 
     if ((start & 0xFFF) || (end & 0xFFF) || end <= start ||
         start >= USERSPACE_LIMIT || end > USERSPACE_LIMIT) {
@@ -509,7 +519,7 @@ SYSCALL_HANDLER(create_region) {
 
     // Try coalescing with an adjacent region if one exists
     Region *adj = region_tree_find_adjacent(proc->meminfo->regions, start, end,
-                                            metadata);
+                                            flags);
     if (adj) {
         if (end == adj->start) {
             adj->start = start;
@@ -531,13 +541,18 @@ SYSCALL_HANDLER(create_region) {
     *region = (Region){
             .start = start,
             .end = end,
-            .metadata = metadata,
+            .flags = flags,
             .left = nullptr,
             .right = nullptr,
             .height = 1,
     };
 
     proc->meminfo->regions = region_tree_insert(proc->meminfo->regions, region);
+
+#ifdef DEBUG_REGION_SYSCALLS
+    debugstr("CREATE REGION OK!\n");
+#endif
+
     return SYSCALL_OK;
 }
 

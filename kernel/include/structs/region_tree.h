@@ -26,18 +26,24 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define USERSPACE_LIMIT 0x0000800000000000ULL
+#include "anos_assert.h"
+
+#define USERSPACE_LIMIT 0x8000000000000000ULL
 
 /* Region node - managed in AVL tree */
 typedef struct Region {
     uintptr_t start; // Start of region (inclusive)
     uintptr_t end;   // End of region (exclusive)
-    void *metadata;  // Optional metadata (e.g., permissions/type)
+    uint64_t flags;  // type etc
 
     struct Region *left;  // Left child (lower addresses)
     struct Region *right; // Right child (higher addresses)
-    int height;           // AVL tree node height
+    uint64_t height;      // AVL tree node height
+
+    uint64_t reserved[2];
 } Region;
+
+static_assert_sizeof(Region, ==, 64);
 
 /*
  * region_tree_insert - Insert a region into the tree

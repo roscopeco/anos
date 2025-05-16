@@ -19,6 +19,13 @@
 #include "vmm/vmmapper.h"
 #include "x86_64/kdrivers/cpu.h"
 
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support constexpr yet - Jan 2025
+#ifndef constexpr
+#define constexpr const
+#endif
+#endif
+
 #define SYSTEM_BSS_PAGE_COUNT 10
 #define SYSTEM_KERNEL_STACK_PAGE_COUNT 4
 #define SYSTEM_USER_STACK_PAGE_COUNT 4
@@ -113,7 +120,7 @@ noreturn void start_system(void) {
             (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
     const uint64_t system_len_pages = system_len_bytes >> VM_PAGE_LINEAR_SHIFT;
 
-    const uint16_t flags = PG_PRESENT | PG_USER;
+    constexpr uint16_t flags = PG_PRESENT | PG_WRITE | PG_USER;
 
     // Map pages for the user code
     for (int i = 0; i < system_len_pages; i++) {
@@ -121,6 +128,7 @@ noreturn void start_system(void) {
                      system_start_phys + (i << 12), flags);
     }
 
+#if 0
     // TODO the way this is set up currently, there's no way to know how much
     // BSS/Data we need... We'll just map a few pages for now...
 
@@ -132,7 +140,7 @@ noreturn void start_system(void) {
     //
     uint64_t user_bss = 0x0000000040000000;
     for (int i = 0; i < SYSTEM_BSS_PAGE_COUNT; i++) {
-        uint64_t user_bss_phys = page_alloc(physical_region);
+        uintptr_t user_bss_phys = page_alloc(physical_region);
         vmm_map_page(user_bss + (i * VM_PAGE_SIZE), user_bss_phys,
                      flags | PG_WRITE);
     }
@@ -151,6 +159,42 @@ noreturn void start_system(void) {
     // ... the FBA can give us a kernel stack...
     void *kernel_stack =
             fba_alloc_blocks(SYSTEM_KERNEL_STACK_PAGE_COUNT); // 16KiB
+#else
+    extern uintptr_t kernel_zero_page;
+    // TODO the way this is set up currently, there's no way to know how much
+    //      BSS/Data we need... We'll just map a few pages for now...
+
+    // Set up pages for the user bss / data - we're not allocating
+    // here, we're just mapping the zeropage COW...
+    uint64_t user_bss = 0x0000000040000000;
+    for (int i = 0; i < SYSTEM_BSS_PAGE_COUNT; i++) {
+        vmm_map_page(user_bss + (i * VM_PAGE_SIZE), kernel_zero_page,
+                     PG_PRESENT | PG_USER | PG_COPY_ON_WRITE);
+    }
+
+    // ... and a few pages below that for the user stack, again, not
+    // allocating, just zeropage / COW.
+    uint64_t user_stack = user_bss;
+    for (int i = 0; i < SYSTEM_USER_STACK_PAGE_COUNT; i++) {
+        user_stack -= VM_PAGE_SIZE;
+        vmm_map_page(user_stack, kernel_zero_page,
+                     PG_PRESENT | PG_USER | PG_COPY_ON_WRITE);
+    }
+
+    // grant all syscall capabilities to SYSTEM...
+    //
+    // TODO this is why the #PF handler has to support "no current process",
+    //      because we're not running SYSTEM yet and haven't set up
+    //      current_task(). If not for this, we wouldn't need that path...
+    //
+    uint64_t *user_starting_sp = syscall_init_capabilities((void *)user_bss);
+
+    // ... the FBA can give us a kernel stack... We'll allocate this, it's
+    // small, and saves us weirdness when we pagefault during a interrupt/trap
+    // mode switch...
+    void *kernel_stack =
+            fba_alloc_blocks(SYSTEM_KERNEL_STACK_PAGE_COUNT); // 16KiB
+#endif
 
     // create a process and task for system
     if (!sched_init((uintptr_t)user_starting_sp,

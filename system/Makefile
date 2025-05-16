@@ -22,8 +22,9 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #	DEBUG_SERVER_LOADER		Debug the initial server program loader
 #
 #	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
+#	TEST_LIBC_MALLOC		Do a bit of malloc'ing to check that's all working
 #
-CDEFS=
+CDEFS=-DTEST_LIBC_MALLOC
 
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(THIS_DIR)/..)

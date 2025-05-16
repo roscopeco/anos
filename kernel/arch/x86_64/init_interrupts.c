@@ -32,8 +32,11 @@ extern void pic_init(void);
 // These can't live here long-term, but it'll do for now...
 static IdtEntry idt[256];
 static IDTR idtr;
+static uint16_t saved_kernel_cs;
 
 void idt_install(uint16_t kernel_cs) {
+    saved_kernel_cs = kernel_cs;
+
     install_trap(0);
     install_trap(1);
     install_trap(2);
@@ -107,4 +110,11 @@ void idt_install(uint16_t kernel_cs) {
 
     // Enable interrupts
     __asm__ volatile("sti");
+}
+
+void idt_install_isr(const uint8_t vector, isr_dispatcher *dispatcher,
+                     const uint8_t ist_entry, const uint8_t dpl,
+                     const uint8_t handler_type, const uint8_t present) {
+    idt_entry(idt + vector, dispatcher, saved_kernel_cs, ist_entry,
+              idt_attr(present ? 1 : 0, dpl, handler_type));
 }

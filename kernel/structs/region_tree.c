@@ -13,18 +13,7 @@
 #include <stdint.h>
 
 #include "slab/alloc.h"
-
-#define USERSPACE_LIMIT 0x8000000000000000ULL
-
-typedef struct Region {
-    uintptr_t start;
-    uintptr_t end; // exclusive
-    void *metadata;
-
-    struct Region *left;
-    struct Region *right;
-    int height;
-} Region;
+#include "structs/region_tree.h"
 
 static int height(Region *node) { return node ? node->height : 0; }
 
@@ -156,7 +145,7 @@ Region *region_tree_remove(Region *root, uintptr_t start) {
             Region *temp = min_value_node(root->right);
             root->start = temp->start;
             root->end = temp->end;
-            root->metadata = temp->metadata;
+            root->flags = temp->flags;
             root->right = region_tree_remove(root->right, temp->start);
         }
     }

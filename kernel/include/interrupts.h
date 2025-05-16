@@ -42,4 +42,8 @@ void idt_r(IDTR *target, uintptr_t base, uint16_t limit);
 
 void idt_install(uint16_t kernel_cs);
 
+void idt_install_isr(uint8_t vector, isr_dispatcher *dispatcher,
+                     uint8_t ist_entry, uint8_t dpl, uint8_t handler_type,
+                     uint8_t present);
+
 #endif

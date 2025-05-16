@@ -97,7 +97,10 @@ endif
 #	DEBUG_TASK_SWITCH		Enable debugging info when switching tasks
 #	VERY_NOISY_TASK_SWITCH	Enable *lots* of debugging info when switching tasks (requires DEBUG_TASK_SWITCH)
 #	DEBUG_CHANNEL_IPC		Enable debugging info for IPC channels
-#	DEBUG_SBI				Enable debugging of the Supervisor Binary Interface
+#	DEBUG_SBI				Enable debugging of the Supervisor Binary Interface (RISC-V only)
+#   DEBUG_REGION_SYSCALLS	Enable debugging of process-related syscalls
+#	DEBUG_PAGEFAULT			Enable debugging of pagefault handling
+#	VERY_NOISY_PAGEFAULT	Enable **lots** of debugging of pagefault handling
 #
 # These ones enable some specific feature tests
 #

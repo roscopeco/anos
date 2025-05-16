@@ -19,6 +19,7 @@
 #include "ipc/named.h"
 #include "kdrivers/drivers.h"
 #include "kprintf.h"
+#include "pagefault.h"
 #include "panic.h"
 #include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
@@ -30,6 +31,7 @@
 #include "sleep.h"
 #include "smp/startup.h"
 #include "smp/state.h"
+#include "std/string.h"
 #include "structs/ref_count_map.h"
 #include "syscalls.h"
 #include "system.h"
@@ -43,6 +45,7 @@ static ACPI_RSDT *acpi_root_table;
 
 /* Globals */
 MemoryRegion *physical_region;
+uintptr_t kernel_zero_page;
 
 // We set this at startup, and once the APs are started up,
 // they'll wait for this to go false before they start
@@ -144,6 +147,29 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
     panic("Somehow ended up back in AP entrypoint. This is a bad thing...");
 }
 
+static bool zeropage_init() {
+    // If you're a retrocomputing fan, zeropage doesn't mean what
+    // you think it means here - it's just a page full of zeroes...
+    //
+    // It shouldn't live in here, but it does for now. It's used by
+    // the pagefault handler (so maybe should be over there, but it's
+    // easier to init in early boot).
+
+    kernel_zero_page = page_alloc(physical_region);
+
+    if (kernel_zero_page & 0xff) {
+        return false;
+    }
+
+    vmm_map_page(PER_CPU_TEMP_PAGE_BASE, kernel_zero_page,
+                 PG_WRITE | PG_PRESENT);
+    uint64_t *temp_map = (uint64_t *)PER_CPU_TEMP_PAGE_BASE;
+    memclr(temp_map, VM_PAGE_SIZE);
+    vmm_unmap_page(PER_CPU_TEMP_PAGE_BASE);
+
+    return true;
+}
+
 // Common entrypoint once bootloader-specific stuff is handled
 noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
     if (!fba_init((uint64_t *)vmm_find_pml4(), KERNEL_FBA_BEGIN,
@@ -157,6 +183,10 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
 
     if (!refcount_map_init()) {
         panic("Refcount map init failed");
+    }
+
+    if (!zeropage_init()) {
+        panic("Zeropage init failed");
     }
 
     syscall_init();
@@ -200,6 +230,7 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
 #endif
 
     panic_notify_smp_started();
+    pagefault_notify_smp_started();
 
     pci_enumerate();
 
