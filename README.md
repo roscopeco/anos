@@ -63,17 +63,17 @@ far are, briefly:
   * Small, targeted syscall interface (_started, still WIP_)
     * **Fast channel (via `SYSCALL` and `SYSRET`)**
     * **Slow channel (via `int 0x69`)**
-  * Delegatable capability-based syscall control
-* User-mode SYSTEM supervisor providing operating-system services
+  * **Delegatable capability-based syscall control**
+* ***User-mode SYSTEM supervisor providing operating-system services**
   * **Basic userspace bootstrap**
-  * VFS
+  * **VFS**
 * SYSTEM coordinates activities of other services to provide:
   * Hardware drivers (via capability-based MMIO)
   * Networking
   * GUI
   * etc.
-* Limited / no legacy support - x86_64 required, no PIC / PIT etc,
-* Minimum "supported" architecture: Haswell (4th gen)
+* _Limited / no legacy support - x86_64 required, no PIC / PIT etc,_
+* _Minimum "supported" architecture: Haswell (4th gen)_
 
 (Items in **bold** are already implemented, for some value of the term.
 If you want more detail they are, as far as possible, documented in the 
@@ -83,12 +83,12 @@ The basic idea is most user processes will have _very_ limited syscall
 capability - and instead will use (hopefully) fast IPC to request 
 services from the user-mode supervisor and directly from other services.
 
-The supervisor itself will be endowed with all capabilities, and will 
+The supervisor itself is endowed with all capabilities, and will 
 be responsible for delegating said capabilities appropriately to other
 processes as they are started and depending on their requirements and trust
 level.
 
-Processes will exist in a hierarchy, with processes that have the 
+Processes exist in a hierarchy, with processes that have the 
 capability to start other process further be able to delegate capabilities
 _they_ hold to other processes they supervise.
 
@@ -114,6 +114,20 @@ in the final design.
 
 Realtime scheduling is, like realtime behaviour in general, a non-goal 
 of this project.
+
+There's a (_very much WIP_) custom toolchain, based on binutils,
+GCC (15) and with Newlib providing libc (with Anos-specifics handled
+by a custom `libgloss` implementation). 
+
+You can find the toolchain, along with build instructions,
+[here](https://github.com/roscopeco/anos-toolchain).
+
+> [!NOTE]
+> The toolchain is currently x86_64 only. There will be a RISC-V
+> port in the fullness of time, but currently the kernel port for
+> that architecture isn't advanced enough to make it anywhere near
+> user mode, so it's not needed yet - a `riscv64-elf-` toolchain
+> is good enough for building on that architecture.
 
 ### Building
 
