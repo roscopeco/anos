@@ -20,7 +20,7 @@
  *
  * For now, just panics.
  */
-void handle_exception_nc(uint8_t vector, uint64_t origin_addr) {
+void handle_exception_nc(const uint8_t vector, const uint64_t origin_addr) {
     panic_exception_no_code(vector, origin_addr);
 }
 
@@ -29,14 +29,17 @@ void handle_exception_nc(uint8_t vector, uint64_t origin_addr) {
  *
  * For now, just panics.
  */
-void handle_exception_wc(uint8_t vector, uint64_t code, uint64_t origin_addr) {
+void handle_exception_wc(const uint8_t vector, const uint64_t code,
+                         const uint64_t origin_addr) {
     uint64_t fault_addr;
 
     switch (vector) {
     case 0x0e:
         // page fault - grab fault address from cr2...
+        // This should only happen during early boot, we replace the
+        // handler once tasking is up...
         __asm__ volatile("movq %%cr2,%0\n\t" : "=r"(fault_addr));
-        handle_page_fault(code, fault_addr, origin_addr);
+        early_page_fault_handler(code, fault_addr, origin_addr);
         break;
     case 0x0d:
         handle_general_protection_fault(code, origin_addr);

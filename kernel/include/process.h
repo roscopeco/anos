@@ -10,11 +10,12 @@
 #ifndef __ANOS_KERNEL_PROCESS_H
 #define __ANOS_KERNEL_PROCESS_H
 
-#include "structs/list.h"
 #include <stdint.h>
 
 #include "anos_assert.h"
 #include "managed_resources/resources.h"
+#include "structs/list.h"
+#include "structs/region_tree.h"
 
 typedef struct Task Task;
 
@@ -27,18 +28,26 @@ typedef struct {
     uint64_t reserved[6]; // 64
 } ProcessTask;
 
+typedef struct {
+    SpinLock *pages_lock;      // 8
+    ProcessPages *pages;       // 16
+    ManagedResource *res_head; // 24
+    ManagedResource *res_tail; // 32
+    Region *regions;           // 40
+    uint64_t reserved[3];      // 64
+} ProcessMemoryInfo;
+
 typedef struct Process {
-    uint64_t cap_failures;     // 8 bytes
-    SpinLock *pages_lock;      // 16
-    uint64_t pid;              // 24
-    uintptr_t pml4;            // 32
-    ProcessPages *pages;       // 40
-    ProcessTask *tasks;        // 48
-    ManagedResource *res_head; // 56
-    ManagedResource *res_tail; // 64
+    uint64_t cap_failures;      // 8 bytes
+    uint64_t pid;               // 16
+    uintptr_t pml4;             // 24
+    ProcessTask *tasks;         // 32
+    ProcessMemoryInfo *meminfo; // 40
+    uint64_t reserved[3];       // 64
 } Process;
 
 static_assert_sizeof(ProcessTask, ==, 64);
+static_assert_sizeof(ProcessMemoryInfo, ==, 64);
 static_assert_sizeof(Process, ==, 64);
 
 void process_init(void);

@@ -16,7 +16,9 @@
 #include "structs/pq.h"
 #include "task.h"
 
+#ifndef NULL
 #define NULL (((void *)0))
+#endif
 
 #ifdef CONSERVATIVE_BUILD
 #if __STDC_HOSTED__ == 1

@@ -6,6 +6,7 @@
  */
 
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdnoreturn.h>
 
 #include <anos/syscalls.h>
@@ -234,6 +235,19 @@ int main(int argc, char **argv) {
     } else {
         printf("WARN: Get mem info failed\n");
     }
+
+#ifdef TEST_LIBC_MALLOC
+    uint64_t *test = malloc(16);
+    if (test) {
+        printf("\ntest alloc ok 0x%016lx\n", (uintptr_t)test);
+
+        printf("init value is 0x%016lx\n", *test);
+        *test = 0x12345678;
+        printf("post value is 0x%016lx\n", *test);
+    } else {
+        printf("\ntest alloc failed\n");
+    }
+#endif
 
 #ifdef DEBUG_INIT_RAMFS
     AnosRAMFSHeader *ramfs = (AnosRAMFSHeader *)&_system_ramfs_start;

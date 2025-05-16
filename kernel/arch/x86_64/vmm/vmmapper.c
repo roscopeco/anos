@@ -50,12 +50,13 @@
 #endif
 
 #if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support nullptr yet - May 2025
+#ifndef nullptr
 #ifdef NULL
 #define nullptr NULL
 #else
 #define nullptr (((void *)0))
 #endif
-#ifndef nullptr
 #endif
 #endif
 

@@ -139,10 +139,13 @@ static MunitResult test_process_page_alloc_free(const MunitParameter params[],
     reset_fakes();
 
     SpinLock lock = {0};
-    Process proc = {
-            .pid = 1,
+    ProcessMemoryInfo memory_info = {
             .pages_lock = &lock,
             .pages = NULL,
+    };
+    Process proc = {
+            .pid = 1,
+            .meminfo = &memory_info,
     };
 
     uint64_t addr = process_page_alloc(&proc, &dummy_region);
@@ -162,10 +165,13 @@ static MunitResult test_ownership_tracking(const MunitParameter params[],
     reset_fakes();
 
     SpinLock lock = {0};
-    Process proc = {
-            .pid = 2,
+    ProcessMemoryInfo memory_info = {
             .pages_lock = &lock,
             .pages = NULL,
+    };
+    Process proc = {
+            .pid = 2,
+            .meminfo = &memory_info,
     };
 
     uint64_t addr1 = process_page_alloc(&proc, &dummy_region);
@@ -185,10 +191,13 @@ static MunitResult test_release_frees_all_pages(const MunitParameter params[],
     reset_fakes();
 
     SpinLock lock = {0};
-    Process proc = {
-            .pid = 3,
+    ProcessMemoryInfo memory_info = {
             .pages_lock = &lock,
             .pages = NULL,
+    };
+    Process proc = {
+            .pid = 3,
+            .meminfo = &memory_info,
     };
 
     for (int i = 0; i < 10; i++) {
@@ -212,10 +221,13 @@ static MunitResult test_shared_pages_refcounting(const MunitParameter params[],
     reset_fakes();
 
     SpinLock lock = {0};
-    Process proc = {
-            .pid = 4,
+    ProcessMemoryInfo memory_info = {
             .pages_lock = &lock,
             .pages = NULL,
+    };
+    Process proc = {
+            .pid = 4,
+            .meminfo = &memory_info,
     };
 
     uint64_t addr = fake_pages[0];
@@ -240,10 +252,13 @@ static MunitResult test_double_free_is_safe(const MunitParameter params[],
     reset_fakes();
 
     SpinLock lock = {0};
-    Process proc = {
-            .pid = 5,
+    ProcessMemoryInfo memory_info = {
             .pages_lock = &lock,
             .pages = NULL,
+    };
+    Process proc = {
+            .pid = 5,
+            .meminfo = &memory_info,
     };
 
     uint64_t addr = process_page_alloc(&proc, &dummy_region);
@@ -263,10 +278,13 @@ static MunitResult test_alloc_failure_handling(const MunitParameter params[],
     reset_fakes();
 
     SpinLock lock = {0};
-    Process proc = {
-            .pid = 6,
+    ProcessMemoryInfo memory_info = {
             .pages_lock = &lock,
             .pages = NULL,
+    };
+    Process proc = {
+            .pid = 6,
+            .meminfo = &memory_info,
     };
 
     // Exhaust all pages
@@ -287,10 +305,13 @@ static MunitResult test_block_expansion(const MunitParameter params[],
     reset_fakes();
 
     SpinLock lock = {0};
-    Process proc = {
-            .pid = 7,
+    ProcessMemoryInfo memory_info = {
             .pages_lock = &lock,
             .pages = NULL,
+    };
+    Process proc = {
+            .pid = 7,
+            .meminfo = &memory_info,
     };
 
     const int count = 128;
@@ -315,10 +336,13 @@ static MunitResult test_concurrent_allocs(const MunitParameter params[],
     reset_fakes();
 
     SpinLock lock = {0};
-    Process proc = {
-            .pid = 99,
+    ProcessMemoryInfo memory_info = {
             .pages_lock = &lock,
             .pages = NULL,
+    };
+    Process proc = {
+            .pid = 99,
+            .meminfo = &memory_info,
     };
 
     pthread_t threads[THREADS];
@@ -345,10 +369,13 @@ test_stress_concurrent_alloc_and_release(const MunitParameter params[],
     reset_fakes();
 
     SpinLock lock = {0};
-    Process proc = {
-            .pid = 100,
+    ProcessMemoryInfo memory_info = {
             .pages_lock = &lock,
             .pages = NULL,
+    };
+    Process proc = {
+            .pid = 100,
+            .meminfo = &memory_info,
     };
 
     pthread_t threads[THREADS];

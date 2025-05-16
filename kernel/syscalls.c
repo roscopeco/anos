@@ -31,7 +31,10 @@
 #include "sleep.h"
 #include "smp/state.h"
 #include "std/string.h"
+#include "structs/region_tree.h"
 #include "syscalls.h"
+
+#include "printhex.h"
 #include "task.h"
 #include "throttle.h"
 #include "vmm/vmconfig.h"
@@ -240,7 +243,7 @@ SYSCALL_HANDLER(create_process) {
     return new_process->pid;
 }
 
-static inline uintptr_t page_align(uintptr_t addr) {
+static inline uintptr_t page_align(const uintptr_t addr) {
     return addr & 0xfff ? (addr + VM_PAGE_SIZE) & ~(0xfff) : addr;
 }
 
@@ -450,6 +453,121 @@ SYSCALL_HANDLER(kill_current_task) {
     }
 }
 
+/*
+ * NOTE:
+ * This syscall layer rejects overlapping regions, but *allows* adjacent ones.
+ * If a region is adjacent to an existing region with the same metadata, we
+ * coalesce them into one. This prevents AVL tree bloat from tiny heaps or
+ * allocator fragmentation.
+ */
+
+static Region *region_tree_find_adjacent(Region *node, const uintptr_t start,
+                                         const uintptr_t end,
+                                         const uint64_t flags) {
+    while (node) {
+        if (end == node->start && flags == node->flags) {
+            return node;
+        }
+        if (start == node->end && flags == node->flags) {
+            return node;
+        }
+        if (end <= node->start) {
+            node = node->left;
+        } else if (start >= node->end) {
+            node = node->right;
+        } else {
+            break;
+        }
+    }
+    return nullptr;
+}
+
+static bool region_tree_overlaps(const Region *node, const uintptr_t start,
+                                 const uintptr_t end) {
+    while (node) {
+        if (start < node->end && end > node->start) {
+            return true;
+        }
+        if (end <= node->start) {
+            node = node->left;
+        } else {
+            node = node->right;
+        }
+    }
+    return false;
+}
+
+SYSCALL_HANDLER(create_region) {
+    const uintptr_t start = (uintptr_t)arg0;
+    const uintptr_t end = (uintptr_t)arg1;
+    const uint64_t flags = (uint64_t)arg2;
+
+#ifdef DEBUG_REGION_SYSCALLS
+    debugstr("CREATE REGION! 0x");
+    printhex64(start, debugchar);
+    debugstr(" - 0x");
+    printhex64(end, debugchar);
+    debugstr("\n");
+#endif
+
+    if ((start & 0xFFF) || (end & 0xFFF) || end <= start ||
+        start >= USERSPACE_LIMIT || end > USERSPACE_LIMIT) {
+        return SYSCALL_BADARGS;
+    }
+
+    const Process *proc = task_current()->owner;
+
+    // Try coalescing with an adjacent region if one exists
+    Region *adj = region_tree_find_adjacent(proc->meminfo->regions, start, end,
+                                            flags);
+    if (adj) {
+        if (end == adj->start) {
+            adj->start = start;
+        } else if (start == adj->end) {
+            adj->end = end;
+        }
+        return SYSCALL_OK;
+    }
+
+    if (region_tree_overlaps(proc->meminfo->regions, start, end)) {
+        return SYSCALL_FAILURE; // overlap not allowed
+    }
+
+    Region *region = slab_alloc_block();
+    if (!region) {
+        return SYSCALL_FAILURE;
+    }
+
+    *region = (Region){
+            .start = start,
+            .end = end,
+            .flags = flags,
+            .left = nullptr,
+            .right = nullptr,
+            .height = 1,
+    };
+
+    proc->meminfo->regions = region_tree_insert(proc->meminfo->regions, region);
+
+#ifdef DEBUG_REGION_SYSCALLS
+    debugstr("CREATE REGION OK!\n");
+#endif
+
+    return SYSCALL_OK;
+}
+
+SYSCALL_HANDLER(destroy_region) {
+    const uintptr_t start = (uintptr_t)arg0;
+
+    if ((start & 0xFFF) || start >= USERSPACE_LIMIT) {
+        return SYSCALL_BADARGS;
+    }
+
+    const Process *proc = task_current()->owner;
+    proc->meminfo->regions = region_tree_remove(proc->meminfo->regions, start);
+    return SYSCALL_OK;
+}
+
 static uint64_t init_syscall_capability(CapabilityMap *map,
                                         SyscallId syscall_id,
                                         SyscallHandler handler) {
@@ -491,7 +609,7 @@ static uint64_t init_syscall_capability(CapabilityMap *map,
         uint64_t cookie =                                                      \
                 init_syscall_capability(&global_capability_map, id, handler);  \
         if (!cookie) {                                                         \
-            return NULL;                                                       \
+            return nullptr;                                                    \
         }                                                                      \
         *--current_stack = cookie;                                             \
         *--current_stack = id;                                                 \
@@ -534,6 +652,10 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
                                     SYSCALL_NAME(kill_current_task));
     stack_syscall_capability_cookie(SYSCALL_ID_UNMAP_VIRTUAL,
                                     SYSCALL_NAME(unmap_virtual));
+    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_REGION,
+                                    SYSCALL_NAME(create_region));
+    stack_syscall_capability_cookie(SYSCALL_ID_DESTROY_REGION,
+                                    SYSCALL_NAME(destroy_region));
 
     // Stack dummy argc/argv for now
     // TODO this needs refactoring, syscall init shouldn't be responsible
