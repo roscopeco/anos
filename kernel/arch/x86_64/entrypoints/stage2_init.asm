@@ -73,6 +73,10 @@ _start:
   or    ax, 3 << 9
   mov   cr4, rax
 
+  push  0                                 ; Set up a fake stack frame for backtracing
+  push  bsp_kernel_entrypoint_bios
+  mov   rbp,0
+
   jmp   bsp_kernel_entrypoint_bios        ; Let's do some C...
 
 .GDT_DESC:

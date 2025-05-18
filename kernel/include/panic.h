@@ -13,8 +13,6 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#define PANIC_IPI_VECTOR ((0x02)) // Use NMI for Panic IPI
-
 #ifdef UNIT_TESTS
 #define NORETURN_EXCEPT_TESTS
 #else

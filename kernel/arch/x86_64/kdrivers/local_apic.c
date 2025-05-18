@@ -28,15 +28,15 @@ static void start_timer(uint32_t volatile *lapic, uint8_t mode,
     *REG_LAPIC_LVT_TIMER(lapic) = 0x20000 | vector;
 }
 
-static uint64_t local_apic_calibrate_count(KernelTimer *calibrated_timer,
-                                           uint32_t desired_hz) {
+static uint64_t local_apic_calibrate_count(const KernelTimer *calibrated_timer,
+                                           const uint32_t desired_hz) {
     uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
 
-    uint64_t calibrated_ticks_20ms =
+    const uint64_t calibrated_ticks_20ms =
             NANOS_IN_20MS / calibrated_timer->nanos_per_tick();
 
     volatile uint64_t calib_start = calibrated_timer->current_ticks();
-    uint64_t calib_end = calib_start + calibrated_ticks_20ms;
+    const uint64_t calib_end = calib_start + calibrated_ticks_20ms;
 
     *REG_LAPIC_DIVIDE(lapic) = 0x03;
     *REG_LAPIC_INITIAL_COUNT(lapic) = 0xffffffff;

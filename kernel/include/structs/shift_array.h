@@ -20,19 +20,25 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
+
+#include "anos_assert.h"
 
 typedef struct {
     void *data;
     size_t elem_size;
-    int head;
-    int tail;
-    int capacity;
+    uint64_t head;
+    uint64_t tail;
+    uint64_t capacity;
+    uint64_t reserved[3];
 } ShiftToMiddleArray;
+
+static_assert_sizeof(ShiftToMiddleArray, ==, 64);
 
 bool shift_array_init(ShiftToMiddleArray *arr, size_t elem_size,
                       int initial_capacity);
 
-void shift_array_free(ShiftToMiddleArray *arr);
+void shift_array_free(const ShiftToMiddleArray *arr);
 
 bool shift_array_resize(ShiftToMiddleArray *arr);
 

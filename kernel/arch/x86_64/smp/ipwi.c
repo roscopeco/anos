@@ -1,5 +1,5 @@
 /*
- * stage3 - x86_64 specific panic handling
+ * stage3 - x86_64 specific IPWI handling
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
@@ -8,7 +8,10 @@
 #include "kdrivers/drivers.h"
 #include "x86_64/kdrivers/local_apic.h"
 
-void arch_panic_stop_all_processors(void) {
+void arch_ipwi_notify_all_except_current(void) {
+    // TODO using ALL_EXCLUDING_SELF is probably a bad idea here,
+    //      what if we didn't spin up all APs properly?
+    //
     uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
 
     while (*(REG_LAPIC_ICR_LOW(lapic)) & LAPIC_ICR_DELIVERY_STATUS)

@@ -77,7 +77,11 @@ typedef struct {
     Limine_MemMapEntry **entries;
 } __attribute__((packed)) Limine_MemMap;
 
-noreturn void halt_and_catch_fire(void);
+#ifndef UNIT_TESTS
+noreturn
+#endif
+        void
+        halt_and_catch_fire(void);
 
 void outl(uint16_t port, uint32_t value);
 uint32_t inl(uint16_t port);

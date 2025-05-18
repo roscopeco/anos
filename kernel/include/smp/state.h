@@ -17,6 +17,7 @@
 #include "anos_assert.h"
 #include "sleep_queue.h"
 #include "spinlock.h"
+#include "structs/shift_array.h"
 #include "vmm/vmconfig.h"
 
 #define STATE_SCHED_DATA_MAX ((672))
@@ -38,16 +39,20 @@ typedef struct PerCPUState {
 
     SpinLock
             sched_lock_this_cpu; // 192 (keep this aligned on 64-byte for cache line!)
-    uint8_t irq_disable_count; // 196
 
-    uint8_t reserved2[63]; // takes us to 256 bytes
+    uint8_t irq_disable_count; // 193 TODO remove if EXPERIMENTAL_LOCK becomes permanent!
+    uint8_t reserved2[63]; // 256
 
     uint8_t sched_data[STATE_SCHED_DATA_MAX]; // takes us to 928 bytes
     uint8_t task_data[STATE_TASK_DATA_MAX];   // takes us to 960 bytes
 
-    SleepQueue sleep_queue; // takes us to 1024 bytes
+    uint64_t reserved3[8]; // takes us to 1024 bytes
 
-    uint8_t reserved3[3065]; // takes us to 4096 bytes
+    SleepQueue sleep_queue;            // 1088 (locked by sched lock)
+    SpinLock ipwi_queue_lock_this_cpu; // 1152
+    ShiftToMiddleArray ipwi_queue;     // 1216
+
+    uint8_t reserved4[2880]; // takes us to 4096 bytes
 } PerCPUState;
 
 static_assert_sizeof(PerCPUState, ==, VM_PAGE_SIZE);
@@ -55,12 +60,14 @@ static_assert_sizeof(PerCPUState, ==, VM_PAGE_SIZE);
 #ifdef UNIT_TESTS
 #ifdef MUNIT_H
 PerCPUState __test_cpu_state;
+uint8_t __test_cpu_count = 1;
 #else
 extern PerCPUState __test_cpu_state;
+extern uint8_t __test_cpu_count;
 static inline PerCPUState *state_get_for_this_cpu(void) {
     return &__test_cpu_state;
 }
-static inline uint8_t state_get_cpu_count(void) { return 1; }
+static inline uint8_t state_get_cpu_count(void) { return __test_cpu_count; }
 static inline PerCPUState *state_get_for_any_cpu(uint8_t cpu_num) {
     return &__test_cpu_state;
 }

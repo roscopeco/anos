@@ -102,7 +102,7 @@ bool mock_machine_write_inl_buffer(uint16_t port, uint32_t value) {
 
 /* Implementation of machine.c interface */
 
-noreturn void halt_and_catch_fire(void) { exit(100); }
+void halt_and_catch_fire(void) { exit(100); }
 
 void outl(uint16_t port, uint32_t value) {
     if (!mock_machine_write_outl_buffer(port, value)) {

@@ -1,10 +1,10 @@
 /*
- * stage3 - x86_64 specific panic handling
+ * stage3 - riscv64 specific IPWI handling
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
  */
 
-void arch_panic_stop_all_processors(void) {
+void arch_ipwi_notify_all_except_current(void) {
     // TODO noop for now...
 }

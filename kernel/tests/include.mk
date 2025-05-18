@@ -6,6 +6,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/process/*.o											\
 				kernel/tests/managed_resources/*.o									\
 				kernel/tests/capabilities/*.o										\
+				kernel/tests/smp/*.o												\
 				kernel/tests/arch/x86_64/*.o										\
 				kernel/tests/arch/x86_64/sched/*.o									\
 				kernel/tests/arch/x86_64/kdrivers/*.o								\
@@ -25,6 +26,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/process/*.gcda											\
 				kernel/tests/managed_resources/*.gcda								\
 				kernel/tests/capabilities/*.gcda									\
+				kernel/tests/smp/*.gcda												\
 				kernel/tests/arch/x86_64/*.gcda										\
 				kernel/tests/arch/x86_64/sched/*.gcda								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcda							\
@@ -44,6 +46,7 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/process/*.gcno											\
 				kernel/tests/managed_resources/*.gcno								\
 				kernel/tests/capabilities/*.gcno									\
+				kernel/tests/smp/*.gcno												\
 				kernel/tests/arch/x86_64/*.gcno										\
 				kernel/tests/arch/x86_64/sched/*.gcno								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcno							\
@@ -81,6 +84,7 @@ TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm
 				kernel/tests/build/process											\
 				kernel/tests/build/managed_resources								\
 				kernel/tests/build/capabilities										\
+				kernel/tests/build/smp												\
 				kernel/tests/build/arch/x86_64										\
 				kernel/tests/build/arch/x86_64/sched								\
 				kernel/tests/build/arch/x86_64/process								\
@@ -141,6 +145,9 @@ kernel/tests/build/managed_resources:
 
 kernel/tests/build/capabilities:
 	mkdir -p kernel/tests/build/capabilities
+
+kernel/tests/build/smp:
+	mkdir -p kernel/tests/build/smp
 
 kernel/tests/build/arch/x86_64:
 	mkdir -p kernel/tests/build/arch/x86_64
@@ -294,6 +301,9 @@ kernel/tests/build/managed_resources/resources: kernel/tests/munit.o kernel/test
 kernel/tests/build/structs/region_tree: kernel/tests/munit.o kernel/tests/structs/region_tree.o kernel/tests/build/structs/region_tree.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/smp/ipwi: kernel/tests/munit.o kernel/tests/smp/ipwi.o kernel/tests/build/smp/ipwi.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -362,7 +372,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/process/memory									\
 			kernel/tests/build/capabilities/map									\
 			kernel/tests/build/managed_resources/resources						\
-			kernel/tests/build/structs/region_tree
+			kernel/tests/build/structs/region_tree								\
+			kernel/tests/build/smp/ipwi
 
 ifeq ($(HOST_ARCH),i386)	# macOS
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
