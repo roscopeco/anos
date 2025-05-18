@@ -17,6 +17,8 @@
 #include "machine.h"
 #include "printdec.h"
 #include "printhex.h"
+#include "sched.h"
+#include "smp/ipwi.h"
 #include "smp/state.h"
 #include "spinlock.h"
 
@@ -35,8 +37,6 @@
 
 static SpinLock panic_lock;
 static bool smp_is_up;
-
-void arch_panic_stop_all_processors(void);
 
 #ifdef ARCH_X86_64
 static void print_stack_trace() {
@@ -109,7 +109,7 @@ static inline void print_header_no_vec(const char *msg) {
     debugstr((char *)msg);
 }
 
-static inline void print_loc(const char *filename, uint64_t line) {
+static inline void print_loc(const char *filename, const uint64_t line) {
     debugattr(0x0C);
     debugstr("\n         @ : ");
     debugattr(0x07);
@@ -260,15 +260,29 @@ static inline void print_footer(void) {
     debugattr(0x07);
 }
 
+static void panic_stop_all_processors(void) {
+    IpwiWorkItem panic = {
+            .type = IPWI_TYPE_PANIC_HALT,
+            .flags = 0,
+    };
+
+    // Lock scheduler on this CPU here, otherwise we might get bumped to another
+    // core while we're setting up the IPI...
+    const uint64_t lock_flags = sched_lock_this_cpu();
+    ipwi_enqueue_all_except_current(&panic);
+    ipwi_notify_all_except_current();
+    sched_unlock_this_cpu(lock_flags);
+}
+
 void panic_notify_smp_started(void) { smp_is_up = true; }
 
 noreturn void panic_sloc(const char *msg, const char *filename,
                          const uint64_t line) {
     disable_interrupts();
-    uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
     if (smp_is_up) {
-        arch_panic_stop_all_processors();
+        panic_stop_all_processors();
     }
 
     print_header_no_vec(msg);
@@ -285,10 +299,10 @@ noreturn void panic_page_fault_sloc(uintptr_t origin_addr, uintptr_t fault_addr,
                                     uint64_t code, const char *filename,
                                     const uint64_t line) {
     disable_interrupts();
-    uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
     if (smp_is_up) {
-        arch_panic_stop_all_processors();
+        panic_stop_all_processors();
     }
 
     print_header_vec("Page fault", 0x0e);
@@ -310,10 +324,10 @@ noreturn void panic_general_protection_fault_sloc(uint64_t code,
                                                   const char *filename,
                                                   const uint64_t line) {
     disable_interrupts();
-    uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
     if (smp_is_up) {
-        arch_panic_stop_all_processors();
+        panic_stop_all_processors();
     }
 
     print_header_vec("General protection fault", 0x0d);
@@ -333,10 +347,10 @@ noreturn void panic_exception_with_code_sloc(uint8_t vector, uint64_t code,
                                              const char *filename,
                                              const uint64_t line) {
     disable_interrupts();
-    uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
     if (smp_is_up) {
-        arch_panic_stop_all_processors();
+        panic_stop_all_processors();
     }
 
     print_header_vec("Unhandled exception", vector);
@@ -356,10 +370,10 @@ noreturn void panic_exception_no_code_sloc(uint8_t vector,
                                            const char *filename,
                                            const uint64_t line) {
     disable_interrupts();
-    uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
     if (smp_is_up) {
-        arch_panic_stop_all_processors();
+        panic_stop_all_processors();
     }
 
     print_header_vec("Unhandled exception", vector);

@@ -3,6 +3,8 @@
  * anos - An Operating System
  *
  * Copyright (c) 2023 Ross Bamford
+ *
+ * TODO I think this is unused now, get rid of it if so...
  */
 
 #include <stdbool.h>

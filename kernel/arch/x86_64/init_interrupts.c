@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 #include "interrupts.h"
-#include "panic.h"
+#include "smp/ipwi.h"
 #include "syscalls.h"
 #include "x86_64/kdrivers/local_apic.h" // TODO this shouldn't be used here...
 
@@ -25,7 +25,7 @@ extern void bsp_timer_interrupt_handler(void);
 extern void ap_timer_interrupt_handler(void);
 extern void unknown_interrupt_handler(void);
 extern void syscall_69_handler(void);
-extern void panic_ipi_handler(void);
+extern void ipwi_ipi_dispatcher(void);
 
 extern void pic_init(void);
 
@@ -96,8 +96,8 @@ void idt_install(uint16_t kernel_cs) {
               idt_attr(1, 3, IDT_TYPE_TRAP));
 
     // Set up the handlers for kernel IPIs
-    idt_entry(idt + PANIC_IPI_VECTOR, panic_ipi_handler, kernel_cs, 0,
-              idt_attr(1, 3, IDT_TYPE_IRQ));
+    idt_entry(idt + IPWI_IPI_VECTOR, ipwi_ipi_dispatcher, kernel_cs, 0,
+              idt_attr(1, 0, IDT_TYPE_IRQ));
 
     // Setup the IDTR
     idt_r(&idtr, (uint64_t)idt, (uint16_t)sizeof(IdtEntry) * 256 - 1);

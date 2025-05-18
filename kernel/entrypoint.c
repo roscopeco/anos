@@ -12,7 +12,6 @@
 #include <stdnoreturn.h>
 
 #include "capabilities.h"
-#include "cpuid.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
 #include "ipc/channel.h"
@@ -23,12 +22,11 @@
 #include "panic.h"
 #include "pci/enumerate.h"
 #include "pmm/pagealloc.h"
-#include "printdec.h"
-#include "printhex.h"
 #include "process/address_space.h"
 #include "sched.h"
 #include "slab/alloc.h"
 #include "sleep.h"
+#include "smp/ipwi.h"
 #include "smp/startup.h"
 #include "smp/state.h"
 #include "std/string.h"
@@ -40,6 +38,10 @@
 #include "x86_64/acpitables.h"
 #include "x86_64/kdrivers/cpu.h"
 #include "x86_64/kdrivers/local_apic.h"
+
+#ifdef DEBUG_ACPI
+#include "printhex.h"
+#endif
 
 static ACPI_RSDT *acpi_root_table;
 
@@ -68,22 +70,20 @@ static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
     cpu_debug_info(cpu_num);
 
     // Allocate our per-CPU data
-    uint64_t *state_block = fba_alloc_block();
+    PerCPUState *cpu_state = fba_alloc_block();
 
-    if (!state_block) {
+    if (!cpu_state) {
         panic("Failed to allocate CPU state");
     }
 
-    for (int i = 0; i < sizeof(PerCPUState) / 8; i++) {
-        state_block[i] = 0;
-    }
-
-    PerCPUState *cpu_state = (PerCPUState *)state_block;
+    memclr(cpu_state, sizeof(PerCPUState));
 
     cpu_state->self = cpu_state;
     cpu_state->cpu_id = cpu_num;
     cpu_state->lapic_id = cpu_read_local_apic_id();
     cpu_get_brand_str(cpu_state->cpu_brand);
+
+    // NOTE: Locks and queues etc initialized by their respective subsystems!
 
     cpu_write_msr(MSR_KernelGSBase, (uint64_t)cpu_state);
     cpu_write_msr(MSR_GSBase, 0);
@@ -117,6 +117,10 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
     syscall_init();
 
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table, ap_num);
+
+    if (!ipwi_init()) {
+        panic("Failed to initialise IPWI subsystem for one or more APs");
+    }
 
     task_init(get_this_cpu_tss());
     sleep_init();
@@ -224,6 +228,10 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
 
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table, 0);
 
+    if (!ipwi_init()) {
+        panic("Failed to initialise IPWI subsystem for one or more APs");
+    }
+
 #if MAX_CPU_COUNT > 1
     ap_startup_wait = true;
     smp_bsp_start_aps(acpi_root_table, lapic);
@@ -255,6 +263,7 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
 
     prepare_system();
     start_system();
+
     debugstr("Somehow ended up back in entrypoint, that's probably not good - "
              "halting.  ..\n");
 #endif

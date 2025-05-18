@@ -243,8 +243,8 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/structs/list.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/spinlock.o						\
-					$(STAGE3_ARCH_X86_64_DIR)/panic_asm.o						\
-					$(STAGE3_ARCH_X86_64_DIR)/panic.o							\
+					$(STAGE3_ARCH_X86_64_DIR)/smp/ipwi_dispatcher.o				\
+					$(STAGE3_ARCH_X86_64_DIR)/smp/ipwi.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/debugmadt.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/capabilities/cookies.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
@@ -304,6 +304,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/capabilities/map.o									\
 			$(STAGE3_DIR)/capabilities/capabilities.o							\
 			$(STAGE3_DIR)/structs/region_tree.o									\
+			$(STAGE3_DIR)/structs/shift_array.o									\
+			$(STAGE3_DIR)/smp/ipwi.o											\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 else
