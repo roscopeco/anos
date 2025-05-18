@@ -60,12 +60,14 @@ static_assert_sizeof(PerCPUState, ==, VM_PAGE_SIZE);
 #ifdef UNIT_TESTS
 #ifdef MUNIT_H
 PerCPUState __test_cpu_state;
+uint8_t __test_cpu_count = 1;
 #else
 extern PerCPUState __test_cpu_state;
+extern uint8_t __test_cpu_count;
 static inline PerCPUState *state_get_for_this_cpu(void) {
     return &__test_cpu_state;
 }
-static inline uint8_t state_get_cpu_count(void) { return 1; }
+static inline uint8_t state_get_cpu_count(void) { return __test_cpu_count; }
 static inline PerCPUState *state_get_for_any_cpu(uint8_t cpu_num) {
     return &__test_cpu_state;
 }

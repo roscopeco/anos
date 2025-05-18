@@ -11,7 +11,11 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-noreturn void halt_and_catch_fire(void) {
+#ifndef UNIT_TESTS
+noreturn
+#endif
+        void
+        halt_and_catch_fire(void) {
     __asm__ volatile("cli\n\t");
 
     while (true) {

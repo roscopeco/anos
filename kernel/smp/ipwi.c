@@ -33,6 +33,10 @@ bool ipwi_init(void) {
 }
 
 bool ipwi_enqueue(const IpwiWorkItem *item, const uint8_t cpu_num) {
+    if (cpu_num > state_get_cpu_count()) {
+        return false;
+    }
+
     PerCPUState *target_state = state_get_for_any_cpu(cpu_num);
 
     if (!target_state) {

@@ -9,7 +9,11 @@
 
 #include <riscv64/kdrivers/cpu.h>
 
-noreturn void halt_and_catch_fire(void) {
+#ifndef UNIT_TESTS
+noreturn
+#endif
+        void
+        halt_and_catch_fire(void) {
     cpu_clear_csr(CSR_SIE, 0);
     cpu_clear_csr(CSR_SIP, 0);
 
