@@ -120,7 +120,12 @@ _start_limine:
 bootstrap_trampoline:                     ; (... except this bit, we'll pop back in a bit for this...)
   mov   cr3,rcx
   mov   rsp,rdx                           ; (... because C doesn't appreciate having the stack changed...)
-  push  r8
+
+  push  0                                 ; Set up a fake stack frame for backtracing
+  push  bootstrap_trampoline
+  mov   rbp,0
+
+  push  r8                                ; And let's get back to it!
   ret
 
 
