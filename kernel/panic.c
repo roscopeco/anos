@@ -261,6 +261,8 @@ static inline void print_footer(void) {
 }
 
 static void panic_stop_all_processors(void) {
+    // We're not ready for this on other arches (or in tests) yet...
+#ifdef ARCH_X86_64
     IpwiWorkItem panic = {
             .type = IPWI_TYPE_PANIC_HALT,
             .flags = 0,
@@ -272,6 +274,7 @@ static void panic_stop_all_processors(void) {
     ipwi_enqueue_all_except_current(&panic);
     ipwi_notify_all_except_current();
     sched_unlock_this_cpu(lock_flags);
+#endif
 }
 
 void panic_notify_smp_started(void) { smp_is_up = true; }

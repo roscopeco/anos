@@ -14,6 +14,7 @@
 #include "debugprint.h"
 #include "kprintf.h"
 #include "machine.h"
+#include "panic.h"
 #include "pmm/pagealloc.h"
 #include "riscv64/kdrivers/cpu.h"
 #include "riscv64/pmm/config.h"
@@ -678,7 +679,9 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
 
     vmm_map_page(0x1000, new_phys, PG_READ | PG_WRITE | PG_USER);
 
-    kprintf("\n\nThis is as far as we go right now...\n");
+    panic("This is as far as we go right now on RISC-V...\n             "
+          "Visit https://github.com/roscopeco/anos to help with the port! "
+          ":)\n\n");
 
     halt_and_catch_fire();
 }
