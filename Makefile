@@ -234,7 +234,6 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/init_syscalls.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/task_switch.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/task_user_entrypoint.o			\
-					$(STAGE3_ARCH_X86_64_DIR)/sched/lock.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/cpuid.o							\
 					$(STAGE3_ARCH_X86_64_DIR)/smp/startup.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/task_kernel_entrypoint.o			\
@@ -257,7 +256,6 @@ STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper_init.o				\
-					$(STAGE3_ARCH_RISCV64_DIR)/panic.o							\
 					$(STAGE3_ARCH_RISCV64_DIR)/structs/list.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/capabilities/cookies.o			\
 					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o
@@ -293,6 +291,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/panic.o												\
 			$(STAGE3_DIR)/system.o												\
 			$(STAGE3_DIR)/sched/idle.o											\
+			$(STAGE3_DIR)/sched/lock.o											\
 			$(STAGE3_DIR)/structs/ref_count_map.o								\
 			$(STAGE3_DIR)/process/process.o										\
 			$(STAGE3_DIR)/smp/state.o											\
