@@ -370,6 +370,8 @@ pre-commit install
 
 ### Status & Pics
 
+#### On x86_64
+
 > [!NOTE]
 > These probably aren't up to date enough to represent where it's 
 > at _today_, but it should be relatively recent.
@@ -384,14 +386,21 @@ It's running two processes (The SYSTEM user-mode supervisor, and a simple
 test server loaded from RAM disk via IPC messaging with SYSTEM) with multiple
 threads on the different cores.
 
-The test server is built with the new
-[Anos newlib toolchain](https://github.com/roscopeco/anos-toolchain).
+All the basics of running programs is tested here - new process setup, 
+loading ELF binaries from the VFS via the SYSTEM IPC interface,
+capability delegation (Kernel -> SYSTEM -> test server), environment
+setup and argument passing etc. You can read more about that whole
+thing in the [docs](docs/Processes.md).
 
-<img src="images/IMG_2520.jpg" alt="UEFI-booted ANOS running on a real-life computer">
+All code is built with the new
+[Anos newlib toolchain](https://github.com/roscopeco/anos-toolchain), with SYSTEM and server code compiled
+in hosted mode (i.e. without `-ffreestanding` etc).
+
+<img src="images/IMG_2640.jpg" alt="UEFI-booted ANOS running on a real-life computer">
 
 And the same computer, but booted with legacy BIOS boot (and VGA text mode).
-It's worth noting this image is running an older kernel so doesn't have all
-the same features as the one above:
+It's worth noting this image is running a **much** older kernel so doesn't have
+many of the features you see above:
 
 <img src="images/IMG_2432.jpg" alt="ANOS running on a real-life computer">
 
@@ -399,10 +408,10 @@ It also runs in emulators, of course - here's Qemu booted via UEFI, using the
 graphical debug terminal at 1280x800 resolution and again showing the 
 experimental IPC features:
 
-<img src="images/Screenshot 2025-03-29 at 01.26.12.png" alt="UEFI-booted ANOS running in Qemu">
+<img src="images/Screenshot 2025-05-18 at 10.27.58.png" alt="UEFI-booted ANOS running in Qemu">
 
 Or legacy BIOS boot in VirtualBox, just for a change from qemu. Again, this
-is an older kernel.
+is an older kernel so lacks the recent developments.
 
 <img src="images/Screenshot 2025-02-16 at 19.42.12.png" alt="ANOS running in VirtualBox">
 
@@ -410,22 +419,45 @@ Broadly, this is happening here:
 
 * Boot
   * With our BIOS bootloader - fully boot from real to long mode
-  * With Limine (UEFI) - Take over from Limine and set everything up for Kernel  
+  * With Limine (UEFI) - Take over from Limine and set everything up for Kernel
+* Set up our graphical terminal (or text-mode if non-UEFI)
 * Set up a RLE stack-based PMM
 * Set up VMM & recursive paging (for now, will likely change later)
 * Set up fixed block & slab allocators
 * _Just enough_ ACPI to initialise basic platform devices (HPET & LAPICs)
 * Init LAPICs and calibrate with HPET
+* Initialise inter-processor work queues and set up IPIs 
 * Set everything up for usermode startup
 * Start a prioritised round-robin scheduler on all CPUs
 * User-mode supervisor ("`SYSTEM`") starts some threads with a `syscall`
 * Supervisor also creates a new process with another `syscall`
 * New process sets up its own execution environment
-  * Uses IPC messaging to request system load its binary from RAMFS
-  * Sets up its own memory using `syscall`s to the kernel
+  * Uses IPC messaging to request system load its (ELF) binary from RAMFS
+  * Sets up capabilities delegated to it from SYSTEM
+  * Sets up its own user-space memory using `syscall`s to the kernel
   * Uses a GCC static constructor (just as a test) to print a "loaded" message
+  * Prints out `argc` passed to it by SYSTEM
   * Goes into a "beep/boop" loop, calling back to the kernel to sleep between messages.
 
 The following things are not shown in this shot, but are still happening under the hood:
 
 * Enumerate PCI bus (including bridges)
+
+#### On RISC-V
+
+Currently, RISC-V support is untested on real hardware, but known not-working 
+except on some _seriously weird_ dev board that doesn't exist - with VGA etc.
+
+It's also early days for the port, so we don't get very far - but it **does**
+boot on `qemu-system-riscv64`:
+
+* Boot
+  * With Limine (UEFI) - Take over from Limine and set everything up for Kernel
+* Set up our graphical terminal (or text-mode if non-UEFI)
+* Set up a RLE stack-based PMM
+* Set up VMM & direct-mapped paging (recursive isn't doable on riscv64)
+* Do some tests of memory allocation and mapping
+* Initialise enough to be able to `panic` and print a message inviting you to 
+  help with the RISC-V port! ;)
+
+<img src="images/Screenshot 2025-05-18 at 10.56.16.png" alt="RISC-V ANOS running in qemu">
