@@ -86,7 +86,7 @@ bool ipwi_init(void);
  * Enqueue the given work item for the given CPU. The item will be copied
  * into the target CPU's queue so can be changed after this returns.
  */
-bool ipwi_enqueue(IpwiWorkItem *item, uint8_t cpu_num);
+bool ipwi_enqueue(const IpwiWorkItem *item, uint8_t cpu_num);
 
 /*
  * Enqueue the given work item for all CPUs except the current one.

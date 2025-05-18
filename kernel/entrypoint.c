@@ -37,11 +37,14 @@
 #include "vmm/vmmapper.h"
 #include "x86_64/acpitables.h"
 #include "x86_64/kdrivers/cpu.h"
+#include "x86_64/kdrivers/hpet.h"
 #include "x86_64/kdrivers/local_apic.h"
 
 #ifdef DEBUG_ACPI
 #include "printhex.h"
 #endif
+
+#define AP_CPUINIT_TIMEOUT 100000000 // 100ms
 
 static ACPI_RSDT *acpi_root_table;
 
@@ -57,6 +60,12 @@ uintptr_t kernel_zero_page;
 // everything's initialized before we let them start
 // theirs...
 volatile bool ap_startup_wait;
+
+// This is the number of CPUs waiting on ap_startup_wait.
+// We'll wait for this to equal the number of APs (or timeout)
+// to ensure basic CPU init (and IPWI etc) is done on all
+// CPUs before proceeding.
+static volatile int ap_waiting_count;
 
 #ifdef DEBUG_MADT
 void debug_madt(ACPI_RSDT *rsdt);
@@ -122,8 +131,7 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
         panic("Failed to initialise IPWI subsystem for one or more APs");
     }
 
-    task_init(get_this_cpu_tss());
-    sleep_init();
+    ap_waiting_count += 1;
 
     while (ap_startup_wait) {
         // just busy right now, but should hlt and wait for an IPI or something...?
@@ -146,6 +154,8 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
         __asm__ volatile("pause" : : : "memory");
     }
 
+    task_init(get_this_cpu_tss());
+    sleep_init();
     start_system_ap(ap_num);
 
     panic("Somehow ended up back in AP entrypoint. This is a bad thing...");
@@ -172,6 +182,27 @@ static bool zeropage_init() {
     vmm_unmap_page(PER_CPU_TEMP_PAGE_BASE);
 
     return true;
+}
+
+static void wait_for_ap_basic_init_to_complete(void) {
+    KernelTimer volatile *hpet = hpet_as_timer();
+
+    uint64_t end = hpet->current_ticks() +
+                   (AP_CPUINIT_TIMEOUT / hpet->nanos_per_tick());
+
+    while (hpet->current_ticks() < end) {
+        __asm__ __volatile__("pause" : : : "memory");
+
+        if (ap_waiting_count == state_get_cpu_count() - 1) {
+            break;
+        }
+    }
+
+#ifdef DEBUG_SMP_STARTUP
+    if (ap_waiting_count != state_get_cpu_count() - 1) {
+        kprintf("WARN: One or more APs have gone rogue!\n");
+    }
+#endif
 }
 
 // Common entrypoint once bootloader-specific stuff is handled
@@ -237,9 +268,6 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
     smp_bsp_start_aps(acpi_root_table, lapic);
 #endif
 
-    panic_notify_smp_started();
-    pagefault_notify_smp_started();
-
     pci_enumerate();
 
 #ifdef DEBUG_NO_START_SYSTEM
@@ -260,6 +288,18 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
     if (!address_space_init()) {
         panic("Address space initialisation failed");
     }
+
+    // We need to wait for basic CPU initialisation to complete on APs,
+    // so we know they'll have their per-CPU state, IPWI, queues etc.
+    //
+    // We know this if they've reached the "wait for ap_startup_wait" loop.
+    //
+    wait_for_ap_basic_init_to_complete();
+
+    // Now they're all initialized, we can notify other subsystems
+    // that IPWI etc can be used.
+    panic_notify_smp_started();
+    pagefault_notify_smp_started();
 
     prepare_system();
     start_system();

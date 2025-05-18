@@ -11,7 +11,6 @@
 
 #include "smp/ipwi.h"
 
-#include "kprintf.h"
 #include "smp/state.h"
 #include "std/string.h"
 
@@ -33,7 +32,7 @@ bool ipwi_init(void) {
     return true;
 }
 
-bool ipwi_enqueue(IpwiWorkItem *item, const uint8_t cpu_num) {
+bool ipwi_enqueue(const IpwiWorkItem *item, const uint8_t cpu_num) {
     PerCPUState *target_state = state_get_for_any_cpu(cpu_num);
 
     if (!target_state) {
@@ -93,14 +92,15 @@ void ipwi_ipi_handler(void) {
     while (ipwi_dequeue_this_cpu(&item)) {
         // we have an item!
         switch (item.type) {
+        case IPWI_TYPE_TLB_SHOOTDOWN:
+        case IPWI_TYPE_REMOTE_EXEC:
+            // TODO not yet implemented
+            break;
         case IPWI_TYPE_PANIC_HALT:
-            kprintf("PANIC HALT\n");
             halt_and_catch_fire();
         default:
-            kprintf("UNKNOWN IPI %d\n", item.type);
-            halt_and_catch_fire();
+            // TODO warn or something, ignore for now
+            break;
         }
     }
-
-    halt_and_catch_fire();
 }
