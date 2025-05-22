@@ -229,6 +229,7 @@ test_remove_nonexistent_resource(const MunitParameter params[], void *data) {
 
 void *setup(const MunitParameter params[], void *user_data) {
     mock_slab_reset();
+    return NULL;
 }
 
 static MunitTest tests[] = {
