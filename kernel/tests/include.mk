@@ -247,9 +247,6 @@ kernel/tests/build/fba/alloc: kernel/tests/munit.o kernel/tests/fba/alloc.o kern
 kernel/tests/build/slab/alloc: kernel/tests/munit.o kernel/tests/slab/alloc.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/vmm/recursive: kernel/tests/munit.o kernel/tests/vmm/recursive.o $(TEST_BUILD_DIRS)
-	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ kernel/tests/munit.o kernel/tests/vmm/recursive.o
-
 kernel/tests/build/task: kernel/tests/munit.o kernel/tests/task.o kernel/tests/build/task.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -304,6 +301,9 @@ kernel/tests/build/structs/region_tree: kernel/tests/munit.o kernel/tests/struct
 kernel/tests/build/smp/ipwi: kernel/tests/munit.o kernel/tests/smp/ipwi.o kernel/tests/build/smp/ipwi.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/arch/x86_64/vmm/recursive: kernel/tests/munit.o kernel/tests/arch/x86_64/vmm/recursive.o $(TEST_BUILD_DIRS)
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ kernel/tests/munit.o kernel/tests/arch/x86_64/vmm/recursive.o
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -355,7 +355,6 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/pci/bus											\
 			kernel/tests/build/fba/alloc										\
 			kernel/tests/build/slab/alloc										\
-			kernel/tests/build/vmm/recursive									\
 			kernel/tests/build/sched/lock										\
 			kernel/tests/build/task												\
 			kernel/tests/build/sched/prr										\
@@ -378,6 +377,7 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 ifeq ($(HOST_ARCH),i386)	# macOS
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/vmm/vmmapper							\
+			kernel/tests/build/arch/x86_64/vmm/recursive						\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
@@ -389,6 +389,7 @@ else
 ifeq ($(HOST_ARCH),x86_64)	# Linux
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/vmm/vmmapper							\
+			kernel/tests/build/arch/x86_64/vmm/recursive						\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
@@ -400,6 +401,7 @@ else
 ifeq ($(HOST_ARCH),arm64)
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/vmm/vmmapper							\
+			kernel/tests/build/arch/x86_64/vmm/recursive						\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
 			kernel/tests/build/arch/x86_64/process/address_space_init			\
