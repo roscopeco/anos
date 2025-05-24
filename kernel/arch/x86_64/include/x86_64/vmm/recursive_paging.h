@@ -22,6 +22,11 @@
 #endif
 #endif
 
+// This is predefined by the unit tests to override the find mechanism...
+#ifndef PML4_PTR
+#define PML4_PTR vmm_find_pml4
+#endif
+
 // Base address for tables (high bits always set, tables will always be in kernel space...)
 static constexpr uintptr_t BASE_ADDRESS = 0xffff000000000000;
 
@@ -384,6 +389,120 @@ vmm_table_entry_to_page_flags(const uintptr_t table_entry) {
 static inline uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
                                                          const uint64_t flags) {
     return (phys & ~0xFFF) | flags;
+}
+
+/*
+ * These routines are **horrendously slow** - because of the recursive
+ * mapping and lack of a reverse mapping in memory, they are forced
+ * to do a pagetable walk at the moment.
+ *
+ * They also have the severe limitation of **only working in the current
+ * address space** due to the way recursive paging works. It'd be
+ * possible to use the 'other' mapping to support different spaces,
+ * but there's diminishing returns now we've reached the point where
+ * recursive paging no longer makes sense (if it ever did).
+ *
+ * So this will go away at some point as I'm planning to switch to a direct
+ * map here, but for now, it's slow.
+ */
+static inline void *vmm_phys_to_virt_in_range(uintptr_t phys_addr,
+                                              const uint16_t start_entry,
+                                              const uint16_t end_entry) {
+    phys_addr &= PAGE_ALIGN_MASK;
+
+    for (size_t pml4_idx = start_entry; pml4_idx < end_entry; ++pml4_idx) {
+        const uint64_t pml4e = vmm_find_pml4()->entries[pml4_idx];
+
+        if (!(pml4e & PG_PRESENT)) {
+            continue;
+        }
+
+        const uint64_t *pdpt = vmm_recursive_find_pdpt(pml4_idx)->entries;
+        for (size_t pdpt_idx = 0; pdpt_idx < 512; ++pdpt_idx) {
+            const uint64_t pdpte = pdpt[pdpt_idx];
+            if (!(pdpte & PG_PRESENT)) {
+                continue;
+            }
+
+            // 1GiB large page
+            if (pdpte & PG_PAGESIZE) {
+                const uintptr_t base = pdpte & PAGE_ALIGN_MASK;
+                if ((phys_addr >= base) &&
+                    (phys_addr < base + (1UL << L2_LSHIFT))) {
+                    const uintptr_t offset = phys_addr - base;
+                    return (void *)(((uintptr_t)pml4_idx << L1_LSHIFT) |
+                                    ((uintptr_t)pdpt_idx << L2_LSHIFT) |
+                                    offset);
+                }
+                continue;
+            }
+
+            const uint64_t *pd =
+                    vmm_recursive_find_pd(pml4_idx, pdpt_idx)->entries;
+            for (size_t pd_idx = 0; pd_idx < 512; ++pd_idx) {
+                const uint64_t pde = pd[pd_idx];
+                if (!(pde & PG_PRESENT)) {
+                    continue;
+                }
+
+                // 2MiB large page
+                if (pde & PG_PAGESIZE) {
+                    const uintptr_t base = pde & PAGE_ALIGN_MASK;
+                    if ((phys_addr >= base) &&
+                        (phys_addr < base + (1UL << L3_LSHIFT))) {
+                        const uintptr_t offset = phys_addr - base;
+                        return (void *)(((uintptr_t)pml4_idx << L1_LSHIFT) |
+                                        ((uintptr_t)pdpt_idx << L2_LSHIFT) |
+                                        ((uintptr_t)pd_idx << L3_LSHIFT) |
+                                        offset);
+                    }
+                    continue;
+                }
+
+                const uint64_t *pt =
+                        vmm_recursive_find_pt(pml4_idx, pdpt_idx, pd_idx)
+                                ->entries;
+                for (size_t pt_idx = 0; pt_idx < 512; ++pt_idx) {
+                    const uint64_t pte = pt[pt_idx];
+                    if (!(pte & PG_PRESENT)) {
+                        continue;
+                    }
+
+                    const uintptr_t base = pte & PAGE_ALIGN_MASK;
+
+                    if ((phys_addr >= base) &&
+                        (phys_addr < base + VM_PAGE_SIZE)) {
+                        const uintptr_t offset = phys_addr - base;
+                        return (void *)(((uintptr_t)pml4_idx << L1_LSHIFT) |
+                                        ((uintptr_t)pdpt_idx << L2_LSHIFT) |
+                                        ((uintptr_t)pd_idx << L3_LSHIFT) |
+                                        ((uintptr_t)pt_idx << L4_LSHIFT) |
+                                        offset);
+                    }
+                }
+            }
+        }
+    }
+
+    return NULL; // Not found, not mapped
+}
+
+static inline void *vmm_phys_to_virt_kernel(const uintptr_t phys_addr) {
+    return vmm_phys_to_virt_in_range(phys_addr, RECURSIVE_ENTRY_OTHER + 1, 512);
+}
+
+static inline void *vmm_phys_to_virt_user(const uintptr_t phys_addr) {
+    return vmm_phys_to_virt_in_range(phys_addr, 0, RECURSIVE_ENTRY_MAIN);
+}
+
+static inline void *vmm_phys_to_virt(const uintptr_t phys_addr) {
+    void *ret = vmm_phys_to_virt_user(phys_addr);
+
+    if (ret) {
+        return ret;
+    }
+
+    return vmm_phys_to_virt_kernel(phys_addr);
 }
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_VM_RECURSIVE_H
