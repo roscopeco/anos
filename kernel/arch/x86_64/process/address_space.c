@@ -73,7 +73,7 @@ bool address_space_init(void) {
             pml4->entries[i] = new_pdpt | PG_WRITE | PG_PRESENT;
 
             // Get a vaddr for this new table and invalidate TLB (just in case)
-            uint64_t *vaddr = (uint64_t *)vmm_recursive_find_pdpt(i);
+            uint64_t *vaddr = (uint64_t *)vmm_mapping_find_pdpt(i);
             cpu_invalidate_page((uintptr_t)vaddr);
 
             // Zero out the new table
@@ -164,7 +164,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     debugstr("\n");
 
     // Invalidate the TLB for that table
-    PageTable *new_pml4_virt = vmm_recursive_find_pdpt(
+    PageTable *new_pml4_virt = vmm_mapping_find_pdpt(
             RECURSIVE_ENTRY_OTHER); // Not actually a PDPT, but our new PML4...
     cpu_invalidate_page((uintptr_t)new_pml4_virt);
 

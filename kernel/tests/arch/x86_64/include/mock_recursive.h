@@ -83,9 +83,9 @@ extern PageTable complete_pt;
 
 extern PageTable *current_recursive_pml4;
 
-static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2,
-                                                    uint16_t l3, uint16_t l4,
-                                                    uint16_t offset) {
+static inline uintptr_t vmm_mapping_table_address(uint16_t l1, uint16_t l2,
+                                                  uint16_t l3, uint16_t l4,
+                                                  uint16_t offset) {
 #ifdef DEBUG_UNIT_TESTS
     printf("PLML4 @ %p\n", &complete_pml4);
     printf(" PDPT @ %p\n", &complete_pdpt);
@@ -106,19 +106,19 @@ static inline uintptr_t vmm_recursive_table_address(uint16_t l1, uint16_t l2,
 
 static inline PageTable *vmm_find_pml4() { return &complete_pml4; }
 
-static inline PageTable *vmm_recursive_find_pdpt(uint16_t pml4_entry) {
+static inline PageTable *vmm_mapping_find_pdpt(uint16_t pml4_entry) {
     return (PageTable *)(complete_pml4.entries[pml4_entry] & ~(0xfff));
 }
 
-static inline PageTable *vmm_recursive_find_pd(uint16_t pml4_entry,
-                                               uint16_t pdpt_entry) {
+static inline PageTable *vmm_mapping_find_pd(uint16_t pml4_entry,
+                                             uint16_t pdpt_entry) {
     return (PageTable *)&((PageTable *)complete_pml4.entries[pml4_entry])
             ->entries[pdpt_entry];
 }
 
-static inline PageTable *vmm_recursive_find_pt(uint16_t pml4_entry,
-                                               uint16_t pdpt_entry,
-                                               uint16_t pd_entry) {
+static inline PageTable *vmm_mapping_find_pt(uint16_t pml4_entry,
+                                             uint16_t pdpt_entry,
+                                             uint16_t pd_entry) {
     return (PageTable *)&(
                    (PageTable *)MEM(
                            ((PageTable *)MEM(complete_pml4.entries[pml4_entry]))
@@ -181,7 +181,7 @@ static inline PageTable *vmm_virt_to_pml4(uintptr_t virt_addr) {
 }
 
 static inline uint16_t
-vmm_recursive_pml4_virt_to_recursive_entry(const void *virt_pml4) {
+vmm_mapping_pml4_virt_to_recursive_entry(const void *virt_pml4) {
     return 256;
 }
 

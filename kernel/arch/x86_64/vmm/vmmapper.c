@@ -90,7 +90,7 @@ static void clear_table(uint64_t *table) {
 
 // TODO this has become a bit of a mess lately - because of additional address
 //      spaces at the other recursive mapping, we're having to go with direct
-//      calls to vmm_recursive_table_address, and also relying on any second
+//      calls to vmm_mapping_table_address, and also relying on any second
 //      address spaces also having their own temporary mapping in the other
 //      spot (257).
 //
@@ -104,7 +104,7 @@ static uint64_t *ensure_tables(const uint16_t recursive_entry,
     // are not WRITE....
 
     const uint16_t pml4n = vmm_virt_to_pml4_index(virt_addr);
-    uint64_t *pml4e = (uint64_t *)vmm_recursive_table_address(
+    uint64_t *pml4e = (uint64_t *)vmm_mapping_table_address(
             recursive_entry, recursive_entry, recursive_entry, recursive_entry,
             pml4n << 3);
 
@@ -144,7 +144,7 @@ static uint64_t *ensure_tables(const uint16_t recursive_entry,
         C_DEBUGSTR("]\n");
         *pml4e = new_pdpt;
 
-        uint64_t *base = (uint64_t *)vmm_recursive_table_address(
+        uint64_t *base = (uint64_t *)vmm_mapping_table_address(
                 recursive_entry, recursive_entry, recursive_entry, pml4n, 0);
         cpu_invalidate_page((uint64_t)base);
 
@@ -156,7 +156,7 @@ static uint64_t *ensure_tables(const uint16_t recursive_entry,
     }
 
     const uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
-    uint64_t *pdpte = (uint64_t *)vmm_recursive_table_address(
+    uint64_t *pdpte = (uint64_t *)vmm_mapping_table_address(
             recursive_entry, recursive_entry, recursive_entry, pml4n,
             pdptn << 3);
 
@@ -189,7 +189,7 @@ static uint64_t *ensure_tables(const uint16_t recursive_entry,
 
         *pdpte = new_pd;
 
-        uint64_t *base = (uint64_t *)vmm_recursive_table_address(
+        uint64_t *base = (uint64_t *)vmm_mapping_table_address(
                 recursive_entry, recursive_entry, pml4n, pdptn, 0);
         cpu_invalidate_page((uint64_t)base);
 
@@ -201,7 +201,7 @@ static uint64_t *ensure_tables(const uint16_t recursive_entry,
     }
 
     const uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
-    uint64_t *pde = (uint64_t *)vmm_recursive_table_address(
+    uint64_t *pde = (uint64_t *)vmm_mapping_table_address(
             recursive_entry, recursive_entry, pml4n, pdptn, pdn << 3);
 
     C_DEBUGSTR("    pde @ ");
@@ -233,7 +233,7 @@ static uint64_t *ensure_tables(const uint16_t recursive_entry,
 
         *pde = new_pt;
 
-        uint64_t *base = (uint64_t *)vmm_recursive_table_address(
+        uint64_t *base = (uint64_t *)vmm_mapping_table_address(
                 recursive_entry, pml4n, pdptn, pdn, 0);
         cpu_invalidate_page((uint64_t)base);
 
@@ -245,7 +245,7 @@ static uint64_t *ensure_tables(const uint16_t recursive_entry,
     }
 
     const uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
-    uint64_t *pte = (uint64_t *)vmm_recursive_table_address(
+    uint64_t *pte = (uint64_t *)vmm_mapping_table_address(
             recursive_entry, pml4n, pdptn, pdn, ptn << 3);
 
     C_DEBUGSTR("    pte @ ");
@@ -272,7 +272,7 @@ inline bool vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr,
     // it's kind of a mess, but gives us the recursive entry in use.
     //
     const uint16_t recursive_entry =
-            vmm_recursive_pml4_virt_to_recursive_entry(pml4);
+            vmm_mapping_pml4_virt_to_recursive_entry(pml4);
     uint64_t *pte = ensure_tables(recursive_entry, virt_addr, flags);
 
     V_DEBUGSTR("==> Ensured PTE @ ");
@@ -316,9 +316,9 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     C_DEBUGSTR("]\n");
 
     const uint16_t recursive_entry =
-            vmm_recursive_pml4_virt_to_recursive_entry(pml4);
+            vmm_mapping_pml4_virt_to_recursive_entry(pml4);
     const uint16_t pml4n = vmm_virt_to_pml4_index(virt_addr);
-    const uint64_t *pml4e = (uint64_t *)vmm_recursive_table_address(
+    const uint64_t *pml4e = (uint64_t *)vmm_mapping_table_address(
             recursive_entry, recursive_entry, recursive_entry, recursive_entry,
             pml4n << 3);
 
@@ -336,7 +336,7 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     }
 
     const uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
-    const uint64_t *pdpte = (uint64_t *)vmm_recursive_table_address(
+    const uint64_t *pdpte = (uint64_t *)vmm_mapping_table_address(
             recursive_entry, recursive_entry, recursive_entry, pml4n,
             pdptn << 3);
 
@@ -354,7 +354,7 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     }
 
     const uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
-    const uint64_t *pde = (uint64_t *)vmm_recursive_table_address(
+    const uint64_t *pde = (uint64_t *)vmm_mapping_table_address(
             recursive_entry, recursive_entry, pml4n, pdptn, pdn << 3);
 
     C_DEBUGSTR("    pde @ ");
@@ -371,7 +371,7 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     }
 
     const uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
-    uint64_t *pte = (uint64_t *)vmm_recursive_table_address(
+    uint64_t *pte = (uint64_t *)vmm_mapping_table_address(
             recursive_entry, pml4n, pdptn, pdn, ptn << 3);
 
     C_DEBUGSTR("     pt @ ");

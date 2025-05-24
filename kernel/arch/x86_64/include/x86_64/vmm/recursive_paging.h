@@ -93,7 +93,7 @@ typedef struct {
 
 /*
  * Build a virtual address to access a specific page table and (byte) offset within
- * recursive mappings. This is kinda low-level, the other `vmm_recursive` functions build
+ * recursive mappings. This is kinda low-level, the other `vmm_mapping` functions build
  * on this and should usually be used instead.
  *
  * The tests have some example usage, but generally you use this by specifying the entry
@@ -104,25 +104,25 @@ typedef struct {
  * levels, and a zero offset:
  *
  * ```C
- * uintptr_t pml4 = vmm_recursive_table_address(256, 256, 256, 256, 0);
+ * uintptr_t pml4 = vmm_mapping_table_address(256, 256, 256, 256, 0);
  * ```
  *
  * To get a PDPT (from PML4 index 1 in this case):
  *
  * ```C
- * uintptr_t pdpt1 = vmm_recursive_table_address(256, 256, 256, 1, 0);
+ * uintptr_t pdpt1 = vmm_mapping_table_address(256, 256, 256, 1, 0);
  * ```
  *
  * Or a PD, index 2, from PDPT index 1:
  *
  * ```C
- * uintptr_t pdpt1_pd2 = vmm_recursive_table_address(256, 256, 1, 2, 0);
+ * uintptr_t pdpt1_pd2 = vmm_mapping_table_address(256, 256, 1, 2, 0);
  * ```
  *
  * And finally a PT, index 3 from PD index 2, PDPT index 1:
  *
  * ```C
- * uintptr_t pdpt1_pd2_pt3 = vmm_recursive_table_address(256, 1, 2, 3, 0);
+ * uintptr_t pdpt1_pd2_pt3 = vmm_mapping_table_address(256, 1, 2, 3, 0);
  * ```
  *
  * If an alternative PML4 entry is being used for the recursive mapping,
@@ -130,7 +130,7 @@ typedef struct {
  * in this file, which are hardcoded to use RECURSIVE_ENTRY):
  *
  * ```C
- * uintptr_t pdpt1_pd2_pt3 = vmm_recursive_table_address(257, 1, 2, 3, 0);
+ * uintptr_t pdpt1_pd2_pt3 = vmm_mapping_table_address(257, 1, 2, 3, 0);
  * ```
  *
  * Note that this function **does not** canonicalise addresses automatically - so the
@@ -141,11 +141,11 @@ typedef struct {
  * entry, and I plan to map alternative process spaces into the next entry (index 257)
  * if/when that becomes a thing, so this isn't a problem for now...
  */
-static inline uintptr_t vmm_recursive_table_address(const uint16_t l1,
-                                                    const uint16_t l2,
-                                                    const uint16_t l3,
-                                                    const uint16_t l4,
-                                                    const uint16_t offset) {
+static inline uintptr_t vmm_mapping_table_address(const uint16_t l1,
+                                                  const uint16_t l2,
+                                                  const uint16_t l3,
+                                                  const uint16_t l4,
+                                                  const uint16_t offset) {
     return BASE_ADDRESS | (((uintptr_t)l1 & LVL_MASK) << L1_LSHIFT) |
            (((uintptr_t)l2 & LVL_MASK) << L2_LSHIFT) |
            (((uintptr_t)l3 & LVL_MASK) << L3_LSHIFT) |
@@ -164,28 +164,28 @@ static inline PageTable *vmm_find_pml4() {
 /*
  * Find a given PDPT using the _current process'_ recursive mapping (specified by `RECURSIVE_ENTRY`).
  */
-static inline PageTable *vmm_recursive_find_pdpt(const uint16_t pml4_entry) {
-    return (PageTable *)vmm_recursive_table_address(
+static inline PageTable *vmm_mapping_find_pdpt(const uint16_t pml4_entry) {
+    return (PageTable *)vmm_mapping_table_address(
             RECURSIVE_ENTRY, RECURSIVE_ENTRY, RECURSIVE_ENTRY, pml4_entry, 0);
 }
 
 /*
  * Find a given PD using the _current process_ recursive mapping (specified by `RECURSIVE_ENTRY`).
  */
-static inline PageTable *vmm_recursive_find_pd(const uint16_t pml4_entry,
-                                               const uint16_t pdpt_entry) {
-    return (PageTable *)vmm_recursive_table_address(
+static inline PageTable *vmm_mapping_find_pd(const uint16_t pml4_entry,
+                                             const uint16_t pdpt_entry) {
+    return (PageTable *)vmm_mapping_table_address(
             RECURSIVE_ENTRY, RECURSIVE_ENTRY, pml4_entry, pdpt_entry, 0);
 }
 
 /*
  * Find the PT using the _current process_ recursive mapping (specified by `RECURSIVE_ENTRY`).
  */
-static inline PageTable *vmm_recursive_find_pt(const uint16_t pml4_entry,
-                                               const uint16_t pdpt_entry,
-                                               const uint16_t pd_entry) {
-    return (PageTable *)vmm_recursive_table_address(RECURSIVE_ENTRY, pml4_entry,
-                                                    pdpt_entry, pd_entry, 0);
+static inline PageTable *vmm_mapping_find_pt(const uint16_t pml4_entry,
+                                             const uint16_t pdpt_entry,
+                                             const uint16_t pd_entry) {
+    return (PageTable *)vmm_mapping_table_address(RECURSIVE_ENTRY, pml4_entry,
+                                                  pdpt_entry, pd_entry, 0);
 }
 
 /*
@@ -343,7 +343,7 @@ static inline uintptr_t vmm_virt_to_phys(const uintptr_t virt_addr) {
 }
 
 static inline uint16_t
-vmm_recursive_pml4_virt_to_recursive_entry(const void *virt_pml4) {
+vmm_mapping_pml4_virt_to_recursive_entry(const void *virt_pml4) {
     return (((uintptr_t)virt_pml4) & (LVL_MASK << L4_LSHIFT)) >> L1_RSHIFT;
 }
 

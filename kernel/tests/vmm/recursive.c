@@ -14,7 +14,7 @@
 
 static MunitResult test_table_address_0(const MunitParameter params[],
                                         void *fixture) {
-    uintptr_t addr = vmm_recursive_table_address(0, 0, 0, 0, 0);
+    uintptr_t addr = vmm_mapping_table_address(0, 0, 0, 0, 0);
 
     // This is actually an illegal (non-canonical) address...
     //
@@ -27,7 +27,7 @@ static MunitResult test_table_address_0(const MunitParameter params[],
 
 static MunitResult test_table_address_511_0s(const MunitParameter params[],
                                              void *fixture) {
-    uintptr_t addr = vmm_recursive_table_address(511, 0, 0, 0, 0);
+    uintptr_t addr = vmm_mapping_table_address(511, 0, 0, 0, 0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffffff8000000000 == 0b1111111111111111 111111111 000000000 000000000 000000000 000000000000
@@ -38,7 +38,7 @@ static MunitResult test_table_address_511_0s(const MunitParameter params[],
 
 static MunitResult test_table_address_256s(const MunitParameter params[],
                                            void *fixture) {
-    uintptr_t addr = vmm_recursive_table_address(256, 256, 256, 256, 0);
+    uintptr_t addr = vmm_mapping_table_address(256, 256, 256, 256, 0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff804020100000 == 0b1111111111111111 100000000 100000000 100000000 100000000 000000000000
@@ -51,7 +51,7 @@ static MunitResult test_table_address_256s(const MunitParameter params[],
 
 static MunitResult test_table_address_256_0s(const MunitParameter params[],
                                              void *fixture) {
-    uintptr_t addr = vmm_recursive_table_address(256, 0, 0, 0, 0);
+    uintptr_t addr = vmm_mapping_table_address(256, 0, 0, 0, 0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff800000000000 == 0b1111111111111111 100000000 000000000 000000000 000000000 000000000000
@@ -64,7 +64,7 @@ static MunitResult test_table_address_256_0s(const MunitParameter params[],
 
 static MunitResult test_table_address_256_511s(const MunitParameter params[],
                                                void *fixture) {
-    uintptr_t addr = vmm_recursive_table_address(256, 511, 511, 511, 0);
+    uintptr_t addr = vmm_mapping_table_address(256, 511, 511, 511, 0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff807ffffff000 == 0b1111111111111111 100000000 111111111 111111111 111111111 000000000000
@@ -77,7 +77,7 @@ static MunitResult test_table_address_256_511s(const MunitParameter params[],
 
 static MunitResult test_table_address_256_max(const MunitParameter params[],
                                               void *fixture) {
-    uintptr_t addr = vmm_recursive_table_address(256, 511, 511, 511, 4095);
+    uintptr_t addr = vmm_mapping_table_address(256, 511, 511, 511, 4095);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff807fffffffff == 0b1111111111111111 100000000 111111111 111111111 111111111 111111111111
@@ -90,7 +90,7 @@ static MunitResult test_table_address_256_max(const MunitParameter params[],
 
 static MunitResult test_table_address_oob(const MunitParameter params[],
                                           void *fixture) {
-    uintptr_t addr = vmm_recursive_table_address(511, 513, 514, 515, 4096);
+    uintptr_t addr = vmm_mapping_table_address(511, 513, 514, 515, 4096);
 
     // values are clamped to relevant max and rolled over
     //                              Extend        PML4      PDPT       PD        PT        Offset
@@ -102,7 +102,7 @@ static MunitResult test_table_address_oob(const MunitParameter params[],
 
 static MunitResult test_table_address_pml4(const MunitParameter params[],
                                            void *fixture) {
-    uintptr_t addr = vmm_recursive_table_address(511, 511, 511, 511, 0);
+    uintptr_t addr = vmm_mapping_table_address(511, 511, 511, 511, 0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xfffffffffffff000 == 0b1111111111111111 111111111 111111111 111111111 111111111 000000000000
@@ -113,7 +113,7 @@ static MunitResult test_table_address_pml4(const MunitParameter params[],
 
 static MunitResult test_table_address_pml4_max(const MunitParameter params[],
                                                void *fixture) {
-    uintptr_t addr = vmm_recursive_table_address(511, 511, 511, 511, 4095);
+    uintptr_t addr = vmm_mapping_table_address(511, 511, 511, 511, 4095);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffffffffffffffff == 0b1111111111111111 111111111 111111111 111111111 111111111 111111111111
@@ -124,7 +124,7 @@ static MunitResult test_table_address_pml4_max(const MunitParameter params[],
 
 static MunitResult
 test_table_address_pdpt_4_pml4_2(const MunitParameter params[], void *fixture) {
-    uintptr_t addr = vmm_recursive_table_address(511, 511, 4, 2, 0);
+    uintptr_t addr = vmm_mapping_table_address(511, 511, 4, 2, 0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffffffffc0802000 == 0b1111111111111111 111111111 111111111 000000100 000000010 000000000000
@@ -146,7 +146,7 @@ static MunitResult test_find_pml4(const MunitParameter params[],
 
 static MunitResult test_find_pdpt_0(const MunitParameter params[],
                                     void *fixture) {
-    PageTable *addr = vmm_recursive_find_pdpt(0);
+    PageTable *addr = vmm_mapping_find_pdpt(0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff804020000000 == 0b1111111111111111 100000000 100000000 100000000 000000000 000000000000
@@ -157,7 +157,7 @@ static MunitResult test_find_pdpt_0(const MunitParameter params[],
 
 static MunitResult test_find_pdpt_1(const MunitParameter params[],
                                     void *fixture) {
-    PageTable *addr = vmm_recursive_find_pdpt(1);
+    PageTable *addr = vmm_mapping_find_pdpt(1);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff804020001000 == 0b1111111111111111 100000000 100000000 100000000 000000001 000000000000
@@ -168,7 +168,7 @@ static MunitResult test_find_pdpt_1(const MunitParameter params[],
 
 static MunitResult test_find_pdpt_511(const MunitParameter params[],
                                       void *fixture) {
-    PageTable *addr = vmm_recursive_find_pdpt(511);
+    PageTable *addr = vmm_mapping_find_pdpt(511);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff8040201ff000 == 0b1111111111111111 100000000 100000000 100000000 111111111 000000000000
@@ -179,7 +179,7 @@ static MunitResult test_find_pdpt_511(const MunitParameter params[],
 
 static MunitResult test_find_pdpt_oob(const MunitParameter params[],
                                       void *fixture) {
-    PageTable *addr = vmm_recursive_find_pdpt(512);
+    PageTable *addr = vmm_mapping_find_pdpt(512);
 
     // Should wraparound to zero...
     //
@@ -192,7 +192,7 @@ static MunitResult test_find_pdpt_oob(const MunitParameter params[],
 
 static MunitResult test_find_pd_0_0(const MunitParameter params[],
                                     void *fixture) {
-    PageTable *addr = vmm_recursive_find_pd(0, 0);
+    PageTable *addr = vmm_mapping_find_pd(0, 0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff804000000000 == 0b1111111111111111 100000000 100000000 000000000 000000000 000000000000
@@ -203,7 +203,7 @@ static MunitResult test_find_pd_0_0(const MunitParameter params[],
 
 static MunitResult test_find_pd_1_0(const MunitParameter params[],
                                     void *fixture) {
-    PageTable *addr = vmm_recursive_find_pd(1, 0);
+    PageTable *addr = vmm_mapping_find_pd(1, 0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff804000200000 == 0b1111111111111111 100000000 100000000 000000001 000000000 000000000000
@@ -214,7 +214,7 @@ static MunitResult test_find_pd_1_0(const MunitParameter params[],
 
 static MunitResult test_find_pd_1_511(const MunitParameter params[],
                                       void *fixture) {
-    PageTable *addr = vmm_recursive_find_pd(1, 511);
+    PageTable *addr = vmm_mapping_find_pd(1, 511);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff8040003ff000 == 0b1111111111111111 100000000 100000000 000000001 111111111 000000000000
@@ -225,7 +225,7 @@ static MunitResult test_find_pd_1_511(const MunitParameter params[],
 
 static MunitResult test_find_pd_511_511(const MunitParameter params[],
                                         void *fixture) {
-    PageTable *addr = vmm_recursive_find_pd(511, 511);
+    PageTable *addr = vmm_mapping_find_pd(511, 511);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff80403ffff000 == 0b1111111111111111 100000000 100000000 111111111 111111111 000000000000
@@ -236,7 +236,7 @@ static MunitResult test_find_pd_511_511(const MunitParameter params[],
 
 static MunitResult test_find_pd_1_oob(const MunitParameter params[],
                                       void *fixture) {
-    PageTable *addr = vmm_recursive_find_pd(1, 512);
+    PageTable *addr = vmm_mapping_find_pd(1, 512);
 
     // Should wraparound to zero...
     //
@@ -249,7 +249,7 @@ static MunitResult test_find_pd_1_oob(const MunitParameter params[],
 
 static MunitResult test_find_pd_oob_oob(const MunitParameter params[],
                                         void *fixture) {
-    PageTable *addr = vmm_recursive_find_pd(512, 512);
+    PageTable *addr = vmm_mapping_find_pd(512, 512);
 
     // Should wraparound to zero...
     //
@@ -262,7 +262,7 @@ static MunitResult test_find_pd_oob_oob(const MunitParameter params[],
 
 static MunitResult test_find_pt_0_0_0(const MunitParameter params[],
                                       void *fixture) {
-    PageTable *addr = vmm_recursive_find_pt(0, 0, 0);
+    PageTable *addr = vmm_mapping_find_pt(0, 0, 0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff800000000000 == 0b1111111111111111 100000000 000000000 000000000 000000000 000000000000
@@ -273,7 +273,7 @@ static MunitResult test_find_pt_0_0_0(const MunitParameter params[],
 
 static MunitResult test_find_pt_0_1_0(const MunitParameter params[],
                                       void *fixture) {
-    PageTable *addr = vmm_recursive_find_pt(0, 1, 0);
+    PageTable *addr = vmm_mapping_find_pt(0, 1, 0);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff800000200000 == 0b1111111111111111 100000000 000000000 000000001 000000000 000000000000
@@ -284,7 +284,7 @@ static MunitResult test_find_pt_0_1_0(const MunitParameter params[],
 
 static MunitResult test_find_pt_1_1_1(const MunitParameter params[],
                                       void *fixture) {
-    PageTable *addr = vmm_recursive_find_pt(1, 1, 1);
+    PageTable *addr = vmm_mapping_find_pt(1, 1, 1);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff804000200000 == 0b1111111111111111 100000000 000000001 000000001 000000001 000000000000
@@ -295,7 +295,7 @@ static MunitResult test_find_pt_1_1_1(const MunitParameter params[],
 
 static MunitResult test_find_pt_1_1_511(const MunitParameter params[],
                                         void *fixture) {
-    PageTable *addr = vmm_recursive_find_pt(1, 1, 511);
+    PageTable *addr = vmm_mapping_find_pt(1, 1, 511);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff8000403ff000 == 0b1111111111111111 100000000 000000001 000000001 111111111 000000000000
@@ -306,7 +306,7 @@ static MunitResult test_find_pt_1_1_511(const MunitParameter params[],
 
 static MunitResult test_find_pt_511_511_511(const MunitParameter params[],
                                             void *fixture) {
-    PageTable *addr = vmm_recursive_find_pt(511, 511, 511);
+    PageTable *addr = vmm_mapping_find_pt(511, 511, 511);
 
     //                              Extend        PML4      PDPT       PD        PT        Offset
     // 0xffff807ffffff000 == 0b1111111111111111 100000000 111111111 111111111 111111111 000000000000
@@ -317,7 +317,7 @@ static MunitResult test_find_pt_511_511_511(const MunitParameter params[],
 
 static MunitResult test_find_pt_1_1_oob(const MunitParameter params[],
                                         void *fixture) {
-    PageTable *addr = vmm_recursive_find_pt(1, 1, 512);
+    PageTable *addr = vmm_mapping_find_pt(1, 1, 512);
 
     // Should wraparound to zero...
     //
@@ -330,7 +330,7 @@ static MunitResult test_find_pt_1_1_oob(const MunitParameter params[],
 
 static MunitResult test_find_pt_oob_oob_oob(const MunitParameter params[],
                                             void *fixture) {
-    PageTable *addr = vmm_recursive_find_pt(512, 512, 512);
+    PageTable *addr = vmm_mapping_find_pt(512, 512, 512);
 
     // Should wraparound to zero...
     //
