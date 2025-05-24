@@ -97,6 +97,8 @@ bool ipwi_dequeue_this_cpu(IpwiWorkItem *out_item) {
     return result;
 }
 
+#include "kprintf.h"
+
 void ipwi_ipi_handler(void) {
     IpwiWorkItem item;
 
@@ -106,9 +108,11 @@ void ipwi_ipi_handler(void) {
         // we have an item!
         switch (item.type) {
         case IPWI_TYPE_TLB_SHOOTDOWN:
+            kprintf("FUCKING SHOOTDOWN\n");
             payload = (IpwiPayloadTLBShootdown *)&item.payload;
 
-            if (payload->target_pid == task_current()->owner->pid) {
+            if (payload->target_pid == task_current()->owner->pid ||
+                payload->target_pml4 == task_current()->owner->pml4) {
                 const uintptr_t page_limit =
                         payload->start_vaddr +
                         (payload->page_count * VM_PAGE_SIZE);

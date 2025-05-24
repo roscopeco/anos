@@ -61,8 +61,9 @@ typedef struct {
     uint64_t reserved0;
     uintptr_t start_vaddr;
     size_t page_count;
-    uint64_t target_pid;
-    uint64_t reserved1[3];
+    uint64_t target_pid;   // Only PID, **or** PML4,
+    uintptr_t target_pml4; // never both!
+    uint64_t reserved1[2];
 } IpwiPayloadTLBShootdown;
 
 typedef struct {

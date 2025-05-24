@@ -257,8 +257,8 @@ static uint64_t *ensure_tables(const uint16_t recursive_entry,
     return pte;
 }
 
-inline bool vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr,
-                            const uint64_t page, const uint16_t flags) {
+static bool nolock_vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr,
+                                   const uint64_t page, const uint16_t flags) {
 
     const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
 
@@ -285,6 +285,10 @@ inline bool vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr,
     return true;
 }
 
+inline bool vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr,
+                            const uint64_t page, const uint16_t flags) {
+    return nolock_vmm_map_page_in(pml4, virt_addr, page, flags);
+}
 bool vmm_map_page(const uintptr_t virt_addr, const uint64_t page,
                   const uint16_t flags) {
     return vmm_map_page_in((uint64_t *)vmm_find_pml4(), virt_addr, page, flags);
@@ -301,10 +305,25 @@ bool vmm_map_page_containing_in(uint64_t *pml4, const uintptr_t virt_addr,
     return vmm_map_page_in(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }
 
+bool vmm_map_pages_containing_in(uint64_t *pml4, const uintptr_t virt_addr,
+                                 const uint64_t phys_addr, const uint16_t flags,
+                                 const size_t num_pages) {
+
+    const uintptr_t start_phys_page = phys_addr & PAGE_ALIGN_MASK;
+    const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
+    for (int i = 0; i < num_pages; i++) {
+        nolock_vmm_map_page_in(pml4, virt_addr + (i << VM_PAGE_LINEAR_SHIFT),
+                               start_phys_page + (i << VM_PAGE_LINEAR_SHIFT),
+                               flags);
+    }
+    spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+    return true;
+}
+
 // Don't forget this requires a proper recursive mapping at whichever
 // spot we're using as recursive in the given PML4!
 //
-uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
+static uintptr_t nolock_vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
 
     C_DEBUGSTR("Unmap virtual ");
@@ -406,6 +425,27 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     return phys;
 }
 
+uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
+    return nolock_vmm_unmap_page_in(pml4, virt_addr);
+}
+
 uintptr_t vmm_unmap_page(const uintptr_t virt_addr) {
+    return vmm_unmap_page_in((uint64_t *)vmm_find_pml4(), virt_addr);
+}
+
+inline uintptr_t vmm_unmap_pages_in(uint64_t *pml4, uintptr_t virt_addr,
+                                    const size_t num_pages) {
+    const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
+    const uintptr_t result = nolock_vmm_unmap_page_in(pml4, virt_addr);
+
+    for (int i = 1; i < num_pages; i++) {
+        nolock_vmm_unmap_page_in(pml4, virt_addr + (i << VM_PAGE_LINEAR_SHIFT));
+    }
+
+    spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+    return result;
+}
+
+uintptr_t vmm_unmap_pages(const uintptr_t virt_addr, const size_t num_pages) {
     return vmm_unmap_page_in((uint64_t *)vmm_find_pml4(), virt_addr);
 }
