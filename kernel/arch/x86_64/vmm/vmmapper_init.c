@@ -57,6 +57,8 @@
 #define vdebugf(...)
 #endif
 
+static uint64_t __attribute__((aligned(0x1000))) temp_pdpt[512];
+
 // Physical memory region
 extern MemoryRegion *physical_region;
 
@@ -601,16 +603,33 @@ static void cleanup_temp_page_tables(uint64_t *const pml4) {
     cpu_invalidate_tlb_all();
 }
 
-void vmm_init_direct_mapping(uint64_t *pml4, uint64_t *temp_map_page_table,
-                             const PagetableLevel temp_map_page_table_level,
-                             const size_t temp_map_page_size,
-                             Limine_MemMap *memmap) {
+/*
+ * This differs from the riscv implementation in one significant
+ * factor: RISC-V uses terapages for the temporary mapping of the
+ * different table levels, so it doesn't need to have any additional
+ * mapping space since all is contained in the provided PML4.
+ *
+ * on x86_64, terapages aren't supported - so we need an additional
+ * mapping space for the PDPT and have to do everything in gigapages.
+ *
+ * The `temp_pdpt` statically allocated in this file serves that
+ * purpose, and the math is different to account for the different
+ * page size.
+ *
+ * Other than that, it's all much of a muchness.
+ */
+void vmm_init_direct_mapping(uint64_t *pml4_virt, Limine_MemMap *memmap) {
     vdebugf("vmm_init_direct_mapping: init with %ld entries at pml4 0x%016lx\n",
             memmap->entry_count, (uintptr_t)pml4);
 
+    const uintptr_t temp_pdpt_phys = (uintptr_t)temp_pdpt - STATIC_KERNEL_SPACE;
+    const uintptr_t saved_pml4_0 = pml4_virt[0];
+    pml4_virt[0] = temp_pdpt_phys | PG_PRESENT | PG_WRITE;
+    cpu_invalidate_tlb_addr(0);
+
     uint64_t *temp_pt = ensure_temp_page_tables(
-            pml4, temp_map_page_table, temp_map_page_table_level,
-            vmm_per_cpu_temp_page_addr(0), temp_map_page_size);
+            pml4_virt, temp_pdpt, PT_LEVEL_PDPT, vmm_per_cpu_temp_page_addr(0),
+            GIGA_PAGE_SIZE);
 
     vdebugf("ensure tables returns 0x%016lx\n", (uintptr_t)temp_pt);
 
@@ -624,10 +643,10 @@ void vmm_init_direct_mapping(uint64_t *pml4, uint64_t *temp_map_page_table,
         case LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE:
         case LIMINE_MEMMAP_ACPI_RECLAIMABLE:
         case LIMINE_MEMMAP_EXECUTABLE_AND_MODULES:
-            vmm_init_map_region(pml4, temp_pt, memmap->entries[i], true);
+            vmm_init_map_region(pml4_virt, temp_pt, memmap->entries[i], true);
             break;
         case LIMINE_MEMMAP_ACPI_NVS:
-            vmm_init_map_region(pml4, temp_pt, memmap->entries[i], false);
+            vmm_init_map_region(pml4_virt, temp_pt, memmap->entries[i], false);
             break;
         default:
             vdebugf("vmm_init_direct_mapping: ignored region with type %ld\n",
@@ -635,5 +654,8 @@ void vmm_init_direct_mapping(uint64_t *pml4, uint64_t *temp_map_page_table,
         }
     }
 
-    cleanup_temp_page_tables(pml4);
+    cleanup_temp_page_tables(pml4_virt);
+
+    pml4_virt[0] = saved_pml4_0;
+    cpu_invalidate_tlb_addr(0);
 }

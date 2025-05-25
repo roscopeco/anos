@@ -280,8 +280,6 @@ noreturn void bsp_kernel_entrypoint_limine() {
                          bootstrap_continue);
 }
 
-static uint64_t __attribute__((aligned(0x1000))) temp_pdpt[512];
-
 static noreturn void bootstrap_continue(const uint16_t fb_width,
                                         const uint16_t fb_height) {
     // We're now on our own pagetables, and have essentially the same setup as
@@ -295,8 +293,6 @@ static noreturn void bootstrap_continue(const uint16_t fb_width,
     install_interrupts();
 
     uint64_t *pml4_virt = pagetables_init();
-    const uintptr_t temp_pdpt_phys = (uintptr_t)temp_pdpt - STATIC_KERNEL_SPACE;
-    pml4_virt[0] = temp_pdpt_phys | PG_PRESENT | PG_WRITE;
 
     debug_memmap_limine(&static_memmap);
 
@@ -308,12 +304,11 @@ static noreturn void bootstrap_continue(const uint16_t fb_width,
             vmm_direct_mapping_gigapages_used,
             vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used;
 
-    size_t pre_direct_free = physical_region->free;
+    const size_t pre_direct_free = physical_region->free;
 #endif
-    vmm_init_direct_mapping(pml4_virt, temp_pdpt, PT_LEVEL_PDPT, GIGA_PAGE_SIZE,
-                            &static_memmap);
+    vmm_init_direct_mapping(pml4_virt, &static_memmap);
 #ifdef DEBUG_VMM
-    size_t post_direct_free = physical_region->free;
+    const size_t post_direct_free = physical_region->free;
     kprintf("\nPage tables for VMM Direct Mapping: %ld bytes of physical "
             "memory\n",
             pre_direct_free - post_direct_free);
