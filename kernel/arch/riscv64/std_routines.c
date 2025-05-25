@@ -328,12 +328,7 @@ void *memset(void *dest, int val, size_t count)
     return dest;
 }
 
-#ifdef UNIT_TESTS
-void *anos_std_memclr(void *dest, size_t count)
-#else
-void *memclr(void *dest, size_t count)
-#endif
-{
+void *memclr(void *dest, size_t count) {
 #ifdef UNIT_TESTS
     return anos_std_memset(dest, 0, count);
 #else

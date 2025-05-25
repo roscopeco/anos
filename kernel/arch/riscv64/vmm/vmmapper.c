@@ -39,13 +39,6 @@
 #define STATIC_EXCEPT_TESTS static
 #endif
 
-typedef enum {
-    PT_LEVEL_PML4 = 4,
-    PT_LEVEL_PDPT = 3,
-    PT_LEVEL_PD = 2,
-    PT_LEVEL_PT = 1,
-} PagetableLevel;
-
 extern MemoryRegion *physical_region;
 
 static SpinLock vmm_map_lock;
@@ -128,9 +121,9 @@ inline void vmm_invalidate_page(uintptr_t virt_addr) {
     cpu_invalidate_tlb_addr(virt_addr);
 }
 
-inline bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
-                                       const uint64_t phys_addr,
-                                       const uint16_t flags) {
+bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
+                                const uint64_t phys_addr,
+                                const uint16_t flags) {
     uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
 
     virt_addr &= PAGE_ALIGN_MASK;
@@ -143,7 +136,7 @@ inline bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
     }
 
     pt[vmm_virt_to_pt_index(virt_addr)] =
-            vmm_phys_and_flags_to_table_entry(phys_addr, flags | PG_PRESENT);
+            vmm_phys_and_flags_to_table_entry(phys_addr, flags);
 
     vmm_invalidate_page(virt_addr);
 
@@ -221,15 +214,13 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
                 uint64_t pte = pt[pt_index];
 
                 if (pte & PG_PRESENT) {
-                    if (is_leaf(pte)) {
-                        // unmapping a megapage
-                        pt[pt_index] = 0;
+                    // unmapping a page
+                    pt[pt_index] = 0;
 
-                        vmm_invalidate_page(virt_addr);
+                    vmm_invalidate_page(virt_addr);
 
-                        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
-                        return vmm_table_entry_to_phys(pte);
-                    }
+                    spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+                    return vmm_table_entry_to_phys(pte);
                 }
             }
         }

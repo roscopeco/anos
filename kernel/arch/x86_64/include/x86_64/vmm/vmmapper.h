@@ -17,27 +17,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "machine.h"
 #include "vmm/vmconfig.h"
+#include "x86_64/kdrivers/cpu.h"
 
 /*
- * Extract a PML4 index from a virtual address.
+ * First PML4 entry of kernel space
  */
-#define PML4ENTRY(addr) (((unsigned short)((addr & 0x0000ff8000000000) >> 39)))
-
-/*
- * Extract a PDPT index from a virtual address.
- */
-#define PDPTENTRY(addr) (((unsigned short)((addr & 0x0000007fc0000000) >> 30)))
-
-/*
- * Extract a PD index from a virtual address.
- */
-#define PDENTRY(addr) (((unsigned short)((addr & 0x000000003fe00000) >> 21)))
-
-/*
- * Extract a PT index from a virtual address.
- */
-#define PTENTRY(addr) (((unsigned short)((addr & 0x00000000001ff000) >> 12)))
+#define FIRST_KERNEL_PML4E ((256))
 
 /*
  * Page present attribute
@@ -60,14 +47,25 @@
 #define PG_NOEXEC ((1 << 63))
 
 /*
+ * Page size attribute (for large pages)
+ */
+#define PG_PAGESIZE ((1 << 7))
+
+/*
+ * Global page
+ */
+#define PG_GLOBAL ((1 << 8))
+
+/*
  * Page COW attribute (STAGE3-specific)
  */
 #define PG_COPY_ON_WRITE ((1 << 6))
 
 /*
- * Page size attribute (for large pages)
+ * x86_64 does not have a "READ" bit, it's implied.
+ * Just define zero so it has no effect.
  */
-#define PG_PAGESIZE ((1 << 7))
+#define PG_READ ((0))
 
 // This is where we map the PMM region(s)
 #define STATIC_KERNEL_SPACE ((0xFFFFFFFF80000000))
@@ -86,6 +84,8 @@
 
 #define IS_USER_ADDRESS(ptr) (((((uint64_t)(ptr)) & 0xffff800000000000) == 0))
 
+#define PAGE_TABLE_ENTRIES ((512))
+
 #ifdef UNIT_TESTS
 #ifndef MUNIT_H
 extern
@@ -93,19 +93,58 @@ extern
         uint8_t mock_cpu_temp_page[0x1000];
 #endif
 
+typedef struct {
+    uint64_t entries[512];
+} PageTable;
+
 /*
  *  Find the per-CPU temporary page base for the given CPU.
  */
-static inline uintptr_t vmm_per_cpu_temp_page_addr(const uint8_t cpu) {
-#ifndef UNIT_TESTS
-    return PER_CPU_TEMP_PAGE_BASE + (cpu << 12);
-#else
-    return (uintptr_t)mock_cpu_temp_page;
-#endif
-}
+uintptr_t vmm_per_cpu_temp_page_addr(const uint8_t cpu);
 
-#ifndef UNIT_TESTS
-#include "x86_64/vmm/recursive_paging.h"
-#endif
+uintptr_t vmm_phys_to_virt(const uintptr_t phys_addr);
+
+void *vmm_phys_to_virt_ptr(const uintptr_t phys_addr);
+
+uintptr_t vmm_virt_to_phys_page(const uintptr_t virt_addr);
+
+PageTable *vmm_find_pml4();
+
+uint16_t vmm_virt_to_table_index(const uintptr_t virt_addr,
+                                 const uint8_t level);
+
+uint16_t vmm_virt_to_pml4_index(const uintptr_t virt_addr);
+
+uint16_t vmm_virt_to_pdpt_index(const uintptr_t virt_addr);
+
+uint16_t vmm_virt_to_pd_index(const uintptr_t virt_addr);
+
+uint16_t vmm_virt_to_pt_index(const uintptr_t virt_addr);
+
+uintptr_t vmm_table_entry_to_phys(const uintptr_t table_entry);
+
+uint16_t vmm_table_entry_to_page_flags(const uintptr_t table_entry);
+
+uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
+                                           const uint64_t flags);
+
+/*
+ * Get the PT entry (including flags) for the given virtual address,
+ * or 0 if not mapped in the _current process_ direct mapping.
+ *
+ * This **only** works for 4KiB pages - large pages will not work
+ * with this (and that's by design!)
+ */
+uint64_t vmm_virt_to_pt_entry(const uintptr_t virt_addr);
+
+// Convert virtual address to phys via table walk
+uintptr_t vmm_virt_to_phys(const uintptr_t virt_addr);
+
+size_t vmm_level_page_size(const uint8_t level);
+
+// Initialize the direct mapping for physical memory
+// This must be called during early boot, before SMP
+// or userspace is up (since it abuses both those things)
+void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap);
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_VM_MAPPER_H

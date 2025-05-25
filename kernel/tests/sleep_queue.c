@@ -7,8 +7,8 @@
 
 #include "munit.h"
 
+#include "mock_pagetables.h"
 #include "mock_pmm.h"
-#include "mock_recursive.h"
 
 #include "sleep_queue.h"
 

@@ -10,33 +10,34 @@
 #include "munit.h"
 
 // must include after munit.h!
-#include "mock_recursive.h"
+#include "mock_pagetables.h"
 
 static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[],
                                               void *param) {
 
-    current_recursive_pml4 = &empty_pml4;
+    currently_active_pml4 = &empty_pml4;
 
-    vmm_map_page_in(&empty_pml4, 0x0, 0x1000, 0);
+    vmm_map_page_in(empty_pml4.entries, 0x0, 0x1000, 0);
 
     munit_assert_uint64(empty_pml4.entries[0], !=, 0);
 
     // pdpt was created and mapped
-    uint64_t *pdpt = (uint64_t *)(empty_pml4.entries[0] & 0xFFFFFFFFFFFFF000);
+    const uint64_t *pdpt =
+            (uint64_t *)(empty_pml4.entries[0] & 0xFFFFFFFFFFFFF000);
     munit_assert_uint64(pdpt[0], !=, 0);
     for (int i = 1; i < 512; i++) {
         munit_assert_uint64(pdpt[i], ==, 0);
     }
 
     // pd was created and mapped
-    uint64_t *pd = (uint64_t *)(pdpt[0] & 0xFFFFFFFFFFFFF000);
+    const uint64_t *pd = (uint64_t *)(pdpt[0] & 0xFFFFFFFFFFFFF000);
     munit_assert_uint64(pd[0], !=, 0);
     for (int i = 1; i < 512; i++) {
         munit_assert_uint64(pd[i], ==, 0);
     }
 
     // pt was created and mapped
-    uint64_t *pt = (uint64_t *)(pd[0] & 0xFFFFFFFFFFFFF000);
+    const uint64_t *pt = (uint64_t *)(pd[0] & 0xFFFFFFFFFFFFF000);
     munit_assert_uint64(pt[0], !=, 0);
     for (int i = 1; i < 512; i++) {
         munit_assert_uint64(pt[i], ==, 0);
@@ -54,9 +55,9 @@ static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[],
 static MunitResult test_map_page_empty_pml4_2M(const MunitParameter params[],
                                                void *param) {
 
-    current_recursive_pml4 = &empty_pml4;
+    currently_active_pml4 = &empty_pml4;
 
-    vmm_map_page_in(&empty_pml4, 0x200000, 0x1000, 0);
+    vmm_map_page_in(empty_pml4.entries, 0x200000, 0x1000, 0);
 
     munit_assert_uint64(empty_pml4.entries[0], !=, 0);
 
@@ -98,8 +99,8 @@ static MunitResult test_map_page_empty_pml4_2M(const MunitParameter params[],
 static MunitResult test_map_page_empty_pml4_1G(const MunitParameter params[],
                                                void *param) {
 
-    current_recursive_pml4 = &empty_pml4;
-    vmm_map_page_in(&empty_pml4, 0x40000000, 0x1000, 0);
+    currently_active_pml4 = &empty_pml4;
+    vmm_map_page_in(empty_pml4.entries, 0x40000000, 0x1000, 0);
 
     munit_assert_uint64(empty_pml4.entries[0], !=, 0);
 
@@ -142,7 +143,7 @@ static MunitResult test_map_page_empty_pml4_1G(const MunitParameter params[],
 
 static MunitResult test_map_page_empty_pml4_512G(const MunitParameter params[],
                                                  void *param) {
-    vmm_map_page_in(&empty_pml4, 0x8000000000, 0x1000, 0);
+    vmm_map_page_in(empty_pml4.entries, 0x8000000000, 0x1000, 0);
 
     munit_assert_uint64(empty_pml4.entries[0], ==, 0);
     munit_assert_uint64(empty_pml4.entries[1], !=, 0);
@@ -187,7 +188,7 @@ static MunitResult test_map_page_complete_pml4_0(const MunitParameter params[],
                                                  void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
-    vmm_map_page_in(&complete_pml4, 0x0, 0x1000, 0);
+    vmm_map_page_in(complete_pml4.entries, 0x0, 0x1000, 0);
 
     // Correct page was mapped
     munit_assert_uint64(complete_pt.entries[0], ==, 0x1000);
@@ -203,7 +204,7 @@ test_map_page_complete_pml4_phys_4G(const MunitParameter params[],
                                     void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x100000000);
 
-    vmm_map_page_in(&complete_pml4, 0x0, 0x100000000, 0);
+    vmm_map_page_in(complete_pml4.entries, 0x0, 0x100000000, 0);
 
     // Correct page was mapped
     munit_assert_uint64(complete_pt.entries[0], ==, 0x100000000);
@@ -218,8 +219,8 @@ static MunitResult
 test_map_page_containing_already(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
-    bool result = vmm_map_page_containing_in((uint64_t *)&complete_pml4, 0x0,
-                                             0x1000, 0);
+    bool result =
+            vmm_map_page_containing_in(complete_pml4.entries, 0x0, 0x1000, 0);
     munit_assert_true(result);
 
     // Correct page was mapped
@@ -264,7 +265,7 @@ static MunitResult
 test_unmap_page_complete_pml4_0(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
-    vmm_map_page_in(&complete_pml4, 0x0, 0x1000, PG_PRESENT);
+    vmm_map_page_in(complete_pml4.entries, 0x0, 0x1000, PG_PRESENT);
 
     // Correct page was mapped
     munit_assert_uint64(complete_pt.entries[0], ==, 0x1000 | PG_PRESENT);
@@ -293,13 +294,13 @@ static MunitResult
 test_unmap_page_complete_pml4_0_np(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
-    vmm_map_page_in(&complete_pml4, 0x0, 0x1000, 0);
+    vmm_map_page_in(complete_pml4.entries, 0x0, 0x1000, 0);
 
     // Correct page was mapped
     munit_assert_uint64(complete_pt.entries[0], ==, 0x1000);
 
-    uintptr_t unmapped_phys =
-            vmm_unmap_page_in((uint64_t *)&complete_pml4, 0x0);
+    const uintptr_t unmapped_phys =
+            vmm_unmap_page_in(complete_pml4.entries, 0x0);
 
     // Higher-level tables are untouched
     munit_assert_uint64(complete_pml4.entries[0], ==,
@@ -322,7 +323,7 @@ static MunitResult
 test_unmap_page_complete_pml4_2M(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
-    vmm_map_page_in(&complete_pml4, 0x200000, 0x1000, 0);
+    vmm_map_page_in(complete_pml4.entries, 0x200000, 0x1000, 0);
 
     uint64_t *pdpt =
             (uint64_t *)(complete_pml4.entries[0] & 0xFFFFFFFFFFFFF000);
@@ -362,9 +363,9 @@ static void *setup(const MunitParameter params[], void *user_data) {
 
     empty_pml4.entries[256] = ((uint64_t)&empty_pml4) | PG_PRESENT;
 
-    PageTable *current_recursive_pml4 = &complete_pml4;
+    PageTable *currently_active_pml4 = &complete_pml4;
 
-    return NULL;
+    return currently_active_pml4;
 }
 
 static void teardown(void *param) { mock_pmm_reset(); }
@@ -372,18 +373,12 @@ static void teardown(void *param) { mock_pmm_reset(); }
 static MunitTest test_suite_tests[] = {
         {(char *)"/map/empty_pml4_0M", test_map_page_empty_pml4_0, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
-
-        /* TODO these tests don't currently work because the mock_recursive 
-          * hardcodes table indices to 0 - that needs fixing...
-
         {(char *)"/map/empty_pml4_2M", test_map_page_empty_pml4_2M, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/map/empty_pml4_1G", test_map_page_empty_pml4_1G, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/map/empty_pml4_512G", test_map_page_empty_pml4_512G, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
-         */
-
         {(char *)"/map/complete_pml4_0M", test_map_page_complete_pml4_0, setup,
          teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/map/complete_pml4_phys_4G",

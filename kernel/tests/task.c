@@ -11,8 +11,8 @@
 #include "slab/alloc.h"
 #include "task.h"
 
+#include "mock_pagetables.h"
 #include "mock_pmm.h"
-#include "mock_recursive.h"
 #include "smp/state.h"
 
 static const int PAGES_PER_SLAB = BYTES_PER_SLAB / VM_PAGE_SIZE;

@@ -28,16 +28,18 @@ typedef struct {
 // This **must** be called **after** basic kernel init is complete, and
 // fixed areas are set up and the PMM and VMM initialized.
 //
-// It will empty PDPTs for all of kernel space (except the recursive mapping
-// and the reserved mapping immediately after). This "wastes" about a MiB
-// of physical RAM, but does mean that kernel space mappings in all processes
-// will stay consistent with no additional work needed because every
-// address space we create from here on out will start with a copy of
-// the kernel space mappings from this PML4...
+// It will create empty PDPTs for all of kernel space (except the reserved
+// virtual mapping areas and other areas that are already set up by the
+// time this runs).
+//
+// This "wastes" about a MiB of physical RAM, but does mean that kernel
+// space mappings in all processes will stay consistent with no additional
+// work needed because every address space we create from here on out will
+// start with a copy of the kernel space mappings from this PML4...
 bool address_space_init(void);
 
 /*
- * Create a new address space, based on the current one. This will
+ * Create a new address space, based on the current one. This will:
  *
  * * Allocate a new address space
  * * Copy all kernel PDPTs into it

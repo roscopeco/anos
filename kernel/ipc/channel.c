@@ -40,7 +40,7 @@
 
 #ifdef UNIT_TESTS
 #define STATIC_EXCEPT_TESTS
-#include "mock_recursive.h"
+#include "mock_pagetables.h"
 #else
 #define STATIC_EXCEPT_TESTS static
 #endif

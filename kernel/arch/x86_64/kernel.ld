@@ -19,10 +19,11 @@ SECTIONS
   .bss (NOLOAD) :
   {
    _kernel_vma_start = .;
+    . = ALIGN(4096);
    _bss_start = .;
     *(.bss*)
     *(COMMON)
-    . = ALIGN(16);
+    . = ALIGN(4096);
     _bss_end = .;
   } > DATA AT > CODE
 

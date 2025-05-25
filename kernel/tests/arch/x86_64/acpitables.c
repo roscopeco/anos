@@ -9,7 +9,7 @@
 
 #include "x86_64/acpitables.h"
 
-#include "mock_recursive.h"
+#include "mock_pagetables.h"
 #include "mock_vmm.h"
 
 static ACPI_RSDP rsdp_bad_checksum = {
