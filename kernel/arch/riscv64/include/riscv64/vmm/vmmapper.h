@@ -129,4 +129,9 @@ static inline uintptr_t vmm_per_cpu_temp_page_addr(uint8_t cpu) {
     return PER_CPU_TEMP_PAGE_BASE + (cpu << 12);
 }
 
+// Initialize the direct mapping for physical memory
+// This must be called during early boot, before SMP
+// or userspace is up (since it abuses both those things)
+void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap);
+
 #endif // __ANOS_KERNEL_ARCH_RISCV64_VMM_VMMAPPER_H

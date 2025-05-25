@@ -657,11 +657,10 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
 
     size_t pre_direct_free = physical_region->free;
 #endif
-    vmm_init_direct_mapping(new_pml4, new_pml4, PT_LEVEL_PML4, TERA_PAGE_SIZE,
-                            &static_memmap);
+    vmm_init_direct_mapping(new_pml4, &static_memmap);
 #ifdef DEBUG_VMM
     size_t post_direct_free = physical_region->free;
-    kprintf("Page tables for VMM Direct Mapping: %ld bytes of physical "
+    kprintf("\nPage tables for VMM Direct Mapping: %ld bytes of physical "
             "memory\n",
             pre_direct_free - post_direct_free);
     kprintf("    Mapping types: %ld tera; %ld giga; %ld mega; %ld small\n\n",

@@ -202,4 +202,11 @@ static inline size_t vmm_level_page_size(const uint8_t level) {
     return (VM_PAGE_SIZE << (9 * (level - 1)));
 }
 
+// Initialize the direct mapping for physical memory
+// This must be called during early boot, before SMP
+// or userspace is up (since it abuses both those things)
+void vmm_init_direct_mapping(uint64_t *pml4, uint64_t *temp_map_page_table,
+                             PagetableLevel temp_map_page_table_level,
+                             size_t temp_map_page_size, Limine_MemMap *memmap);
+
 #endif //__ANOS_KERNEL_ARCH_X86_64_VM_MAPPER_H

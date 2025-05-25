@@ -1,33 +1,40 @@
 /*
- * RISC-V virtual memory manager - direct mapping initialisation
+ * x86_64 virtual memory manager - direct mapping initialisation
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
- * 
- * First time in this file? Well, buckle up, buttercup - you're in
- * for a bit of a ride...
- * 
- * On RISC-V, we use a direct mapping, since recursive isn't possible
- * on that platform. This is used for everything, including management
- * of page tables themselves, which presents us a bit of a 
- * chicken-and-egg situation when it comes to actually building the 
+ *
+ * First time in this file? Fasten your seatbelt, because this is
+ * no better than the RISC-V equivalent. In fact, if anything, it's worse!
+ *
+ * The good news is, we now use direct mapping across the board
+ * on both x86_64 and RISC-V. This is used for everything, including
+ * management of page tables themselves, which presents us a bit of a
+ * chicken-and-egg situation when it comes to actually building the
  * direct map during init.
- * 
- * A lot of the complexity in here is dealing with that - once the 
+ *
+ * A lot of the complexity in here is dealing with that - once the
  * direct map is built, it makes the rest of VMM a breeze compared
  * to x86_64.
- * 
- * I try to be as efficient as possible with the mapping, using the 
- * largest tables possible for each region and breaking it into 
+ *
+ * I try to be as efficient as possible with the mapping, using the
+ * largest tables possible for each region and breaking it into
  * naturally-aligned blocks for larger sizes where possible.
- * 
- * Overhead will vary, on qemu with 8GiB RAM, it currently needs 
- * just over 32KiB for the direct-mapping tables (mapping all of 
+ *
+ * Overhead will vary, on qemu with 8GiB RAM, it currently needs
+ * just over 32KiB for the direct-mapping tables (mapping all of
  * physical RAM).
- * 
+ *
  * There's more info in MemoryMap.md.
+ *
+ * TODO most of this is actually platform agnostic, and should be
+ *      merged. We only have the platform-specific ones because,
+ *      for temp mappings when creating new tables, on RISC-V we
+ *      use terapages, while on x86_64 (which doesn't support them)
+ *      we use gigapages... So tidy this up and factor the
+ *      commonalities out into cross-platform code.
+ *
  */
-
 #include <stddef.h>
 #include <stdint.h>
 
@@ -35,13 +42,7 @@
 #include "pmm/pagealloc.h"
 #include "vmm/vmmapper.h"
 
-#if defined ARCH_X86_64
 #include "x86_64/kdrivers/cpu.h"
-#elif defined ARCH_RISCV64
-#include "riscv64/kdrivers/cpu.h"
-#else
-#error "Unknown arch in vmmapper_init_direct"
-#endif
 
 #ifdef DEBUG_VMM
 #include "kprintf.h"
@@ -55,8 +56,6 @@
 #define debugf(...)
 #define vdebugf(...)
 #endif
-
-#define MAX_PHYS_ADDR (((size_t)127 * 1024 * 1024 * 1024 * 1024)) // 127 TiB
 
 // Physical memory region
 extern MemoryRegion *physical_region;
@@ -102,38 +101,6 @@ static inline void unmap_and_flush(uint64_t *table, const uint16_t table_index,
     table[table_index] = 0;
     cpu_invalidate_tlb_addr(vaddr);
 }
-
-#if defined __riscv
-static void vmm_init_map_terapage(uint64_t *pml4, const uintptr_t base,
-                                  const uint8_t flags) {
-    vdebugf("vmm_init_map_terapage: Mapping phys 0x%016lx with length %ld into "
-            "PML4 @ 0x%016lx\n",
-            base, TERA_PAGE_SIZE, (uintptr_t)pml4);
-
-    if ((base + TERA_PAGE_SIZE) > MAX_PHYS_ADDR) {
-        debugf("WARN: Refusing to map memory at 0x%016lx [%ld bytes] due to "
-               "address-space overflow\n",
-               base, TERA_PAGE_SIZE);
-        return;
-    }
-
-    const uintptr_t vaddr = vmm_phys_to_virt(base);
-    vdebugf("  -> vaddr is 0x%016lx\n", vaddr);
-
-    const uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
-    const uint64_t pml4e = pml4[pml4_index];
-
-    if (pml4e & PG_PRESENT) {
-        debugf("WARN [BUG]: PML4 for terapage at 0x%016lx is already mapped\n",
-               vaddr);
-    }
-
-    pml4[pml4_index] =
-            vmm_phys_and_flags_to_table_entry(base, flags | PG_PAGESIZE);
-
-    vmm_direct_mapping_terapages_used++;
-}
-#endif
 
 static uint64_t *ensure_direct_table_map(uint64_t *table,
                                          const uint16_t table_index,
@@ -322,15 +289,7 @@ static void vmm_init_map_region(uint64_t *pml4, uint64_t *temp_mapping_pt,
     uintptr_t length = entry->length;
 
     while (length > 0) {
-#if defined __riscv
-        if (length >= TERA_PAGE_SIZE && base % TERA_PAGE_SIZE == 0) {
-            // map one terapage
-            vmm_init_map_terapage(pml4, base, flags);
-            base += TERA_PAGE_SIZE;
-            length -= TERA_PAGE_SIZE;
-        } else
-#endif
-                if (length >= GIGA_PAGE_SIZE && base % GIGA_PAGE_SIZE == 0) {
+        if (length >= GIGA_PAGE_SIZE && base % GIGA_PAGE_SIZE == 0) {
             // map one gigapage
             vmm_init_map_gigapage(pml4, temp_mapping_pt, base, flags);
             base += GIGA_PAGE_SIZE;
@@ -375,18 +334,18 @@ static uintptr_t offset_in_page(const uintptr_t addr, const size_t page_size) {
 // This just ensures a full set of page-tables exist for the given temp_map_addr.
 //
 // We use this for temporarily mapping new page tables we need to create during the
-// build of the direct mapping, because of the aforementioned chicken-and-egg situation - 
+// build of the direct mapping, because of the aforementioned chicken-and-egg situation -
 // without the direct map, the usual vmm_ functions for managing page tables don't
 // work, but we do need to be able to map pages in order to build the direct map...
 //
 // Although this is expected to be called in early boot it doesn't make
-// assumptions about the existing table layout, other than that the PML4 it's 
+// assumptions about the existing table layout, other than that the PML4 it's
 // given is valid. This means that as the design progresses and inevitably changes
-// I'm (hopefully) less likely to waste time debugging weird issues before 
+// I'm (hopefully) less likely to waste time debugging weird issues before
 // remembering that this thing exists :D
 //
 // It's a hell of a function, but because the process itself is a bit mind-bending
-// I wrote it with a focus on understandability of the actual logic we follow 
+// I wrote it with a focus on understandability of the actual logic we follow
 // rather than optimising for performance or perceived 'cleanliness'.
 //
 // Worth noting also that it's only to be used before userspace is up, since it
@@ -437,15 +396,15 @@ static uint64_t* ensure_temp_page_tables(const uint64_t *pml4, uint64_t *temp_pa
         if (unlikely((temp_mapped_pdpt[pdpte] & PG_PRESENT) == 0)) {
             vdebugf("    PD is not present, will create PD and PT\n");
 
-            // We need to create a PD and a PT, let's do that. We'll use the 
-            // next 512GiB of userspace as our temporary mapping. This probably 
+            // We need to create a PD and a PT, let's do that. We'll use the
+            // next 512GiB of userspace as our temporary mapping. This probably
             // isn't necessary, since the chances are both these physical pages
             // will be below 512GiB physical, but assuming that will be great
             // until some crazy system comes along with >512GiB physical RAM...
             //
             // So let's not assume :D
             //
-            // (And yeah, we _could_ set the PDPT entry before remapping these 
+            // (And yeah, we _could_ set the PDPT entry before remapping these
             // to zero them, but there's a chance that could lead to TLB poisoning
             // due to speculation, so we'll map and zero them first then hook it
             // up...)
@@ -501,20 +460,20 @@ static uint64_t* ensure_temp_page_tables(const uint64_t *pml4, uint64_t *temp_pa
             cpu_invalidate_tlb_addr(temp_map_addr);
 
             // Remove the temp PDPT mapping in the PML4
-            // 
-            // We're returning the one at pml4[2], so we don't clean that 
+            //
+            // We're returning the one at pml4[2], so we don't clean that
             // up - that'll be handled in cleanup_cpu0_temp_page_tables later.
             temp_page_table[1] = 0;
             cpu_invalidate_tlb_addr(pdpt_temp_vaddr + pdpt_phys_addr_offs);
 
             // and return the PT vaddr
             vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)temp_page_table, temp_map_addr, (uintptr_t)temp_mapped_table);
-            return temp_mapped_table;            
+            return temp_mapped_table;
         } else {
-            // So we maybe just need a PT, fine. 
+            // So we maybe just need a PT, fine.
             //
             // We'll use the next 512GiB of userspace as our temporary mapping
-            // for this one (i.e. mapping at the 1TiB mark). 
+            // for this one (i.e. mapping at the 1TiB mark).
             //
             vdebugf("    PD is present, checking PT\n");
 
@@ -558,22 +517,22 @@ static uint64_t* ensure_temp_page_tables(const uint64_t *pml4, uint64_t *temp_pa
 
                 // Create a pointer we'll use to get at the table once we've mapped it...
                 uint64_t* temp_mapped_table = (uint64_t*)(temp_table_vaddr + temp_table_phys_addr_offs);
-                
+
                 // Do the mapping & flush TLB. TODO ROSS CHANGED FROM -1
                 map_readwrite_and_flush_offs(temp_page_table, temp_table_level, temp_table_phys_base_addr, temp_table_vaddr, temp_table_phys_addr_offs);
-    
+
                 // Just zero this one, that's all we need
                 for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) {
                     temp_mapped_table[i] = 0;
                 }
-    
+
                 // Finally, map the PT into the PDPT & invalidate
                 temp_mapped_pd[pde] = vmm_phys_and_flags_to_table_entry(pt_phys, PG_PRESENT | PG_WRITE);
                 cpu_invalidate_tlb_addr(temp_map_addr);
 
                 // Remove the temp PDPT and PD mappings in the PML4
-                // 
-                // We're returning the one at pml4[3], so we don't clean that 
+                //
+                // We're returning the one at pml4[3], so we don't clean that
                 // up - that'll be handled in cleanup_cpu0_temp_page_tables later.
                 temp_page_table[1] = 0;
                 cpu_invalidate_tlb_addr(pdpt_temp_vaddr + pdpt_phys_addr_offs);

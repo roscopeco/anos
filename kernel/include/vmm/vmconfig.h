@@ -24,6 +24,8 @@
 
 #define VM_PAGE_LINEAR_SHIFT ((__builtin_ctz(VM_PAGE_SIZE)))
 
+#define MAX_PHYS_ADDR (((size_t)127 * 1024 * 1024 * 1024 * 1024)) // 127 TiB
+
 static_assert(VM_PAGE_SIZE >> VM_PAGE_LINEAR_SHIFT == 1,
               "Page shift not constant");
 

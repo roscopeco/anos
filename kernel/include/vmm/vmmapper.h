@@ -169,11 +169,4 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr);
  */
 void vmm_invalidate_page(uintptr_t virt_addr);
 
-// Initialize the direct mapping for physical memory
-// This must be called during early boot, before SMP
-// or userspace is up (since it abuses both those things)
-void vmm_init_direct_mapping(uint64_t *pml4, uint64_t *temp_map_page_table,
-                             PagetableLevel temp_map_page_table_level,
-                             size_t temp_map_page_size, Limine_MemMap *memmap);
-
 #endif //__ANOS_KERNEL_VM_MAPPER_H

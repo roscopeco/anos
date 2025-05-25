@@ -246,6 +246,7 @@ STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/smp/ipwi.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/debugmadt.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/capabilities/cookies.o			\
+					$(STAGE3_ARCH_X86_64_DIR)/vmm/vmmapper_init.o				\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
 STAGE3_ARCH_RISCV64_DIR=$(STAGE3_DIR)/arch/riscv64
@@ -257,6 +258,7 @@ STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/structs/list.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/capabilities/cookies.o			\
+					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper_init.o				\
 					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o
 
 ifeq ($(ARCH),x86_64)
@@ -304,7 +306,6 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/structs/region_tree.o									\
 			$(STAGE3_DIR)/structs/shift_array.o									\
 			$(STAGE3_DIR)/smp/ipwi.o											\
-			$(STAGE3_DIR)/vmm/vmmapper_init_direct.o							\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 else
@@ -313,7 +314,6 @@ STAGE3_OBJS=$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/debugmemmap.o											\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/panic.o												\
-			$(STAGE3_DIR)/vmm/vmmapper_init_direct.o							\
 			$(STAGE3_ARCH_OBJS)
 endif
 endif
