@@ -7,13 +7,15 @@
 
 #include "munit.h"
 
+#include "mock_pagetables.h"
 #include "mock_pmm.h"
-#include "mock_recursive.h"
 #include "mock_vmm.h"
 #include "vmm/vmmapper.h"
 
 #include "process/address_space.h"
 #include "smp/state.h"
+
+uint32_t refcount_map_increment(uintptr_t addr) { return 1; }
 
 #define TEST_PML4_ADDR (((uint64_t *)0x100000))
 #define TEST_PAGE_COUNT ((32768))
@@ -32,20 +34,15 @@ static void test_teardown(void *page_area_ptr) {
 static MunitResult test_init_success(const MunitParameter params[],
                                      void *fixture) {
     // Test successful initialization
-    bool result = address_space_init();
+    const bool result = address_space_init();
 
     munit_assert_true(result);
 
     // Verify PML4 entries are properly set up
-    for (int i = RECURSIVE_ENTRY + 2; i < 512; i++) {
+    for (int i = FIRST_KERNEL_PML4E + 2; i < 512; i++) {
         munit_assert_not_null((void *)complete_pml4.entries[i]);
         munit_assert((complete_pml4.entries[i] & PG_PRESENT) != 0);
         munit_assert((complete_pml4.entries[i] & PG_WRITE) != 0);
-
-        for (int j = 0; j < 512; j++) {
-            uint64_t *pdpt = (uint64_t *)(complete_pml4.entries[i] & ~(0xfff));
-            munit_assert_uint64(pdpt[j], ==, 0);
-        }
     }
 
     return MUNIT_OK;
@@ -54,16 +51,17 @@ static MunitResult test_init_success(const MunitParameter params[],
 static MunitResult
 test_init_with_existing_entries(const MunitParameter params[], void *fixture) {
     // Set up some pre-existing entries
-    complete_pml4.entries[RECURSIVE_ENTRY + 3] = 0x1000 | PG_PRESENT;
-    complete_pml4.entries[RECURSIVE_ENTRY + 4] = 0x2000 | PG_PRESENT | PG_WRITE;
+    complete_pml4.entries[FIRST_KERNEL_PML4E + 3] = 0x1000 | PG_PRESENT;
+    complete_pml4.entries[FIRST_KERNEL_PML4E + 4] =
+            0x2000 | PG_PRESENT | PG_WRITE;
 
     bool result = address_space_init();
     munit_assert_true(result);
 
     // Verify pre-existing entries weren't modified
-    munit_assert_uint64(complete_pml4.entries[RECURSIVE_ENTRY + 3], ==,
+    munit_assert_uint64(complete_pml4.entries[FIRST_KERNEL_PML4E + 3], ==,
                         0x1000 | PG_PRESENT);
-    munit_assert_uint64(complete_pml4.entries[RECURSIVE_ENTRY + 4], ==,
+    munit_assert_uint64(complete_pml4.entries[FIRST_KERNEL_PML4E + 4], ==,
                         0x2000 | PG_PRESENT | PG_WRITE);
 
     return MUNIT_OK;

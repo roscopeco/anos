@@ -12,11 +12,12 @@
 
 #include "munit.h"
 
-#include "mock_recursive.h"
+#include "mock_pagetables.h"
 #include "mock_vmm.h"
 
 #include "ipc/channel.h"
 #include "ipc/channel_internal.h"
+#include "smp/state.h"
 #include "structs/hash.h"
 #include "structs/list.h"
 
@@ -68,11 +69,7 @@ Task *task_current(void) { return current_task_ptr; }
 static Task sender_task;
 static Task receiver_task;
 
-/* Dummy PerCPUState and related scheduler functions */
-typedef struct PerCPUState {
-    int dummy;
-} PerCPUState;
-
+/* Dummy scheduler functions */
 PerCPUState *sched_find_target_cpu(void) {
     static PerCPUState cpu;
     return &cpu;

@@ -14,8 +14,8 @@
 #include "munit.h"
 
 #include "fba/alloc.h"
+#include "mock_pagetables.h"
 #include "mock_pmm.h"
-#include "mock_recursive.h"
 #include "mock_vmm.h"
 #include "structs/bitmap.h"
 #include "vmm/vmmapper.h"

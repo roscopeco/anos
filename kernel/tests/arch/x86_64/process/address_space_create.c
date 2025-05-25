@@ -11,8 +11,8 @@
 #include "munit.h"
 
 #include "mock_machine.h"
+#include "mock_pagetables.h"
 #include "mock_pmm.h"
-#include "mock_recursive.h"
 #include "pmm/pagealloc.h"
 #include "spinlock.h"
 #include "vmm/vmmapper.h"
@@ -24,25 +24,16 @@ extern MemoryRegion *physical_region;
 
 #define TEST_PAGE_COUNT ((32768))
 
-// External declarations for mock tables from mock_recursive.h
-extern PageTable empty_pml4;
-extern PageTable complete_pml4;
-extern PageTable complete_pdpt;
-extern PageTable complete_pd;
-extern PageTable complete_pt;
+uint32_t refcount_map_increment(uintptr_t addr) { return 1; }
 
 static void *test_setup(const MunitParameter params[], void *user_data) {
     // Reset complete_pml4 to a known state
     memset(&complete_pml4, 0, sizeof(PageTable));
 
     // Set up kernel space entries in complete_pml4
-    for (int i = KERNEL_BEGIN_ENTRY; i < 512; i++) {
+    for (int i = FIRST_KERNEL_PML4E; i < 512; i++) {
         complete_pml4.entries[i] = 0xA000 + i | PG_PRESENT | PG_WRITE;
     }
-
-    // Set up recursive mapping in complete_pml4
-    complete_pml4.entries[RECURSIVE_ENTRY] =
-            (uintptr_t)&complete_pml4 | PG_PRESENT | PG_WRITE;
 
     void *page_area_ptr;
     posix_memalign(&page_area_ptr, 0x40000, TEST_PAGE_COUNT << 12);
@@ -57,20 +48,17 @@ static void test_teardown(void *page_area_ptr) {
 
 static MunitResult test_create_success(const MunitParameter params[],
                                        void *fixture) {
-    // Given
-    complete_pml4.entries[RECURSIVE_ENTRY_OTHER] = 0x1234 | PG_PRESENT;
-
     // When
-    uintptr_t result =
+    const uintptr_t result =
             address_space_create(0x0, 0x0, 0, (void *)0, 0, (void *)0);
 
     // Then.....
     munit_assert_not_null((void *)result);
 
-    PageTable *mock_new_pml4 = (PageTable *)result;
+    PageTable *mock_new_pml4 = (PageTable *)vmm_phys_to_virt(result);
 
     // Verify userspace is zeroed
-    for (int i = 0; i < RECURSIVE_ENTRY; i++) {
+    for (int i = 0; i < FIRST_KERNEL_PML4E; i++) {
 #ifdef DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL
         munit_assert_uint64(mock_new_pml4.entries[i], ==,
                             complete_pml4.entries[i]);
@@ -79,22 +67,11 @@ static MunitResult test_create_success(const MunitParameter params[],
 #endif
     }
 
-    // Verify recursive entry
-    munit_assert_uint64(mock_new_pml4->entries[RECURSIVE_ENTRY], ==,
-                        ((uintptr_t)mock_new_pml4 | PG_WRITE | PG_PRESENT));
-
-    // Verify other recursive entry is zeroed
-    munit_assert_uint64(mock_new_pml4->entries[RECURSIVE_ENTRY_OTHER], ==, 0);
-
     // Verify kernel space was copied
-    for (int i = KERNEL_BEGIN_ENTRY; i < 512; i++) {
+    for (int i = FIRST_KERNEL_PML4E; i < 512; i++) {
         munit_assert_uint64(mock_new_pml4->entries[i], ==,
                             complete_pml4.entries[i]);
     }
-
-    // Verify original PML4 was restored
-    munit_assert_uint64(complete_pml4.entries[RECURSIVE_ENTRY_OTHER], ==,
-                        0x1234 | PG_PRESENT);
 
     return MUNIT_OK;
 }
@@ -194,7 +171,8 @@ static MunitResult test_stack_values_copied(const MunitParameter params[],
 
     munit_assert_not_null((void *)result);
 
-    const uint64_t *mock_stacked_page = (uint64_t *)mock_cpu_temp_page;
+    const uint64_t *mock_stacked_page =
+            (uint64_t *)vmm_per_cpu_temp_page_addr(0);
 
     munit_assert_uint64(mock_stacked_page[511], ==, 0xFACE);
     munit_assert_uint64(mock_stacked_page[510], ==, 0xFEED);

@@ -136,7 +136,7 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
     }
 
     pt[vmm_virt_to_pt_index(virt_addr)] =
-            vmm_phys_and_flags_to_table_entry(phys_addr, flags | PG_PRESENT);
+            vmm_phys_and_flags_to_table_entry(phys_addr, flags);
 
     vmm_invalidate_page(virt_addr);
 

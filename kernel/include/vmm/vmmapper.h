@@ -39,44 +39,13 @@ typedef enum {
 // This is where we map the PMM region(s)
 static constexpr uintptr_t STATIC_KERNEL_SPACE = 0xFFFFFFFF80000000;
 
+#ifdef UNIT_TESTS
+// In unit tests, we need to leave addresses alone...
+static constexpr uintptr_t DIRECT_MAP_BASE = 0;
+#else
 // Direct mapping base address (from MemoryMap.md)
 static constexpr uintptr_t DIRECT_MAP_BASE = 0xffff800000000000;
-
-/*
- *  Find the per-CPU temporary page base for the given CPU.
- */
-static uintptr_t vmm_per_cpu_temp_page_addr(uint8_t cpu);
-
-// Convert direct-mapped virtual address to physical address
-static uintptr_t vmm_virt_to_phys(uintptr_t virt_addr);
-
-// Get the table index for a virtual address at a given table level
-static uint16_t vmm_virt_to_table_index(uintptr_t virt_addr, uint8_t level);
-
-// Get the PML4 index for a given virtual address
-static uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr);
-
-// Get the PDPT index for a given virtual address
-static uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr);
-
-// Get the PD index for a given virtual address
-static uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr);
-
-// Get the PT index for a given virtual address
-static uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr);
-
-// Extract the physical address from a page table entry
-static uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry);
-
-// Extract the flags from a page table entry
-static uint16_t vmm_table_entry_to_page_flags(uintptr_t table_entry);
-
-// Build a table entry from physical address and flags
-static uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys,
-                                                  uint64_t flags);
-
-// Get the page size for a large page mapped at the given table level
-static size_t vmm_level_page_size(uint8_t level);
+#endif
 
 #if defined __x86_64__
 #include "x86_64/vmm/vmmapper.h"

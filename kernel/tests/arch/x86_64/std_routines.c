@@ -8,7 +8,7 @@ void *anos_std_memcpy(void *restrict dest, const void *restrict src,
                       size_t count);
 void *anos_std_memmove(void *dest, const void *src, size_t count);
 void *anos_std_memset(void *dest, int val, size_t count);
-void *anos_std_memclr(void *dest, size_t count);
+void *memclr(void *dest, size_t count);
 
 static MunitResult test_memcpy(const MunitParameter params[], void *data) {
     (void)params;
@@ -64,7 +64,7 @@ static MunitResult test_memclr(const MunitParameter params[], void *data) {
 
     char buffer[64];
     anos_std_memset(buffer, 0xFF, 64);
-    anos_std_memclr(buffer, 64);
+    memclr(buffer, 64);
     for (size_t i = 0; i < 64; i++) {
         munit_assert_uint8(buffer[i], ==, 0);
     }
@@ -77,7 +77,7 @@ static MunitResult test_memset(const MunitParameter params[], void *data) {
     (void)data;
 
     char buffer[64];
-    anos_std_memclr(buffer, 64);
+    memclr(buffer, 64);
     anos_std_memset(buffer, 0xAB, 64);
     for (size_t i = 0; i < 64; i++) {
         munit_assert_uint8(buffer[i], ==, 0xAB);

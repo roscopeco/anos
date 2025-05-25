@@ -16,7 +16,7 @@
 MemoryRegion physical_region;
 
 static void *pages[MOCK_PMM_MAX_PAGES];
-static uint8_t page_ptr = 0;
+static uint16_t page_ptr = 0;
 static uint32_t total_page_allocs = 0;
 static uint32_t total_page_frees = 0;
 

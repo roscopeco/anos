@@ -78,7 +78,7 @@ static SpinLock vmm_map_lock;
  * Returns true if the given entry is a large-sized leaf, i.e.
  * has the PAGE_SIZE flag set.
  */
-STATIC_EXCEPT_TESTS inline bool is_pagesize_leaf(const uint64_t table_entry) {
+STATIC_EXCEPT_TESTS bool is_pagesize_leaf(const uint64_t table_entry) {
     return table_entry & (PG_PAGESIZE);
 }
 
@@ -91,16 +91,17 @@ STATIC_EXCEPT_TESTS inline bool is_pagesize_leaf(const uint64_t table_entry) {
  *   3 - Ensures PDPT
  *   2 - Ensures PD
  *   1 - Ensures PT
- * 
- * Returns a virtual pointer to the table of the specified 
+ *
+ * Returns a virtual pointer to the table of the specified
  * level, which may be newly created.
- * 
+ *
  * Must be called with VMM locked!
  */
 STATIC_EXCEPT_TESTS uint64_t *ensure_tables(const uint64_t *root_table,
                                             const uintptr_t virt_addr,
                                             const PagetableLevel to_level,
                                             const uint16_t flags) {
+
     if (to_level < 1 || to_level > 4) {
         return nullptr;
     }
@@ -174,7 +175,7 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
     }
 
     pt[vmm_virt_to_pt_index(virt_addr)] =
-            vmm_phys_and_flags_to_table_entry(phys_addr, flags | PG_PRESENT);
+            vmm_phys_and_flags_to_table_entry(phys_addr, flags);
 
     vmm_invalidate_page(virt_addr);
 
@@ -269,4 +270,105 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
 
 inline uintptr_t vmm_unmap_page(const uintptr_t virt_addr) {
     return vmm_unmap_page_in(vmm_phys_to_virt_ptr(cpu_read_cr3()), virt_addr);
+}
+
+/*
+ *  Find the per-CPU temporary page base for the given CPU.
+ */
+inline uintptr_t vmm_per_cpu_temp_page_addr(const uint8_t cpu) {
+    return PER_CPU_TEMP_PAGE_BASE + (cpu << 12);
+}
+
+// Convert physical address to direct-mapped virtual address
+inline uintptr_t vmm_phys_to_virt(const uintptr_t phys_addr) {
+    return DIRECT_MAP_BASE + phys_addr;
+}
+
+inline void *vmm_phys_to_virt_ptr(const uintptr_t phys_addr) {
+    return (void *)vmm_phys_to_virt(phys_addr);
+}
+
+inline uintptr_t vmm_virt_to_phys_page(const uintptr_t virt_addr) {
+    return vmm_virt_to_phys(virt_addr) & PAGE_ALIGN_MASK;
+}
+
+inline PageTable *vmm_find_pml4() {
+    return (PageTable *)vmm_phys_to_virt_ptr(cpu_read_cr3());
+}
+
+inline uint16_t vmm_virt_to_table_index(const uintptr_t virt_addr,
+                                        const uint8_t level) {
+    return ((virt_addr >> ((9 * (level - 1)) + 12)) & 0x1ff);
+}
+
+inline uint16_t vmm_virt_to_pml4_index(const uintptr_t virt_addr) {
+    return ((virt_addr >> (9 + 9 + 9 + 12)) & 0x1ff);
+}
+
+inline uint16_t vmm_virt_to_pdpt_index(const uintptr_t virt_addr) {
+    return ((virt_addr >> (9 + 9 + 12)) & 0x1ff);
+}
+
+inline uint16_t vmm_virt_to_pd_index(const uintptr_t virt_addr) {
+    return ((virt_addr >> (9 + 12)) & 0x1ff);
+}
+
+inline uint16_t vmm_virt_to_pt_index(const uintptr_t virt_addr) {
+    return ((virt_addr >> 12) & 0x1ff);
+}
+
+inline uintptr_t vmm_table_entry_to_phys(const uintptr_t table_entry) {
+    return (table_entry & 0x0000fffffffff000);
+}
+
+inline uint16_t vmm_table_entry_to_page_flags(const uintptr_t table_entry) {
+    return (uint16_t)(table_entry & 0x3ff);
+}
+
+inline uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
+                                                  const uint64_t flags) {
+    return ((phys & ~0xfff)) | flags;
+}
+
+/*
+ * Get the PT entry (including flags) for the given virtual address,
+ * or 0 if not mapped in the _current process_ recursive mapping.
+ *
+ * This **only** works for 4KiB pages - large pages will not work
+ * with this (and that's by design!)
+ */
+uint64_t vmm_virt_to_pt_entry(const uintptr_t virt_addr) {
+    const uint64_t pml4e =
+            vmm_find_pml4()->entries[vmm_virt_to_pml4_index(virt_addr)];
+    if (pml4e & PG_PRESENT) {
+        const uint64_t pdpte =
+                ((PageTable *)vmm_phys_to_virt(vmm_table_entry_to_phys(pml4e)))
+                        ->entries[vmm_virt_to_pdpt_index(virt_addr)];
+        if (pdpte & PG_PRESENT) {
+            const uint64_t pde =
+                    ((PageTable *)vmm_phys_to_virt(
+                             vmm_table_entry_to_phys(pdpte)))
+                            ->entries[vmm_virt_to_pd_index(virt_addr)];
+            if (pde & PG_PRESENT) {
+                const uint64_t pte =
+                        ((PageTable *)vmm_phys_to_virt(
+                                 vmm_table_entry_to_phys(pde)))
+                                ->entries[vmm_virt_to_pt_index(virt_addr)];
+                if (pte & PG_PRESENT) {
+                    return pte;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+// Convert virtual address to phys via table walk
+uintptr_t vmm_virt_to_phys(const uintptr_t virt_addr) {
+    return vmm_table_entry_to_phys(vmm_virt_to_pt_entry(virt_addr));
+}
+
+size_t vmm_level_page_size(const uint8_t level) {
+    return (VM_PAGE_SIZE << (9 * (level - 1)));
 }

@@ -10,7 +10,7 @@
 
 #include "munit.h"
 
-#include "mock_recursive.h"
+#include "mock_pagetables.h"
 
 #include "mock_acpitables.h"
 #include "mock_vmm.h"
