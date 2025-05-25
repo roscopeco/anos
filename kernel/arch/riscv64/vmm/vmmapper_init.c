@@ -7,15 +7,15 @@
  * First time in this file? Well, buckle up, buttercup - you're in
  * for a bit of a ride...
  *
- * On RISC-V, we use a direct mapping, since recursive isn't possible
- * on that platform. This is used for everything, including management
- * of page tables themselves, which presents us a bit of a
+ * On RISC-V, we've always used a direct mapping, since recursive isn't
+ * possible on that platform. This is used for everything, including
+ * management of page tables themselves, which presents us a bit of a
  * chicken-and-egg situation when it comes to actually building the
  * direct map during init.
  *
  * A lot of the complexity in here is dealing with that - once the
  * direct map is built, it makes the rest of VMM a breeze compared
- * to x86_64.
+ * to those based on recursive mapping.
  *
  * I try to be as efficient as possible with the mapping, using the
  * largest tables possible for each region and breaking it into

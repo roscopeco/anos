@@ -20,11 +20,6 @@
  * this is where the PMM stack will live. This is compatible with the 
  * x86_64 layout, see notes in the init_pagetables.c for that arch, and 
  * in the MemoryMap.md, for a few notes on the design and tradeoffs etc.
- * 
- * One thing that's worth noting in here is that, for RISC-V, we 
- * don't set up a recursive entry - since the pagetable layout on
- * that architecture does not support recursive mapping, so we use
- * direct mapping instead.
  */
 
 #include <stdint.h>

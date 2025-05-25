@@ -182,8 +182,7 @@ the `gcov/kernel` directory as HTML.
 > [!WARNING]
 > RISC-V support is _very_ much in its infancy right now - there's
 > enough to get through early boot and start the PMM and VMM, 
-> including setting up a direct map (since recursive can't be a
-> thing) but that's it.
+> including setting up a direct map but that's it.
 >
 > It only works on a qemu that's setup weirdly (e.g. with VGA)
 > and will not work on any real hardware at all yet. It also 
@@ -422,7 +421,7 @@ Broadly, this is happening here:
   * With Limine (UEFI) - Take over from Limine and set everything up for Kernel
 * Set up our graphical terminal (or text-mode if non-UEFI)
 * Set up a RLE stack-based PMM
-* Set up VMM & recursive paging (for now, will likely change later)
+* Set up VMM & direct-mapped paging
 * Set up fixed block & slab allocators
 * _Just enough_ ACPI to initialise basic platform devices (HPET & LAPICs)
 * Init LAPICs and calibrate with HPET
@@ -455,7 +454,7 @@ boot on `qemu-system-riscv64`:
   * With Limine (UEFI) - Take over from Limine and set everything up for Kernel
 * Set up our graphical terminal (or text-mode if non-UEFI)
 * Set up a RLE stack-based PMM
-* Set up VMM & direct-mapped paging (recursive isn't doable on riscv64)
+* Set up VMM & direct-mapped paging
 * Do some tests of memory allocation and mapping
 * Initialise enough to be able to `panic` and print a message inviting you to 
   help with the RISC-V port! ;)

@@ -25,7 +25,7 @@ static const uintptr_t L4_RSHIFT = 39;
 static const uintptr_t LVL_MASK = 0x1ff;
 
 // TODO this is brittle as all hell, and makes modifying / refactoring
-// in tests a real pain in the arse.
+//      in tests a real pain in the arse.
 //
 // If you're here because some tests started randomly failing to build
 // after some change, it's probably down to this.
@@ -33,11 +33,12 @@ static const uintptr_t LVL_MASK = 0x1ff;
 // The usual trick is to:
 //
 //  * Be sure to include "munit.h" **first**
-//  * _then_ include "mock_recursive" afterward, even if your test
+//  * _then_ include "mock_pagetables" afterward, even if your test
 //    doesn't seem to need it.
 //
-// But really this should be fixed properly. Which if recursive goes
-// away it will do, but otherwise, well, welcome to the club :D
+// But really this should be fixed properly... With recent moves away
+// from static inline functions in includes (hopefully LTO can take
+// up that slack) it _should_ be fixable - but needs looking into.
 //
 // (Oh, and if you add those two steps in your test, make sure you have
 // a blank line between them or clang-format will "helpfully" reorder
@@ -51,7 +52,7 @@ PageTable complete_pdpt __attribute__((__aligned__(4096)));
 PageTable complete_pd __attribute__((__aligned__(4096)));
 PageTable complete_pt __attribute__((__aligned__(4096)));
 
-PageTable *current_recursive_pml4 = &complete_pml4;
+PageTable *currently_active_pml4 = &complete_pml4;
 #else
 #include <stdio.h>
 
@@ -69,7 +70,7 @@ extern PageTable complete_pdpt;
 extern PageTable complete_pd;
 extern PageTable complete_pt;
 
-extern PageTable *current_recursive_pml4;
+extern PageTable *currently_active_pml4;
 
 #endif
 #endif //__ANOS_KERNEL_MOCK_RECURSIVE_H

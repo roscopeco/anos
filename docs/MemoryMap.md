@@ -140,40 +140,23 @@ This area covers 254 PML4 entries from 256 to 509, leaving one entry (510) unuse
 and available for per-platform requirements, with the last entry (covering 512GB)
 free for the rest of kernel space.
 
-How this 127TiB is actually used dependent on the platform.
-
 ###### x86_64
 
-On x86_64, this area is currently used for recursive mapping, with PML4 256 and 257 reserved
-for the recursive entries (256 being the "main" self-mapping, always present in all address 
-spaces, and 257 being a second recursive entry available for use when copying between 
-address spaces). 
-
-This means that currently, of this 127TiB area, 1TiB is currently used, and the rest 
-is currently unused - the area looks like this currently:
-
-| Start                | End                  | Use                                                          |
-|----------------------|----------------------|--------------------------------------------------------------|
-| `0xffff800000000000` | `0xffff807fffffffff` | rentry 256 mapping space                                     |
-| `0xffff808000000000` | `0xffff80ffffffffff` | rentry 257 mapping space                                     |
-| `0xffff810000000000` | `0xffffff7fffffffff` | [_Currently unused, ~126TiB_]                                |
-
-###### RISC-V
-
-RISC-V page tables are not amenable to recursive mapping, since a table entry
-cannot be both an intermediate and leaf table at the same time.
-
-For this reason, and because of the physical vs virtual memory capabilities of
-the platform currently, we instead use a simple direct map of all physical RAM,
-set up at boot time.
-
-This has the advantage that converting between physical and virtual addresses
-is a simple addition / subtraction with no table walk necessary.
+On x86_64, this area holds a 1:1 direct map of all physical RAM in the system, as
+detected at boot. This region is used by the virtual-memory subsystem for pagetable
+management, and can also be used by other subsystems that need to directly 
+maniu
 
 The downsides of course are that all physical memory is mapped statically in
 the kernel. It also means we have to maintain tables for all of these mappings
 (but we do endeavour to use the largest possible page mappings for these areas
 to minimise the overhead).
+
+###### RISC-V
+
+RISC-V page tables are not amenable to recursive mapping, since a table entry
+cannot be both an intermediate and leaf table at the same time, so on this 
+platform the design was always going to be direct-mapping.
 
 ##### ACPI tables
 

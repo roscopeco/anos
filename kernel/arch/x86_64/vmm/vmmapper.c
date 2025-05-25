@@ -332,7 +332,7 @@ inline uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
 
 /*
  * Get the PT entry (including flags) for the given virtual address,
- * or 0 if not mapped in the _current process_ recursive mapping.
+ * or 0 if not mapped in the _current process_ direct mapping.
  *
  * This **only** works for 4KiB pages - large pages will not work
  * with this (and that's by design!)
