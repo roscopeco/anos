@@ -85,16 +85,27 @@ static inline void cpu_store_idtr(IDTR *idtr) {
     __asm__ __volatile__("sidt (%0)" : : "r"(idtr));
 }
 
-static inline void cpu_invalidate_page(uintptr_t virt_addr) {
+static inline void cpu_invalidate_tlb_addr(uintptr_t virt_addr) {
     __asm__ volatile("invlpg (%0)\n\t" : : "r"(virt_addr) : "memory");
 }
 
+static inline void cpu_invalidate_tlb_all(void) {
+    uintptr_t cr3;
+    __asm__ volatile("mov %%cr3, %0\n\t"
+                     "mov %0, %%cr3"
+                     : "=r"(cr3)::"memory");
+}
 static inline void cpu_swapgs(void) {
 #ifndef NO_USER_GS
     __asm__ volatile("swapgs" : : : "memory");
 #endif
 }
 
+static inline uintptr_t cpu_read_cr3(void) {
+    uintptr_t value;
+    __asm__ volatile("mov %%cr3, %0" : "=r"(value));
+    return value;
+}
 // 0 = not checked, -1 = don't have, 1 = have
 static int __have__cpu__rdseed;
 

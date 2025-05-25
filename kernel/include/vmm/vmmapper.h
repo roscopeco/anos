@@ -19,6 +19,13 @@
 
 #include "vmm/vmconfig.h"
 
+typedef enum {
+    PT_LEVEL_PML4 = 4,
+    PT_LEVEL_PDPT = 3,
+    PT_LEVEL_PD = 2,
+    PT_LEVEL_PT = 1,
+} PagetableLevel;
+
 #if (__STDC_VERSION__ < 202000)
 // TODO Apple clang doesn't support constexpr yet - Jan 2025
 #ifndef constexpr
@@ -114,7 +121,7 @@ bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
 
 /*
  * Map the page containing the given physical address into virtual memory
- * with the specified page tables..
+ * with the specified page tables.
  *
  * Simple wrapper around `map_page` - see documentation for that function
  * for specifics.
@@ -161,5 +168,12 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr);
  * needed most of the time.
  */
 void vmm_invalidate_page(uintptr_t virt_addr);
+
+// Initialize the direct mapping for physical memory
+// This must be called during early boot, before SMP
+// or userspace is up (since it abuses both those things)
+void vmm_init_direct_mapping(uint64_t *pml4, uint64_t *temp_map_page_table,
+                             PagetableLevel temp_map_page_table_level,
+                             size_t temp_map_page_size, Limine_MemMap *memmap);
 
 #endif //__ANOS_KERNEL_VM_MAPPER_H

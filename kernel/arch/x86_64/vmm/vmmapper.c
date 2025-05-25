@@ -9,11 +9,12 @@
 #include <stdint.h>
 
 #include "pmm/pagealloc.h"
+#include "std/string.h"
 #include "vmm/vmmapper.h"
+#include "x86_64/kdrivers/cpu.h"
 
 #ifdef UNIT_TESTS
 #include "mock_cpu.h"
-#include "mock_recursive.h"
 #else
 #include "x86_64/kdrivers/cpu.h"
 #endif
@@ -52,12 +53,18 @@
 #if (__STDC_VERSION__ < 202000)
 // TODO Apple clang doesn't support nullptr yet - May 2025
 #ifndef nullptr
-#ifdef NULL
-#define nullptr NULL
+#ifdef nullptr
+#define nullptr nullptr
 #else
 #define nullptr (((void *)0))
 #endif
 #endif
+#endif
+
+#ifdef UNIT_TESTS
+#define STATIC_EXCEPT_TESTS
+#else
+#define STATIC_EXCEPT_TESTS static
 #endif
 
 extern MemoryRegion *physical_region;
@@ -67,345 +74,199 @@ static SpinLock vmm_map_lock;
 //      on the top-level table instead, for example...
 //
 
-inline void vmm_invalidate_page(uintptr_t virt_addr) {
-#ifndef UNIT_TESTS
-#ifdef VERY_NOISY_VMM
-    C_DEBUGSTR("INVALIDATE PAGE ");
-    C_PRINTHEX64(virt_addr, debugchar);
-    C_DEBUGSTR("\n");
-#endif
-    cpu_invalidate_page(virt_addr);
-#endif
+/*
+ * Returns true if the given entry is a large-sized leaf, i.e.
+ * has the PAGE_SIZE flag set.
+ */
+STATIC_EXCEPT_TESTS inline bool is_pagesize_leaf(const uint64_t table_entry) {
+    return table_entry & (PG_PAGESIZE);
 }
 
-static void clear_table(uint64_t *table) {
-    V_DEBUGSTR("!! CLEAR TABLE @ ");
-    V_PRINTHEX64(table, debugchar);
-    V_DEBUGSTR("\n");
-
-    for (int i = 0; i < 512; i++) {
-        table[i] = 0;
+/*
+ * Ensure tables are mapped to the specified level.
+ *
+ * levels (1-based to fit with PML4 naming):
+ *
+ *   4 - Ensures PML4
+ *   3 - Ensures PDPT
+ *   2 - Ensures PD
+ *   1 - Ensures PT
+ * 
+ * Returns a virtual pointer to the table of the specified 
+ * level, which may be newly created.
+ * 
+ * Must be called with VMM locked!
+ */
+STATIC_EXCEPT_TESTS uint64_t *ensure_tables(const uint64_t *root_table,
+                                            const uintptr_t virt_addr,
+                                            const PagetableLevel to_level,
+                                            const uint16_t flags) {
+    if (to_level < 1 || to_level > 4) {
+        return nullptr;
     }
+
+    uint8_t levels_remain = 4 - to_level;
+    uint64_t *current_table = (uint64_t *)root_table;
+
+    while (levels_remain) {
+        const uint16_t current_index =
+                vmm_virt_to_table_index(virt_addr, levels_remain + 1);
+        const uint64_t current_entry = current_table[current_index];
+
+        if ((current_entry & PG_PRESENT) == 0) {
+            const uintptr_t new_table = page_alloc(physical_region);
+
+            if (new_table & 0xfff) {
+                // TODO unmap what we mapped so far? Is it worth it?
+                return nullptr;
+            }
+
+            uint64_t *new_ptr = vmm_phys_to_virt_ptr(new_table);
+
+            memclr(new_ptr, VM_PAGE_SIZE);
+
+            current_table[current_index] = vmm_phys_and_flags_to_table_entry(
+                    new_table, PG_PRESENT | (flags & PG_WRITE ? PG_WRITE : 0) |
+                                       (flags & PG_USER ? PG_USER : 0));
+
+            current_table = new_ptr;
+        } else {
+            // special case - if this is a leaf, but we wanted a lower level,
+            // we'll just fail...
+            if (levels_remain > 1 && is_pagesize_leaf(current_entry)) {
+                return nullptr;
+            }
+
+            // x86_64 requires writeable leaf pages have write set on
+            // all parent pages, because why wouldn't it 🙄
+            current_table[current_index] = vmm_phys_and_flags_to_table_entry(
+                    vmm_table_entry_to_phys(current_entry),
+                    vmm_table_entry_to_page_flags(current_entry) |
+                            (flags & PG_WRITE ? PG_WRITE : 0) |
+                            (flags & PG_USER ? PG_USER : 0));
+
+            current_table = vmm_phys_to_virt_ptr(
+                    vmm_table_entry_to_phys(current_entry));
+        }
+
+        levels_remain -= 1;
+    }
+
+    return current_table;
 }
 
-// TODO this has become a bit of a mess lately - because of additional address
-//      spaces at the other recursive mapping, we're having to go with direct
-//      calls to vmm_mapping_table_address, and also relying on any second
-//      address spaces also having their own temporary mapping in the other
-//      spot (257).
-//
-//      We should move some of the logic back to recursive.h and tidy it up
-//      so this isn't so tightly coupled.
-//
-static uint64_t *ensure_tables(const uint16_t recursive_entry,
-                               const uintptr_t virt_addr, const bool is_user) {
-    // TODO this shouldn't leave the new tables as WRITE,
-    // and also needs to handle the case where they exist but
-    // are not WRITE....
-
-    const uint16_t pml4n = vmm_virt_to_pml4_index(virt_addr);
-    uint64_t *pml4e = (uint64_t *)vmm_mapping_table_address(
-            recursive_entry, recursive_entry, recursive_entry, recursive_entry,
-            pml4n << 3);
-
-    C_DEBUGSTR("MAP @ ");
-    C_PRINTHEX64(recursive_entry, debugchar);
-    C_DEBUGSTR("[");
-    C_PRINTHEX64(pml4n, debugchar);
-    C_DEBUGSTR("] = ");
-    C_PRINTHEX64((uintptr_t)pml4e, debugchar);
-    C_DEBUGSTR("\n");
-
-    C_DEBUGSTR("  pml4e @ ");
-    C_PRINTHEX64((uintptr_t)pml4e, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pml4e, debugchar);
-    C_DEBUGSTR("]\n");
-
-    if ((*pml4e & PG_PRESENT) == 0) {
-        // not present, needs mapping from pdpt down
-        V_DEBUGSTR("    !! PML4E not present (no PDPT) - will allocate ...\n");
-
-        const uint64_t new_pdpt = page_alloc(physical_region) | PG_PRESENT |
-                                  PG_WRITE | (is_user ? PG_USER : 0);
-
-        if (!new_pdpt) {
-            C_DEBUGSTR("WARN: Failed to allocate page directory pointer table");
-            return nullptr;
-        }
-
-        // Map the page
-        C_DEBUGSTR("        map new PDPT ");
-        C_PRINTHEX64((uintptr_t)new_pdpt, debugchar);
-        C_DEBUGSTR(" into PML4E @ ");
-        C_PRINTHEX64((uintptr_t)pml4e, debugchar);
-        C_DEBUGSTR(" old = [");
-        C_PRINTHEX64(*pml4e, debugchar);
-        C_DEBUGSTR("]\n");
-        *pml4e = new_pdpt;
-
-        uint64_t *base = (uint64_t *)vmm_mapping_table_address(
-                recursive_entry, recursive_entry, recursive_entry, pml4n, 0);
-        cpu_invalidate_page((uint64_t)base);
-
-        clear_table(base);
-
-        V_DEBUGSTR(" mapped\n");
-    } else {
-        V_DEBUGSTR("    !! PML4E IS present (-> PDPT)\n");
-    }
-
-    const uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
-    uint64_t *pdpte = (uint64_t *)vmm_mapping_table_address(
-            recursive_entry, recursive_entry, recursive_entry, pml4n,
-            pdptn << 3);
-
-    C_DEBUGSTR("  pdpte @ ");
-    C_PRINTHEX64((uintptr_t)pdpte, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pdpte, debugchar);
-    C_DEBUGSTR("]\n");
-
-    if ((*pdpte & PG_PRESENT) == 0) {
-        // not present, needs mapping from pd down
-        V_DEBUGSTR("    !! PDPTE not present (no PD) - will allocate ...\n");
-
-        const uint64_t new_pd = page_alloc(physical_region) | PG_PRESENT |
-                                PG_WRITE | (is_user ? PG_USER : 0);
-
-        if (!new_pd) {
-            C_DEBUGSTR("WARN: Failed to allocate page directory");
-            return nullptr;
-        }
-
-        // Map the page
-        C_DEBUGSTR("        map new PD ");
-        C_PRINTHEX64((uintptr_t)new_pd, debugchar);
-        C_DEBUGSTR(" into PDPTE @ ");
-        C_PRINTHEX64((uintptr_t)pdpte, debugchar);
-        C_DEBUGSTR(" old = [");
-        C_PRINTHEX64(*pdpte, debugchar);
-        C_DEBUGSTR("]\n");
-
-        *pdpte = new_pd;
-
-        uint64_t *base = (uint64_t *)vmm_mapping_table_address(
-                recursive_entry, recursive_entry, pml4n, pdptn, 0);
-        cpu_invalidate_page((uint64_t)base);
-
-        clear_table(base);
-
-        V_DEBUGSTR(" mapped\n");
-    } else {
-        V_DEBUGSTR("    !! PDPTE IS present (-> PD)\n");
-    }
-
-    const uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
-    uint64_t *pde = (uint64_t *)vmm_mapping_table_address(
-            recursive_entry, recursive_entry, pml4n, pdptn, pdn << 3);
-
-    C_DEBUGSTR("    pde @ ");
-    C_PRINTHEX64((uintptr_t)pde, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pde, debugchar);
-    C_DEBUGSTR("]\n");
-
-    if ((*pde & PG_PRESENT) == 0) {
-        // not present, needs mapping from pt
-        V_DEBUGSTR("    !! PDE not present (no PT) - will allocate ...\n");
-
-        const uint64_t new_pt = page_alloc(physical_region) | PG_PRESENT |
-                                PG_WRITE | (is_user ? PG_USER : 0);
-
-        if (!new_pt) {
-            C_DEBUGSTR("WARN: Failed to allocate page table");
-            return nullptr;
-        }
-
-        // Map the page
-        C_DEBUGSTR("        map new PT ");
-        C_PRINTHEX64((uintptr_t)new_pt, debugchar);
-        C_DEBUGSTR(" into PDE @ ");
-        C_PRINTHEX64((uintptr_t)pde, debugchar);
-        C_DEBUGSTR(" old = [");
-        C_PRINTHEX64(*pde, debugchar);
-        C_DEBUGSTR("]\n");
-
-        *pde = new_pt;
-
-        uint64_t *base = (uint64_t *)vmm_mapping_table_address(
-                recursive_entry, pml4n, pdptn, pdn, 0);
-        cpu_invalidate_page((uint64_t)base);
-
-        clear_table(base);
-
-        V_DEBUGSTR(" mapped\n");
-    } else {
-        V_DEBUGSTR("    !! PDE IS present (-> PT)\n");
-    }
-
-    const uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
-    uint64_t *pte = (uint64_t *)vmm_mapping_table_address(
-            recursive_entry, pml4n, pdptn, pdn, ptn << 3);
-
-    C_DEBUGSTR("    pte @ ");
-    C_PRINTHEX64((uintptr_t)pde, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pte, debugchar);
-    C_DEBUGSTR("]\n");
-
-    return pte;
+inline void vmm_invalidate_page(const uintptr_t virt_addr) {
+    cpu_invalidate_tlb_addr(virt_addr);
 }
 
-inline bool vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr,
-                            const uint64_t page, const uint16_t flags) {
-
+bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
+                                const uint64_t phys_addr,
+                                const uint16_t flags) {
     const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
 
-    C_DEBUGSTR("==> MAP: ");
-    C_PRINTHEX64(virt_addr, debugchar);
-    C_DEBUGSTR(" = ");
-    C_PRINTHEX64(page, debugchar);
-    C_DEBUGSTR("\n");
+    virt_addr &= PAGE_ALIGN_MASK;
 
-    // This finds the PML4 entry that the PML4 we were given is referring to.
-    // it's kind of a mess, but gives us the recursive entry in use.
-    //
-    const uint16_t recursive_entry =
-            vmm_mapping_pml4_virt_to_recursive_entry(pml4);
-    uint64_t *pte = ensure_tables(recursive_entry, virt_addr, flags);
+    uint64_t *pt = ensure_tables(pml4, virt_addr, PT_LEVEL_PT, flags);
 
-    V_DEBUGSTR("==> Ensured PTE @ ");
-    V_PRINTHEX64((uintptr_t)pte, debugchar);
-    V_DEBUGSTR("\n");
-    *pte = page | flags;
+    if (!pt) {
+        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+        return false;
+    }
+
+    pt[vmm_virt_to_pt_index(virt_addr)] =
+            vmm_phys_and_flags_to_table_entry(phys_addr, flags | PG_PRESENT);
+
     vmm_invalidate_page(virt_addr);
 
     spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
     return true;
 }
 
-bool vmm_map_page(const uintptr_t virt_addr, const uint64_t page,
-                  const uint16_t flags) {
-    return vmm_map_page_in((uint64_t *)vmm_find_pml4(), virt_addr, page, flags);
+inline bool vmm_map_page_containing(const uintptr_t virt_addr,
+                                    const uint64_t phys_addr,
+                                    const uint16_t flags) {
+    return vmm_map_page_containing_in(vmm_phys_to_virt_ptr(cpu_read_cr3()),
+                                      virt_addr, phys_addr, flags);
 }
 
-bool vmm_map_page_containing(uintptr_t virt_addr, const uint64_t phys_addr,
-                             const uint16_t flags) {
-    return vmm_map_page(virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
+inline bool vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr,
+                            const uint64_t page, const uint16_t flags) {
+    return vmm_map_page_containing_in(pml4, virt_addr, page, flags);
 }
 
-bool vmm_map_page_containing_in(uint64_t *pml4, const uintptr_t virt_addr,
-                                const uint64_t phys_addr,
-                                const uint16_t flags) {
-    return vmm_map_page_in(pml4, virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
+inline bool vmm_map_page(const uintptr_t virt_addr, const uint64_t page,
+                         const uint16_t flags) {
+    return vmm_map_page_containing(virt_addr, page, flags);
 }
 
-// Don't forget this requires a proper recursive mapping at whichever
-// spot we're using as recursive in the given PML4!
-//
 uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
 
-    C_DEBUGSTR("Unmap virtual ");
-    C_PRINTHEX64((uint64_t)virt_addr, debugchar);
-    C_DEBUGSTR("\nPML4 @ ");
-    C_PRINTHEX64((uint64_t)pml4, debugchar);
-    C_DEBUGSTR(" [Entry ");
-    C_PRINTHEX64(PML4ENTRY(virt_addr), debugchar);
-    C_DEBUGSTR("]\n");
+    const uint16_t pml4_index = vmm_virt_to_pml4_index(virt_addr);
+    const uint64_t pml4e = pml4[pml4_index];
 
-    const uint16_t recursive_entry =
-            vmm_mapping_pml4_virt_to_recursive_entry(pml4);
-    const uint16_t pml4n = vmm_virt_to_pml4_index(virt_addr);
-    const uint64_t *pml4e = (uint64_t *)vmm_mapping_table_address(
-            recursive_entry, recursive_entry, recursive_entry, recursive_entry,
-            pml4n << 3);
+    if (pml4e & PG_PRESENT) {
+        if (is_pagesize_leaf(pml4e)) {
+            // unmapping a terapage
+            pml4[pml4_index] = 0;
 
-    C_DEBUGSTR("  pdpte @ ");
-    C_PRINTHEX64((uintptr_t)pml4e, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pml4e, debugchar);
-    C_DEBUGSTR("]\n");
+            vmm_invalidate_page(virt_addr);
 
-    if ((*pml4e & PG_PRESENT) == 0) {
-        // Not present PDPT, just bail
-        C_DEBUGSTR("    No PDPT - Bailing\n");
-        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
-        return 0;
+            spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+            return vmm_table_entry_to_phys(pml4e);
+        }
+
+        uint64_t *pdpt = vmm_phys_to_virt_ptr(vmm_table_entry_to_phys(pml4e));
+        const uint16_t pdpt_index = vmm_virt_to_pdpt_index(virt_addr);
+        const uint64_t pdpte = pdpt[pdpt_index];
+
+        if (pdpte & PG_PRESENT) {
+            if (is_pagesize_leaf(pdpte)) {
+                // unmapping a gigapage
+                pdpt[pdpt_index] = 0;
+
+                vmm_invalidate_page(virt_addr);
+
+                spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+                return vmm_table_entry_to_phys(pdpte);
+            }
+
+            uint64_t *pd = vmm_phys_to_virt_ptr(vmm_table_entry_to_phys(pdpte));
+            const uint16_t pd_index = vmm_virt_to_pd_index(virt_addr);
+            const uint64_t pde = pd[pd_index];
+
+            if (pde & PG_PRESENT) {
+                if (is_pagesize_leaf(pde)) {
+                    // unmapping a megapage
+                    pd[pd_index] = 0;
+                    vmm_invalidate_page(virt_addr);
+
+                    spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+                    return vmm_table_entry_to_phys(pde);
+                }
+
+                uint64_t *pt =
+                        vmm_phys_to_virt_ptr(vmm_table_entry_to_phys(pde));
+                const uint16_t pt_index = vmm_virt_to_pt_index(virt_addr);
+                const uint64_t pte = pt[pt_index];
+
+                if (pte & PG_PRESENT) {
+                    // unmapping a page
+                    pt[pt_index] = 0;
+
+                    vmm_invalidate_page(virt_addr);
+
+                    spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
+                    return vmm_table_entry_to_phys(pte);
+                }
+            }
+        }
     }
-
-    const uint16_t pdptn = vmm_virt_to_pdpt_index(virt_addr);
-    const uint64_t *pdpte = (uint64_t *)vmm_mapping_table_address(
-            recursive_entry, recursive_entry, recursive_entry, pml4n,
-            pdptn << 3);
-
-    C_DEBUGSTR("  pdpte @ ");
-    C_PRINTHEX64((uintptr_t)pdpte, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pdpte, debugchar);
-    C_DEBUGSTR("]\n");
-
-    if ((*pdpte & PG_PRESENT) == 0) {
-        // Not present PDPT, just bail
-        C_DEBUGSTR("    No PD - Bailing\n");
-        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
-        return 0;
-    }
-
-    const uint16_t pdn = vmm_virt_to_pd_index(virt_addr);
-    const uint64_t *pde = (uint64_t *)vmm_mapping_table_address(
-            recursive_entry, recursive_entry, pml4n, pdptn, pdn << 3);
-
-    C_DEBUGSTR("    pde @ ");
-    C_PRINTHEX64((uintptr_t)pde, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pde, debugchar);
-    C_DEBUGSTR("]\n");
-
-    if ((*pde & PG_PRESENT) == 0) {
-        // Not present PDPT, just bail
-        C_DEBUGSTR("    No PT - Bailing\n");
-        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
-        return 0;
-    }
-
-    const uint16_t ptn = vmm_virt_to_pt_index(virt_addr);
-    uint64_t *pte = (uint64_t *)vmm_mapping_table_address(
-            recursive_entry, pml4n, pdptn, pdn, ptn << 3);
-
-    C_DEBUGSTR("     pt @ ");
-    C_PRINTHEX64((uintptr_t)pte, debugchar);
-    C_DEBUGSTR(" = [");
-    C_PRINTHEX64(*pte, debugchar);
-    C_DEBUGSTR("]\n");
-
-    if ((*pte & PG_PRESENT) == 0) {
-        // Not present PDPT, just bail
-        C_DEBUGSTR("    No PT - Bailing\n");
-        spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
-        return 0;
-    }
-
-    const uintptr_t phys = *pte & PAGE_ALIGN_MASK;
-
-#ifdef VERY_NOISY_VMM
-    C_DEBUGSTR("zeroing entry: ");
-    C_PRINTHEX64(PTENTRY(virt_addr), debugchar);
-    C_DEBUGSTR(" @ ");
-    C_PRINTHEX64((uintptr_t)pte, debugchar);
-    C_DEBUGSTR(" (== ");
-    C_PRINTHEX64((uintptr_t)*pte, debugchar);
-    C_DEBUGSTR(")\n");
-#endif
-
-    *pte = 0;
-    vmm_invalidate_page(virt_addr);
 
     spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
-    return phys;
+    return 0;
 }
 
-uintptr_t vmm_unmap_page(const uintptr_t virt_addr) {
-    return vmm_unmap_page_in((uint64_t *)vmm_find_pml4(), virt_addr);
+inline uintptr_t vmm_unmap_page(const uintptr_t virt_addr) {
+    return vmm_unmap_page_in(vmm_phys_to_virt_ptr(cpu_read_cr3()), virt_addr);
 }

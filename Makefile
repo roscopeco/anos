@@ -135,10 +135,10 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS
+CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS -DDEBUG_VMM
 
 ifeq ($(ARCH),x86_64)
-QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1
+QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -d mmu,cpu_reset,guest_errors,unimp
 QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
 QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
 else
@@ -255,7 +255,6 @@ STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/machine.o						\
 					$(STAGE3_ARCH_RISCV64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper.o					\
-					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper_init.o				\
 					$(STAGE3_ARCH_RISCV64_DIR)/structs/list.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/capabilities/cookies.o			\
 					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o
@@ -305,6 +304,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/structs/region_tree.o									\
 			$(STAGE3_DIR)/structs/shift_array.o									\
 			$(STAGE3_DIR)/smp/ipwi.o											\
+			$(STAGE3_DIR)/vmm/vmmapper_init_direct.o							\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 else
@@ -313,6 +313,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/debugmemmap.o											\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/panic.o												\
+			$(STAGE3_DIR)/vmm/vmmapper_init_direct.o							\
 			$(STAGE3_ARCH_OBJS)
 endif
 endif
@@ -376,6 +377,7 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_RISCV64_DIR)/structs/*.o							\
 				$(STAGE3_ARCH_RISCV64_DIR)/capabilities/*.o						\
+				$(STAGE3_ARCH_RISCV64_DIR)/smp/*.o								\
 				$(STAGE3_ARCH_RISCV64_DIR)/*.o
 
 ifeq ($(CONSERVATIVE_BUILD),true)

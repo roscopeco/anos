@@ -18,6 +18,11 @@
 #include "riscv64/kdrivers/cpu.h"
 #include "vmm/vmmapper.h"
 
+/*
+ * First PML4 entry of kernel space
+ */
+#define FIRST_KERNEL_PML4E ((256))
+
 // Page table entry flags
 #define PG_PRESENT (1ULL << 0)  // Valid
 #define PG_READ (1ULL << 1)     // Read
@@ -27,6 +32,14 @@
 #define PG_GLOBAL (1ULL << 5)   // Global
 #define PG_ACCESSED (1ULL << 6) // Accessed
 #define PG_DIRTY (1ULL << 7)    // Dirty
+
+/*
+ * riscv64 does not have a "PAGE_SIZE" bit, it's implied by an entry
+ * being a leaf node (having any of read/write/user set).
+ *
+ * Just define zero so it has no effect.
+ */
+#define PG_PAGESIZE ((0))
 
 #define PAGE_TABLE_ENTRIES ((512))
 
@@ -48,11 +61,6 @@ typedef struct {
     uint64_t entries[PAGE_TABLE_ENTRIES];
 } PageTable;
 
-// Initialize the direct mapping for physical memory
-// This must be called during early boot, before SMP
-// or userspace is up (since it abuses both those things)
-void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap);
-
 // Convert physical address to direct-mapped virtual address
 static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) {
     return DIRECT_MAP_BASE + phys_addr;
@@ -65,6 +73,10 @@ static inline void *vmm_phys_to_virt_ptr(uintptr_t phys_addr) {
 // Convert direct-mapped virtual address to physical address
 static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
     return virt_addr - DIRECT_MAP_BASE;
+}
+
+static inline uintptr_t vmm_virt_to_phys_page(const uintptr_t virt_addr) {
+    return vmm_virt_to_phys(virt_addr) & PAGE_ALIGN_MASK;
 }
 
 static inline PageTable *vmm_find_pml4() {

@@ -33,15 +33,21 @@
 
 #include "panic.h"
 #include "pmm/pagealloc.h"
+#include "vmm/vmmapper.h"
+
+#if defined ARCH_X86_64
+#include "x86_64/kdrivers/cpu.h"
+#elif defined ARCH_RISCV64
 #include "riscv64/kdrivers/cpu.h"
-#include "riscv64/vmm/vmconfig.h"
-#include "riscv64/vmm/vmmapper.h"
+#else
+#error "Unknown arch in vmmapper_init_direct"
+#endif
 
 #ifdef DEBUG_VMM
 #include "kprintf.h"
-#define debugf printf
+#define debugf kprintf
 #ifdef VERY_NOISY_VMM
-#define vdebugf printf
+#define vdebugf kprintf
 #else
 #define vdebugf(...)
 #endif
@@ -55,8 +61,13 @@
 // Physical memory region
 extern MemoryRegion *physical_region;
 
+uint64_t vmm_direct_mapping_terapages_used;
+uint64_t vmm_direct_mapping_gigapages_used;
+uint64_t vmm_direct_mapping_megapages_used;
+uint64_t vmm_direct_mapping_pages_used;
+
 static inline uintptr_t per_cpu_temp_base_vaddr_for_pt_index(uint16_t index) {
-    return PER_CPU_TEMP_PAGE_BASE + (index * PAGE_SIZE);
+    return PER_CPU_TEMP_PAGE_BASE + (index * VM_PAGE_SIZE);
 }
 
 static inline void *per_cpu_temp_base_vptr_for_pt_index(uint16_t index) {
@@ -64,35 +75,37 @@ static inline void *per_cpu_temp_base_vptr_for_pt_index(uint16_t index) {
 }
 
 static inline void map_readwrite_and_flush_offs(uint64_t *table,
-                                                uint16_t table_index,
-                                                uintptr_t base_paddr,
-                                                uintptr_t base_vaddr,
-                                                uintptr_t base_offs) {
+                                                const uint16_t table_index,
+                                                const uintptr_t base_paddr,
+                                                const uintptr_t base_vaddr,
+                                                const uintptr_t base_offs) {
 
     vdebugf("map_readwrite_and_flush: table @ 0x%016lx[%d]: vaddr: "
             "0x%016lx+0x%016lx => paddr: 0x%016lx\n",
             (uintptr_t)table, table_index, base_vaddr, base_offs, base_paddr);
 
     table[table_index] = vmm_phys_and_flags_to_table_entry(
-            base_paddr, PG_READ | PG_WRITE | PG_PRESENT);
+            base_paddr, PG_PAGESIZE | PG_READ | PG_WRITE | PG_PRESENT);
     cpu_invalidate_tlb_addr(base_vaddr + base_offs);
     vdebugf("map_readwrite_and_flush: done, and done\n");
 }
 
 static inline void map_readwrite_and_flush(uint64_t *table,
-                                           uint16_t table_index,
-                                           uintptr_t paddr, uintptr_t vaddr) {
+                                           const uint16_t table_index,
+                                           const uintptr_t paddr,
+                                           const uintptr_t vaddr) {
     map_readwrite_and_flush_offs(table, table_index, paddr, vaddr, 0);
 }
 
-static inline void unmap_and_flush(uint64_t *table, uint16_t table_index,
-                                   uintptr_t vaddr) {
+static inline void unmap_and_flush(uint64_t *table, const uint16_t table_index,
+                                   const uintptr_t vaddr) {
     table[table_index] = 0;
     cpu_invalidate_tlb_addr(vaddr);
 }
 
-static void vmm_init_map_terapage(uint64_t *pml4, uintptr_t base,
-                                  uint8_t flags) {
+#if defined __riscv
+static void vmm_init_map_terapage(uint64_t *pml4, const uintptr_t base,
+                                  const uint8_t flags) {
     vdebugf("vmm_init_map_terapage: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, TERA_PAGE_SIZE, (uintptr_t)pml4);
@@ -104,24 +117,28 @@ static void vmm_init_map_terapage(uint64_t *pml4, uintptr_t base,
         return;
     }
 
-    uintptr_t vaddr = vmm_phys_to_virt(base);
+    const uintptr_t vaddr = vmm_phys_to_virt(base);
     vdebugf("  -> vaddr is 0x%016lx\n", vaddr);
 
-    uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
-    uint64_t pml4e = pml4[pml4_index];
+    const uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
+    const uint64_t pml4e = pml4[pml4_index];
 
     if (pml4e & PG_PRESENT) {
         debugf("WARN [BUG]: PML4 for terapage at 0x%016lx is already mapped\n",
                vaddr);
     }
 
-    pml4[pml4e] = vmm_phys_and_flags_to_table_entry(base, flags);
-}
+    pml4[pml4_index] =
+            vmm_phys_and_flags_to_table_entry(base, flags | PG_PAGESIZE);
 
-static uint64_t *const ensure_direct_table_map(uint64_t *table,
-                                               uint16_t table_index,
-                                               uint64_t *temp_mapping_pt,
-                                               uint16_t temp_mapping_pt_index) {
+    vmm_direct_mapping_terapages_used++;
+}
+#endif
+
+static uint64_t *ensure_direct_table_map(uint64_t *table,
+                                         const uint16_t table_index,
+                                         uint64_t *temp_mapping_pt,
+                                         const uint16_t temp_mapping_pt_index) {
     vdebugf("ensure_direct_table_map: table 0x%016lx[%d] into temp mapping "
             "0x%016lx[%d]\n",
             (uintptr_t)table, table_index, (uintptr_t)temp_mapping_pt,
@@ -151,8 +168,8 @@ static uint64_t *const ensure_direct_table_map(uint64_t *table,
             new_table[i] = 0;
         }
 
-        table[table_index] =
-                vmm_phys_and_flags_to_table_entry(new_table_paddr, PG_PRESENT);
+        table[table_index] = vmm_phys_and_flags_to_table_entry(
+                new_table_paddr, PG_PRESENT | PG_WRITE);
     } else {
         vdebugf("  -> table already present, mapping...\n");
         map_readwrite_and_flush(temp_mapping_pt, temp_mapping_pt_index,
@@ -164,7 +181,7 @@ static uint64_t *const ensure_direct_table_map(uint64_t *table,
 }
 
 static void vmm_init_map_gigapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
-                                  uintptr_t base, uint8_t flags) {
+                                  const uintptr_t base, const uint8_t flags) {
     vdebugf("vmm_init_map_gigapage: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, GIGA_PAGE_SIZE, (uintptr_t)pml4);
@@ -193,14 +210,16 @@ static void vmm_init_map_gigapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
               "cannot continue");
     }
 
-    pdpt[pdpt_index] = vmm_phys_and_flags_to_table_entry(base, flags);
+    pdpt[pdpt_index] =
+            vmm_phys_and_flags_to_table_entry(base, flags | PG_PAGESIZE);
     unmap_and_flush(temp_mapping_pt, 0, (uintptr_t)pdpt);
 
+    vmm_direct_mapping_gigapages_used++;
     vdebugf("vmm_init_map_gigapage: Region mapped successfully\n");
 }
 
 static void vmm_init_map_megapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
-                                  uintptr_t base, uint8_t flags) {
+                                  const uintptr_t base, const uint8_t flags) {
     vdebugf("vmm_init_map_megapage: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, MEGA_PAGE_SIZE, (uintptr_t)pml4);
@@ -234,15 +253,16 @@ static void vmm_init_map_megapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
               "cannot continue");
     }
 
-    pd[pd_index] = vmm_phys_and_flags_to_table_entry(base, flags);
+    pd[pd_index] = vmm_phys_and_flags_to_table_entry(base, flags | PG_PAGESIZE);
     unmap_and_flush(temp_mapping_pt, 0, (uintptr_t)pdpt);
     unmap_and_flush(temp_mapping_pt, 1, (uintptr_t)pd);
 
+    vmm_direct_mapping_megapages_used++;
     vdebugf("vmm_init_map_megapage: Region mapped successfully\n");
 }
 
 static void vmm_init_map_page(uint64_t *pml4, uint64_t *temp_mapping_pt,
-                              uintptr_t base, uint8_t flags) {
+                              const uintptr_t base, const uint8_t flags) {
     vdebugf("vmm_init_map_page: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, PAGE_SIZE, (uintptr_t)pml4);
@@ -287,6 +307,7 @@ static void vmm_init_map_page(uint64_t *pml4, uint64_t *temp_mapping_pt,
     unmap_and_flush(temp_mapping_pt, 1, (uintptr_t)pd);
     unmap_and_flush(temp_mapping_pt, 3, (uintptr_t)pt);
 
+    vmm_direct_mapping_pages_used++;
     vdebugf("vmm_init_map_page: Region mapped successfully\n");
 }
 
@@ -295,18 +316,21 @@ static void vmm_init_map_region(uint64_t *pml4, uint64_t *temp_mapping_pt,
     vdebugf("vmm_init_map_region: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             entry->base, entry->length, (uintptr_t)pml4);
-    uint8_t flags =
+    const uint8_t flags =
             PG_PRESENT | PG_GLOBAL | PG_READ | (writeable ? PG_WRITE : 0);
     uintptr_t base = entry->base;
     uintptr_t length = entry->length;
 
     while (length > 0) {
+#if defined __riscv
         if (length >= TERA_PAGE_SIZE && base % TERA_PAGE_SIZE == 0) {
             // map one terapage
             vmm_init_map_terapage(pml4, base, flags);
             base += TERA_PAGE_SIZE;
             length -= TERA_PAGE_SIZE;
-        } else if (length >= GIGA_PAGE_SIZE && base % GIGA_PAGE_SIZE == 0) {
+        } else
+#endif
+                if (length >= GIGA_PAGE_SIZE && base % GIGA_PAGE_SIZE == 0) {
             // map one gigapage
             vmm_init_map_gigapage(pml4, temp_mapping_pt, base, flags);
             base += GIGA_PAGE_SIZE;
@@ -334,14 +358,13 @@ static void vmm_init_map_region(uint64_t *pml4, uint64_t *temp_mapping_pt,
             entry->base, entry->length, (uintptr_t)pml4);
 }
 
-#define TERAPAGE_ALIGN_MASK (~(TERA_PAGE_SIZE - 1))
-
-static inline uintptr_t round_down_to_terapage(uintptr_t addr) {
-    return addr & TERAPAGE_ALIGN_MASK;
+static uintptr_t round_down_to_page(const uintptr_t addr,
+                                    const size_t page_size) {
+    return addr & (~(page_size - 1));
 }
 
-static inline uintptr_t offset_in_terapage(uintptr_t addr) {
-    return addr & (TERA_PAGE_SIZE - 1);
+static uintptr_t offset_in_page(const uintptr_t addr, const size_t page_size) {
+    return addr & (page_size - 1);
 }
 
 // this next bit is already hard enough to follow, so don't let clang-format
@@ -349,7 +372,7 @@ static inline uintptr_t offset_in_terapage(uintptr_t addr) {
 //
 // clang-format off
 
-// This just ensures a full set of page-tables exist for for the given temp_map_addr.
+// This just ensures a full set of page-tables exist for the given temp_map_addr.
 //
 // We use this for temporarily mapping new page tables we need to create during the
 // build of the direct mapping, because of the aforementioned chicken-and-egg situation - 
@@ -369,50 +392,46 @@ static inline uintptr_t offset_in_terapage(uintptr_t addr) {
 // Worth noting also that it's only to be used before userspace is up, since it
 // (ab)uses some of the userspace PML4 mappings to do its work.
 //
-static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t temp_map_addr) {
-    vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx)\n", (uintptr_t)pml4, temp_map_addr);
+static uint64_t* ensure_temp_page_tables(const uint64_t *pml4, uint64_t *temp_page_table, const PagetableLevel temp_table_level, const uintptr_t temp_map_addr, const size_t temp_page_size) {
+    vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx, 0x%016lx)\n", (uintptr_t)pml4, (uintptr_t)temp_page_table, temp_map_addr);
 
-    uint16_t pml4e = vmm_virt_to_pml4_index(temp_map_addr);
+    const uint16_t pml4_entry_index = vmm_virt_to_table_index(temp_map_addr, PT_LEVEL_PML4);
 
-    vdebugf("  Will try to get entry %d from the pml4e\n", pml4e);
+    vdebugf("  Will try to get entry %d from the pml4\n", pml4_entry_index);
 
     // Do we have a PDPT covering the region?
-    if (unlikely((pml4[pml4e] & PG_PRESENT) == 0)) {
+    if (unlikely((pml4[pml4_entry_index] & PG_PRESENT) == 0)) {
         panic("Kernel space root mapping does not exist");
     } else {
         vdebugf("    PDPT is present, checking PDPT\n");
-        // Yes - map it as a terapage in low userspace, since we know we're 
-        // not using that yet. It'll go at the 512GiB mark.
+        // Yes - map it as a large page in low userspace, since we know we're
+        // not using that yet. It'll go into the second large page, based
+        // on which level table and page_size are passed in, to avoid any
+        // nullability issues with mapping at the very bottom.
         //
-        // Because we need mappings to be naturally aligned, we have to round the 
-        // phys address down to the next terapage (512GiB) boundary - which will
-        // almost certainly make it 0 on any system we're likely to be running on.
-        //
-        // We then map that in at the 512GiB mark (to avoid accidental nulls
-        // creeping in somewhere) and offset that by the phys address' offset
-        // from its next-lowest 512GiB boundary (as I say, likely zero) so
-        // we can get at the table.
+        // Because we need mappings to be naturally aligned, we have to round the
+        // phys address down to the next appropriate large page boundary.
         //
         // This is a bit painful, but saves some hassle, since we can't
         // go the nicer way until this direct mapping is set up...
         //
 
-        // Figure out the next-lowest 512GiB base and the offset of the phys address...
-        const uintptr_t pdpt_phys = vmm_table_entry_to_phys(pml4[pml4e]);
-        const uintptr_t pdpt_phys_base_addr = round_down_to_terapage(pdpt_phys);
-        const uintptr_t pdpt_phys_addr_offs = offset_in_terapage(pdpt_phys);
+        // Figure out the next-lowest page_size base and the offset of the phys address...
+        const uintptr_t pdpt_phys = vmm_table_entry_to_phys(pml4[pml4_entry_index]);
+        const uintptr_t pdpt_phys_base_addr = round_down_to_page(pdpt_phys, temp_page_size);
+        const uintptr_t pdpt_phys_addr_offs = offset_in_page(pdpt_phys, temp_page_size);
 
         // This is the base of the virtual space we're about to map...
-        const uintptr_t pdpt_temp_vaddr = TERA_PAGE_SIZE;
+        const uintptr_t pdpt_temp_vaddr = temp_page_size;
 
         // Create a pointer we'll use to get at the table once we've mapped it...
-        uint64_t * const temp_mapped_pdpt = (uint64_t*)(pdpt_temp_vaddr + pdpt_phys_addr_offs);
+        volatile uint64_t * temp_mapped_pdpt = (uint64_t*)(pdpt_temp_vaddr + pdpt_phys_addr_offs);
 
         // Okay, good - do the mapping & flush TLB.
-        map_readwrite_and_flush_offs(pml4, 1, pdpt_phys_base_addr, pdpt_temp_vaddr, pdpt_phys_addr_offs);
+        map_readwrite_and_flush_offs(temp_page_table, 1, pdpt_phys_base_addr, pdpt_temp_vaddr, pdpt_phys_addr_offs);
 
         // Right, now we have a PDPT mapped with a virtual pointer we can use it...
-        uint16_t pdpte = vmm_virt_to_pdpt_index(temp_map_addr);
+        const uint16_t pdpte = vmm_virt_to_pdpt_index(temp_map_addr);
 
         vdebugf("  Will try to get entry %d from the pdpt\n", pdpte);
         if (unlikely((temp_mapped_pdpt[pdpte] & PG_PRESENT) == 0)) {
@@ -431,25 +450,25 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
             // due to speculation, so we'll map and zero them first then hook it
             // up...)
             //
-            uintptr_t pd_phys = page_alloc(physical_region);
-            uintptr_t pt_phys = page_alloc(physical_region);
+            const uintptr_t pd_phys = page_alloc(physical_region);
+            const uintptr_t pt_phys = page_alloc(physical_region);
 
             // #### Handle the page directory...
             //
             // This is essentially the same as we did above... figure out the next-lowest
             // 512GiB base and the offset of the phys address, for the PD to begin with.
             uintptr_t temp_table_phys = pd_phys;
-            uintptr_t temp_table_phys_base_addr = round_down_to_terapage(temp_table_phys);
-            uintptr_t temp_table_phys_addr_offs = offset_in_terapage(temp_table_phys);
+            uintptr_t temp_table_phys_base_addr = round_down_to_page(temp_table_phys, temp_page_size);
+            uintptr_t temp_table_phys_addr_offs = offset_in_page(temp_table_phys, temp_page_size);
 
             // This is the base of the virtual space we're about to map...
-            uintptr_t temp_table_vaddr = TERA_PAGE_SIZE * 2;
+            const uintptr_t temp_table_vaddr = temp_page_size * 2;
 
             // Create a pointer we'll use to get at the table once we've mapped it...
             uint64_t* temp_mapped_table = (uint64_t*)(temp_table_vaddr + temp_table_phys_addr_offs);
 
-            // Do do the mapping & flush TLB.
-            map_readwrite_and_flush_offs(pml4, 4, temp_table_phys_base_addr, temp_table_vaddr, temp_table_phys_addr_offs);
+            // Do the mapping & flush TLB.
+            map_readwrite_and_flush_offs(temp_page_table, temp_table_level, temp_table_phys_base_addr, temp_table_vaddr, temp_table_phys_addr_offs);
 
             // Zero the page, and map in the PT...
             for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) {
@@ -457,7 +476,7 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
             }
 
             // Right, now we have a PD mapped with a virtual pointer we can use it...
-            uint16_t pde = vmm_virt_to_pd_index(temp_map_addr);
+            const uint16_t pde = vmm_virt_to_pd_index(temp_map_addr);
             temp_mapped_table[pde] = vmm_phys_and_flags_to_table_entry(pt_phys, PG_PRESENT);
 
             // #### Handle the page table...
@@ -466,11 +485,11 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
             // since it's easier to follow this way - it's tricky enough without trying
             // to be clever (so I'll let the compiler inject cleverness :D)
             temp_table_phys = pt_phys;
-            temp_table_phys_base_addr = round_down_to_terapage(temp_table_phys);
-            temp_table_phys_addr_offs = offset_in_terapage(temp_table_phys);
+            temp_table_phys_base_addr = round_down_to_page(temp_table_phys, temp_page_size);
+            temp_table_phys_addr_offs = offset_in_page(temp_table_phys, temp_page_size);
 
-            // Do do the mapping & flush TLB.
-            map_readwrite_and_flush_offs(pml4, 2, temp_table_phys_base_addr, temp_table_vaddr, temp_table_phys_addr_offs);
+            // Do the mapping & flush TLB.
+            map_readwrite_and_flush_offs(temp_page_table, temp_table_level - 2, temp_table_phys_base_addr, temp_table_vaddr, temp_table_phys_addr_offs);
 
             // Just zero this one, that's all we need
             for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) {
@@ -478,18 +497,18 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
             }
 
             // Finally, map the PD into the PDPT & invalidate
-            temp_mapped_pdpt[pdpte] = vmm_phys_and_flags_to_table_entry(pd_phys, PG_PRESENT);
+            temp_mapped_pdpt[pdpte] = vmm_phys_and_flags_to_table_entry(pd_phys, PG_PRESENT | PG_WRITE);
             cpu_invalidate_tlb_addr(temp_map_addr);
 
             // Remove the temp PDPT mapping in the PML4
             // 
             // We're returning the one at pml4[2], so we don't clean that 
             // up - that'll be handled in cleanup_cpu0_temp_page_tables later.
-            pml4[1] = 0;
+            temp_page_table[1] = 0;
             cpu_invalidate_tlb_addr(pdpt_temp_vaddr + pdpt_phys_addr_offs);
 
             // and return the PT vaddr
-            vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)pml4, temp_map_addr, (uintptr_t)temp_mapped_table);
+            vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)temp_page_table, temp_map_addr, (uintptr_t)temp_mapped_table);
             return temp_mapped_table;            
         } else {
             // So we maybe just need a PT, fine. 
@@ -503,20 +522,20 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
 
             // Figure out the next-lowest 512GiB base and the offset of the phys address...
             const uintptr_t pd_phys = vmm_table_entry_to_phys(temp_mapped_pdpt[pdpte]);
-            const uintptr_t pd_phys_base_addr = round_down_to_terapage(pd_phys);
-            const uintptr_t pd_phys_addr_offs = offset_in_terapage(pd_phys);
+            const uintptr_t pd_phys_base_addr = round_down_to_page(pd_phys, temp_page_size);
+            const uintptr_t pd_phys_addr_offs = offset_in_page(pd_phys, temp_page_size);
 
             // This is the base of the virtual space we're about to map...
-            const uintptr_t pd_temp_vaddr = TERA_PAGE_SIZE * 2;
+            const uintptr_t pd_temp_vaddr = temp_page_size * 2;
 
             // Create a pointer we'll use to get at the table once we've mapped it...
             uint64_t * const temp_mapped_pd = (uint64_t*)(pd_temp_vaddr + pd_phys_addr_offs);
 
-            // Okay, good - do the mapping & flush TLB.
-            map_readwrite_and_flush_offs(pml4, 2, pd_phys_base_addr, pd_temp_vaddr, pd_phys_addr_offs);
+            // Okay, good - do the mapping & flush TLB. TODO ROSS CHANGED FROM -2
+            map_readwrite_and_flush_offs(temp_page_table, temp_table_level - 1, pd_phys_base_addr, pd_temp_vaddr, pd_phys_addr_offs);
 
             // Right, now we have a PDPT mapped with a virtual pointer we can use it...
-            uint16_t pde = vmm_virt_to_pd_index(temp_map_addr);
+            const uint16_t pde = vmm_virt_to_pd_index(temp_map_addr);
 
             vdebugf("  Will try to get entry %d from the pd\n", pde);
 
@@ -531,17 +550,17 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
                 // since it's easier to follow this way - it's tricky enough without trying
                 // to be clever (so I'll let the compiler inject cleverness :D)
                 const uintptr_t temp_table_phys = pt_phys;
-                const uintptr_t temp_table_phys_base_addr = round_down_to_terapage(temp_table_phys);
-                const uintptr_t temp_table_phys_addr_offs = offset_in_terapage(temp_table_phys);
+                const uintptr_t temp_table_phys_base_addr = round_down_to_page(temp_table_phys, temp_page_size);
+                const uintptr_t temp_table_phys_addr_offs = offset_in_page(temp_table_phys, temp_page_size);
 
                 // This is the base of the virtual space we're about to map...
-                uintptr_t temp_table_vaddr = TERA_PAGE_SIZE * 3;
+                const uintptr_t temp_table_vaddr = temp_page_size * 3;
 
                 // Create a pointer we'll use to get at the table once we've mapped it...
                 uint64_t* temp_mapped_table = (uint64_t*)(temp_table_vaddr + temp_table_phys_addr_offs);
                 
-                // Do do the mapping & flush TLB.
-                map_readwrite_and_flush_offs(pml4, 3, temp_table_phys_base_addr, temp_table_vaddr, temp_table_phys_addr_offs);
+                // Do the mapping & flush TLB. TODO ROSS CHANGED FROM -1
+                map_readwrite_and_flush_offs(temp_page_table, temp_table_level, temp_table_phys_base_addr, temp_table_vaddr, temp_table_phys_addr_offs);
     
                 // Just zero this one, that's all we need
                 for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) {
@@ -549,59 +568,59 @@ static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t 
                 }
     
                 // Finally, map the PT into the PDPT & invalidate
-                temp_mapped_pd[pde] = vmm_phys_and_flags_to_table_entry(pt_phys, PG_PRESENT);
+                temp_mapped_pd[pde] = vmm_phys_and_flags_to_table_entry(pt_phys, PG_PRESENT | PG_WRITE);
                 cpu_invalidate_tlb_addr(temp_map_addr);
 
                 // Remove the temp PDPT and PD mappings in the PML4
                 // 
                 // We're returning the one at pml4[3], so we don't clean that 
                 // up - that'll be handled in cleanup_cpu0_temp_page_tables later.
-                pml4[1] = 0;
+                temp_page_table[1] = 0;
                 cpu_invalidate_tlb_addr(pdpt_temp_vaddr + pdpt_phys_addr_offs);
-                pml4[2] = 0;
+                temp_page_table[2] = 0;
                 cpu_invalidate_tlb_addr(pd_temp_vaddr + pd_phys_addr_offs);
 
                 // and return the PT vaddr
-                vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)pml4, temp_map_addr, (uintptr_t)temp_mapped_table);
+                vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)temp_page_table, temp_map_addr, (uintptr_t)temp_mapped_table);
                 return temp_mapped_table;
-            } else {
-                // I see, we don't need anything. This is a potential worry (we might've initialised
-                // things in the wrong order) but fine, we'll map a vaddr for the PT and just return
-                // a pointer to it.
-
-                vdebugf("    PT is present, will just map it temporarily\n");
-
-                // Figure out the next-lowest 512GiB base and the offset of the phys address...
-                const uintptr_t pt_phys = vmm_table_entry_to_phys(temp_mapped_pd[pde]);
-                const uintptr_t pt_phys_base_addr = round_down_to_terapage(pt_phys);
-                const uintptr_t pt_phys_addr_offs = offset_in_terapage(pt_phys);
-
-                // This is the base of the virtual space we're about to map...
-                const uintptr_t pt_temp_vaddr = TERA_PAGE_SIZE * 2;
-
-                // Create a pointer we'll use to get at the table once we've mapped it...
-                uint64_t * const temp_mapped_pt = (uint64_t*)(pt_temp_vaddr + pt_phys_addr_offs);
-
-                // Okay, good - do the mapping & flush TLB.
-                // We'll just replace the temp mapped PD at this point, we're done with it...
-                map_readwrite_and_flush_offs(pml4, 2, pt_phys_base_addr, pt_temp_vaddr, pt_phys_addr_offs);
-
-                // Remove the temp PDPT mapping in the PML4
-                // 
-                // We're returning the one at pml4[2], so we don't clean that 
-                // up - that'll be handled in cleanup_cpu0_temp_page_tables later.
-                pml4[1] = 0;
-                cpu_invalidate_tlb_addr(pdpt_temp_vaddr + pdpt_phys_addr_offs);
-
-                // and return the PT vaddr
-                vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)pml4, temp_map_addr, (uintptr_t)temp_mapped_pt);
-                return temp_mapped_pt;
             }
+
+            // I see, we don't need anything. This is a potential worry (we might've initialised
+            // things in the wrong order) but fine, we'll map a vaddr for the PT and just return
+            // a pointer to it.
+
+            vdebugf("    PT is present, will just map it temporarily\n");
+
+            // Figure out the next-lowest 512GiB base and the offset of the phys address...
+            const uintptr_t pt_phys = vmm_table_entry_to_phys(temp_mapped_pd[pde]);
+            const uintptr_t pt_phys_base_addr = round_down_to_page(pt_phys, temp_page_size);
+            const uintptr_t pt_phys_addr_offs = offset_in_page(pt_phys, temp_page_size);
+
+            // This is the base of the virtual space we're about to map...
+            const uintptr_t pt_temp_vaddr = temp_page_size * 2;
+
+            // Create a pointer we'll use to get at the table once we've mapped it...
+            uint64_t * const temp_mapped_pt = (uint64_t*)(pt_temp_vaddr + pt_phys_addr_offs);
+
+            // Okay, good - do the mapping & flush TLB.
+            // We'll just replace the temp mapped PD at this point, we're done with it...
+            map_readwrite_and_flush_offs(temp_page_table, temp_table_level - 2, pt_phys_base_addr, pt_temp_vaddr, pt_phys_addr_offs);
+
+            // Remove the temp PDPT mapping in the PML4
+            //
+            // We're returning the one at pml4[2], so we don't clean that
+            // up - that'll be handled in cleanup_cpu0_temp_page_tables later.
+            temp_page_table[1] = 0;
+            cpu_invalidate_tlb_addr(pdpt_temp_vaddr + pdpt_phys_addr_offs);
+
+            // and return the PT vaddr
+            vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): success, return 0x%016lx\n", (uintptr_t)temp_page_table, temp_map_addr, (uintptr_t)temp_mapped_pt);
+            return temp_mapped_pt;
         }
     }
 
-    vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): failed, return NULL\n", (uintptr_t)pml4, temp_map_addr);
-    return 0;
+    vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx): failed, return NULL\n", (uintptr_t)temp_page_table, temp_map_addr);
+    return nullptr;
 }
 
 // clang-format on
@@ -614,6 +633,7 @@ static void cleanup_temp_page_tables(uint64_t *const pml4) {
     // take the easy way out and remove all the userspace mappings we
     // might've fiddled with and dump the whole TLB so we start afresh.
 
+    pml4[0] = 0;
     pml4[1] = 0;
     pml4[2] = 0;
     pml4[3] = 0;
@@ -622,14 +642,22 @@ static void cleanup_temp_page_tables(uint64_t *const pml4) {
     cpu_invalidate_tlb_all();
 }
 
-void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap) {
+void vmm_init_direct_mapping(uint64_t *pml4, uint64_t *temp_map_page_table,
+                             const PagetableLevel temp_map_page_table_level,
+                             const size_t temp_map_page_size,
+                             Limine_MemMap *memmap) {
     vdebugf("vmm_init_direct_mapping: init with %ld entries at pml4 0x%016lx\n",
             memmap->entry_count, (uintptr_t)pml4);
 
-    uint64_t *temp_pt =
-            ensure_temp_page_tables(pml4, vmm_per_cpu_temp_page_addr(0));
+    uint64_t *temp_pt = ensure_temp_page_tables(
+            pml4, temp_map_page_table, temp_map_page_table_level,
+            vmm_per_cpu_temp_page_addr(0), temp_map_page_size);
 
     vdebugf("ensure tables returns 0x%016lx\n", (uintptr_t)temp_pt);
+
+    vmm_direct_mapping_terapages_used = vmm_direct_mapping_gigapages_used =
+            vmm_direct_mapping_megapages_used = vmm_direct_mapping_pages_used =
+                    0;
 
     for (int i = 0; i < memmap->entry_count; i++) {
         switch (memmap->entries[i]->type) {

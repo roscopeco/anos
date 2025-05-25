@@ -10,7 +10,6 @@
 
 #ifdef UNIT_TESTS
 #include "mock_cpu.h"
-#include "mock_recursive.h"
 #else
 #include "x86_64/kdrivers/cpu.h"
 #endif
@@ -50,7 +49,7 @@
 #define NULL (((void *)0))
 #endif
 
-#define KERNEL_BEGIN_ENTRY ((RECURSIVE_ENTRY + 2))
+#define KERNEL_BEGIN_ENTRY FIRST_KERNEL_PML4E
 
 static SpinLock address_space_lock;
 
@@ -73,8 +72,8 @@ bool address_space_init(void) {
             pml4->entries[i] = new_pdpt | PG_WRITE | PG_PRESENT;
 
             // Get a vaddr for this new table and invalidate TLB (just in case)
-            uint64_t *vaddr = (uint64_t *)vmm_mapping_find_pdpt(i);
-            cpu_invalidate_page((uintptr_t)vaddr);
+            uint64_t *vaddr = (uint64_t *)vmm_phys_to_virt(new_pdpt);
+            cpu_invalidate_tlb_addr((uintptr_t)vaddr);
 
             // Zero out the new table
             for (int j = 0; j < 512; j++) {
@@ -151,45 +150,22 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
     // Find current pml4
     PageTable *current_pml4 = vmm_find_pml4();
 
-    // Map in the new one to the "other" spot
-    const uintptr_t saved_other = current_pml4->entries[RECURSIVE_ENTRY_OTHER];
-    current_pml4->entries[RECURSIVE_ENTRY_OTHER] =
-            new_pml4_phys | PG_WRITE | PG_PRESENT;
-
-    printhex64(saved_other, debugchar);
-    debugstr("\n");
-    printhex64((uintptr_t)current_pml4, debugchar);
-    debugstr("\n");
-    printhex64(current_pml4->entries[RECURSIVE_ENTRY_OTHER], debugchar);
-    debugstr("\n");
-
     // Invalidate the TLB for that table
-    PageTable *new_pml4_virt = vmm_mapping_find_pdpt(
-            RECURSIVE_ENTRY_OTHER); // Not actually a PDPT, but our new PML4...
-    cpu_invalidate_page((uintptr_t)new_pml4_virt);
+    PageTable *new_pml4_virt = (PageTable *)vmm_phys_to_virt(new_pml4_phys);
+    cpu_invalidate_tlb_addr((uintptr_t)new_pml4_virt);
 
     debugstr("new_pml4_virt is ");
     printhex64((uintptr_t)new_pml4_virt, debugchar);
     debugstr("\n");
 
     // Zero out userspace
-    for (int i = 0; i < RECURSIVE_ENTRY; i++) {
+    for (int i = 0; i < FIRST_KERNEL_PML4E; i++) {
 #ifdef DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL
         new_pml4_virt->entries[i] = current_pml4->entries[i];
     }
 #else
         new_pml4_virt->entries[i] = 0;
     }
-
-    // Set up recursive entries - we need both while we're mapping between spaces...
-    // NOTE THIS WELL - Because you seem to forget it quite often - the mapping
-    // functions always need the other table's 'other' recursive slot to be mapped
-    // when working with an address space as the 'other' address space.
-    //
-    new_pml4_virt->entries[RECURSIVE_ENTRY] =
-            new_pml4_phys | PG_WRITE | PG_PRESENT;
-    new_pml4_virt->entries[RECURSIVE_ENTRY_OTHER] =
-            new_pml4_phys | PG_WRITE | PG_PRESENT;
 
     // copy kernel space
     for (int i = KERNEL_BEGIN_ENTRY; i < 512; i++) {
@@ -265,8 +241,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
                 // This will need a proper free_address_space routine, which I don't
                 // have yet, so we'll just fail and leak the memory for now...
 
-                current_pml4->entries[RECURSIVE_ENTRY_OTHER] = saved_other;
-                cpu_invalidate_page((uintptr_t)new_pml4_virt);
+                cpu_invalidate_tlb_addr((uintptr_t)new_pml4_virt);
                 spinlock_unlock_irqrestore(&address_space_lock, lock_flags);
 
                 return 0;
@@ -319,11 +294,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
 
     vmm_unmap_page(per_cpu_temp_page);
 
-    // Zero out other recursive
-    new_pml4_virt->entries[RECURSIVE_ENTRY_OTHER] = 0;
-
-    current_pml4->entries[RECURSIVE_ENTRY_OTHER] = saved_other;
-    cpu_invalidate_page((uintptr_t)new_pml4_virt);
+    cpu_invalidate_tlb_addr((uintptr_t)new_pml4_virt);
     spinlock_unlock_irqrestore(&address_space_lock, lock_flags);
 
     return new_pml4_phys;

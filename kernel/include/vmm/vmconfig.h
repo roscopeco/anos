@@ -12,7 +12,7 @@
 
 #include "anos_assert.h"
 
-#define VM_KERNEL_SPACE_START ((0xffff800000000000))
+#define VM_KERNEL_SPACE_START ((0xffff800000000000ULL))
 
 #if defined __x86_64__
 #include "x86_64/vmm/vmconfig.h"

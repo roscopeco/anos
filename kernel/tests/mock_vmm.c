@@ -44,7 +44,7 @@ uintptr_t mock_vmm_get_last_page_unmap_pml4() { return last_page_unmap_pml4; }
 
 uintptr_t mock_vmm_get_last_page_unmap_virt() { return last_page_unmap_virt; }
 
-bool vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr,
+bool vmm_map_page_in(const uint64_t *pml4, const uintptr_t virt_addr,
                      const uint64_t page, const uint16_t flags) {
     last_page_map_paddr = page;
     last_page_map_vaddr = (uint64_t)virt_addr;

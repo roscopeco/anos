@@ -31,7 +31,7 @@
 
 #include "vmm/vmmapper.h"
 
-void pagetables_init(void) {
+uint64_t *pagetables_init(void) {
 
     // Set up initial page directory and table for the PMM stack.
     // Might as well use the 8KiB below the existing page tables,
@@ -57,13 +57,12 @@ void pagetables_init(void) {
     // Hook this into the PDPT
     pdpt[0] = 0x9a000 | PG_PRESENT | PG_WRITE;
 
-    // Set up recursive page table
-    pml4[RECURSIVE_ENTRY] = 0x9c000 | PG_PRESENT | PG_WRITE;
-
     // Just load cr3 to dump the TLB...
     __asm__ volatile("mov %%cr3, %%rax\n\t"
                      "mov %%rax, %%cr3\n\t"
                      :
                      :
                      : "rax", "memory");
+
+    return (uint64_t *)(STATIC_KERNEL_SPACE + 0x9c000);
 }

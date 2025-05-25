@@ -14,13 +14,18 @@
 #include <stdnoreturn.h>
 
 #include "debugprint.h"
+#include "machine.h"
 #include "std/string.h"
 #include "vmm/vmmapper.h"
+
 #include "x86_64/acpitables.h"
 #include "x86_64/entrypoints/common.h"
 #include "x86_64/init_pagetables.h"
-#include "x86_64/kdrivers/cpu.h"
 #include "x86_64/pmm/config.h"
+
+#ifdef DEBUG_VMM
+#include "kprintf.h"
+#endif
 
 #define MAX_MEMMAP_ENTRIES 64
 
@@ -275,7 +280,10 @@ noreturn void bsp_kernel_entrypoint_limine() {
                          bootstrap_continue);
 }
 
-static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
+static uint64_t __attribute__((aligned(0x1000))) temp_pdpt[512];
+
+static noreturn void bootstrap_continue(const uint16_t fb_width,
+                                        const uint16_t fb_height) {
     // We're now on our own pagetables, and have essentially the same setup as
     // we do on entry from STAGE2 when BIOS booting.
     //
@@ -286,12 +294,34 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
     init_kernel_gdt();
     install_interrupts();
 
-    pagetables_init();
+    uint64_t *pml4_virt = pagetables_init();
+    const uintptr_t temp_pdpt_phys = (uintptr_t)temp_pdpt - STATIC_KERNEL_SPACE;
+    pml4_virt[0] = temp_pdpt_phys | PG_PRESENT | PG_WRITE;
 
     debug_memmap_limine(&static_memmap);
 
     physical_region = page_alloc_init_limine(&static_memmap, PMM_PHYS_BASE,
                                              STATIC_PMM_VREGION, true);
+
+#ifdef DEBUG_VMM
+    extern uint64_t vmm_direct_mapping_terapages_used,
+            vmm_direct_mapping_gigapages_used,
+            vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used;
+
+    size_t pre_direct_free = physical_region->free;
+#endif
+    vmm_init_direct_mapping(pml4_virt, temp_pdpt, PT_LEVEL_PDPT, GIGA_PAGE_SIZE,
+                            &static_memmap);
+#ifdef DEBUG_VMM
+    size_t post_direct_free = physical_region->free;
+    kprintf("\nPage tables for VMM Direct Mapping: %ld bytes of physical "
+            "memory\n",
+            pre_direct_free - post_direct_free);
+    kprintf("    Mapping types: %ld tera; %ld giga; %ld mega; %ld small\n\n",
+            vmm_direct_mapping_terapages_used,
+            vmm_direct_mapping_gigapages_used,
+            vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used);
+#endif
 
     bsp_kernel_entrypoint(((uintptr_t)&static_rsdp) - STATIC_KERNEL_SPACE);
 }

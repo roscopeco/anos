@@ -10,6 +10,8 @@
 #ifndef __ANOS_KERNEL_ARCH_X86_64_INIT_PAGETABLES_H
 #define __ANOS_KERNEL_ARCH_X86_64_INIT_PAGETABLES_H
 
-void pagetables_init(void);
+// Returns a virtual address for the PML4...
+//
+uint64_t *pagetables_init(void);
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_INIT_PAGETABLES_H
