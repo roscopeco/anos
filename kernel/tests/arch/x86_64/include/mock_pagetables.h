@@ -1,5 +1,5 @@
 /*
- * stage3 - Mock Recursive mapping access functions for testing
+ * stage3 - Mock pagetables for testing
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
