@@ -17,6 +17,15 @@ static Limine_MemMap *create_mem_map(int num_entries) {
     return map;
 }
 
+static void free_mem_map(Limine_MemMap *map) {
+    if (!map) {
+        return;
+    }
+
+    free(map->entries);
+    free(map);
+}
+
 static MemoryBlock *stack_base(MemoryRegion *region) {
     return ((MemoryBlock *)(region + 1)) - 1;
 }
@@ -46,7 +55,8 @@ static MunitResult test_init_all_invalid(const MunitParameter params[],
     // empty stack
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -62,7 +72,8 @@ static MunitResult test_init_all_reserved(const MunitParameter params[],
     // empty stack
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -78,7 +89,8 @@ static MunitResult test_init_all_acpi(const MunitParameter params[],
     // empty stack
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -94,7 +106,8 @@ static MunitResult test_init_all_acpi_nvs(const MunitParameter params[],
     // empty stack
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -110,7 +123,8 @@ static MunitResult test_init_all_illegal(const MunitParameter params[],
     // empty stack
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -128,7 +142,8 @@ static MunitResult test_init_zero_length(const MunitParameter params[],
     // empty stack
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -146,7 +161,8 @@ static MunitResult test_init_too_small(const MunitParameter params[],
     // empty stack
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -166,7 +182,8 @@ static MunitResult test_init_one_available(const MunitParameter params[],
     munit_assert_uint64(region->sp->base, ==, 0);
     munit_assert_uint64(region->sp->size, ==, 0x100);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -185,7 +202,8 @@ static MunitResult test_init_unaligned_zero(const MunitParameter params[],
     // empty stack
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -206,7 +224,8 @@ static MunitResult test_init_unaligned_one(const MunitParameter params[],
     munit_assert_uint64(region->sp->base, ==, 0x1000);
     munit_assert_uint64(region->sp->size, ==, 0x1);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -230,7 +249,8 @@ static MunitResult test_init_some_available(const MunitParameter params[],
     munit_assert_uint64(region->sp->base, ==, 0);
     munit_assert_uint64(region->sp->size, ==, 0x100);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -256,7 +276,8 @@ static MunitResult test_init_1M_at_zero(const MunitParameter params[],
     munit_assert_uint64(region->sp->base, ==, 0);
     munit_assert_uint64(region->sp->size, ==, 0x100);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -279,7 +300,8 @@ static MunitResult test_init_large_region(const MunitParameter params[],
     munit_assert_uint64(region->sp->base, ==, 0);
     munit_assert_uint64(region->sp->size, ==, 0x10000);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -315,7 +337,8 @@ static MunitResult test_init_two_regions(const MunitParameter params[],
     munit_assert_uint64((region->sp - 1)->base, ==, 0x0);
     munit_assert_uint64((region->sp - 1)->size, ==, 0x100);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -348,7 +371,8 @@ static MunitResult test_init_two_large_regions(const MunitParameter params[],
     munit_assert_uint64((region->sp - 1)->base, ==, 0x0);
     munit_assert_uint64((region->sp - 1)->size, ==, 0x10000);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -381,7 +405,8 @@ test_init_two_noncontig_regions(const MunitParameter params[], void *param) {
     munit_assert_uint64((region->sp - 1)->base, ==, 0x0);
     munit_assert_uint64((region->sp - 1)->size, ==, 0x10000);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -414,7 +439,8 @@ static MunitResult test_init_two_unequal_regions(const MunitParameter params[],
     munit_assert_uint64((region->sp - 1)->base, ==, 0x0);
     munit_assert_uint64((region->sp - 1)->size, ==, 0x10000);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -432,7 +458,8 @@ static MunitResult test_alloc_page_empty(const MunitParameter params[],
 
     munit_assert_uint64(page & 0xFF, ==, 0xFF);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -453,7 +480,8 @@ static MunitResult test_alloc_page(const MunitParameter params[], void *param) {
     page = page_alloc(region);
     munit_assert_uint64(page & 0xFF, ==, 0xFF);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -498,7 +526,8 @@ static MunitResult test_alloc_two_pages(const MunitParameter params[],
     // Stack is now empty
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -563,7 +592,8 @@ static MunitResult test_alloc_two_blocks(const MunitParameter params[],
     // Stack is now empty
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -581,7 +611,8 @@ static MunitResult test_alloc_page_m_empty_one(const MunitParameter params[],
 
     munit_assert_uint64(page & 0xFF, ==, 0xFF);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -603,7 +634,8 @@ static MunitResult test_alloc_page_m_one(const MunitParameter params[],
     page = page_alloc_m(region, 1);
     munit_assert_uint64(page & 0xFF, ==, 0xFF);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -621,7 +653,8 @@ static MunitResult test_alloc_page_m_empty_two(const MunitParameter params[],
 
     munit_assert_uint64(page & 0xFF, ==, 0xFF);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -643,7 +676,8 @@ static MunitResult test_alloc_page_m_one_from_one(const MunitParameter params[],
     page = page_alloc(region);
     munit_assert_uint64(page & 0xFF, ==, 0xFF);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -661,7 +695,8 @@ static MunitResult test_alloc_page_m_two_from_one(const MunitParameter params[],
     uint64_t page = page_alloc_m(region, 2);
     munit_assert_uint64(page & 0xFF, ==, 0xFF);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -683,7 +718,8 @@ static MunitResult test_alloc_page_m_two_from_two(const MunitParameter params[],
     page = page_alloc(region);
     munit_assert_uint64(page & 0xFF, ==, 0xFF);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -726,7 +762,8 @@ test_alloc_page_m_not_top_split(const MunitParameter params[], void *param) {
     munit_assert_uint64((region->sp - 2)->base, ==, 0x10000);
     munit_assert_uint64((region->sp - 2)->size, ==, 0x1);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -766,7 +803,8 @@ test_alloc_page_m_not_top_remove(const MunitParameter params[], void *param) {
     munit_assert_uint64((region->sp - 1)->base, ==, 0);
     munit_assert_uint64((region->sp - 1)->size, ==, 0x1);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -806,7 +844,8 @@ static MunitResult test_alloc_page_m_top_remove(const MunitParameter params[],
     munit_assert_uint64((region->sp - 1)->base, ==, 0);
     munit_assert_uint64((region->sp - 1)->size, ==, 0x1);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -841,7 +880,8 @@ static MunitResult test_free_page(const MunitParameter params[], void *param) {
     munit_assert_uint64(region->size, ==, 0x1000);
     munit_assert_uint64(region->free, ==, 0x1000);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -869,7 +909,8 @@ static MunitResult test_free_unaligned_page(const MunitParameter params[],
     // Stack is still empty
     munit_assert_ptr_equal(region->sp, stack_base(region));
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -923,7 +964,8 @@ static MunitResult test_free_contig_pages_forward(const MunitParameter params[],
     munit_assert_uint64(region->size, ==, 0x2000);
     munit_assert_uint64(region->free, ==, 0x2000);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
@@ -977,7 +1019,8 @@ test_free_contig_pages_backward(const MunitParameter params[], void *param) {
     munit_assert_uint64(region->size, ==, 0x2000);
     munit_assert_uint64(region->free, ==, 0x2000);
 
-    free(map);
+    free_mem_map(map);
+    ;
     return MUNIT_OK;
 }
 
