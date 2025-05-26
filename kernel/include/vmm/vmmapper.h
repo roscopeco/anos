@@ -63,7 +63,7 @@ static constexpr uintptr_t DIRECT_MAP_BASE = 0xffff800000000000;
  * which means it needs to allocate physical pages - it uses the PMM
  * (obviously) and thus it **can** pagefault.
  *
- * This function invalidates the TLB automatically.
+ * This function invalidates the local TLB automatically.
  */
 bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
                      uint16_t flags);
@@ -75,6 +75,8 @@ bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
  * This will create PDPT/PD/PT entries and associated tables as needed,
  * which means it needs to allocate physical pages - it uses the PMM
  * (obviously) and thus it **can** pagefault.
+ *
+ * This function invalidates the local TLB automatically.
  */
 bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags);
 
@@ -99,8 +101,62 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
                                 uint64_t phys_addr, uint16_t flags);
 
 /*
- * Unmap the given virtual page from virtual memory with the current 
- * page tables...
+ * Map the given number of contiguous pages, starting at the given
+ * page-aligned physical address into virtual memory starting at the
+ * base-address of the page containing the given virtual address,
+ * with the specified page tables.
+ *
+ * This will create PDPT/PD/PT entries and associated tables as needed,
+ * which means it needs to allocate physical pages - it uses the PMM
+ * (obviously) and thus it **can** pagefault.
+ *
+ * This function invalidates the local TLB automatically.
+ */
+bool vmm_map_pages_containing_in(uint64_t *pml4, uintptr_t virt_addr,
+                                 uint64_t phys_addr, uint16_t flags,
+                                 size_t num_pages);
+
+/*
+ * Map the given number of contiguous pages, starting at the given
+ * page-aligned physical address into virtual memory starting at the
+ * base-address of the page containing the given virtual address,
+ * with the current process' page tables.
+ *
+ * This will create PDPT/PD/PT entries and associated tables as needed,
+ * which means it needs to allocate physical pages - it uses the PMM
+ * (obviously) and thus it **can** pagefault.
+ *
+ * This function invalidates the local TLB automatically.
+ */
+bool vmm_map_pages_containing(uintptr_t virt_addr, uint64_t phys_addr,
+                              uint16_t flags, size_t num_pages);
+
+/*
+ * Map the given number of contiguous pages, starting at the given
+ * page-aligned physical address into virtual memory starting at the
+ * given page-aligned virtual address, with the specified page tables.
+ *
+ * Simple wrapper around `map_pages_containing_in` - see documentation for that function
+ * for specifics.
+ */
+bool vmm_map_pages_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
+                      uint16_t flags, size_t num_pages);
+
+/*
+ * Map the given number of contiguous pages, starting at the given
+ * page-aligned physical address into virtual memory starting at the
+ * given page-aligned virtual address, with the current process' page
+ * tables.
+ *
+ * Simple wrapper around `map_pages_containing_in` - see documentation for that function
+ * for specifics.
+ */
+bool vmm_map_pages(uintptr_t virt_addr, uint64_t page, uint16_t flags,
+                   size_t num_pages);
+
+/*
+ * Unmap the given virtual page from virtual memory with the current
+ * page tables.
  *
  * This is a "hard" unmap - it will zero out the PTE (rather than, say,
  * setting the page not present) and invalidate the TLB automatically.
@@ -113,6 +169,22 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
  * 0 for none.
  */
 uintptr_t vmm_unmap_page(uintptr_t virt_addr);
+
+/*
+ * Unmap the given number of virtual pages from virtual memory, starting
+ * at the given virtual address, with the current page tables.
+ *
+ * This is a "hard" unmap - it will zero out the PTE (rather than, say,
+ * setting the page not present) and invalidate the TLB automatically.
+ *
+ * This function does **not** free any physical memory or otherwise
+ * compact the page tables, as doing this on every unmap would be
+ * expensive and unnecessary.
+ *
+ * Returns the physical address that was previously mapped, or
+ * 0 for none.
+ */
+uintptr_t vmm_unmap_pages(uintptr_t virt_addr, size_t num_pages);
 
 /*
  * Unmap the given virtual page from virtual memory with the current 
@@ -129,6 +201,24 @@ uintptr_t vmm_unmap_page(uintptr_t virt_addr);
  * 0 for none.
  */
 uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr);
+
+/*
+ * Unmap the given number of virtual pages from virtual memory, starting
+ * at the given virtual address, in the address-space described by
+ * the given PML4.
+ *
+ * This is a "hard" unmap - it will zero out the PTE (rather than, say,
+ * setting the page not present) and invalidate the TLB automatically.
+ *
+ * This function does **not** free any physical memory or otherwise
+ * compact the page tables, as doing this on every unmap would be
+ * expensive and unnecessary.
+ *
+ * Returns the physical address that was previously mapped
+ * at the beginning of the area, or 0 for none.
+ */
+uintptr_t vmm_unmap_pages_in(uint64_t *pml4, uintptr_t virt_addr,
+                             size_t num_pages);
 
 /*
  * Invalidate the TLB for the page containing the given virtual address.

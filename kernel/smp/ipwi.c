@@ -14,6 +14,12 @@
 #include "smp/state.h"
 #include "std/string.h"
 
+#ifndef UNIT_TESTS
+#include "x86_64/kdrivers/cpu.h"
+#else
+void cpu_invalidate_tlb_addr(uintptr_t virt_addr);
+#endif
+
 void arch_ipwi_notify_all_except_current(void);
 
 bool ipwi_init(void) {
@@ -91,12 +97,33 @@ bool ipwi_dequeue_this_cpu(IpwiWorkItem *out_item) {
     return result;
 }
 
+#include "kprintf.h"
+
 void ipwi_ipi_handler(void) {
     IpwiWorkItem item;
+
     while (ipwi_dequeue_this_cpu(&item)) {
+        const IpwiPayloadTLBShootdown *payload;
+
         // we have an item!
         switch (item.type) {
         case IPWI_TYPE_TLB_SHOOTDOWN:
+            kprintf("FUCKING SHOOTDOWN\n");
+            payload = (IpwiPayloadTLBShootdown *)&item.payload;
+
+            if (payload->target_pid == task_current()->owner->pid ||
+                payload->target_pml4 == task_current()->owner->pml4) {
+                const uintptr_t page_limit =
+                        payload->start_vaddr +
+                        (payload->page_count * VM_PAGE_SIZE);
+
+                for (uintptr_t addr = payload->start_vaddr; addr < page_limit;
+                     addr += VM_PAGE_SIZE) {
+                    cpu_invalidate_tlb_addr(addr);
+                }
+            }
+
+            break;
         case IPWI_TYPE_REMOTE_EXEC:
             // TODO not yet implemented
             break;

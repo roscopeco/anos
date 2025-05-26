@@ -17,15 +17,28 @@
 
 // === Mocks ===
 
+Task mock_task;
+Process mock_owner;
+
 static PerCPUState mock_states[4];
 static int last_halt_called = 0;
 static int shift_array_init_should_fail = 0;
 static int enqueue_fail_cpu = -1;
 static int dequeue_has_item = 0;
 static IpwiWorkItem mocked_item;
+static int invalidate_page_called = 0;
+static uintptr_t invalidate_page_addrs[16];
+
+Task *task_current(void) { return &mock_task; }
 
 void arch_ipwi_notify_all_except_current(void) {
     // Called from notify test
+}
+
+void cpu_invalidate_tlb_addr(const uintptr_t addr) {
+    if (invalidate_page_called < 16) {
+        invalidate_page_addrs[invalidate_page_called++] = addr;
+    }
 }
 
 void halt_and_catch_fire(void) { last_halt_called++; }
@@ -133,30 +146,56 @@ static MunitResult test_ipwi_ipi_handler_panic(const MunitParameter params[],
     return MUNIT_OK;
 }
 
+static MunitResult
+test_ipwi_ipi_handler_tlb_shootdown(const MunitParameter params[], void *data) {
+    IpwiPayloadTLBShootdown *payload =
+            (IpwiPayloadTLBShootdown *)&mocked_item.payload;
+    mocked_item.type = IPWI_TYPE_TLB_SHOOTDOWN;
+    payload->start_vaddr = 0x4000;
+    payload->page_count = 3;
+    payload->target_pid = 42;
+
+    mock_owner.pid = 42;
+    mock_task.owner = &mock_owner;
+
+    invalidate_page_called = 0;
+    dequeue_has_item = 1;
+
+    ipwi_ipi_handler();
+
+    munit_assert_int(invalidate_page_called, ==, 3);
+    munit_assert_uint64(invalidate_page_addrs[0], ==, 0x4000);
+    munit_assert_uint64(invalidate_page_addrs[1], ==, 0x5000);
+    munit_assert_uint64(invalidate_page_addrs[2], ==, 0x6000);
+    return MUNIT_OK;
+}
+
 static MunitTest ipwi_tests[] = {
-        {"/ipwi/init_success", test_ipwi_init_success, NULL, NULL,
+        {"/init_success", test_ipwi_init_success, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ipwi/init_fail", test_ipwi_init_fail_on_shift_array, NULL, NULL,
+        {"/init_fail", test_ipwi_init_fail_on_shift_array, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ipwi/enqueue_success", test_ipwi_enqueue_success, NULL, NULL,
+        {"/enqueue_success", test_ipwi_enqueue_success, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ipwi/enqueue_invalid", test_ipwi_enqueue_fail_invalid_cpu, NULL,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ipwi/enqueue_all", test_ipwi_enqueue_all_except_current, NULL, NULL,
+        {"/enqueue_invalid", test_ipwi_enqueue_fail_invalid_cpu, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ipwi/dequeue_success", test_ipwi_dequeue_success, NULL, NULL,
+        {"/enqueue_all", test_ipwi_enqueue_all_except_current, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ipwi/dequeue_empty", test_ipwi_dequeue_empty, NULL, NULL,
+        {"/dequeue_success", test_ipwi_dequeue_success, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ipwi/notify", test_ipwi_notify_calls_arch, NULL, NULL,
+        {"/dequeue_empty", test_ipwi_dequeue_empty, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ipwi/ipi_handler_panic", test_ipwi_ipi_handler_panic, NULL, NULL,
+        {"/notify", test_ipwi_notify_calls_arch, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ipi_handler_panic", test_ipwi_ipi_handler_panic, NULL, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ipi_handler_tlb_shootdown", test_ipwi_ipi_handler_tlb_shootdown,
+         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
 static const MunitSuite ipwi_test_suite = {"/ipwi", ipwi_tests, NULL, 1,
                                            MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
+int main(const int argc, char *argv[]) {
     return munit_suite_main(&ipwi_test_suite, NULL, argc, argv);
 }

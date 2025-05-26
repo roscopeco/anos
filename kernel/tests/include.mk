@@ -298,6 +298,9 @@ kernel/tests/build/structs/region_tree: kernel/tests/munit.o kernel/tests/struct
 kernel/tests/build/smp/ipwi: kernel/tests/munit.o kernel/tests/smp/ipwi.o kernel/tests/build/smp/ipwi.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/vmm/vmm_shootdown: kernel/tests/munit.o kernel/tests/vmm/vmm_shootdown.o kernel/tests/build/vmm/vmm_shootdown.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -366,7 +369,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/capabilities/map									\
 			kernel/tests/build/managed_resources/resources						\
 			kernel/tests/build/structs/region_tree								\
-			kernel/tests/build/smp/ipwi
+			kernel/tests/build/smp/ipwi											\
+			kernel/tests/build/vmm/vmm_shootdown
 
 ifeq ($(HOST_ARCH),i386)	# macOS
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\

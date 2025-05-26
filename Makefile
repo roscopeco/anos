@@ -258,6 +258,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/structs/region_tree.o									\
 			$(STAGE3_DIR)/structs/shift_array.o									\
 			$(STAGE3_DIR)/smp/ipwi.o											\
+			$(STAGE3_DIR)/vmm/vmm_shootdown.o									\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 else
