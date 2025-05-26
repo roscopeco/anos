@@ -94,24 +94,24 @@ mapping). This happens at the end of the platform-specific bootstrap.
 We also create the mapping for the 128GiB reserved address space for the PMM
 structures at this point, leaving us with:
 
-| Start                | End                  | Use                                                          |
-|----------------------|----------------------|--------------------------------------------------------------|
-| `0x0000000000000000` | `0x00007fffffffffff` | User space (128TiB)                                          |
-| `0x0000800000000000` | `0xffff7fffffffffff` | [_Non-canonical memory hole_]                                |
-| `0xffff800000000000` | `0xfffffeffffffffff` | Virtual Mapping area (127TiB) (see below)                    |
-| `0xffffff0000000000` | `0xffffff7fffffffff` | [_Currently unused, 512GiB_]                                 |
-| `0xffffff8000000000` | `0xffffff9fffffefff` | PMM structures area (only the first page is actually present)|
-| `0xffffff9ffffff000` | `0xffffff9fffffffff` | PMM structures guard page (Reserved, never mapped)           |
-| `0xffffffa000000000` | `0xffffffa0000003ff` | Local APIC (for all CPUs) [_TODO_ move to driver space]      |
-| `0xffffffa000000400` | `0xffffffff7fffffff` | [_Currently unused, ~382GiB_]                                |
-| `0xffffffff80000000` | `0xffffffff803fffff` | Kernel code / data static mapping (4MiB)                     |
-| `0xffffffff80400000` | `0xffffffff80ffffff` | 256 per-CPU temporary mapping pages (**see notes, below**)   |
-| `0xffffffff81000000` | `0xffffffff8101ffff` | (Temporary) Reserved space for ACPI tables                   |
-| `0xffffffff81020000` | `0xffffffff810fffff` | Kernel driver MMIO mapping space (895KiB, 224 pages)         |
-| `0xffffffff81100000` | `0xffffffff81ffffff` | [_Currently unused, 15MiB_]                                  |
-| `0xffffffff82000000` | `0xffffffff827fffff` | Bootup terminal framebuffer (8MiB)                           |
-| `0xffffffff82800000` | `0xffffffffbfffffff` | [_Currently unused, 984MiB_]                                 |
-| `0xffffffffc0000000` | `0xffffffffffffffff` | 1GiB FBA space                                               |
+| Start                | End                  | Use                                                           |
+|----------------------|----------------------|---------------------------------------------------------------|
+| `0x0000000000000000` | `0x00007fffffffffff` | User space (128TiB)                                           |
+| `0x0000800000000000` | `0xffff7fffffffffff` | [_Non-canonical memory hole_]                                 |
+| `0xffff800000000000` | `0xfffffeffffffffff` | Virtual Mapping area (127TiB) (see below)                     |
+| `0xffffff0000000000` | `0xffffff7fffffffff` | [_Currently unused, 512GiB_]                                  |
+| `0xffffff8000000000` | `0xffffff9fffffefff` | PMM structures area (only the first page is actually present) |
+| `0xffffff9ffffff000` | `0xffffff9fffffffff` | PMM structures guard page (Reserved, never mapped)            |
+| `0xffffffa000000000` | `0xffffffa0000003ff` | Local APIC (for all CPUs) [_TODO_ move to driver space]       |
+| `0xffffffa000000400` | `0xffffffff7fffffff` | [_Currently unused, ~382GiB_]                                 |
+| `0xffffffff80000000` | `0xffffffff803fffff` | Kernel code / data static mapping (4MiB)                      |
+| `0xffffffff80400000` | `0xffffffff80ffffff` | 256 per-CPU temporary mapping pages (**see notes, below**)    |
+| `0xffffffff81000000` | `0xffffffff8101ffff` | (Temporary) Reserved space for ACPI tables                    |
+| `0xffffffff81020000` | `0xffffffff810fffff` | Kernel driver MMIO mapping space (895KiB, 224 pages)          |
+| `0xffffffff81100000` | `0xffffffff81ffffff` | [_Currently unused, 15MiB_]                                   |
+| `0xffffffff82000000` | `0xffffffff827fffff` | Bootup terminal framebuffer (8MiB)                            |
+| `0xffffffff82800000` | `0xffffffffbfffffff` | [_Currently unused, 984MiB_]                                  |
+| `0xffffffffc0000000` | `0xffffffffffffffff` | 1GiB FBA space                                                |
 
 #### Notes on specific areas
 
