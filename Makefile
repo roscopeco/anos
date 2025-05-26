@@ -7,7 +7,6 @@
 #
 #	* ARCH=[x86_64 | riscv64]	Select target architecture
 # 	* OPTIMIZE=n 				Set GCC optimization level to `n`
-#	* SERIAL_TERMINAL=true		Enable (legacy-only) serial terminal
 #
 # See also the C defines further down in this file for
 # more direct compile-time option settings.
@@ -73,7 +72,7 @@ endif
 #							You should pass this to the make command if you want it.
 #							(Requires CONSERVATIVE_BUILD)
 #
-#	DEBUG_MEMMAP			Enable debugging of the BIOS memory map
+#	DEBUG_MEMMAP			Enable debugging of the initial memory map
 #	DEBUG_PMM				Enable debugging of the PMM
 #	VERY_NOISY_PMM			Enable *lots* of debugging of the PMM (requires DEBUG_PMM)
 #	DEBUG_VMM				Enable debugging of the VMM
@@ -118,7 +117,6 @@ endif
 #
 # These set options you might feel like configuring
 #
-#	SERIAL_TERMINAL			Disable VGA terminal and use COM1 instead (see also SERIAL_TERMINAL=true make option)
 #	USE_BIZCAT_FONT			Use BIZCAT font instead of the default (only for graphical terminal)
 #
 # And these will selectively disable features
@@ -138,8 +136,7 @@ endif
 CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS
 
 ifeq ($(ARCH),x86_64)
-QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 8G -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -d mmu,cpu_reset,guest_errors,unimp
-QEMU_BIOS_OPTS=-drive file=$(FLOPPY_IMG),if=floppy,format=raw,index=0,media=disk -boot order=ac
+QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 256M -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -d mmu,cpu_reset,guest_errors,unimp -monitor stdio
 QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
 else
 ifeq ($(ARCH),riscv64)
@@ -154,65 +151,20 @@ endif
 endif
 QEMU_DEBUG_OPTS=-gdb tcp::9666 -S -monitor telnet:127.0.0.1:1234,server,nowait
 
-ifeq ($(SERIAL_TERMINAL),true)
-QEMU_BASEOPTS+=-serial stdio
-CDEFS+=-DSERIAL_TERMINAL -DLEGACY_TERMINAL
-else
-QEMU_BASEOPTS+=-monitor stdio
-endif
-
 SHORT_HASH?=`git rev-parse --short HEAD`
 
-STAGE1?=stage1
-STAGE2?=stage2
 STAGE3?=kernel
 SYSTEM?=system
 ARCH_X86_64_REALMODE?=realmode
-STAGE1_DIR?=$(STAGE1)
-STAGE2_DIR?=$(STAGE2)
 STAGE3_DIR?=$(STAGE3)
 SYSTEM_DIR?=$(SYSTEM)
-STAGE1_BIN=$(STAGE1).bin
-STAGE2_BIN=$(STAGE2).bin
-STAGE3_BIN=$(STAGE3).bin
 SYSTEM_BIN=$(SYSTEM).bin
 ARCH_X86_64_REALMODE_BIN=$(ARCH_X86_64_REALMODE).bin
 
 STAGE3_INC=-I$(STAGE3)/include -I$(STAGE3)/arch/$(ARCH)/include
 
-# Base addresses; Stage 1
-STAGE_1_ADDR?=0x7c00
-
-# Stage 2 at this address leaves 8K for FAT (16 sectors) after stage1, 
-# before (potentially - at least on bochs and qemu) EBDA.
-#
-# Works for floppy, probably won't for anything bigger...
-#
-# It also means stage 2 is limited to 23KiB, which is probably fine 😅
-#
-STAGE_2_ADDR?=0xa400
-
-# Stage 3 loads at 0x00120000 (just after 1MiB, leaving a bit for BSS etc
-# at 1MiB), but runs as 0xFFFFFFFF80120000 (in the top / negative 2GB).
-#
-# Initial page tables in stage 2 map both to the same physical memory.
-STAGE_3_LO_ADDR?=0x00120000
-STAGE_3_HI_ADDR?=0xFFFFFFFF80120000
-
-FLOPPY_IMG?=floppy.img
-
-STAGE2_OBJS=$(STAGE2_DIR)/$(STAGE2).o 											\
-			$(STAGE2_DIR)/prints.o 												\
-			$(STAGE2_DIR)/memorymap.o 											\
-			$(STAGE2_DIR)/a20.o 												\
-			$(STAGE2_DIR)/modern.o 												\
-			$(STAGE2_DIR)/fat.o 												\
-			$(STAGE2_DIR)/init_pagetables.o
-					
 STAGE3_ARCH_X86_64_DIR=$(STAGE3_DIR)/arch/x86_64
-STAGE3_OBJS_X86_64=$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_init.o			\
-					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_init.o			\
-					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/stage2_entrypoint.o	\
+STAGE3_OBJS_X86_64= $(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_entrypoint.o	\
 					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/common.o				\
 					$(STAGE3_ARCH_X86_64_DIR)/machine.o							\
@@ -330,21 +282,7 @@ endif
 
 ARCH_X86_64_REALMODE_OBJS=$(STAGE3_DIR)/arch/x86_64/smp/ap_trampoline.o
 
-ALL_TARGETS=floppy.img
-
-ifeq ($(ARCH),x86_64)
-FLOPPY_DEPENDENCIES=$(STAGE1_DIR)/$(STAGE1_BIN) 								\
-					$(STAGE2_DIR)/$(STAGE2_BIN) 								\
-					$(STAGE3_DIR)/$(STAGE3_BIN)
-else
-ifeq ($(ARCH),riscv64)
-FLOPPY_DEPENDENCIES=$(STAGE3_DIR)/$(STAGE3_BIN)
-endif
-endif
-
-CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
-	       		$(STAGE2_DIR)/*.dis $(STAGE2_DIR)/*.elf $(STAGE2_DIR)/*.o 		\
-	       		$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
+CLEAN_ARTIFACTS=$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/pmm/*.o $(STAGE3_DIR)/vmm/*.o				 		\
 				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
 				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
@@ -353,8 +291,6 @@ CLEAN_ARTIFACTS=$(STAGE1_DIR)/*.dis $(STAGE1_DIR)/*.elf $(STAGE1_DIR)/*.o 		\
 				$(STAGE3_DIR)/ipc/*.o											\
 				$(STAGE3_DIR)/managed_resources/*.o								\
 				$(STAGE3_DIR)/capabilities/*.o									\
-		   		$(STAGE1_DIR)/$(STAGE1_BIN) $(STAGE2_DIR)/$(STAGE2_BIN) 		\
-		   		$(STAGE3_DIR)/$(STAGE3_BIN) 									\
 				$(SYSTEM)_linkable.o											\
 		   		$(FLOPPY_IMG)													\
 				$(UEFI_IMG)														\
@@ -394,13 +330,11 @@ endif
 
 endif
 
-.PHONY: all build clean bochs test coverage 									\
-	qemu debug-qemu-start debug-qemu-start-terminal debug-qemu					\
-	qemu-uefi debug-qemu-uefi-start debug-qemu-uefi-start-terminal debug-qemu-uefi
+.PHONY: all clean test coverage												\
+	qemu-uefi debug-qemu-uefi-start debug-qemu-uefi-start-terminal 			\
+	debug-qemu-uefi
 
-all: build test
-
-build: $(ALL_TARGETS)
+all: test build
 
 clean:
 	rm -rf $(CLEAN_ARTIFACTS)
@@ -418,8 +352,6 @@ ifeq ($(ARCH),x86_64)
 %.o: %.asm
 	$(ASM) 																		\
 	-DVERSTR=$(SHORT_HASH) 														\
-	-DSTAGE_2_ADDR=$(STAGE_2_ADDR)												\
-	-DSTAGE_3_LO_ADDR=$(STAGE_3_LO_ADDR) -DSTAGE_3_HI_ADDR=$(STAGE_3_HI_ADDR)	\
 	$(STAGE3_INC)																\
 	$(CDEFS)																	\
 	$(ASFLAGS) 																	\
@@ -430,8 +362,6 @@ ifeq ($(ARCH),riscv64)
 	$(ASM) 																		\
 	-x assembler-with-cpp														\
 	-DVERSTR=$(SHORT_HASH) 														\
-	-DSTAGE_2_ADDR=$(STAGE_2_ADDR)												\
-	-DSTAGE_3_LO_ADDR=$(STAGE_3_LO_ADDR) -DSTAGE_3_HI_ADDR=$(STAGE_3_HI_ADDR)	\
 	$(STAGE3_INC)																\
 	$(CFLAGS)																	\
 	$(CDEFS)																	\
@@ -442,32 +372,7 @@ endif
 %.o: %.c
 	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) $(STAGE3_INC) $(CFLAGS) -c -o $@ $<
 
-
-# ############# Stage 1 ##############
-$(STAGE1_DIR)/$(STAGE1).elf: $(STAGE1_DIR)/$(STAGE1).o
-	$(XLD) -Ttext=$(STAGE_1_ADDR) -o $@ $^
-	chmod a-x $@
-
-$(STAGE1_DIR)/$(STAGE1).dis: $(STAGE1_DIR)/$(STAGE1).elf
-	$(XOBJDUMP) -D -mi386 -Maddr16,data16 $< > $@
-
-$(STAGE1_DIR)/$(STAGE1_BIN): $(STAGE1_DIR)/$(STAGE1).elf $(STAGE1_DIR)/$(STAGE1).dis
-	$(XOBJCOPY) --strip-debug -O binary $< $@
-	chmod a-x $@
-
-# ############# Stage 2 ##############
-$(STAGE2_DIR)/$(STAGE2).elf: $(STAGE2_OBJS)
-	$(XLD) -T $(STAGE2_DIR)/$(STAGE2).ld -o $@ $^
-	chmod a-x $@
-
-$(STAGE2_DIR)/$(STAGE2).dis: $(STAGE2_DIR)/$(STAGE2).elf
-	$(XOBJDUMP) -D -mi386 -Maddr32,data32 $< > $@
-
-$(STAGE2_DIR)/$(STAGE2_BIN): $(STAGE2_DIR)/$(STAGE2).elf $(STAGE2_DIR)/$(STAGE2).dis
-	$(XOBJCOPY) --strip-debug -O binary $< $@
-	chmod a-x $@
-
-# ############# System  ##############
+############## System  ##############
 $(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile
 	$(MAKE) -C $(SYSTEM_DIR)
 
@@ -475,7 +380,7 @@ $(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
 	$(XOBJCOPY) -I binary --rename-section .data=.$(SYSTEM)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
 
 ifeq ($(ARCH),x86_64)
-# ############ Real mode #############
+############# Real mode #############
 $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).elf: $(ARCH_X86_64_REALMODE_OBJS)
 	$(XLD) -T $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).ld -o $@ $^
 	chmod a-x $@
@@ -491,17 +396,13 @@ $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o: $(STAGE3_ARCH_X86_
 	$(XOBJCOPY) -I binary --rename-section .data=.$(ARCH_X86_64_REALMODE)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
 endif
 
-# ############# Stage 3 ##############
+############## Stage 3 ##############
 $(STAGE3_DIR)/$(STAGE3).elf: $(STAGE3_OBJS)
 	$(XLD) -T $(STAGE3_DIR)/arch/$(ARCH)/$(STAGE3).ld -o $@ $^
 	chmod a-x $@
 
 $(STAGE3_DIR)/$(STAGE3).dis: $(STAGE3_DIR)/$(STAGE3).elf
 	$(XOBJDUMP) -D -S -Maddr64,data64 $< > $@
-
-$(STAGE3_DIR)/$(STAGE3_BIN): $(STAGE3_DIR)/$(STAGE3).elf $(STAGE3_DIR)/$(STAGE3).dis
-	$(XOBJCOPY) --strip-debug -O binary $< $@
-	chmod a-x $@
 
 
 # ############ UEFI Image ############
@@ -527,36 +428,6 @@ $(UEFI_IMG): $(STAGE3_DIR)/$(STAGE3).elf $(UEFI_CONF) $(UEFI_BOOT_WALLPAPER) $(U
 	mcopy -i $@ $(UEFI_APPLICATION) ::/EFI/BOOT
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3).elf ::
 
-# ####### Legacy Floppy Image ########
-$(FLOPPY_IMG): $(FLOPPY_DEPENDENCIES)
-	dd of=$@ if=/dev/zero bs=1440k count=1
-	mformat -f 1440 -B $(STAGE1_DIR)/$(STAGE1_BIN) -v ANOSDISK001 -k -i $@ ::
-	mcopy -i $@ $(STAGE2_DIR)/$(STAGE2_BIN) ::$(STAGE2_BIN)
-	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3_BIN) ::$(STAGE3_BIN)
-
-ifeq ($(ARCH),x86_64)
-qemu: $(FLOPPY_IMG)
-	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS)
-
-debug-qemu-start: $(FLOPPY_IMG)
-	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS) $(QEMU_DEBUG_OPTS)
-
-debug-qemu-start-terminal: $(FLOPPY_IMG)
-	$(QEMU) $(QEMU_BASEOPTS) $(QEMU_BIOS_OPTS) $(QEMU_DEBUG_OPTS) &
-
-debug-qemu: debug-qemu-start-terminal
-	gdb -ex 'target remote localhost:9666'
-else
-_no-bios-error:
-	$(error BIOS support available only for ARCH=x86_64)
-
-qemu: _no-bios-error
-debug-qemu-start: _no-bios-error
-debug-qemu-start-terminal: _no-bios-error
-debug-qemu: _no-bios-error
-debug-qemu-start: _no-bios-error
-endif
-
 ifeq ($(ARCH),riscv64)
 uefi/riscv64/edk2/RISCV_VIRT_VARS.fd: 
 	cp $@.template $@
@@ -576,5 +447,4 @@ debug-qemu-uefi-start-terminal: $(UEFI_IMG)
 debug-qemu-uefi: debug-qemu-uefi-start-terminal
 	gdb -ex 'target remote localhost:9666'
 
-bochs: floppy.img bochsrc
-	$(BOCHS)
+build: $(UEFI_IMG)
