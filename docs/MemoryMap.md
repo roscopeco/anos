@@ -1,22 +1,9 @@
 ## Memory Map for Anos
 
-> [!NOTE]
-> The low memory and early boot information here applies **only when booted via STAGE2**,
-> and is **only applicable on x86_64**.
->
-> When booted with Limine (or other such loader as we may support from time to time),
-> and on other platforms (e.g. RISC-V) the kernel entrypoint code for that platform 
-> and loader is responsible for making the bootloader's environment into something 
-> palatable for the kernel proper before handing off to the common entrypoint.
-
 ### Low Memory
 
 Various bits of low memory are used. Some of them are only used
 during the boot process and are reused later.
-
-Some of these can be changed at build time (with e.g. `STAGE_2_ADDR`
-defines) but probably shouldn't unless you know what you're doing
-and have reasons for doing it...
 
 During early boot (until the kernel sets up proper page tables for
 the first time) there's some risky bits - stacks are _theoretically_
@@ -25,36 +12,31 @@ unbounded for example (but in reality never grow down beyond maybe
 
 The following are **physical** addresses:
 
-| Start                | End                  | Use                                                          |
-|----------------------|----------------------|--------------------------------------------------------------|
-| `------------------` | `0x0000000000007bff` | Stage 1/2 (un)real mode stack (actually only about 20 bytes) |
-| `0x0000000000007c00` | `0x0000000000007dff` | Bootsector / Stage 1                                         |
-| `0x0000000000007e00` | `0x000000000000a200` | FAT buffer (only during stage 1 file search)                 | 
-| `0x0000000000008400` | `0x0000000000009bff` | BIOS E820h memory map (passed to kernel by stage2)           |
-| `0x000000000000a400` | `0x000000000000ffff` | Stage 2 load area (max 23k, doesn't use it all)              |
-| `------------------` | `0x000000000009bfff` | Stage 2 Protected stack (probably pointless moving it here..)|
-| `0x000000000009c000` | `0x000000000009cfff` | Inital PML4 set up in stage2 init_pagetables.asm             |
-| `0x000000000009d000` | `0x000000000009dfff` | Inital PDPT set up in stage2 init_pagetables.asm             |
-| `0x000000000009e000` | `0x000000000009efff` | Inital PD set up in stage2 init_pagetables.asm               |
-| `0x000000000009f000` | `0x000000000009ffff` | Inital PT set up in stage2 init_pagetables.asm               |
+| Start                | End                  | Use                                                    |
+|----------------------|----------------------|--------------------------------------------------------|
+| `0x000000000009c000` | `0x000000000009cfff` | Inital PML4 (Becomes `SYSTEM` process table post-boot) |
+| `0x000000000009d000` | `0x000000000009dfff` | Inital PDPT (Ends up owned by `SYSTEM` process)        |
+| `0x000000000009e000` | `0x000000000009efff` | Inital PD (Ends up owned by `SYSTEM` process)          |
+| `0x000000000009f000` | `0x000000000009ffff` | Inital PT (Ends up owned by `SYSTEM` process)          |
 
-### Kernel Physical Mem (after stage2 is done)
+### Kernel Physical Mem (after bootloader & limine_entrypoint / trampoline is done)
 
-These memory areas are reserved, and not added into the pool managed by the PMM.
+These memory areas are reserved, and not added into the pool managed by the PMM. There are some additional
+structures and regions used by the bootloader that are passed to the kernel dynamically - for the most part
+these are reclaimed after the entrypoint trampoline has been bounced.
 
-| Start                | End                  | Use                                                          |
-|----------------------|----------------------|--------------------------------------------------------------|
-| `0x0000000000008400` | `0x0000000000009bff` | BIOS E820h memory map (passed to kernel by stage2, SEE BELOW)|
-| `0x0000000000099000` | `0x0000000000099fff` | PMM Bootstrap page (Region struct and bottom of stack)       |
-| `0x000000000009a000` | `0x000000000009afff` | PMM Area bootstrap page directory                            |
-| `0x000000000009b000` | `0x000000000009bfff` | PMM Area bootstrap page table                                |
-| `0x000000000009c000` | `0x000000000009cfff` | Inital PML4 set up in stage2 init_pagetables.asm             |
-| `0x000000000009d000` | `0x000000000009dfff` | Inital PDPT set up in stage2 init_pagetables.asm             |
-| `0x000000000009e000` | `0x000000000009efff` | Inital PD set up in stage2 init_pagetables.asm               |
-| `0x000000000009f000` | `0x000000000009ffff` | Inital PT set up in stage2 init_pagetables.asm               |
-| `0x0000000000100000` | `0x000000000010ffff` | Initial 64KiB long-mode stack (set up by stage 2 for kernel) |
-| `0x0000000000110000` | `0x000000000011ffff` | 64KiB Kernel BSS                                             |
-| `0x0000000000120000` | `0x00000000001fffff` | 896KiB Kernel load area                                      |
+| Start                | End                  | Use                                                             |
+|----------------------|----------------------|-----------------------------------------------------------------|
+| `0x0000000000099000` | `0x0000000000099fff` | PMM Bootstrap page (Region struct and bottom of stack)          |
+| `0x000000000009a000` | `0x000000000009afff` | PMM Area bootstrap page directory                               |
+| `0x000000000009b000` | `0x000000000009bfff` | PMM Area bootstrap page table                                   |
+| `0x000000000009c000` | `0x000000000009cfff` | Inital PML4                                                     |
+| `0x000000000009d000` | `0x000000000009dfff` | Inital PDPT                                                     |
+| `0x000000000009e000` | `0x000000000009efff` | Inital PD                                                       |
+| `0x000000000009f000` | `0x000000000009ffff` | Inital PT                                                       |
+| `0x0000000000100000` | `0x000000000010ffff` | Initial 64KiB long-mode stack (set up by bootloader for kernel) |
+| `0x0000000000110000` | `0x000000000011ffff` | 64KiB Kernel BSS                                                |
+| `0x0000000000120000` | `0x00000000001fffff` | 896KiB Kernel load area                                         |
 
 The `0x8400-0x9bff` space is reused for the AP startup trampoline, which is done after the memory map has
 been processed during early startup. Once AP startup is in progress, that area looks like:
@@ -69,7 +51,7 @@ This area remains reserved until AP startup is fully complete and the scheduler 
 all APs - until that time, this area will still be in use for stacks (at least).
 
 These ranges are defined in `realmode.ld` (and repeated in `startup.c` so if you change them, keep them
-in step or you're likely to experience sadness).
+in step, or you're likely to experience sadness).
 
 ### Long Mode Initial Page Table Layout
 
@@ -92,7 +74,7 @@ mapping). This happens at the end of the platform-specific bootstrap.
 > PMM during init.
 >
 > The first 2MiB is excluded from the PMM, so is manually managed. This is just because
-> there's already a kernel and various data (page tables etc) there by the time the PMM
+> there's already a kernel and various data (page tables etc.) there by the time the PMM
 > is getting initialized, and stomping on them would be **bad** 😱
 
 ### Long Mode Page Table Layout After Kernel Bootstrap
@@ -100,13 +82,13 @@ mapping). This happens at the end of the platform-specific bootstrap.
 > [!NOTE]
 > From this point on, the map is the same regardless of how we were booted.
 > 
-> On x86_64, ince stage 2 has exited and we're in the kernel proper, the identity 
+> On x86_64, once the entrypoint has exited, and we're in the kernel proper, the identity 
 > mapping of low RAM is dropped (the first 2MB physical mapping into the top 2GiB 
 > is retained, and for UEFI boot we currently copy the kernel to that physical 
 > space).
 >
 > On RISC-V, because we have no guarantees about physical memory, we instead keep
-> the kernel at it's load address, copy the bootloader mappings into our pagetables,
+> the kernel at its load address, copy the bootloader mappings into our pagetables,
 > and exclude `EXECUTABLE_AND_MODULES` memory regions from the PMM.
 
 We also create the mapping for the 128GiB reserved address space for the PMM
@@ -167,12 +149,12 @@ platform the design was always going to be direct-mapping.
 > This section remains accurate on UEFI systems (booted via Limine) - we drop Limine's
 > mappings super early and remap these tables according to our own scheme.
 >
-> _However_ if you're looking at very early entrypoint code, it might be worth noting
+> _However_, if you're looking at very early entrypoint code, it might be worth noting
 > that the ACPI tables won't be mapped in this region until after the ACPI init routines
 > have been called...
 
 ACPI tables are mapped into a small (8-page currently) reserved space. Once usermode is
-up this will be remapped read-only, and made available for mapping into the the userspace
+up this will be remapped read-only, and made available for mapping into the userspace
 driver management subsystem's address space via a syscall.
 
 | Start                | End                  | Use                                                          |
@@ -265,3 +247,7 @@ the first 16MiB mapped at the start of kernel space 🤔).
 
 _Maybe_ I'd check we actually have >16MiB first, but are there even any 
 x86_64s that have less RAM than that? 🤷
+
+This is essentially what we currently do for RISV-V, so it should be no
+real hardship to replicate that for x86_65 (especially now we have 
+direct virtual mapping instead of recursive).

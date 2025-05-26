@@ -11,7 +11,7 @@
 This diagram shows the general code flow for the kernel boot and initialisation
 process on x86_64. 
 
-<img alt="Kernel Boot Init flow diagram" src="../images/diagrams/Kernel%20Startup%202025-04-05.svg">
+<img alt="Kernel Boot Init flow diagram" src="../images/diagrams/Kernel%20Startup%202025-05-25.svg">
 
 ## RAMFS Physical Layout
 

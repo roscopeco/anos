@@ -146,9 +146,6 @@ kernel/tests/build/managed_resources:
 kernel/tests/build/capabilities:
 	mkdir -p kernel/tests/build/capabilities
 
-kernel/tests/build/smp:
-	mkdir -p kernel/tests/build/smp
-
 kernel/tests/build/arch/x86_64:
 	mkdir -p kernel/tests/build/arch/x86_64
 

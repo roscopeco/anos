@@ -12,33 +12,21 @@
 
 > **Note** this is still evolving!
 
-Right now, there's two boot options - a hand-rolled two-stage BIOS bootloader
-(I know there are existing,better options, but one of my goals was to figure
-legacy bootloaders out), and modern UEFI boot (using the Limine boot protocol).
+Anos is a modern, opinionated, non-POSIX operating system
+(just a hobby, won't be big and professional like GNU-Linux®) 
+for x86_64 PCs and RISC-V machines.
 
-The legacy BIOS loaded will load from FAT floppy (and only floppy - no hard-disk
-support yet). UEFI is from FAT also, as usual, with the appropriate layout of
-files on the partition.
+It is free software licensed under the GPLv2, with similar
+linkage exceptions as other major free operating systems.
 
-#### Legacy Bootloader
+#### TL;DR / Headline features
 
-The bootloader does enough basic set up to load a (flat binary, ELF might
-be supported eventually) kernel at 0x120000 (physical), set up long mode
-with initial (super basic) paging, and call that kernel at 
-0xFFFFFFFF80120000 (virtual, mapped to the physical load address).
-
-The loader also fetches a BIOS memory map before leaving (un)real mode
-forever, and passes that map (unprocessed, currently) to the kernel via a 
-pointer parameter.
-
-The loader **does not** do any BSS clearing or other C set-up - the kernel
-has a small assembly stub that just zeroes out that segment and passes
-control. No (C++, or C with GCC extensions) static constructors or anything
-else are run at the moment - this is not a complete C environment :D
-
-Also worth noting that the loader doesn't do **anything** at all with 
-interrupt vectors - that's totally up to the kernel (and interrupts are
-left disabled throughout the load and remain so on kernel entry).
+* Non-zealous microkernel (`"STAGE3"`) with scheduling, memory management, and IPC primitives
+* Strict system-wide capability-based security model
+* User-space system management server (`"SYSTEM"`) provides common OS abstractions
+* User-space ACPI or Devicetree-based hardware discovery and driver model (WIP)
+* Custom software-development toolchain (based on binutils, GCC and Newlib)
+* Requirements (theoretical min/max): 1 core, 256MiB RAM / 16 cores, 127TiB RAM 
 
 #### Kernel Design (WIP, subject to change)
 
@@ -107,13 +95,17 @@ class. The design is currently simple and rather suboptimal, and
 there are significant opportunities for improvement in this area.
 
 SMP is supported, up to a maximum of 16 symmetric cores (one BSP
-and 15 APs). The scheduler operates on a per-CPU basis and is driven by
-each CPUs independent local APIC timer. The plan is to migrate this to
-a tickless design in the near future in order to improve power efficiency
+and 15 APs) - although anything over 8 cores will be unstable 
+right now as I haven't made the switch to x2APIC. 
+
+The scheduler operates on a per-CPU basis and is driven by each CPU's
+independent local APIC timer. The plan is to migrate this to a tickless
+design in the near future in order to improve power efficiency
 in the final design.
 
-Realtime scheduling is, like realtime behaviour in general, a non-goal 
-of this project.
+> [!NOTE]
+> Realtime scheduling is, like realtime behaviour in general, a non-goal 
+> of this project.
 
 There's a (_very much WIP_) custom toolchain, based on binutils,
 GCC (15) and with Newlib providing libc (with Anos-specifics handled
@@ -145,14 +137,15 @@ For running and debugging, you'll want `qemu-system-x86_64`.
 Bochs is also supported if you prefer (there's a minimal `bochsrc`
 in the repo that will get you going).
 
-To build the FAT filesystem for the floppy image, `mtools` is
+To build the FAT filesystem for the UEFI disk image, `mtools` is
 needed, specifically `mformat`, `mcopy` - but I don't know if 
 you can get just those, and it's best to get the whole suite
 anyway as it can be useful for debugging things.
 
 You'll need a sane build environment (i.e. a UNIX) with `make` 
 etc. FWIW I work on macOS, YMMV on Linux or WSL (but I expect
-it should work fine).
+it should work fine - for Linux at least we have CI runners
+on every build).
 
 There are probably some test programs and helpers that I use 
 in the repo (e.g. `fat.c`). These will need a native Clang or GCC
@@ -166,15 +159,21 @@ make clean all
 
 This will do the following:
 
-* Build kernel ELF
-* Build the `System` user-mode supervisor and test servers
+* Run a bunch of unit tests (and stop if they fail)
+* Build the `STAGE3` kernel
+* Build the `SYSTEM` user-mode supervisor and test servers
+* Link the kernel and initial RAMFS into a single ELF64 
 * Create a disassembly file (`.dis`)
-* Build a floppy-disk image with the (stripped) kernel and System
-* Run a bunch of unit tests
+* Build a UEFI-bootable FAT floppy with the OS
 
-You can also choose to just run `make test` if you want to run the
-tests. If you have `LCOV` installed, you can also generate 
-coverage reports with `make coverage` - these will be output in
+You can also choose to just run `make test` if you only want to
+run the tests, or `make build` if you just want the image. If 
+you have an appropriate `qemu` installed, you can also run
+e.g. `make qemu-uefi` - see the `Running` section below for
+more details (including GDB debugging options).
+
+If you have `LCOV` installed, you can also generate coverage
+reports with `make coverage` - these will be output in
 the `gcov/kernel` directory as HTML.
 
 #### RISC-V
@@ -183,11 +182,13 @@ the `gcov/kernel` directory as HTML.
 > RISC-V support is _very_ much in its infancy right now - there's
 > enough to get through early boot and start the PMM and VMM, 
 > including setting up a direct map but that's it.
->
-> It only works on a qemu that's setup weirdly (e.g. with VGA)
-> and will not work on any real hardware at all yet. It also 
-> has basically zero features beyond booting and printing. It
-> doesn't even get nearly far enough to start additional harts.
+> 
+> I'm targeting the DeepComputing Framework mainboard currently, 
+> but at time of writing the RISC-V port has only run in emulators 
+> and has some weird requirements that need to be overcome before 
+> real hardware is a thing. It has basically zero features beyond
+> booting and printing. It doesn't even get nearly far enough to 
+> start additional harts.
 >
 > Unless you're hacking on it, stick with x86_64 for now.
 
@@ -208,16 +209,11 @@ You'll obviously also need `qemu-system-riscv64` installed.
 
 #### In an emulator
 
-You can use either qemu or Bochs. Obviously you'll need them
-installed.
+Qemu is the emulator of choice, and the only one we test on.
+YMMV may vary on other emulators (and if you hit issues with
+them, we _may_ accept PRs but _will not_ accept bug reports 🙂).
 
-> [!NOTE]
-> If you're on Mac and want to use Bochs, it's best to 
-> build your own from source. The one in brew is kinda broken, 
-> in that the display doesn't always work right and the debugger
-> has bad keyboard support (no history etc).
-
-The recommended way now is to use UEFI. Everything you need (except
+You must use a qemu that supports UEFI. Everything you need (except
 qemu-system-x86_64 itself) should be in the repo. Assuming qemu is
 installed, you should just need to do:
 
@@ -227,61 +223,36 @@ To run in qemu:
 make qemu-uefi
 ```
 
-Or, if you want to run the BIOS version:
-
-```shell
-LEGACY_TERMINAL=true make qemu
-```
-
-Or Bochs (you may need to manually build the terminal with the 
-legacy `LEGACY_TERMINAL=true` option for this to work):
-
-```shell
-make bochs
-```
-
-This latter one is really just running `bochs` directly, but will
-also handle building the code and floppy image automatically for 
-you. Of course, you can just run `bochs` directly yourself if 
-you like - I'm not one to judge.
-
-#### VirtualBox
-
-You _can_ use Virtualbox (and it's faster than e.g. qemu). There's
-a machine setup in the repo that might work for it.
-
-So far, I've not been able to get the UEFI boot working - only 
-BIOS for Virtualbox right now.
-
 #### On real hardware
 
 If you want to run this on real hardware, you'll need something
-that will either write the `img` file to a floppy as raw sectors,
-or something that can burn bootable USB sticks.
+that can burn bootable USB sticks.
+
 [balenaEtcher](https://etcher.balena.io) does the job nicely, and
 [UNetbootin](https://unetbootin.github.io) will work (but is not
 a great piece of software generally, so YMMV).
+
+Once you have suitable software, you should be able to use it
+to flash `anos-uefi.img` to a USB stick or other bootable medium.
 
 Full disclosure: so far, this has been tested on exactly one real
 machine, a random Haswell i5 I bought specifically for the purpose
 from a thrift store. It works well on that machine, but that doesn't
 mean it'll work on your machine necessarily.
 
-The main problem I forsee on newer machines is that they probably
-won't emulate legacy BIOS (with a CSM). 
-
-If you want to run the legacy BIOS build on newer machines, you 
-might need to go into the BIOS settings (assuming that's still 
-a thing) and set them up to boot from floppy and use legacy BIOS.
-
-However, with UEFI support now mainlined, it's recommended to 
-always use that on real hardware anyway.
-
 ### Debugging
 
-The recommended way to debug is with qemu. Bochs _is_ still supported,
-and the debugger built into it isn't _bad_, but full-fat GDB is pretty
-hard to beat and it works well with qemu.
+> [!WARNING]
+> If you're debugging, it's **strongly** recommended that you build
+> without optimisation, or your debugging experience will likely be....
+> _interesting_.
+> 
+> To achieve this, pass `OPTIMIZE=0` at the beginning of your `make`
+> command, e.g. `OPTIMIZE=0 make clean debug-qemu-uefi`.
+
+The recommended way to debug is with qemu's built-in GDB remote stub.
+qemu _does_ have some built-in debugging commands, but full-fat GDB is
+pretty hard to beat, and it works well with qemu.
 
 For convenience, a `.gdbinit` file is provided that will automate
 loading the symbols and connecting to qemu. This can be easily
@@ -289,13 +260,6 @@ kicked off with:
 
 ```shell
 make debug-qemu-uefi
-```
-
-Or, if you want to debug the legacy BIOS loader (or kernel built for
-it) you can do:
-
-```shell
-LEGACY_TERMINAL=true make debug-qemu
 ```
 
 This will build what needs to be built, start qemu with debugging,
@@ -318,23 +282,24 @@ If you prefer to use debugging in an IDE or have some other alternative
 GDB frontend you like to use, you can just run:
 
 ```shell
-make debug-qemu-start
+make debug-qemu-uefi-start
 ```
 
 which will skip starting GDB for you, allowing you to launch 
-your frontend and connect (`localhost:9666` by default).
+your frontend and connect (target remote `localhost:9666` by 
+default).
 
-If you're debugging the legacy loader, it's worth noting that 
-we no longer load the symbol files by default - you'll need to
-do e.g:
+#### Debugging in CLion
 
-```
-add-symbol-file stage1/stage1.elf
-add-symbol-file stage2/stage2.elf
-```
+If you're using CLion, you can easily set up a "Remote debugging" run configuration
+like this to allow you to connect to a running qemu in debug mode.
 
-if you want them. They are still in the `.gdbinit`, just commented
-out, so if you find yourself doing this a lot, just uncomment those.
+![Screenshot 2025-05-26 at 00.41.41.png](images/Screenshot%202025-05-26%20at%2000.41.41.png)
+
+You can use the "before launch" options to set things up to automatically 
+run `make debug-qemu-uefi-start`, but I've found this problematic - if
+you find the same it's easy enough to just run that command (remembering
+to supply `OPTIMIZE=0`) from the terminal then hit the bug button to connect.
 
 #### Debugging in VSCode
 
@@ -397,22 +362,11 @@ in hosted mode (i.e. without `-ffreestanding` etc).
 
 <img src="images/IMG_2640.jpg" alt="UEFI-booted ANOS running on a real-life computer">
 
-And the same computer, but booted with legacy BIOS boot (and VGA text mode).
-It's worth noting this image is running a **much** older kernel so doesn't have
-many of the features you see above:
-
-<img src="images/IMG_2432.jpg" alt="ANOS running on a real-life computer">
-
 It also runs in emulators, of course - here's Qemu booted via UEFI, using the
 graphical debug terminal at 1280x800 resolution and again showing the 
 experimental IPC features:
 
 <img src="images/Screenshot 2025-05-18 at 10.27.58.png" alt="UEFI-booted ANOS running in Qemu">
-
-Or legacy BIOS boot in VirtualBox, just for a change from qemu. Again, this
-is an older kernel so lacks the recent developments.
-
-<img src="images/Screenshot 2025-02-16 at 19.42.12.png" alt="ANOS running in VirtualBox">
 
 Broadly, this is happening here:
 
