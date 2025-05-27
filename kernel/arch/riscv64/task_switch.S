@@ -53,9 +53,10 @@ task_do_switch:
     sw s11, 21*8(sp)
 
     # Save floating point state if enabled
-    csrr t0, sstatus    # Use sstatus instead of mstatus
-    andi t0, t0, 0x2000  # Check if FS is set
-    beqz t0, .skip_fp_save
+    csrr t0, sstatus
+    slli t1, t0, 51        # shift left so bits 13:12 are now at 63:62
+    srli t1, t1, 63        # shift back to bottom -> if FS != 0, t1 = 1
+    beqz t1, .skip_fp_save
     fsd f0, 22*8(sp)
     fsd f1, 23*8(sp)
     # ... save all FP registers ...
@@ -73,9 +74,10 @@ task_do_switch:
     lw sp, TASK_SSP(a0)
 
     # Restore floating point state if enabled
-    csrr t0, sstatus    # Use sstatus instead of mstatus
-    andi t0, t0, 0x2000
-    beqz t0, .skip_fp_restore
+    csrr t0, sstatus
+    slli t1, t0, 51
+    srli t1, t1, 63
+    beqz t1, .skip_fp_restore
     fld f0, 22*8(sp)
     fld f1, 23*8(sp)
     # ... restore all FP registers ...

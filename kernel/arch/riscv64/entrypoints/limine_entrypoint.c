@@ -169,7 +169,7 @@ static uint64_t pmm_pt[512] __attribute__((aligned(4096)));
 static uint64_t pmm_bootstrap_page[512] __attribute__((aligned(4096)));
 
 /* Globals */
-MemoryRegion *physical_region;
+extern MemoryRegion *physical_region;
 
 static Limine_MemMap static_memmap;
 static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
@@ -686,11 +686,5 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
             new_page_paddr, (uintptr_t)new_page_ptr);
 #endif
 
-    // bsp_kernel_entrypoint(0);
-
-    panic("This is as far as we go right now on RISC-V...\n             "
-          "Visit https://github.com/roscopeco/anos to help with the port! "
-          ":)\n\n");
-
-    halt_and_catch_fire();
+    bsp_kernel_entrypoint(0);
 }

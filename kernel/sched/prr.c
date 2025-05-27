@@ -8,13 +8,13 @@
 #include "anos_assert.h"
 #include "debugprint.h"
 #include "fba/alloc.h"
-#include "pmm/sys.h"
 #include "printhex.h"
 #include "process.h"
 #include "slab/alloc.h"
 #include "smp/state.h"
 #include "structs/pq.h"
 #include "task.h"
+#include "vmm/vmmapper.h"
 
 #ifdef CONSERVATIVE_BUILD
 #include "panic.h"
@@ -197,7 +197,7 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     PerCPUSchedState *state = init_this_cpu_sched_state();
 
     // Create a process & task to represent the init thread (which System will inherit)
-    Process *new_process = process_create(get_pagetable_root());
+    Process *new_process = process_create(vmm_get_pagetable_root_phys());
 
     if (new_process == NULL) {
         return false;

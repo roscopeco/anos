@@ -11,6 +11,10 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#include <x86_64/kdrivers/local_apic.h>
+
+void wait_for_interrupt(void) { __asm__ volatile("hlt"); }
+
 #ifndef UNIT_TESTS
 noreturn
 #endif
@@ -19,7 +23,7 @@ noreturn
     __asm__ volatile("cli\n\t");
 
     while (true) {
-        __asm__ volatile("hlt\n\t");
+        wait_for_interrupt();
     }
 }
 
@@ -71,3 +75,5 @@ void restore_saved_interrupts(uint64_t flags) {
                      : "memory"     // Memory clobber
     );
 }
+
+void kernel_timer_eoe(void) { local_apic_eoe(); }

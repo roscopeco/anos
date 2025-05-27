@@ -17,7 +17,6 @@
 #include "syscalls.h"
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
-#include "x86_64/kdrivers/cpu.h"
 
 #if (__STDC_VERSION__ < 202000)
 // TODO Apple clang doesn't support constexpr yet - Jan 2025
@@ -103,7 +102,7 @@ noreturn void start_system_ap(uint8_t cpu_id) {
 
     // We can just get away with disabling here, no need to save/restore flags
     // because we know we're currently the only thread on this CPU...
-    __asm__ volatile("cli");
+    disable_interrupts();
 
     // Kick off scheduling...
     sched_schedule();
@@ -181,7 +180,7 @@ noreturn void start_system(void) {
 
     // We can just get away with disabling here, no need to save/restore flags
     // because we know we're currently the only thread...
-    __asm__ volatile("cli");
+    disable_interrupts();
 
     // Just one more thing.... release the APs now the main scheduler
     // structs and system process are set up.

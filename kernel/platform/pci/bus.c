@@ -5,7 +5,7 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
-#include "pci/bus.h"
+#include "platform/pci/bus.h"
 #include "machine.h"
 #include <stdint.h>
 

@@ -27,4 +27,8 @@
  */
 bool platform_init(uintptr_t platform_data);
 
+bool platform_await_init_complete(void);
+
+bool platform_task_init(void);
+
 #endif

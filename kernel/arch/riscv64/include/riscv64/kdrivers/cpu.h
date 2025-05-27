@@ -100,6 +100,9 @@ static inline uintptr_t cpu_satp_to_root_table_phys(uint64_t satp) {
     return ((satp & 0xFFFFFFFFFFF) << VM_PAGE_LINEAR_SHIFT);
 }
 
+#define cpu_get_pagetable_root_phys                                            \
+    (cpu_satp_to_root_table_phys(cpu_read_satp()))
+
 static inline uint64_t cpu_read_rdcycle(void) {
     uint64_t val;
     __asm__ volatile("rdcycle %0" : "=r"(val));

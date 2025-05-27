@@ -8,12 +8,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#ifdef UNIT_TESTS
-#include "mock_cpu.h"
-#else
-#include "x86_64/kdrivers/cpu.h"
-#endif
-
 #include "pmm/pagealloc.h"
 #include "process/address_space.h"
 #include "sched.h"

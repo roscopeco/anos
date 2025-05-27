@@ -9,16 +9,19 @@
 
 #include <riscv64/kdrivers/cpu.h>
 
+void wait_for_interrupt(void) { __asm__ volatile("wfi"); }
+
 #ifndef UNIT_TESTS
 noreturn
 #endif
+
         void
         halt_and_catch_fire(void) {
     cpu_clear_csr(CSR_SIE, 0);
     cpu_clear_csr(CSR_SIP, 0);
 
     while (true) {
-        __asm__ volatile("wfi");
+        wait_for_interrupt();
     }
 }
 
@@ -48,4 +51,8 @@ uint64_t save_disable_interrupts() {
 
 void restore_saved_interrupts(uint64_t sstatus) {
     __asm__ volatile("csrw sstatus, %0" : : "r"(sstatus) : "memory");
+}
+
+void kernel_timer_eoe(void) {
+    // TODO clear interrupts on RISC-V!
 }

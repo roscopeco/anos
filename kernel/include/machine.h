@@ -47,9 +47,12 @@ typedef struct {
     Limine_MemMapEntry **entries;
 } __attribute__((packed)) Limine_MemMap;
 
+void wait_for_interrupt(void);
+
 #ifndef UNIT_TESTS
 noreturn
 #endif
+
         void
         halt_and_catch_fire(void);
 
@@ -63,14 +66,7 @@ void enable_interrupts();
 uint64_t save_disable_interrupts();
 void restore_saved_interrupts(uint64_t flags);
 
-/*
- * These are used by the new thread entrypoint code.
- *
- * They just returns whatever is currently in r15 (entrypoint)
- * or r14 (user stack) which is where the new thread setup puts 
- * the right values for the new thread...
- */
-uintptr_t get_new_thread_entrypoint();
-uintptr_t get_new_thread_userstack();
+uint64_t get_kernel_upticks(void);
+void kernel_timer_eoe(void);
 
 #endif //__ANOS_KERNEL_MACHINE_H

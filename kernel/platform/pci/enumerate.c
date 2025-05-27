@@ -8,8 +8,8 @@
 #include <stdint.h>
 
 #include "debugprint.h"
-#include "pci/bus.h"
-#include "pci/class.h"
+#include "platform/pci/bus.h"
+#include "platform/pci/class.h"
 #include "printhex.h"
 
 static void pci_scan_bus(const uint8_t bus);

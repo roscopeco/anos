@@ -10,7 +10,7 @@
 #ifndef __ANOS_KERNEL_PCI_BUS_H
 #define __ANOS_KERNEL_PCI_BUS_H
 
-#include "pci/bus.h"
+#include "platform/pci/bus.h"
 
 void pci_enumerate();
 

@@ -116,7 +116,8 @@ static inline void *do_alloc(const uintptr_t block_address) {
         return NULL;
     }
 
-    vmm_map_page_in(_pml4, block_address, phys, PG_PRESENT | PG_WRITE);
+    vmm_map_page_in(_pml4, block_address, phys,
+                    PG_PRESENT | PG_READ | PG_WRITE);
 
     return (void *)block_address;
 }

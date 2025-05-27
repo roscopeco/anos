@@ -228,4 +228,18 @@ uintptr_t vmm_unmap_pages_in(uint64_t *pml4, uintptr_t virt_addr,
  */
 void vmm_invalidate_page(uintptr_t virt_addr);
 
+/*
+ * Get the physical address of the current root pagetable.
+ */
+uintptr_t vmm_get_pagetable_root_phys();
+
+/*
+ * Get the PT entry (including flags) for the given virtual address,
+ * or 0 if not mapped in the _current process_ direct mapping.
+ *
+ * This **only** works for 4KiB pages (and only with SV48) -
+ * large pages will not work with this (and that's by design!)
+ */
+uint64_t vmm_virt_to_pt_entry(const uintptr_t virt_addr);
+
 #endif //__ANOS_KERNEL_VM_MAPPER_H

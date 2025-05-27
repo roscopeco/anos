@@ -1,6 +1,14 @@
+/*
+ * stage3 - Capability-specific hashmap
+ * anos - An Operating System
+ *
+ * Copyright (c) 2025 Ross Bamford
+ */
+
 #include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
+
+#include "std/string.h"
 
 #include "fba/alloc.h"
 #include "slab/alloc.h"
