@@ -9,7 +9,7 @@
 
 #include "mock_machine.h"
 #include "munit.h"
-#include "pci/bus.h"
+#include "platform/pci/bus.h"
 
 static MunitResult test_PCI_ADDR_ENABLE(const MunitParameter params[],
                                         void *param) {

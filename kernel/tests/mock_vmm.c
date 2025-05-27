@@ -156,3 +156,5 @@ static uint8_t scratch_stack[8][4096];
 uintptr_t vmm_per_cpu_temp_page_addr(const uint8_t cpu) {
     return (uintptr_t)scratch_stack[cpu];
 }
+
+uintptr_t vmm_get_pagetable_root_phys() { return 0x1234; }

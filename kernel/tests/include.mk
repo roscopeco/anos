@@ -261,7 +261,13 @@ kernel/tests/build/slab/alloc: kernel/tests/munit.o kernel/tests/slab/alloc.o ke
 kernel/tests/build/task: kernel/tests/munit.o kernel/tests/task.o kernel/tests/build/task.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/arch/x86_64/structs/list.o kernel/tests/build/structs/pq.o kernel/tests/build/sched/idle.o kernel/tests/build/process/process.o kernel/tests/build/managed_resources/resources.o kernel/tests/build/structs/region_tree.o kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_task.o kernel/tests/mock_spinlock.o
+kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kernel/tests/build/sched/prr.o				\
+		kernel/tests/build/slab/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/build/arch/x86_64/structs/list.o	\
+		kernel/tests/build/structs/pq.o kernel/tests/build/sched/idle.o kernel/tests/build/process/process.o			\
+		kernel/tests/build/managed_resources/resources.o kernel/tests/build/structs/region_tree.o						\
+		kernel/tests/mock_user_entrypoint.o kernel/tests/mock_kernel_entrypoint.o kernel/tests/mock_pmm_noalloc.o		\
+		kernel/tests/mock_vmm.o kernel/tests/mock_task.o kernel/tests/mock_spinlock.o									\
+		kernel/tests/arch/x86_64/mock_machine.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/sched/lock: kernel/tests/munit.o kernel/tests/sched/lock.o kernel/tests/build/sched/lock.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
@@ -327,10 +333,10 @@ kernel/tests/build/arch/x86_64/kdrivers/hpet: kernel/tests/munit.o kernel/tests/
 kernel/tests/build/arch/x86_64/vmm/vmmapper: kernel/tests/munit.o kernel/tests/arch/x86_64/vmm/vmmapper.o kernel/tests/build/arch/x86_64/vmm/vmmapper.o kernel/tests/build/arch/x86_64/std_routines.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_cpu.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/arch/x86_64/process/address_space_init: kernel/tests/munit.o kernel/tests/arch/x86_64/process/address_space_init.o kernel/tests/build/arch/x86_64/process/address_space.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o kernel/tests/arch/x86_64/mock_cpu.o
+kernel/tests/build/process/address_space_init: kernel/tests/munit.o kernel/tests/process/address_space_init.o kernel/tests/build/process/address_space.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o kernel/tests/arch/x86_64/mock_cpu.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/arch/x86_64/process/address_space_create: kernel/tests/munit.o kernel/tests/arch/x86_64/process/address_space_create.o kernel/tests/build/arch/x86_64/process/address_space.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o kernel/tests/mock_vmm.o kernel/tests/arch/x86_64/mock_cpu.o
+kernel/tests/build/process/address_space_create: kernel/tests/munit.o kernel/tests/process/address_space_create.o kernel/tests/build/process/address_space.o kernel/tests/mock_pmm_malloc.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o kernel/tests/mock_vmm.o kernel/tests/arch/x86_64/mock_cpu.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/arch/x86_64/std_routines: kernel/tests/munit.o kernel/tests/arch/x86_64/std_routines.o kernel/tests/build/arch/x86_64/std_routines.o
@@ -388,8 +394,8 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/vmm/vmmapper							\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
-			kernel/tests/build/arch/x86_64/process/address_space_init			\
-			kernel/tests/build/arch/x86_64/process/address_space_create			\
+			kernel/tests/build/process/address_space_init			\
+			kernel/tests/build/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines							\
 			kernel/tests/build/arch/x86_64/kdrivers/cpu							\
 			kernel/tests/build/capabilities/cookies
@@ -399,8 +405,8 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/vmm/vmmapper							\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
-			kernel/tests/build/arch/x86_64/process/address_space_init			\
-			kernel/tests/build/arch/x86_64/process/address_space_create			\
+			kernel/tests/build/process/address_space_init			\
+			kernel/tests/build/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines							\
 			kernel/tests/build/arch/x86_64/kdrivers/cpu							\
 			kernel/tests/build/capabilities/cookies
@@ -410,8 +416,8 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/arch/x86_64/vmm/vmmapper							\
 			kernel/tests/build/arch/x86_64/structs/list							\
 			kernel/tests/build/arch/x86_64/kdrivers/hpet						\
-			kernel/tests/build/arch/x86_64/process/address_space_init			\
-			kernel/tests/build/arch/x86_64/process/address_space_create			\
+			kernel/tests/build/process/address_space_init			\
+			kernel/tests/build/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines							\
 			kernel/tests/build/arch/x86_64/kdrivers/cpu
 # capabilities test can't run here, rosetta apparently doesn't support RDSEED etc...
