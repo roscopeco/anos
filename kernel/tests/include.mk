@@ -69,7 +69,6 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 
 UBSAN_CFLAGS=-fsanitize=undefined,address -fno-sanitize-recover=all
 KERNEL_TEST_CFLAGS=-g 																\
-	-std=c23																		\
 	-DARCH=$(ARCH) -DARCH_$(shell echo '$(ARCH)' | tr '[:lower:]' '[:upper:]')		\
 	-Ikernel/include 																\
 	-Ikernel/arch/$(ARCH)/include 													\
