@@ -12,9 +12,9 @@
 #include "kdrivers/timer.h"
 #include "kprintf.h"
 #include "machine.h"
+#include "platform/acpi/acpitables.h"
 #include "spinlock.h"
 #include "vmm/vmmapper.h"
-#include "x86_64/acpitables.h"
 #include "x86_64/kdrivers/hpet.h"
 #include "x86_64/kdrivers/local_apic.h"
 

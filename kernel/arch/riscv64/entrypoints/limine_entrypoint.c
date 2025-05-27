@@ -15,6 +15,7 @@
 #include "kprintf.h"
 #include "machine.h"
 #include "panic.h"
+#include "platform.h"
 #include "pmm/pagealloc.h"
 #include "riscv64/kdrivers/cpu.h"
 #include "riscv64/pmm/config.h"
@@ -178,6 +179,8 @@ static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
 noreturn void bootstrap_trampoline(uint16_t fb_width, uint16_t fb_height,
                                    uintptr_t new_stack, uintptr_t new_pt_phys,
                                    void *boing);
+
+noreturn void bsp_kernel_entrypoint(uintptr_t platform_data);
 
 // Forwards
 static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height);
@@ -683,9 +686,7 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
             new_page_paddr, (uintptr_t)new_page_ptr);
 #endif
 
-    uintptr_t new_phys = page_alloc(physical_region);
-
-    vmm_map_page(0x1000, new_phys, PG_READ | PG_WRITE | PG_USER);
+    // bsp_kernel_entrypoint(0);
 
     panic("This is as far as we go right now on RISC-V...\n             "
           "Visit https://github.com/roscopeco/anos to help with the port! "

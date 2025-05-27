@@ -21,6 +21,7 @@
 #include "pagefault.h"
 #include "panic.h"
 #include "pci/enumerate.h"
+#include "platform.h"
 #include "pmm/pagealloc.h"
 #include "process/address_space.h"
 #include "sched.h"
@@ -35,7 +36,9 @@
 #include "system.h"
 #include "task.h"
 #include "vmm/vmmapper.h"
-#include "x86_64/acpitables.h"
+
+#include "platform/acpi/acpitables.h"
+
 #include "x86_64/kdrivers/cpu.h"
 #include "x86_64/kdrivers/hpet.h"
 #include "x86_64/kdrivers/local_apic.h"
@@ -206,7 +209,7 @@ static void wait_for_ap_basic_init_to_complete(void) {
 }
 
 // Common entrypoint once bootloader-specific stuff is handled
-noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
+noreturn void bsp_kernel_entrypoint(uintptr_t platform_data) {
     if (!fba_init((uint64_t *)vmm_find_pml4(), KERNEL_FBA_BEGIN,
                   KERNEL_FBA_SIZE_BLOCKS)) {
         panic("FBA init failed");
@@ -224,6 +227,10 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
         panic("Zeropage init failed");
     }
 
+    if (!platform_init(platform_data)) {
+        panic("Platform init failed");
+    }
+
     syscall_init();
 
 #ifdef DEBUG_ACPI
@@ -232,7 +239,7 @@ noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys) {
     debugstr(" (physical): OEM is ");
 #endif
 
-    ACPI_RSDP *rsdp = (ACPI_RSDP *)(rsdp_phys + 0xFFFFFFFF80000000);
+    ACPI_RSDP *rsdp = (ACPI_RSDP *)(platform_data + 0xFFFFFFFF80000000);
 
 #ifdef DEBUG_ACPI
     debugstr_len(rsdp->oem_id, 6);

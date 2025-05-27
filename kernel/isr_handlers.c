@@ -11,8 +11,8 @@
 #include "machine.h"
 #include "pagefault.h"
 #include "panic.h"
+#include "platform/acpi/acpitables.h"
 #include "printhex.h"
-#include "x86_64/acpitables.h"
 #include "x86_64/general_protection_fault.h"
 
 /*

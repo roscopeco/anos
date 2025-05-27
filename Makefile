@@ -22,11 +22,13 @@ ARCH?=x86_64
 ifeq ($(ARCH),x86_64)
 TARGET_TRIPLE?=$(ARCH)-elf-anos
 ASM?=nasm
+PLATFORM?=acpi
 else
 ifeq ($(ARCH),riscv64)
 # TODO remove this once toolchain is up :)
 TARGET_TRIPLE?=$(ARCH)-elf
 ASM?=riscv64-elf-gcc
+PLATFORM?=bare
 endif
 endif
 
@@ -164,8 +166,12 @@ ARCH_X86_64_REALMODE_BIN=$(ARCH_X86_64_REALMODE).bin
 STAGE3_INC=-I$(STAGE3)/include -I$(STAGE3)/arch/$(ARCH)/include
 
 STAGE3_ARCH_X86_64_DIR=$(STAGE3_DIR)/arch/x86_64
-STAGE3_OBJS_X86_64= $(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_init.o			\
+STAGE3_OBJS_X86_64= $(STAGE3_DIR)/platform/acpi/acpitables.o					\
+					$(STAGE3_DIR)/platform/pci/bus.o							\
+					$(STAGE3_DIR)/platform/pci/enumerate.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_entrypoint.o	\
+					$(STAGE3_ARCH_X86_64_DIR)/platform/init.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/common.o				\
 					$(STAGE3_ARCH_X86_64_DIR)/machine.o							\
 					$(STAGE3_ARCH_X86_64_DIR)/machine_asm.o						\
@@ -177,7 +183,6 @@ STAGE3_OBJS_X86_64= $(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/init_pagetables.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/pmm/sys_asm.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/vmm/vmmapper.o					\
-					$(STAGE3_ARCH_X86_64_DIR)/acpitables.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/gdt.o								\
 					$(STAGE3_ARCH_X86_64_DIR)/general_protection_fault.o		\
 					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/cpu.o					\
@@ -204,6 +209,7 @@ STAGE3_OBJS_X86_64= $(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_init.o			\
 STAGE3_ARCH_RISCV64_DIR=$(STAGE3_DIR)/arch/riscv64
 STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_entrypoint.o	\
+					$(STAGE3_ARCH_RISCV64_DIR)/platform/init.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/sbi.o							\
 					$(STAGE3_ARCH_RISCV64_DIR)/machine.o						\
 					$(STAGE3_ARCH_RISCV64_DIR)/std_routines.o					\
@@ -225,6 +231,8 @@ endif
 
 ifeq ($(ARCH),x86_64)
 STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
+			$(STAGE3_DIR)/gdebugterm.o											\
+			$(STAGE3_DIR)/banner.o												\
 			$(STAGE3_DIR)/debugmemmap.o											\
 			$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/isr_handlers.o										\
@@ -233,8 +241,6 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/slab/alloc.o											\
 			$(STAGE3_DIR)/timer_isr.o											\
 			$(STAGE3_DIR)/kdrivers/drivers.o									\
-			$(STAGE3_DIR)/pci/bus.o												\
-			$(STAGE3_DIR)/pci/enumerate.o										\
 			$(STAGE3_DIR)/syscalls.o											\
 			$(STAGE3_DIR)/task.o												\
 			$(STAGE3_DIR)/sched/prr.o											\
@@ -267,31 +273,25 @@ STAGE3_OBJS=$(STAGE3_DIR)/kprintf.o												\
 			$(STAGE3_DIR)/debugmemmap.o											\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/panic.o												\
-			$(STAGE3_ARCH_OBJS)
+			$(STAGE3_DIR)/gdebugterm.o											\
+            $(STAGE3_DIR)/banner.o												\
+            $(STAGE3_ARCH_OBJS)
 endif
-endif
-
-ifeq ($(LEGACY_TERMINAL),true)
-STAGE3_OBJS+=$(STAGE3_DIR)/debugprint.o											\
-			$(STAGE3_DIR)/printhex.o											\
-			$(STAGE3_DIR)/printdec.o											\
-			$(STAGE3_DIR)/banner.o
-else
-STAGE3_OBJS+=$(STAGE3_DIR)/gdebugterm.o											\
-			$(STAGE3_DIR)/banner.o
 endif
 
 ARCH_X86_64_REALMODE_OBJS=$(STAGE3_DIR)/arch/x86_64/smp/ap_trampoline.o
 
 CLEAN_ARTIFACTS=$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 	       		$(STAGE3_DIR)/pmm/*.o $(STAGE3_DIR)/vmm/*.o				 		\
-				$(STAGE3_DIR)/kdrivers/*.o $(STAGE3_DIR)/pci/*.o				\
+				$(STAGE3_DIR)/kdrivers/*.o										\
 				$(STAGE3_DIR)/fba/*.o $(STAGE3_DIR)/slab/*.o					\
 				$(STAGE3_DIR)/structs/*.o $(STAGE3_DIR)/sched/*.o				\
 				$(STAGE3_DIR)/smp/*.o $(STAGE3_DIR)/process/*.o					\
 				$(STAGE3_DIR)/ipc/*.o											\
 				$(STAGE3_DIR)/managed_resources/*.o								\
 				$(STAGE3_DIR)/capabilities/*.o									\
+				$(STAGE3_DIR)/platform/pci/*.o									\
+				$(STAGE3_DIR)/platform/acpi/*.o									\
 				$(SYSTEM)_linkable.o											\
 		   		$(FLOPPY_IMG)													\
 				$(UEFI_IMG)														\
@@ -306,6 +306,7 @@ CLEAN_ARTIFACTS=$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 				$(STAGE3_ARCH_X86_64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_X86_64_DIR)/structs/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/capabilities/*.o						\
+				$(STAGE3_ARCH_X86_64_DIR)/platform/*.o							\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).bin			\
 				$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o	\
 	       		$(STAGE3_ARCH_RISCV64_DIR)/*.dis 								\
@@ -313,9 +314,12 @@ CLEAN_ARTIFACTS=$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 				$(STAGE3_ARCH_RISCV64_DIR)/vmm/*.o								\
 				$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/*.o						\
 				$(STAGE3_ARCH_RISCV64_DIR)/structs/*.o							\
-				$(STAGE3_ARCH_RISCV64_DIR)/capabilities/*.o						\
 				$(STAGE3_ARCH_RISCV64_DIR)/smp/*.o								\
-				$(STAGE3_ARCH_RISCV64_DIR)/*.o
+				$(STAGE3_ARCH_RISCV64_DIR)/capabilities/*.o						\
+				$(STAGE3_ARCH_RISCV64_DIR)/platform/*.o							\
+				$(STAGE3_ARCH_RISCV64_DIR)/*.o									\
+				$(STAGE3_PLATFORM_BARE_DIR)/*.o									\
+				$(STAGE3_PLATFORM_ACPI_DIR)/*.o									\
 
 ifeq ($(CONSERVATIVE_BUILD),true)
 CDEFS+=-DCONSERVATIVE_BUILD

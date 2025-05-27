@@ -1,5 +1,5 @@
 CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
-				kernel/tests/structs/*.o kernel/tests/pci/*.o kernel/tests/fba/*.o 	\
+				kernel/tests/structs/*.o kernel/tests/fba/*.o					 	\
 				kernel/tests/slab/*.o kernel/tests/sched/*.o kernel/tests/smp/*.o	\
 				kernel/tests/kdrivers/*.o											\
 				kernel/tests/ipc/*.o												\
@@ -7,6 +7,8 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/managed_resources/*.o									\
 				kernel/tests/capabilities/*.o										\
 				kernel/tests/smp/*.o												\
+				kernel/tests/platform/pci/*.o										\
+				kernel/tests/platform/acpi/*.o										\
 				kernel/tests/arch/x86_64/*.o										\
 				kernel/tests/arch/x86_64/sched/*.o									\
 				kernel/tests/arch/x86_64/kdrivers/*.o								\
@@ -27,6 +29,8 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/managed_resources/*.gcda								\
 				kernel/tests/capabilities/*.gcda									\
 				kernel/tests/smp/*.gcda												\
+				kernel/tests/platform/pci/*.gcda									\
+				kernel/tests/platform/acpi/*.gcda									\
 				kernel/tests/arch/x86_64/*.gcda										\
 				kernel/tests/arch/x86_64/sched/*.gcda								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcda							\
@@ -47,6 +51,8 @@ CLEAN_ARTIFACTS+=kernel/tests/*.o kernel/tests/pmm/*.o kernel/tests/vmm/*.o 		\
 				kernel/tests/managed_resources/*.gcno								\
 				kernel/tests/capabilities/*.gcno									\
 				kernel/tests/smp/*.gcno												\
+				kernel/tests/platform/pci/*.gcno									\
+				kernel/tests/platform/acpi/*.gcno									\
 				kernel/tests/arch/x86_64/*.gcno										\
 				kernel/tests/arch/x86_64/sched/*.gcno								\
 				kernel/tests/arch/x86_64/kdrivers/*.gcno							\
@@ -65,6 +71,7 @@ UBSAN_CFLAGS=-fsanitize=undefined,address -fno-sanitize-recover=all
 KERNEL_TEST_CFLAGS=-g 																\
 	-Ikernel/include 																\
 	-Ikernel/arch/$(ARCH)/include 													\
+	-Ikernel/platform/$(PLATFORM)/include											\
 	-Ikernel/tests/include 															\
 	-Ikernel/tests/arch/$(ARCH)/include 											\
 	-O$(OPTIMIZE) -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
@@ -76,7 +83,7 @@ KERNEL_TEST_CFLAGS+=-arch x86_64
 endif
 
 TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm	\
-				kernel/tests/build/structs kernel/tests/build/pci 					\
+				kernel/tests/build/structs						 					\
 				kernel/tests/build/fba kernel/tests/build/slab 						\
 				kernel/tests/build/sched kernel/tests/build/kdrivers				\
 				kernel/tests/build/smp												\
@@ -85,6 +92,8 @@ TEST_BUILD_DIRS=kernel/tests/build kernel/tests/build/pmm kernel/tests/build/vmm
 				kernel/tests/build/managed_resources								\
 				kernel/tests/build/capabilities										\
 				kernel/tests/build/smp												\
+				kernel/tests/build/platform/acpi									\
+				kernel/tests/build/platform/pci										\
 				kernel/tests/build/arch/x86_64										\
 				kernel/tests/build/arch/x86_64/sched								\
 				kernel/tests/build/arch/x86_64/process								\
@@ -116,8 +125,8 @@ kernel/tests/build/vmm:
 kernel/tests/build/structs:
 	mkdir -p kernel/tests/build/structs
 
-kernel/tests/build/pci:
-	mkdir -p kernel/tests/build/pci
+kernel/tests/build/platform/pci:
+	mkdir -p kernel/tests/build/platform/pci
 
 kernel/tests/build/fba:
 	mkdir -p kernel/tests/build/fba
@@ -145,6 +154,12 @@ kernel/tests/build/managed_resources:
 
 kernel/tests/build/capabilities:
 	mkdir -p kernel/tests/build/capabilities
+
+kernel/tests/build/platform/bare:
+	mkdir -p kernel/tests/build/platform/bare
+
+kernel/tests/build/platform/acpi:
+	mkdir -p kernel/tests/build/platform/acpi
 
 kernel/tests/build/arch/x86_64:
 	mkdir -p kernel/tests/build/arch/x86_64
@@ -226,16 +241,13 @@ kernel/tests/build/vmm/vmalloc_linkedlist: kernel/tests/munit.o kernel/tests/vmm
 kernel/tests/build/debugprint: kernel/tests/munit.o kernel/tests/debugprint.o kernel/tests/build/debugprint.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/acpitables: kernel/tests/munit.o kernel/tests/arch/x86_64/acpitables.o kernel/tests/build/arch/x86_64/acpitables.o kernel/tests/mock_vmm.o kernel/tests/arch/x86_64/mock_machine.o
-	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
-
 kernel/tests/build/structs/pq: kernel/tests/munit.o kernel/tests/structs/pq.o kernel/tests/build/structs/pq.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/gdt: kernel/tests/munit.o kernel/tests/arch/x86_64/gdt.o kernel/tests/build/arch/x86_64/gdt.o kernel/tests/arch/x86_64/mock_cpu.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/pci/bus: kernel/tests/munit.o kernel/tests/pci/bus.o kernel/tests/build/pci/bus.o kernel/tests/arch/x86_64/mock_machine.o
+kernel/tests/build/platform/pci/bus: kernel/tests/munit.o kernel/tests/platform/pci/bus.o kernel/tests/build/platform/pci/bus.o kernel/tests/arch/x86_64/mock_machine.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/fba/alloc: kernel/tests/munit.o kernel/tests/fba/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o
@@ -251,9 +263,6 @@ kernel/tests/build/sched/prr: kernel/tests/munit.o kernel/tests/sched/prr.o kern
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/sched/lock: kernel/tests/munit.o kernel/tests/sched/lock.o kernel/tests/build/sched/lock.o kernel/tests/mock_spinlock.o kernel/tests/arch/x86_64/mock_machine.o
-	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
-
-kernel/tests/build/printdec: kernel/tests/munit.o kernel/tests/printdec.o kernel/tests/build/printdec.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
 kernel/tests/build/kdrivers/drivers: kernel/tests/munit.o kernel/tests/kdrivers/drivers.o kernel/tests/build/kdrivers/drivers.o kernel/tests/mock_kernel_drivers.o
@@ -301,6 +310,9 @@ kernel/tests/build/smp/ipwi: kernel/tests/munit.o kernel/tests/smp/ipwi.o kernel
 kernel/tests/build/vmm/vmm_shootdown: kernel/tests/munit.o kernel/tests/vmm/vmm_shootdown.o kernel/tests/build/vmm/vmm_shootdown.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/platform/acpi/acpitables: kernel/tests/munit.o kernel/tests/platform/acpi/acpitables.o kernel/tests/build/platform/acpi/acpitables.o kernel/tests/mock_vmm.o kernel/tests/arch/x86_64/mock_machine.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -339,23 +351,19 @@ kernel/tests/build/capabilities/cookies: kernel/tests/munit.o kernel/tests/build
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 endif
 
-
 ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/bitmap									\
 			kernel/tests/build/pmm/pagealloc									\
 			kernel/tests/build/pmm/pagealloc_limine								\
 			kernel/tests/build/vmm/vmalloc_linkedlist							\
-			kernel/tests/build/debugprint										\
-			kernel/tests/build/acpitables										\
 			kernel/tests/build/structs/pq										\
 			kernel/tests/build/gdt												\
-			kernel/tests/build/pci/bus											\
+			kernel/tests/build/platform/pci/bus									\
 			kernel/tests/build/fba/alloc										\
 			kernel/tests/build/slab/alloc										\
 			kernel/tests/build/sched/lock										\
 			kernel/tests/build/task												\
 			kernel/tests/build/sched/prr										\
-			kernel/tests/build/printdec											\
 			kernel/tests/build/kdrivers/drivers									\
 			kernel/tests/build/sleep_queue										\
 			kernel/tests/build/structs/ref_count_map							\
@@ -370,7 +378,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/managed_resources/resources						\
 			kernel/tests/build/structs/region_tree								\
 			kernel/tests/build/smp/ipwi											\
-			kernel/tests/build/vmm/vmm_shootdown
+			kernel/tests/build/vmm/vmm_shootdown								\
+			kernel/tests/build/platform/acpi/acpitables
 
 ifeq ($(HOST_ARCH),i386)	# macOS
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
