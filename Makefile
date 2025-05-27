@@ -22,13 +22,11 @@ ARCH?=x86_64
 ifeq ($(ARCH),x86_64)
 TARGET_TRIPLE?=$(ARCH)-elf-anos
 ASM?=nasm
-PLATFORM?=acpi
 else
 ifeq ($(ARCH),riscv64)
 # TODO remove this once toolchain is up :)
 TARGET_TRIPLE?=$(ARCH)-elf
 ASM?=riscv64-elf-gcc
-PLATFORM?=bare
 endif
 endif
 
@@ -347,9 +345,8 @@ CLEAN_ARTIFACTS=$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 				$(STAGE3_ARCH_RISCV64_DIR)/smp/*.o								\
 				$(STAGE3_ARCH_RISCV64_DIR)/capabilities/*.o						\
 				$(STAGE3_ARCH_RISCV64_DIR)/platform/*.o							\
-				$(STAGE3_ARCH_RISCV64_DIR)/*.o									\
-				$(STAGE3_PLATFORM_BARE_DIR)/*.o									\
-				$(STAGE3_PLATFORM_ACPI_DIR)/*.o									\
+				$(STAGE3_ARCH_RISCV64_DIR)/process/*.o							\
+				$(STAGE3_ARCH_RISCV64_DIR)/*.o
 
 ifeq ($(CONSERVATIVE_BUILD),true)
 CDEFS+=-DCONSERVATIVE_BUILD
