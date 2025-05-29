@@ -34,6 +34,11 @@
 #define PG_DIRTY (1ULL << 7)    // Dirty
 
 /*
+ * Page COW attribute (STAGE3-specific)
+ */
+#define PG_COPY_ON_WRITE ((1 << 8))
+
+/*
  * riscv64 does not have a "PAGE_SIZE" bit, it's implied by an entry
  * being a leaf node (having any of read/write/user set).
  *
@@ -55,7 +60,7 @@
 // Base of the per-CPU temporary mapping pages
 #define PER_CPU_TEMP_PAGE_BASE ((0xFFFFFFFF80400000))
 
-#define IS_USER_ADDRESS(ptr) ((((uint64_t)ptr & 0xffff800000000000) == 0))
+#define IS_USER_ADDRESS(ptr) (((((uint64_t)(ptr)) & 0xffff800000000000) == 0))
 
 typedef struct {
     uint64_t entries[PAGE_TABLE_ENTRIES];

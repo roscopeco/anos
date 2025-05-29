@@ -14,11 +14,8 @@
 #include "smp/state.h"
 #include "std/string.h"
 
-#ifndef UNIT_TESTS
-#include "x86_64/kdrivers/cpu.h"
-#else
-void cpu_invalidate_tlb_addr(uintptr_t virt_addr);
-#endif
+#include "vmm/vmconfig.h"
+#include "vmm/vmmapper.h"
 
 void arch_ipwi_notify_all_except_current(void);
 
@@ -108,7 +105,6 @@ void ipwi_ipi_handler(void) {
         // we have an item!
         switch (item.type) {
         case IPWI_TYPE_TLB_SHOOTDOWN:
-            kprintf("FUCKING SHOOTDOWN\n");
             payload = (IpwiPayloadTLBShootdown *)&item.payload;
 
             if (payload->target_pid == task_current()->owner->pid ||
@@ -119,7 +115,7 @@ void ipwi_ipi_handler(void) {
 
                 for (uintptr_t addr = payload->start_vaddr; addr < page_limit;
                      addr += VM_PAGE_SIZE) {
-                    cpu_invalidate_tlb_addr(addr);
+                    vmm_invalidate_page(addr);
                 }
             }
 

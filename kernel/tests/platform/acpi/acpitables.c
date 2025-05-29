@@ -7,7 +7,7 @@
 
 #include "munit.h"
 
-#include "x86_64/acpitables.h"
+#include "platform/acpi/acpitables.h"
 
 #include "mock_pagetables.h"
 #include "mock_vmm.h"

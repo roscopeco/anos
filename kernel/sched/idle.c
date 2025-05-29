@@ -15,12 +15,10 @@
 
 #include <stdnoreturn.h>
 
-#include "debugprint.h"
+#include "machine.h"
 
 noreturn void sched_idle_thread(void) {
     while (1) {
-        __asm__ volatile("hlt");
+        wait_for_interrupt();
     }
-
-    __builtin_unreachable();
 }

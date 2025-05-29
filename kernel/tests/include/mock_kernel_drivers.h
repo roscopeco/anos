@@ -12,7 +12,7 @@
 
 #include <stdint.h>
 
-#include "x86_64/acpitables.h"
+#include "platform/acpi/acpitables.h"
 
 void mock_kernel_drivers_reset(void);
 

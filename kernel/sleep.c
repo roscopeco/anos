@@ -25,7 +25,7 @@
 #define NULL (((void *)0))
 #endif
 
-uint64_t get_lapic_timer_upticks(void);
+uint64_t get_kernel_upticks(void);
 
 void sleep_init(void) {
     PerCPUState *cpu_state = state_get_for_this_cpu();
@@ -37,14 +37,13 @@ void sleep_task(Task *task, uint64_t nanos) {
     if (task != NULL) {
         PerCPUState *cpu_state = state_get_for_this_cpu();
 
-        uint64_t wake_tick =
-                get_lapic_timer_upticks() + (nanos / NANOS_PER_TICK);
+        uint64_t wake_tick = get_kernel_upticks() + (nanos / NANOS_PER_TICK);
         sleep_queue_enqueue(&cpu_state->sleep_queue, task, wake_tick);
 
 #ifdef DEBUG_SLEEP
         kprintf("Sleep 0x%016lx\n    => Ticks now is 0x%016lx - Will wake at "
                 "0x%016lx\n",
-                (uintptr_t)task, get_lapic_timer_upticks(), wake_tick);
+                (uintptr_t)task, get_kernel_upticks(), wake_tick);
 #endif
         sched_block(task);
         sched_schedule();
@@ -55,16 +54,16 @@ void sleep_task(Task *task, uint64_t nanos) {
 void check_sleepers() {
 #ifdef DEBUG_SLEEP
 #ifdef VERY_NOISY_SLEEP
-    if (get_lapic_timer_upticks() % 100 == 0) {
+    if (get_kernel_upticks() % 100 == 0) {
         kprintf("check_sleepers(): Ticks now is 0x%016lx\n",
-                get_lapic_timer_upticks());
+                get_kernel_upticks());
     }
 #endif
 #endif
 
     PerCPUState *cpu_state = state_get_for_this_cpu();
-    Task *waker = sleep_queue_dequeue(&cpu_state->sleep_queue,
-                                      get_lapic_timer_upticks());
+    Task *waker =
+            sleep_queue_dequeue(&cpu_state->sleep_queue, get_kernel_upticks());
 
     while (waker) {
         Task *next = (Task *)waker->this.next;

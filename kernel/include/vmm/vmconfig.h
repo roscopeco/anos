@@ -14,9 +14,9 @@
 
 #define VM_KERNEL_SPACE_START ((0xffff800000000000ULL))
 
-#if defined __x86_64__
+#ifdef ARCH_X86_64
 #include "x86_64/vmm/vmconfig.h"
-#elif defined __riscv
+#elifdef ARCH_RISCV64
 #include "riscv64/vmm/vmconfig.h"
 #else
 #error Undefined or unsupported architecture

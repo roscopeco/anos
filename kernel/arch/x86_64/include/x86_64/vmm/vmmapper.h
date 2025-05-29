@@ -128,15 +128,6 @@ uint16_t vmm_table_entry_to_page_flags(const uintptr_t table_entry);
 uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
                                            const uint64_t flags);
 
-/*
- * Get the PT entry (including flags) for the given virtual address,
- * or 0 if not mapped in the _current process_ direct mapping.
- *
- * This **only** works for 4KiB pages - large pages will not work
- * with this (and that's by design!)
- */
-uint64_t vmm_virt_to_pt_entry(const uintptr_t virt_addr);
-
 // Convert virtual address to phys via table walk
 uintptr_t vmm_virt_to_phys(const uintptr_t virt_addr);
 

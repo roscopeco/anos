@@ -6,7 +6,7 @@
  */
 
 #include "smp/state.h"
-#include "x86_64/kdrivers/cpu.h"
+#include "cpu.h"
 
 #ifdef CONSERVATIVE_KERNEL
 #include "debugstr.h"

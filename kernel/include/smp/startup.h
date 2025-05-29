@@ -12,7 +12,7 @@
 
 #include <stdint.h>
 
-#include "x86_64/acpitables.h"
+#include "platform/acpi/acpitables.h"
 
 void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic);
 

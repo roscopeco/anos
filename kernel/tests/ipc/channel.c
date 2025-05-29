@@ -26,6 +26,9 @@ void panic_sloc(const char *msg, const char *filename, const uint64_t line) {
     munit_errorf("%s", msg);
 }
 
+/* Dummy capability cookie gen */
+uint64_t capability_cookie_generate(void) { return 0x1234567812345678; }
+
 /* Dummy implementation of kernel_guard_once */
 void kernel_guard_once(void) { /* no-op for tests */ }
 

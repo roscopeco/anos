@@ -11,8 +11,8 @@
 
 #include "debugprint.h"
 #include "machine.h"
+#include "platform/acpi/acpitables.h"
 #include "vmm/vmmapper.h"
-#include "x86_64/acpitables.h"
 
 #ifdef DEBUG_ACPI
 #include "printdec.h"

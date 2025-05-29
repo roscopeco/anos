@@ -34,7 +34,7 @@ static const uint8_t FBA_BLOCKS_PER_SLAB = BYTES_PER_SLAB / VM_PAGE_SIZE;
 bool slab_alloc_init() { return true; }
 
 static inline uint8_t first_set_bit_64(uint64_t nonzero_uint64) {
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
     // GCC & Clang have a nice intrinsic for this, as long as value is never
     // zero...
     return __builtin_ctzll(nonzero_uint64);
@@ -56,10 +56,10 @@ static inline uint8_t first_set_bit_64(uint64_t nonzero_uint64) {
 void *slab_alloc_block() {
     Slab *target = NULL;
 
-    uint64_t lock_flags = spinlock_lock_irqsave(&slab_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&slab_lock);
 
     if (partial == NULL) {
-        // No partial slabs - allocate a new one..
+        // No partial slabs - allocate a new one.
         target = (Slab *)fba_alloc_blocks_aligned(FBA_BLOCKS_PER_SLAB,
                                                   FBA_BLOCKS_PER_SLAB);
 
@@ -133,14 +133,14 @@ void slab_free(void *block) {
         return;
     }
 
-    uint64_t block_num = ((Slab *)block) - slab;
+    const uint64_t block_num = ((Slab *)block) - slab;
 
     if (block_num == 0) {
         // we can't free the bitmap!
         return;
     }
 
-    uint64_t lock_flags = spinlock_lock_irqsave(&slab_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&slab_lock);
 
     if (slab->bitmap0 == 0xffffffffffffffff &&
         slab->bitmap1 == 0xffffffffffffffff &&

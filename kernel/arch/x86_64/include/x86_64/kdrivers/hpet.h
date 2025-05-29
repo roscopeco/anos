@@ -14,7 +14,7 @@
 #include <stdint.h>
 
 #include "kdrivers/timer.h"
-#include "x86_64/acpitables.h"
+#include "platform/acpi/acpitables.h"
 
 typedef struct {
     ACPI_SDTHeader header;

@@ -434,3 +434,5 @@ uintptr_t vmm_virt_to_phys(const uintptr_t virt_addr) {
 size_t vmm_level_page_size(const uint8_t level) {
     return (VM_PAGE_SIZE << (9 * (level - 1)));
 }
+
+uintptr_t vmm_get_pagetable_root_phys() { return cpu_read_cr3(); }

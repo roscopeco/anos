@@ -34,6 +34,8 @@ static uint32_t out_buffer_write_ptr[65536];
 static uint32_t intr_disable_level;
 static uint32_t max_intr_disable_level;
 
+static bool waited_for_interrupt;
+
 void mock_machine_reset(void) {
     for (int i = 0; i < 65536; i++) {
         in_buffer_read_ptr[i] = 0;
@@ -44,6 +46,7 @@ void mock_machine_reset(void) {
 
     intr_disable_level = 0;
     max_intr_disable_level = 0;
+    waited_for_interrupt = false;
 }
 
 inline bool mock_machine_outl_avail(uint16_t port) {
@@ -159,3 +162,5 @@ uint32_t mock_machine_intr_disable_level() { return intr_disable_level; }
 uint32_t mock_machine_max_intr_disable_level() {
     return max_intr_disable_level;
 }
+
+void wait_for_interrupt(void) { waited_for_interrupt = true; }

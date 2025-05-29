@@ -18,7 +18,8 @@
 #include "std/string.h"
 #include "vmm/vmmapper.h"
 
-#include "x86_64/acpitables.h"
+#include "platform/acpi/acpitables.h"
+
 #include "x86_64/entrypoints/common.h"
 #include "x86_64/init_pagetables.h"
 #include "x86_64/pmm/config.h"

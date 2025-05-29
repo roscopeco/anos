@@ -300,3 +300,34 @@ uintptr_t vmm_unmap_page(const uintptr_t virt_addr) {
             vmm_phys_to_virt_ptr(cpu_satp_to_root_table_phys(cpu_read_satp())),
             virt_addr);
 }
+
+uintptr_t vmm_get_pagetable_root_phys() {
+    return cpu_satp_to_root_table_phys(cpu_read_satp());
+}
+
+uint64_t vmm_virt_to_pt_entry(const uintptr_t virt_addr) {
+    const uint64_t pml4e =
+            vmm_find_pml4()->entries[vmm_virt_to_pml4_index(virt_addr)];
+    if (pml4e & PG_PRESENT) {
+        const uint64_t pdpte =
+                ((PageTable *)vmm_phys_to_virt(vmm_table_entry_to_phys(pml4e)))
+                        ->entries[vmm_virt_to_pdpt_index(virt_addr)];
+        if (pdpte & PG_PRESENT) {
+            const uint64_t pde =
+                    ((PageTable *)vmm_phys_to_virt(
+                             vmm_table_entry_to_phys(pdpte)))
+                            ->entries[vmm_virt_to_pd_index(virt_addr)];
+            if (pde & PG_PRESENT) {
+                const uint64_t pte =
+                        ((PageTable *)vmm_phys_to_virt(
+                                 vmm_table_entry_to_phys(pde)))
+                                ->entries[vmm_virt_to_pt_index(virt_addr)];
+                if (pte & PG_PRESENT) {
+                    return pte;
+                }
+            }
+        }
+    }
+
+    return 0;
+}

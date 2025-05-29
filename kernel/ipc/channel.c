@@ -1,4 +1,3 @@
-
 /*
  * stage3 - IPC message channel
  * anos - An Operating System
@@ -11,7 +10,7 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
-#include "fba/alloc.h"
+#include "capabilities/cookies.h"
 #include "once.h"
 #include "panic.h"
 #include "sched.h"
@@ -21,7 +20,6 @@
 #include "structs/list.h"
 #include "task.h"
 #include "vmm/vmmapper.h"
-#include "x86_64/kdrivers/cpu.h"
 
 #include "ipc/channel_internal.h"
 
@@ -35,7 +33,6 @@
 
 #define INITIAL_CHANNEL_HASH_PAGE_COUNT ((4))
 #define INITIAL_IN_FLIGHT_MESSAGE_HASH_PAGE_COUNT ((1))
-#define NEXT_COOKIE_ADD_TSC_MASK ((0xffff))
 #define ARG_BUF_MAX ((0x1000))
 
 #ifdef UNIT_TESTS
@@ -45,19 +42,14 @@
 #define STATIC_EXCEPT_TESTS static
 #endif
 
-static _Atomic uint64_t next_channel_cookie;
-static _Atomic uint64_t next_message_cookie;
-
 STATIC_EXCEPT_TESTS HashTable *channel_hash;
 STATIC_EXCEPT_TESTS HashTable *in_flight_message_hash;
 
 void ipc_channel_init(void) {
     kernel_guard_once();
 
-    next_channel_cookie = cpu_read_tsc();
     channel_hash = hash_table_create(INITIAL_CHANNEL_HASH_PAGE_COUNT);
 
-    next_message_cookie = cpu_read_tsc();
     in_flight_message_hash =
             hash_table_create(INITIAL_IN_FLIGHT_MESSAGE_HASH_PAGE_COUNT);
 
@@ -101,11 +93,7 @@ uint64_t ipc_channel_create(void) {
     spinlock_init(channel->receivers_lock);
     spinlock_init(channel->queue_lock);
 
-    uint64_t cookie =
-            next_channel_cookie++; // just do ++ in case another thread cuts in...
-    next_channel_cookie +=
-            (cpu_read_tsc() &
-             NEXT_COOKIE_ADD_TSC_MASK); // ... then adjust by "random" value
+    const uint64_t cookie = capability_cookie_generate();
 
     channel->queue = NULL;
     channel->receivers = NULL;
@@ -311,11 +299,7 @@ static bool init_message(IpcMessage *message, uint64_t tag, size_t size,
         size = VM_PAGE_SIZE;
     }
 
-    uint64_t cookie =
-            next_message_cookie++; // do ++ in case another thread cuts in...
-    next_message_cookie +=
-            (cpu_read_tsc() &
-             NEXT_COOKIE_ADD_TSC_MASK); // ... then adjust by "random" value
+    uint64_t cookie = capability_cookie_generate();
 
     message->this.next = 0;
     message->tag = tag;

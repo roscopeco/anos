@@ -9,8 +9,8 @@
 #include <stdint.h>
 
 #include "kdrivers/drivers.h"
+#include "platform/acpi/acpitables.h"
 #include "vmm/vmconfig.h"
-#include "x86_64/acpitables.h"
 #include "x86_64/kdrivers/hpet.h"
 
 #define KERNEL_DRIVER_VADDR_END                                                \

@@ -4,13 +4,11 @@
  *
  * Copyright (c) 2025 Ross Bamford
  * 
- * Now, pay attention, because (like the equivalent user entrypoint) 
- * this is slightly weird...
+ * Now, pay attention, because this is slightly weird...
  *
- * When a new kernel thread is created, the address of this is pushed to the
+ * When a new user thread is created, the address of this is pushed to the
  * stack as the place `task_switch` should return to. It does the bare
- * minimum needed to get the thread running in a way that makes sense 
- * for all the surrounding code.
+ * minimum needed to get the thread out of kernel space and into user mode.
  * 
  * The `task_create_new` function sets the stack up such that the address
  * of the actual thread function is in rdi when we enter here and the
@@ -61,22 +59,34 @@
 
 #define INT_FLAG_ENABLED ((0x200))
 
-noreturn void kernel_thread_entrypoint(uintptr_t thread_entrypoint,
-                                       uintptr_t thread_stack) {
+noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
+                                     uintptr_t thread_userstack) {
     // Scheduler will **always** be locked when we get here!
     sched_unlock_this_cpu(INT_FLAG_ENABLED);
 
-    tdebug("Starting new kernel thread with func @ ");
+    tdebug("Starting new user thread with func @ ");
     tdbgx8(thread_entrypoint);
     tdebug("\n");
 
-    // Start kernel thread at entrypoint
-    __asm__ volatile("mov %0, %%rsp\n\t" // Set stack pointer
-                     "push %1\n\t"       // Push code entry point
-                     "ret\n\t"           // "Return" to user mode
-                     :
-                     : "r"(thread_stack), "r"(thread_entrypoint)
-                     : "memory");
+    // clang-format off
+    // Switch to user mode
+//     __asm__ volatile(
+//             "mov %0, %%rsp\n\t" // Set stack pointer
+//             "push $0x1B\n\t"    // Push user data segment selector (GDT entry 3)
+//             "push %0\n\t"       // Push user stack pointer
+//             "pushfq\n\t"        // Push RFLAGS
+//             "push $0x23\n\t"    // Push user code segment selector (GDT entry 4)
+//             "push %1\n\t"       // Push user code entry point
+// #ifndef NO_USER_GS
+//             "swapgs\n\t"        // Swap to user-mode GS
+// #endif
+//             "iretq\n\t"         // "Return" to user mode
+//             :
+//             : "r"(thread_userstack), "r"(thread_entrypoint)
+            // : "memory");
+    // clang-format on
+
+    halt_and_catch_fire();
 
     __builtin_unreachable();
 }

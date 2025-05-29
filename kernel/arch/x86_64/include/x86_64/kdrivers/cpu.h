@@ -73,6 +73,8 @@ void cpu_swapgs(void);
 
 uintptr_t cpu_read_cr3(void);
 
+#define cpu_get_pagetable_root_phys (cpu_read_cr3())
+
 bool cpu_rdseed64(uint64_t *value);
 
 bool cpu_rdseed32(uint32_t *value);

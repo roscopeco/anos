@@ -10,10 +10,10 @@
 
 #include "debugprint.h"
 #include "interrupts.h"
+#include "platform/acpi/acpitables.h"
 #include "printdec.h"
 #include "std/string.h"
 #include "vmm/vmmapper.h"
-#include "x86_64/acpitables.h"
 #include "x86_64/cpuid.h"
 #include "x86_64/gdt.h"
 #include "x86_64/kdrivers/cpu.h"
