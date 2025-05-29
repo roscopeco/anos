@@ -17,8 +17,8 @@ noreturn
 
         void
         halt_and_catch_fire(void) {
-    cpu_clear_csr(CSR_SIE, 0);
-    cpu_clear_csr(CSR_SIP, 0);
+    cpu_clear_sie(0);
+    cpu_clear_sip(0);
 
     while (true) {
         wait_for_interrupt();
@@ -41,11 +41,7 @@ void enable_interrupts() {
 
 uint64_t save_disable_interrupts() {
     uint64_t sstatus;
-    __asm__ volatile("csrr %0, sstatus\n"
-                     "csrc sstatus, %1\n"
-                     : "=r"(sstatus)
-                     : "r"(0x2) // Clear SIE (Supervisor Interrupt Enable)
-                     : "memory");
+    __asm__ volatile("csrrci %0, sstatus, 2" : "=r"(sstatus) : : "memory");
     return sstatus;
 }
 
