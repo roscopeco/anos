@@ -27,7 +27,7 @@ task_do_switch:
     # Save general purpose registers
     # We need to save: ra, sp, gp, t0-t6, s0-s11
     # Note: a0-a7 are caller-saved, so we don't need to save them
-    # Note: tp is per-CPU data pointer, we don't save/restore it
+    # TODO tp is per-CPU data pointer in s-mode only, we should save/restore it!
     addi sp, sp, -256    # Allocate space for registers
     sw ra, 0*8(sp)
     sw sp, 1*8(sp)
@@ -59,7 +59,7 @@ task_do_switch:
     beqz t1, .skip_fp_save
     fsd f0, 22*8(sp)
     fsd f1, 23*8(sp)
-    # ... save all FP registers ...
+    # ... TODO save all FP registers ...
     fsd f31, 53*8(sp)
 .skip_fp_save:
 
@@ -80,7 +80,7 @@ task_do_switch:
     beqz t1, .skip_fp_restore
     fld f0, 22*8(sp)
     fld f1, 23*8(sp)
-    # ... restore all FP registers ...
+    # ... TODO restore all FP registers ...
     fld f31, 53*8(sp)
 .skip_fp_restore:
 

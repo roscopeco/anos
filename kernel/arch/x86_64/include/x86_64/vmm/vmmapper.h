@@ -62,10 +62,13 @@
 #define PG_COPY_ON_WRITE ((1 << 6))
 
 /*
- * x86_64 does not have a "READ" bit, it's implied.
- * Just define zero so it has no effect.
+ * x86_64 does not have a "READ" or "EXEC" bit, it's implied
+ * (the latter by the lack of NOEXEC).
+ *
+ * Just define zero so they have no effect.
  */
 #define PG_READ ((0))
+#define PG_EXEC ((0))
 
 // This is where we map the PMM region(s)
 #define STATIC_KERNEL_SPACE ((0xFFFFFFFF80000000))

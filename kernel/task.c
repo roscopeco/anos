@@ -118,8 +118,9 @@ void task_switch(Task *next) {
     task_do_switch(next);
 }
 
-Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
-                      uintptr_t bootstrap, uintptr_t func, TaskClass class) {
+Task *task_create_new(Process *owner, const uintptr_t sp,
+                      const uintptr_t sys_ssp, const uintptr_t bootstrap,
+                      const uintptr_t func, const TaskClass class) {
 
     Task *task = fba_alloc_block();
 
@@ -215,14 +216,16 @@ void task_destroy(Task *task) {
     }
 }
 
-Task *task_create_user(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
-                       uintptr_t func, TaskClass class) {
+Task *task_create_user(Process *owner, const uintptr_t sp,
+                       const uintptr_t sys_ssp, const uintptr_t func,
+                       const TaskClass class) {
     return task_create_new(owner, sp, sys_ssp,
                            (uintptr_t)user_thread_entrypoint, func, class);
 }
 
-Task *task_create_kernel(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
-                         uintptr_t func, TaskClass class) {
+Task *task_create_kernel(Process *owner, const uintptr_t sp,
+                         const uintptr_t sys_ssp, const uintptr_t func,
+                         const TaskClass class) {
     return task_create_new(owner, sp, sys_ssp,
                            (uintptr_t)kernel_thread_entrypoint, func, class);
 }

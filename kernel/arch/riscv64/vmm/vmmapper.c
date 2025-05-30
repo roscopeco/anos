@@ -145,7 +145,7 @@ static bool nolock_vmm_map_page_containing_in(uint64_t *pml4,
 inline bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
                                        const uint64_t phys_addr,
                                        const uint16_t flags) {
-    uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
     const bool result = nolock_vmm_map_page_containing_in(pml4, virt_addr,
                                                           phys_addr, flags);
     spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
@@ -170,7 +170,8 @@ bool vmm_map_page(const uintptr_t virt_addr, const uint64_t page,
     return vmm_map_page_containing(virt_addr, page, flags);
 }
 
-inline bool vmm_map_pages_containing_in(uint64_t *pml4, uintptr_t virt_addr,
+inline bool vmm_map_pages_containing_in(uint64_t *pml4,
+                                        const uintptr_t virt_addr,
                                         const uint64_t phys_addr,
                                         const uint16_t flags,
                                         const size_t num_pages) {

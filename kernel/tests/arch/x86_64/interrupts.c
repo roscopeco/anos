@@ -5,7 +5,7 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include "interrupts.h"
+#include "x86_64/interrupts.h"
 #include "munit.h"
 
 static void test_isr() {}

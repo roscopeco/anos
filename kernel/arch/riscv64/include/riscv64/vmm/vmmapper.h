@@ -118,8 +118,8 @@ static inline uint16_t vmm_table_entry_to_page_flags(uintptr_t table_entry) {
     return (uint16_t)(table_entry & 0x3ff);
 }
 
-static inline uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys,
-                                                         uint64_t flags) {
+static inline uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
+                                                         const uint64_t flags) {
     return ((phys & ~0xFFF) >> 2) | flags;
 }
 

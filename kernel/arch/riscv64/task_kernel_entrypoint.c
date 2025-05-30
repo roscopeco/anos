@@ -21,7 +21,6 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
-#include "../../include/machine.h"
 #include "machine.h"
 #include "sched.h"
 #include "task.h"

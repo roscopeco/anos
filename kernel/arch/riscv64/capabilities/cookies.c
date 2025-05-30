@@ -38,15 +38,15 @@ static inline uint64_t mix64(uint64_t x) {
 }
 
 uint64_t capability_cookie_generate(void) {
-    uint64_t cycle = cpu_read_rdcycle();
-    uint64_t hartid = cpu_read_hartid();
+    const uint64_t cycle = cpu_read_rdcycle();
+    const uint64_t hartid = 0; // TODO cpu_read_hartid();
 
     // Atomically increment per-hart counter
-    uint64_t count =
+    const uint64_t count =
             __atomic_add_fetch(&hart_counters[hartid], 1, __ATOMIC_RELAXED);
 
     // Combine inputs
-    uint64_t raw =
+    const uint64_t raw =
             (cycle << 1) ^ (count << 3) ^ (hartid * 0x517cc1b727220a95ULL);
 
     return mix64(raw);

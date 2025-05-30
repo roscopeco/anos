@@ -5,7 +5,7 @@
  * Copyright (c) 2023 Ross Bamford
  */
 
-#include "interrupts.h"
+#include "x86_64/interrupts.h"
 #include <stdint.h>
 
 void idt_entry(IdtEntry *target, isr_dispatcher *handler,

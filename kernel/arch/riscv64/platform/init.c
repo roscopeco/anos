@@ -8,8 +8,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "machine.h"
+#include "fba/alloc.h"
+#include "smp/state.h"
+#include "std/string.h"
+
+#ifndef RISCV_LFG_INIT
 #include "panic.h"
+#endif
+
+#include "riscv64/kdrivers/cpu.h"
 
 // We set this at startup, and once the APs are started up,
 // they'll wait for this to go false before they start
@@ -39,4 +46,28 @@ bool platform_await_init_complete(void) {
 
 bool platform_task_init(void) { return true; }
 
-bool platform_init(const uintptr_t platform_data) { return true; }
+static bool init_this_cpu(uint64_t hart_id) {
+    PerCPUState *cpu_state = fba_alloc_block();
+
+    if (!cpu_state) {
+        return false;
+    }
+
+    memclr(cpu_state, sizeof(PerCPUState));
+
+    cpu_state->self = cpu_state;
+    cpu_state->cpu_id = hart_id;
+    memcpy(cpu_state->cpu_brand, "Unknown RISC-V", 15);
+
+    cpu_set_sscratch((uint64_t)cpu_state);
+    cpu_set_tp((uint64_t)cpu_state);
+
+    state_register_cpu(0, cpu_state);
+
+    return true;
+}
+
+bool platform_init(const uintptr_t platform_data) {
+    ap_startup_wait = true;
+    return init_this_cpu(0);
+}

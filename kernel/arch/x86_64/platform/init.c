@@ -39,8 +39,8 @@ void debug_madt(ACPI_RSDT *rsdt);
 
 static ACPI_RSDT *acpi_root_table;
 
-static inline uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
-                                               uint8_t cpu_num) {
+static uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
+                                        const uint8_t cpu_num) {
     cpu_init_this();
     cpu_debug_info(cpu_num);
 

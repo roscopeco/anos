@@ -140,12 +140,13 @@ QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 256M -M q35 -device ioh3420,bus=pci
 QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
 else
 ifeq ($(ARCH),riscv64)
-QEMU_BASEOPTS=-M virt,pflash0=pflash0,pflash1=pflash1,acpi=off -m 8G -cpu rv64,sv57=on										\
-    -device VGA																												\
-    -device qemu-xhci																										\
-    -device usb-kbd
-QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),format=raw,id=hd0																	\
-	-blockdev node-name=pflash0,driver=file,read-only=on,filename=uefi/riscv64/edk2/RISCV_VIRT_CODE.fd						\
+QEMU_BASEOPTS=-M virt,pflash0=pflash0,pflash1=pflash1,acpi=off -m 8G -cpu rv64,sv57=on								\
+    -device VGA																										\
+    -device qemu-xhci																								\
+    -device usb-kbd																									\
+    -monitor stdio
+QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),format=raw,id=hd0															\
+	-blockdev node-name=pflash0,driver=file,read-only=on,filename=uefi/riscv64/edk2/RISCV_VIRT_CODE.fd				\
     -blockdev node-name=pflash1,driver=file,filename=uefi/riscv64/edk2/RISCV_VIRT_VARS.fd
 endif
 endif
@@ -207,6 +208,8 @@ STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/platform/init.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/sbi.o							\
 					$(STAGE3_ARCH_RISCV64_DIR)/machine.o						\
+					$(STAGE3_ARCH_RISCV64_DIR)/init_interrupts.o				\
+					$(STAGE3_ARCH_RISCV64_DIR)/isr_dispatch.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/pagefault.o						\
 					$(STAGE3_ARCH_RISCV64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/vmm/vmmapper.o					\
@@ -240,6 +243,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/fba/alloc.o											\
 			$(STAGE3_DIR)/slab/alloc.o											\
 			$(STAGE3_DIR)/timer_isr.o											\
+			$(STAGE3_DIR)/pagefault.o											\
 			$(STAGE3_DIR)/kdrivers/drivers.o									\
 			$(STAGE3_DIR)/syscalls.o											\
 			$(STAGE3_DIR)/task.o												\
@@ -279,6 +283,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
             $(STAGE3_DIR)/banner.o												\
 			$(STAGE3_DIR)/fba/alloc.o											\
 			$(STAGE3_DIR)/slab/alloc.o											\
+			$(STAGE3_DIR)/pagefault.o											\
 			$(STAGE3_DIR)/timer_isr.o											\
 			$(STAGE3_DIR)/ipc/channel.o											\
 			$(STAGE3_DIR)/ipc/named.o											\

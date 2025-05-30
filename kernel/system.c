@@ -119,12 +119,11 @@ noreturn void start_system(void) {
             (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
     const uint64_t system_len_pages = system_len_bytes >> VM_PAGE_LINEAR_SHIFT;
 
-    constexpr uint16_t flags = PG_PRESENT | PG_WRITE | PG_USER;
-
     // Map pages for the user code
     for (int i = 0; i < system_len_pages; i++) {
         vmm_map_page(system_start_virt + (i << 12),
-                     system_start_phys + (i << 12), flags);
+                     system_start_phys + (i << 12),
+                     PG_PRESENT | PG_READ | PG_EXEC | PG_WRITE | PG_USER);
     }
 
     extern uintptr_t kernel_zero_page;
@@ -133,10 +132,10 @@ noreturn void start_system(void) {
 
     // Set up pages for the user bss / data - we're not allocating
     // here, we're just mapping the zeropage COW...
-    uint64_t user_bss = 0x0000000040000000;
+    constexpr uint64_t user_bss = 0x0000000040000000;
     for (int i = 0; i < SYSTEM_BSS_PAGE_COUNT; i++) {
         vmm_map_page(user_bss + (i * VM_PAGE_SIZE), kernel_zero_page,
-                     PG_PRESENT | PG_USER | PG_COPY_ON_WRITE);
+                     PG_PRESENT | PG_READ | PG_USER | PG_COPY_ON_WRITE);
     }
 
     // ... and a few pages below that for the user stack, again, not
@@ -145,7 +144,7 @@ noreturn void start_system(void) {
     for (int i = 0; i < SYSTEM_USER_STACK_PAGE_COUNT; i++) {
         user_stack -= VM_PAGE_SIZE;
         vmm_map_page(user_stack, kernel_zero_page,
-                     PG_PRESENT | PG_USER | PG_COPY_ON_WRITE);
+                     PG_PRESENT | PG_READ | PG_USER | PG_COPY_ON_WRITE);
     }
 
     // grant all syscall capabilities to SYSTEM...

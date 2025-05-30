@@ -7,10 +7,11 @@
 
 #include <stdint.h>
 
-#include "interrupts.h"
 #include "smp/ipwi.h"
 #include "syscalls.h"
-#include "x86_64/kdrivers/local_apic.h" // TODO this shouldn't be used here...
+
+#include "x86_64/interrupts.h"
+#include "x86_64/kdrivers/local_apic.h"
 
 // This is a bit messy, but it works and is "good enough" for now 😅
 #define install_trap(N)                                                        \

@@ -9,8 +9,8 @@
 
 .section .text.init
 
-# Kinda dodgy, but we'll only hit it on early exception...
-# It should panic really, but for now it just halts.
+# Kinda dodgy, but we'll only hit it on early exception. Once
+# we have a terminal up and can panic, it gets replaced...
 s_trap_vector:
 1:
 	# Disable interrupts
@@ -41,6 +41,14 @@ _start_limine:
 	addi	a0, a0, 8
 	bltu	a0, a1, 1b
 2:
+    # Set SUM bit in sstatus, so kernel can access user pages
+    # TODO don't do this here, only do it when we need to do it...
+    #      (e.g user stack setup etc)
+    csrr t0, sstatus
+    li   t1, (1 << 18)       # SUM bit is bit 18...
+    or   t0, t0, t1          # so let's set it...
+    csrw sstatus, t0
+
 	# Setup stack and let's get to it!
 	la		sp, _stack_end
 	tail 	bsp_kernel_entrypoint_limine

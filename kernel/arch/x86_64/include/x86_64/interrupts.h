@@ -7,8 +7,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_KERNEL_INTERRUPTS_H
-#define __ANOS_KERNEL_INTERRUPTS_H
+#ifndef __ANOS_KERNEL_ARCH_X86_64_INTERRUPTS_H
+#define __ANOS_KERNEL_ARCH_X86_64_INTERRUPTS_H
 
 #include <stdint.h>
 

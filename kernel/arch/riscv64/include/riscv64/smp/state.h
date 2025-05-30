@@ -12,8 +12,10 @@
 
 #include "smp/state.h"
 
-static PerCPUState TODO_STATE;
-
-static inline PerCPUState *state_get_for_this_cpu(void) { return &TODO_STATE; }
+static inline PerCPUState *state_get_for_this_cpu(void) {
+    PerCPUState *cpu_state;
+    __asm__ volatile("mv %0, tp" : "=r"(cpu_state));
+    return cpu_state;
+}
 
 #endif //__ANOS_SMP_ARCH_RISCV_STATE_H

@@ -13,14 +13,17 @@
 #include <stdnoreturn.h>
 
 #include "debugprint.h"
-#include "kprintf.h"
 #include "machine.h"
 #include "printdec.h"
 #include "printhex.h"
-#include "sched.h"
-#include "smp/ipwi.h"
 #include "smp/state.h"
 #include "spinlock.h"
+#include "vmm/vmmapper.h"
+
+#ifdef ARCH_X86_64
+#include "sched.h"
+#include "smp/ipwi.h"
+#endif
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -65,7 +68,7 @@ static void print_stack_trace() {
 #define print_stack_trace()
 #endif
 
-static inline void print_header_vec(char *msg, uint8_t vector) {
+static inline void print_header_vec(char *msg, const uint8_t vector) {
     debugattr(0x0C);
     debugstr("\n\n###################################");
     debugattr(0x04);
@@ -135,19 +138,21 @@ static inline void print_cpu(void) {
         }
     }
 }
-static inline void print_code(uint64_t code) {
+
+static inline void print_code(const uint64_t code) {
     debugattr(0x0C);
     debugstr("\nCode       : ");
     debugattr(0x07);
     printhex64(code, debugchar);
 }
 
-static inline void print_page_fault_code(uint8_t code) {
+static inline void print_page_fault_code(const uint8_t code) {
     debugattr(0x0C);
     debugstr("\n         = : ");
     debugattr(0x7);
     debugstr("[");
 
+#ifdef ARCH_X86_64
     if (code & 0x8000) {
         debugattr(0xa);
         debugstr("SGX");
@@ -225,11 +230,42 @@ static inline void print_page_fault_code(uint8_t code) {
         debugattr(0x8);
         debugstr("p");
     }
+#elifdef ARCH_RISCV64
+    if (code & PG_EXEC) {
+        debugattr(0xa);
+        debugstr("I");
+    } else {
+        debugattr(0x8);
+        debugstr("i");
+    }
+    debugattr(0x7);
+    debugstr("|");
+
+    if (code & PG_WRITE) {
+        debugattr(0xa);
+        debugstr("W");
+    } else {
+        debugattr(0x8);
+        debugstr("w");
+    }
+    debugattr(0x7);
+    debugstr("|");
+
+    if (code & PG_READ) {
+        debugattr(0xa);
+        debugstr("R");
+    } else {
+        debugattr(0x8);
+        debugstr("r");
+    }
+#else
+#error No pagefault panic code handler for this architecture
+#endif
     debugattr(0x7);
     debugstr("]");
 }
 
-static inline void print_origin_ip(uintptr_t origin_addr) {
+static inline void print_origin_ip(const uintptr_t origin_addr) {
     debugattr(0x0C);
     debugstr("\nOrigin IP  : ");
     debugattr(0x07);
@@ -242,7 +278,7 @@ static inline void print_origin_ip(uintptr_t origin_addr) {
     debugstr("]");
 }
 
-static inline void print_fault_addr(uint64_t fault_addr) {
+static inline void print_fault_addr(const uint64_t fault_addr) {
     debugattr(0x0C);
     debugstr("\nFault addr : ");
     debugattr(0x07);
@@ -298,8 +334,9 @@ noreturn void panic_sloc(const char *msg, const char *filename,
     halt_and_catch_fire();
 }
 
-noreturn void panic_page_fault_sloc(uintptr_t origin_addr, uintptr_t fault_addr,
-                                    uint64_t code, const char *filename,
+noreturn void panic_page_fault_sloc(const uintptr_t origin_addr,
+                                    const uintptr_t fault_addr,
+                                    const uint64_t code, const char *filename,
                                     const uint64_t line) {
     disable_interrupts();
     const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
@@ -322,8 +359,8 @@ noreturn void panic_page_fault_sloc(uintptr_t origin_addr, uintptr_t fault_addr,
     halt_and_catch_fire();
 }
 
-noreturn void panic_general_protection_fault_sloc(uint64_t code,
-                                                  uintptr_t origin_addr,
+noreturn void panic_general_protection_fault_sloc(const uint64_t code,
+                                                  const uintptr_t origin_addr,
                                                   const char *filename,
                                                   const uint64_t line) {
     disable_interrupts();
@@ -345,8 +382,9 @@ noreturn void panic_general_protection_fault_sloc(uint64_t code,
     halt_and_catch_fire();
 }
 
-noreturn void panic_exception_with_code_sloc(uint8_t vector, uint64_t code,
-                                             uintptr_t origin_addr,
+noreturn void panic_exception_with_code_sloc(const uint8_t vector,
+                                             const uint64_t code,
+                                             const uintptr_t origin_addr,
                                              const char *filename,
                                              const uint64_t line) {
     disable_interrupts();
@@ -368,8 +406,8 @@ noreturn void panic_exception_with_code_sloc(uint8_t vector, uint64_t code,
     halt_and_catch_fire();
 }
 
-noreturn void panic_exception_no_code_sloc(uint8_t vector,
-                                           uintptr_t origin_addr,
+noreturn void panic_exception_no_code_sloc(const uint8_t vector,
+                                           const uintptr_t origin_addr,
                                            const char *filename,
                                            const uint64_t line) {
     disable_interrupts();

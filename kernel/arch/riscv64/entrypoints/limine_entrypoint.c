@@ -24,6 +24,8 @@
 #include "std/string.h"
 #include "vmm/vmconfig.h"
 
+#include "riscv64/interrupts.h"
+
 #define MAX_MEMMAP_ENTRIES 64
 
 #define KERNEL_BSS_PHYS ((0x110000))
@@ -429,6 +431,8 @@ noreturn void bsp_kernel_entrypoint_limine() {
     } else {
         halt_and_catch_fire();
     }
+
+    install_interrupts();
 
     // For ease, just copy the memmap into a static buffer, so we can use it later
     // when the time comes to initialize the PMM...
