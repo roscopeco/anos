@@ -69,24 +69,28 @@ noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
     tdebug("\n");
 
     // clang-format off
-    // Switch to user mode
-//     __asm__ volatile(
-//             "mov %0, %%rsp\n\t" // Set stack pointer
-//             "push $0x1B\n\t"    // Push user data segment selector (GDT entry 3)
-//             "push %0\n\t"       // Push user stack pointer
-//             "pushfq\n\t"        // Push RFLAGS
-//             "push $0x23\n\t"    // Push user code segment selector (GDT entry 4)
-//             "push %1\n\t"       // Push user code entry point
-// #ifndef NO_USER_GS
-//             "swapgs\n\t"        // Swap to user-mode GS
-// #endif
-//             "iretq\n\t"         // "Return" to user mode
-//             :
-//             : "r"(thread_userstack), "r"(thread_entrypoint)
-            // : "memory");
+    // Set return address (PC) to user code
+    __asm__ volatile("csrw sepc, %0" :: "r"(thread_entrypoint));
+
+    // Modify sstatus:
+    //  - clear SPP (bit 8) → return to user mode
+    //  - set SPIE (bit 5) → enable interrupts in U-mode after sret
+    uint64_t sstatus;
+    __asm__ volatile("csrr %0, sstatus" : "=r"(sstatus));
+    sstatus &= ~(1UL << 8); // Clear SPP
+    //sstatus |=  (1UL << 5); // Set SPIE
+    __asm__ volatile("csrw sstatus, %0" :: "r"(sstatus));
+
+    // Set user stack pointer (put into a0 for trampoline use)
+    // register uintptr_t a0 asm("a0") = thread_userstack;
+
+    // sret to user mode
+    __asm__ volatile("mv sp, %0\n\t"  // Move user stack into sp
+                     "sret"
+                     :
+                     : "r"(thread_userstack)
+                     : "memory");
     // clang-format on
 
     halt_and_catch_fire();
-
-    __builtin_unreachable();
 }

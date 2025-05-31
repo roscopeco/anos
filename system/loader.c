@@ -60,10 +60,19 @@ static noreturn void sleep_loop(void) {
 // TODO we shouldn't have inline x86_64 in here!!!
 static noreturn void restore_stack_and_jump(void *stack_ptr,
                                             void (*target)(void)) {
+#ifdef __x86_64__
     __asm__ volatile("mov %0, %%rsp\n"
                      "jmp *%1\n"
                      :
                      : "r"(stack_ptr), "r"(target));
+#elifdef __riscv
+    __asm__ volatile("mv sp, %0\n"
+                     "jr %1\n"
+                     :
+                     : "r"(stack_ptr), "r"(target));
+#else
+#error Need an arch-specific restore_stack_and_jump in system:loader.c
+#endif
     __builtin_unreachable();
 }
 

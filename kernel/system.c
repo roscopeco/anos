@@ -13,7 +13,6 @@
 #include "panic.h"
 #include "pmm/pagealloc.h"
 #include "sched.h"
-#include "slab/alloc.h"
 #include "syscalls.h"
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
@@ -54,6 +53,9 @@ extern MemoryRegion *physical_region;
 
 extern void *_system_bin_start;
 extern void *_system_bin_end;
+
+// we set this in limine_entrypoint, appropriately for the arch...
+extern uintptr_t _system_bin_start_phys;
 
 static void *idle_sstack_page;
 static void *idle_ustack_page;
@@ -113,8 +115,6 @@ noreturn void start_system_ap(uint8_t cpu_id) {
 
 noreturn void start_system(void) {
     const uint64_t system_start_virt = 0x1000000;
-    const uint64_t system_start_phys =
-            (uint64_t)&_system_bin_start & ~(0xFFFFFFFF80000000);
     const uint64_t system_len_bytes =
             (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
     const uint64_t system_len_pages = system_len_bytes >> VM_PAGE_LINEAR_SHIFT;
@@ -122,8 +122,8 @@ noreturn void start_system(void) {
     // Map pages for the user code
     for (int i = 0; i < system_len_pages; i++) {
         vmm_map_page(system_start_virt + (i << 12),
-                     system_start_phys + (i << 12),
-                     PG_PRESENT | PG_READ | PG_EXEC | PG_WRITE | PG_USER);
+                     _system_bin_start_phys + (i << 12),
+                     PG_PRESENT | PG_READ | PG_EXEC | PG_USER);
     }
 
     extern uintptr_t kernel_zero_page;

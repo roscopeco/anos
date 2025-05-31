@@ -14,43 +14,43 @@
 
 # CPU state offsets (must match state.h)
 .equ CPU_TASK_CURRENT, 928
-.equ CPU_TASK_TSS, 936
 
 # task_do_switch(Task *next)
 # a0 = next task
 task_do_switch:
     # Save current task state if it exists
     # tp register points to per-CPU data (similar to GS in x86)
-    lw t2, CPU_TASK_CURRENT(tp)
+    ld t2, CPU_TASK_CURRENT(tp)
     beqz t2, .restore_next # If no current task, skip saving
 
     # Save general purpose registers
     # We need to save: ra, sp, gp, t0-t6, s0-s11
-    # Note: a0-a7 are caller-saved, so we don't need to save them
-    # TODO tp is per-CPU data pointer in s-mode only, we should save/restore it!
-    addi sp, sp, -256    # Allocate space for registers
-    sw ra, 0*8(sp)
-    sw sp, 1*8(sp)
-    sw gp, 2*8(sp)
-    sw t0, 3*8(sp)
-    sw t1, 4*8(sp)
-    sw t2, 5*8(sp)
-    sw t3, 6*8(sp)
-    sw t4, 7*8(sp)
-    sw t5, 8*8(sp)
-    sw t6, 9*8(sp)
-    sw s0, 10*8(sp)
-    sw s1, 11*8(sp)
-    sw s2, 12*8(sp)
-    sw s3, 13*8(sp)
-    sw s4, 14*8(sp)
-    sw s5, 15*8(sp)
-    sw s6, 16*8(sp)
-    sw s7, 17*8(sp)
-    sw s8, 18*8(sp)
-    sw s9, 19*8(sp)
-    sw s10, 20*8(sp)
-    sw s11, 21*8(sp)
+    # Note: a2-a7 are caller-saved, so we don't need to save them
+    #       (a0-a1 are too, but we use them for passing args to the bootstraps so we do need them).
+    #
+    addi sp, sp, -440    # Allocate space for registers
+    sd a0, 0*8(sp)
+    sd a1, 1*8(sp)
+    sd gp, 2*8(sp)
+    sd t0, 3*8(sp)
+    sd t1, 4*8(sp)
+    sd t2, 5*8(sp)
+    sd t3, 6*8(sp)
+    sd t4, 7*8(sp)
+    sd t5, 8*8(sp)
+    sd t6, 9*8(sp)
+    sd s0, 10*8(sp)
+    sd s1, 11*8(sp)
+    sd s2, 12*8(sp)
+    sd s3, 13*8(sp)
+    sd s4, 14*8(sp)
+    sd s5, 15*8(sp)
+    sd s6, 16*8(sp)
+    sd s7, 17*8(sp)
+    sd s8, 18*8(sp)
+    sd s9, 19*8(sp)
+    sd s10, 20*8(sp)
+    sd s11, 21*8(sp)
 
     # Save floating point state if enabled
     csrr t0, sstatus
@@ -62,16 +62,17 @@ task_do_switch:
     # ... TODO save all FP registers ...
     fsd f31, 53*8(sp)
 .skip_fp_save:
+    sd ra, 0*54(sp)
 
     # Store current stack pointer
-    sw sp, TASK_SSP(t2)
+    sd sp, TASK_SSP(t2)
 
 .restore_next:
     # Load next task
-    sw a0, CPU_TASK_CURRENT(tp)
+    sd a0, CPU_TASK_CURRENT(tp)
 
     # Restore next task's stack
-    lw sp, TASK_SSP(a0)
+    ld sp, TASK_SSP(a0)
 
     # Restore floating point state if enabled
     csrr t0, sstatus
@@ -85,28 +86,30 @@ task_do_switch:
 .skip_fp_restore:
 
     # Restore general purpose registers
-    lw ra, 0*8(sp)
-    lw gp, 2*8(sp)
-    lw t0, 3*8(sp)
-    lw t1, 4*8(sp)
-    lw t2, 5*8(sp)
-    lw t3, 6*8(sp)
-    lw t4, 7*8(sp)
-    lw t5, 8*8(sp)
-    lw t6, 9*8(sp)
-    lw s0, 10*8(sp)
-    lw s1, 11*8(sp)
-    lw s2, 12*8(sp)
-    lw s3, 13*8(sp)
-    lw s4, 14*8(sp)
-    lw s5, 15*8(sp)
-    lw s6, 16*8(sp)
-    lw s7, 17*8(sp)
-    lw s8, 18*8(sp)
-    lw s9, 19*8(sp)
-    lw s10, 20*8(sp)
-    lw s11, 21*8(sp)
-    addi sp, sp, 256     # Restore stack pointer
+    ld a0, 0*8(sp)
+    ld a1, 1*8(sp)
+    ld gp, 2*8(sp)
+    ld t0, 3*8(sp)
+    ld t1, 4*8(sp)
+    ld t2, 5*8(sp)
+    ld t3, 6*8(sp)
+    ld t4, 7*8(sp)
+    ld t5, 8*8(sp)
+    ld t6, 9*8(sp)
+    ld s0, 10*8(sp)
+    ld s1, 11*8(sp)
+    ld s2, 12*8(sp)
+    ld s3, 13*8(sp)
+    ld s4, 14*8(sp)
+    ld s5, 15*8(sp)
+    ld s6, 16*8(sp)
+    ld s7, 17*8(sp)
+    ld s8, 18*8(sp)
+    ld s9, 19*8(sp)
+    ld s10, 20*8(sp)
+    ld s11, 21*8(sp)
+    ld ra, 54*8(sp)
+    addi sp, sp, 440     # Restore stack pointer
 
     # Return to the next task
     ret 

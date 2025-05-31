@@ -1,3 +1,12 @@
+; Server-loader trampoline (x86_64)
+; anos - An Operating System
+;
+; Copyright (c) 2025 Ross Bamford
+;
+; This is just here to sort out the stack pointer and executable
+; names for the initial_server_loader, so we can load the exec
+; and then reset the stack later.
+;
 global initial_server_loader
 
 extern initial_server_loader_bounce

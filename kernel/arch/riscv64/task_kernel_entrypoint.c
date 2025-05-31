@@ -70,15 +70,13 @@ noreturn void kernel_thread_entrypoint(uintptr_t thread_entrypoint,
     tdbgx8(thread_entrypoint);
     tdebug("\n");
 
-    // Start kernel thread at entrypoint
-    // __asm__ volatile("mov %0, %%rsp\n\t" // Set stack pointer
-    //                  "push %1\n\t"       // Push code entry point
-    //                  "ret\n\t"           // "Return" to user mode
-    //                  :
-    //                  : "r"(thread_stack), "r"(thread_entrypoint)
-    //                  : "memory");
+    __asm__ volatile(
+            "mv sp, %0\n\t" // Set the stack pointer
+            "mv ra, zero\n\t" // Clear return address: if entrypoint returns, we trap
+            "jr %1\n\t"       // Jump to thread entrypoint
+            :
+            : "r"(thread_stack), "r"(thread_entrypoint)
+            : "memory");
 
     halt_and_catch_fire();
-
-    __builtin_unreachable();
 }

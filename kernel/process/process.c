@@ -63,6 +63,8 @@ Process *process_create(uintptr_t pml4) {
         return nullptr;
     }
 
+    spinlock_init(lock);
+
     ProcessMemoryInfo *meminfo = slab_alloc_block();
 
     if (!meminfo) {
@@ -80,6 +82,7 @@ Process *process_create(uintptr_t pml4) {
 
     process->pid = next_pid++;
     process->pml4 = pml4;
+    process->cap_failures = 0;
 
     meminfo->pages = nullptr;
     meminfo->pages_lock = lock;

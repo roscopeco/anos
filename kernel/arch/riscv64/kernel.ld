@@ -15,6 +15,9 @@ MEMORY {
 
 SECTIONS
 {
+  /DISCARD/ : {
+    *(.eh_frame*)
+  }
   .bss (NOLOAD) :
   {
    _kernel_vma_start = .;
@@ -37,6 +40,8 @@ SECTIONS
     . = ALIGN(16);
     PROVIDE(_global_pointer = .);
     *(.rodata*)
+    . = ALIGN(16);
+    *(.srodata*)
     _code_end = .;
     _data_start = .;
     . = ALIGN(16);

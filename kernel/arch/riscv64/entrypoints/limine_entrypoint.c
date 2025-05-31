@@ -149,10 +149,15 @@ static volatile Limine_HHDMRequest limine_hhdm_request
                 .response = NULL,
 };
 
+/* Defined by the linker */
 extern uint64_t _kernel_vma_start;
 extern uint64_t _kernel_vma_end;
 extern uint64_t _bss_end;
 extern uint64_t _code;
+
+extern void *_system_bin_start;
+
+uintptr_t _system_bin_start_phys;
 
 static Limine_MemMap static_memmap;
 static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
@@ -539,6 +544,17 @@ noreturn void bsp_kernel_entrypoint_limine() {
             ((fb_phys + 0x400000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
     new_pd[0x13] =
             ((fb_phys + 0x600000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+
+    // Find the phys address of the embedded SYSTEM image as well, we'll need
+    // that later on when we come to map it in...
+    if (vmm_table_walk_mode((uintptr_t)&_system_bin_start, cpu_satp_mode(satp),
+                            cpu_satp_to_root_table_phys(satp),
+                            limine_hhdm_request.response->offset, &page)) {
+        _system_bin_start_phys = page.phys_addr;
+    } else {
+        kprintf("Failed to detemine PT physical address; Halting\n");
+        halt_and_catch_fire();
+    }
 
     // setup PMM stack area and bootstrap page
     uintptr_t pmm_pd_phys, pmm_pt_phys, pmm_bootstrap_phys;

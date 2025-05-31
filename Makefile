@@ -19,16 +19,17 @@ ARCH?=x86_64
 #  * We need to hack the triple here to use the baseline one
 #  * We can't build system or any usermode stuff for riscv...
 #
-ifeq ($(ARCH),x86_64)
 TARGET_TRIPLE?=$(ARCH)-elf-anos
+
+ifeq ($(ARCH),x86_64)
 ASM?=nasm
 else
 ifeq ($(ARCH),riscv64)
-# TODO remove this once toolchain is up :)
-TARGET_TRIPLE?=$(ARCH)-elf
-ASM?=riscv64-elf-gcc
+ASM?=$(TARGET_TRIPLE)-gcc
 endif
 endif
+
+export ASM
 
 OPTIMIZE?=3
 XLD?=$(TARGET_TRIPLE)-ld
@@ -133,7 +134,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS
+CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS -DRISCV_LFG_INIT
 
 ifeq ($(ARCH),x86_64)
 QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 256M -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -d mmu,cpu_reset,guest_errors,unimp -monitor stdio
@@ -308,7 +309,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/structs/region_tree.o									\
 			$(STAGE3_DIR)/managed_resources/resources.o							\
 			$(STAGE3_DIR)/process/address_space.o								\
-            $(STAGE3_ARCH_OBJS)
+            $(STAGE3_ARCH_OBJS)													\
+        	$(SYSTEM)_linkable.o
 endif
 endif
 
@@ -413,8 +415,17 @@ endif
 $(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile
 	$(MAKE) -C $(SYSTEM_DIR)
 
+ifeq ($(ARCH),x86_64)
 $(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
 	$(XOBJCOPY) -I binary --rename-section .data=.$(SYSTEM)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+else
+ifeq ($(ARCH),riscv64)
+$(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
+	$(XOBJCOPY) -I binary --rename-section .data=.$(SYSTEM)_bin -O elf64-littleriscv --binary-architecture riscv:rv64 $< $@
+else
+$(error Need an architecture-specific setup for objcopy:system_linkable in system/Makefile)
+endif
+endif
 
 ifeq ($(ARCH),x86_64)
 ############# Real mode #############
