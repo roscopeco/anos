@@ -6,9 +6,45 @@
     .option norvc
     .section .text
     .global supervisor_trap_dispatcher
-    .align 2
+    .align 16
+
+# Task struct offsets (must match task.h)
+.equ TASK_DATA, 8
+.equ TASK_RSP0, 24
+.equ TASK_SSP, 32
+.equ TASK_PML4, 48
+
+# CPU state offsets (must match state.h)
+.equ CPU_TASK_CURRENT, 928
+.equ CPU_TASK_TSS, 936
 
 supervisor_trap_dispatcher:
+    # We need to switch stacks if coming from usermode
+    # If we are, sscratch will contain a kernel stack. Otherwise, it'll be 0.
+    # See docs/RISC-V-Specifics.md.
+    csrrw   sp, sscratch, sp        # Swap sp and sscratch
+    bnez    sp, _from_user_mode
+
+    # If sscratch was zero, we were already on a kernel stack, so
+    # switch back to it (and leave it in sscratch too) then just run
+    # the handler and sret
+    csrr    sp, sscratch            # sp back to kernel stack
+    call    _trap_dispatcher_impl   # dispatcher
+    sret                            # and back to kernel mode
+
+_from_user_mode:
+    # Else sscratch was non-zero, i.e. contained a kernel stack, meaning
+    # we came from user-mode. That kernel stack is now in sp, and the user
+    # stack is in sscratch.
+    #
+    # We need to run the handler, and then swap the stacks back before
+    # returning to user mode so that the kernel stack will again be in
+    # sscratch next time we get here.
+    call    _trap_dispatcher_impl   # dispatcher
+    csrrw   sp, sscratch, sp        # kernel sp into sscratch, user sp into sp
+    sret
+
+_trap_dispatcher_impl:
     addi    sp,sp,-312
     sd      tp,304(sp)
     sd      ra,296(sp)
@@ -46,8 +82,6 @@ supervisor_trap_dispatcher:
     fsd     fa6,40(sp)
     fsd     fa7,32(sp)
     fsd     ft8,24(sp)
-
-    csrr    tp,sscratch      # load per-CPU state into tp
 
     csrr    t0, scause       # Load trap cause
     li      t1, 12           # Instruction page fault
@@ -120,4 +154,5 @@ handle_page_fault:
     fld     ft10,8(sp)
     fld     ft11,0(sp)
     addi    sp,sp,312
-    sret
+
+    ret

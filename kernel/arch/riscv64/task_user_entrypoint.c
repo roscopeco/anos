@@ -57,7 +57,14 @@
 #define vdbgx8(...)
 #endif
 
+#ifdef __x86_64__
 #define INT_FLAG_ENABLED ((0x200))
+#elifdef __riscv
+// TODO this totally isn't right, we shouldn't just always set this...
+#define INT_FLAG_ENABLED ((0x8000000200046020))
+#else
+#error Need a platform-specific INT_FLAGS_ENABLED in task_user_entrypoint.c
+#endif
 
 noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
                                      uintptr_t thread_userstack) {
@@ -85,8 +92,9 @@ noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
     // register uintptr_t a0 asm("a0") = thread_userstack;
 
     // sret to user mode
-    __asm__ volatile("mv sp, %0\n\t"  // Move user stack into sp
-                     "sret"
+    __asm__ volatile("csrw sscratch, sp\n\t"
+                     "mv sp, %0\n\t"  // Move user stack into sp
+                     "sret\n\t"
                      :
                      : "r"(thread_userstack)
                      : "memory");

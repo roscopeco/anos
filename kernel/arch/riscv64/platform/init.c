@@ -59,7 +59,10 @@ static bool init_this_cpu(uint64_t hart_id) {
     cpu_state->cpu_id = hart_id;
     memcpy(cpu_state->cpu_brand, "Unknown RISC-V", 15);
 
-    cpu_set_sscratch((uint64_t)cpu_state);
+    // We set this to 0 at startup. This allows us to handle
+    // stack switches on kernel entry/exit in a sane way.
+    // See docs/RISC-V-Specifics.md for details.
+    cpu_set_sscratch(0);
     cpu_set_tp((uint64_t)cpu_state);
 
     state_register_cpu(0, cpu_state);

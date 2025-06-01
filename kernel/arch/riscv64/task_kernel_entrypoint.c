@@ -59,7 +59,14 @@
 #define vdbgx8(...)
 #endif
 
+#ifdef __x86_64__
 #define INT_FLAG_ENABLED ((0x200))
+#elifdef __riscv
+// TODO this totally isn't right, we shouldn't just always set this...
+#define INT_FLAG_ENABLED ((0x8000000200046020))
+#else
+#error Need a platform-specific INT_FLAGS_ENABLED in task_kernel_entrypoint.c
+#endif
 
 noreturn void kernel_thread_entrypoint(uintptr_t thread_entrypoint,
                                        uintptr_t thread_stack) {
