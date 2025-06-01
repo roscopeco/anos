@@ -12,6 +12,7 @@
 #include "munit.h"
 
 #include "process.h"
+#include "spinlock.h"
 
 #include "mock_slab.h"
 #include "slab/alloc.h"
@@ -29,6 +30,9 @@ void init_managed_resource(ManagedResource *mr) {
     memset(mr, 0, sizeof(*mr));
     mr->free_func = dummy_free_func;
 }
+
+// Mock spinlock_init
+void spinlock_init(SpinLock *lock) { lock->lock = 0; }
 
 void managed_resources_free_all(ManagedResource *head) {
     freed_resources_head = head;
