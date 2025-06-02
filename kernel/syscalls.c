@@ -128,7 +128,8 @@ SYSCALL_HANDLER(create_process) {
     ProcessCreateParams *process_create_params = (ProcessCreateParams *)arg0;
 
     // Validate process create is in userspace
-    if (!IS_USER_ADDRESS(process_create_params)) {
+    if (!IS_USER_ADDRESS(process_create_params) ||
+        !(IS_USER_ADDRESS(process_create_params + 1))) {
         return SYSCALL_BADARGS;
     }
 

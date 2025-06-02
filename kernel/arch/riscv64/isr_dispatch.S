@@ -18,48 +18,7 @@
 .equ CPU_TASK_CURRENT, 928
 .equ CPU_TASK_TSS, 936
 
-supervisor_trap_dispatcher:
-    # We need to switch stacks if coming from usermode
-    # If we are, sscratch will contain a kernel stack. Otherwise, it'll be 0.
-    # See docs/RISC-V-Specifics.md.
-    csrrw   sp, sscratch, sp        # Swap sp and sscratch
-    bnez    sp, _from_user_mode
-
-    # If sscratch was zero, we were already on a kernel stack, so
-    # switch back to it (and leave it in sscratch too) then just run
-    # the handler and sret
-    csrr    sp, sscratch            # sp back to kernel stack
-
-    addi    sp, sp, -8
-    sd      ra, (sp)
-
-    call    _trap_dispatcher_impl   # dispatcher
-
-    ld      ra, (sp)
-    addi    sp, sp, 8
-
-    sret                            # and back to kernel mode
-
-_from_user_mode:
-    # Else sscratch was non-zero, i.e. contained a kernel stack, meaning
-    # we came from user-mode. That kernel stack is now in sp, and the user
-    # stack is in sscratch.
-    #
-    # We need to run the handler, and then swap the stacks back before
-    # returning to user mode so that the kernel stack will again be in
-    # sscratch next time we get here.
-    addi    sp, sp, -8
-    sd      ra, (sp)
-
-    call    _trap_dispatcher_impl   # dispatcher
-
-    ld      ra, (sp)
-    addi    sp, sp, 8
-
-    csrrw   sp, sscratch, sp        # kernel sp into sscratch, user sp into sp
-    sret
-
-_trap_dispatcher_impl:
+.macro _trap_dispatcher_impl idx
     addi    sp, sp, -320
     sd      tp, 304(sp)
     sd      ra, 296(sp)
@@ -109,13 +68,13 @@ _trap_dispatcher_impl:
 
     csrr    t0, scause          # Load trap cause
     li      t1, 8               # U-mode ecall
-    beq     t0, t1, handle_user_ecall
+    beq     t0, t1, handle_user_ecall_\idx
     li      t1, 12              # Instruction page fault
-    beq     t0, t1, handle_page_fault_exec
+    beq     t0, t1, handle_page_fault_exec_\idx
     li      t1, 13              # Load page fault
-    beq     t0, t1, handle_page_fault_read
+    beq     t0, t1, handle_page_fault_read_\idx
     li      t1, 15              # Store/AMO page fault
-    beq     t0, t1, handle_page_fault_write
+    beq     t0, t1, handle_page_fault_write_\idx
 
     # Unknown trap - panic
     csrr    a1, sepc
@@ -123,34 +82,34 @@ _trap_dispatcher_impl:
 
     tail    unknown_trap_handler
 
-handle_user_ecall:
+handle_user_ecall_\idx:
     mv      a5, a7
     csrr    a7, sepc
     addi    a7, a7, 4
     csrw    sepc, a7
     call    handle_syscall_69
-    j       handled_no_a0
+    j       handled_no_a0_\idx
 
-handle_page_fault_exec:
+handle_page_fault_exec_\idx:
     li      a0, 8           # a0 = code (eight for insn fetch, PG_EXEC is set)
-    j       handle_page_fault
+    j       handle_page_fault_\idx
 
-handle_page_fault_read:
+handle_page_fault_read_\idx:
     li      a0, 2           # a0 = code (two for read, PG_READ is set)
-    j       handle_page_fault
+    j       handle_page_fault_\idx
 
-handle_page_fault_write:
+handle_page_fault_write_\idx:
     li      a0, 4           # a0 = code (four for write, PG_WRITE is set)
 
-handle_page_fault:
+handle_page_fault_\idx:
     csrr    a1, stval       # a1 = fault address
     csrr    a2, sepc        # a2 = origin address
 
     call    page_fault_wrapper
 
-handled:
+handled_\idx:
     ld      a0, 256(sp)
-handled_no_a0:
+handled_no_a0_\idx:
     ld      tp, 304(sp)
     ld      ra, 296(sp)
     lw      t0, 280(sp)
@@ -190,5 +149,35 @@ handled_no_a0:
     fld     ft10, 8(sp)
     fld     ft11, 0(sp)
     addi    sp, sp, 320
+.endm
 
-    ret
+
+supervisor_trap_dispatcher:
+    # We need to switch stacks if coming from usermode
+    # If we are, sscratch will contain a kernel stack. Otherwise, it'll be 0.
+    # See docs/RISC-V-Specifics.md.
+    csrrw   sp, sscratch, sp        # Swap sp and sscratch
+    bnez    sp, _from_user_mode
+
+    # If sscratch was zero, we were already on a kernel stack, so
+    # switch back to it (and leave it in sscratch too) then just run
+    # the handler and sret
+    csrr    sp, sscratch            # sp back to kernel stack
+
+    _trap_dispatcher_impl 0
+
+    sret                            # and back to kernel mode
+
+_from_user_mode:
+    # Else sscratch was non-zero, i.e. contained a kernel stack, meaning
+    # we came from user-mode. That kernel stack is now in sp, and the user
+    # stack is in sscratch.
+    #
+    # We need to run the handler, and then swap the stacks back before
+    # returning to user mode so that the kernel stack will again be in
+    # sscratch next time we get here.
+
+    _trap_dispatcher_impl 1
+
+    csrrw   sp, sscratch, sp        # kernel sp into sscratch, user sp into sp
+    sret

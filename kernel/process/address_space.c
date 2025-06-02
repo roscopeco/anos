@@ -63,7 +63,8 @@ bool address_space_init(void) {
             }
 
             // Set up the new PDPT
-            pml4->entries[i] = new_pdpt | PG_WRITE | PG_PRESENT;
+            pml4->entries[i] = vmm_phys_and_flags_to_table_entry(
+                    new_pdpt, PG_READ | PG_WRITE | PG_PRESENT);
 
             // Get a vaddr for this new table and invalidate TLB (just in case)
             uint64_t *vaddr = (uint64_t *)vmm_phys_to_virt(new_pdpt);
@@ -186,7 +187,8 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
                 // TODO what if this fails (to alloc table pages)?
                 //
                 vmm_map_page_in((uint64_t *)new_pml4_virt, ptr, shared_phys,
-                                PG_PRESENT | PG_USER | PG_COPY_ON_WRITE);
+                                PG_PRESENT | PG_READ | PG_USER |
+                                        PG_COPY_ON_WRITE);
 
                 // TODO pmm_free_shareable(page) needs implementing to check this and handle appropriately...
                 //
@@ -248,7 +250,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
             }
 
             vmm_map_page_in((uint64_t *)new_pml4_virt, ptr, stack_page,
-                            PG_WRITE | PG_PRESENT | PG_USER);
+                            PG_READ | PG_WRITE | PG_PRESENT | PG_USER);
         }
     }
 
@@ -279,7 +281,8 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
         if (temp_stack_bottom == (uint64_t *)per_cpu_temp_page) {
             // reached bottom of temp page, need to map the next one
             const uintptr_t phys = top_phys_stack_pages[i >> 9];
-            vmm_map_page(per_cpu_temp_page, phys, PG_WRITE | PG_PRESENT);
+            vmm_map_page(per_cpu_temp_page, phys,
+                         PG_READ | PG_WRITE | PG_PRESENT);
             temp_stack_bottom = (uint64_t *)(per_cpu_temp_page + VM_PAGE_SIZE);
         }
 

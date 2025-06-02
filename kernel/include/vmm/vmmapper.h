@@ -47,9 +47,9 @@ static constexpr uintptr_t DIRECT_MAP_BASE = 0;
 static constexpr uintptr_t DIRECT_MAP_BASE = 0xffff800000000000;
 #endif
 
-#if defined __x86_64__
+#ifdef ARCH_X86_64
 #include "x86_64/vmm/vmmapper.h"
-#elif defined __riscv
+#elifdef ARCH_RISCV64
 #include "riscv64/vmm/vmmapper.h"
 #else
 #error Undefined or unsupported architecture
