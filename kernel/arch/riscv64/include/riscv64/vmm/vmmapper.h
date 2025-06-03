@@ -66,29 +66,6 @@ typedef struct {
     uint64_t entries[PAGE_TABLE_ENTRIES];
 } PageTable;
 
-// Convert physical address to direct-mapped virtual address
-static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) {
-    return DIRECT_MAP_BASE + phys_addr;
-}
-
-static inline void *vmm_phys_to_virt_ptr(uintptr_t phys_addr) {
-    return (void *)vmm_phys_to_virt(phys_addr);
-}
-
-// Convert direct-mapped virtual address to physical address
-static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
-    return virt_addr - DIRECT_MAP_BASE;
-}
-
-static inline uintptr_t vmm_virt_to_phys_page(const uintptr_t virt_addr) {
-    return vmm_virt_to_phys(virt_addr) & PAGE_ALIGN_MASK;
-}
-
-static inline PageTable *vmm_find_pml4() {
-    return (PageTable *)vmm_phys_to_virt_ptr(
-            cpu_satp_to_root_table_phys(cpu_read_satp()));
-}
-
 static inline uint16_t vmm_virt_to_table_index(uintptr_t virt_addr,
                                                uint8_t level) {
     return ((virt_addr >> ((9 * (level - 1)) + 12)) & 0x1ff);
@@ -125,6 +102,31 @@ static inline uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
 
 static inline size_t vmm_level_page_size(uint8_t level) {
     return (VM_PAGE_SIZE << (9 * (level - 1)));
+}
+
+// Convert physical address to direct-mapped virtual address
+static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) {
+    return DIRECT_MAP_BASE + phys_addr;
+}
+
+static inline void *vmm_phys_to_virt_ptr(uintptr_t phys_addr) {
+    return (void *)vmm_phys_to_virt(phys_addr);
+}
+
+uint64_t vmm_virt_to_pt_entry(uintptr_t virt_addr);
+
+// Convert direct-mapped virtual address to physical address
+static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
+    return vmm_table_entry_to_phys(vmm_virt_to_pt_entry(virt_addr));
+}
+
+static inline uintptr_t vmm_virt_to_phys_page(const uintptr_t virt_addr) {
+    return vmm_virt_to_phys(virt_addr) & PAGE_ALIGN_MASK;
+}
+
+static inline PageTable *vmm_find_pml4() {
+    return (PageTable *)vmm_phys_to_virt_ptr(
+            cpu_satp_to_root_table_phys(cpu_read_satp()));
 }
 
 /*

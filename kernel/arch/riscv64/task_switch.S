@@ -102,6 +102,11 @@ task_do_switch:
     # Restore next task's stack
     ld sp, TASK_SSP(a0)
 
+    # Switch to next task's pagetables
+    ld t0, TASK_PML4(a0)
+    csrw satp, t0
+    sfence.vma
+
     # Restore floating point state if enabled
     csrr t0, sstatus
     slli t1, t0, 51

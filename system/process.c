@@ -191,7 +191,7 @@ int64_t create_server_process(const uint64_t stack_size, const uint16_t capc,
 
     InitStackValues init_stack_values;
 
-    if (!build_new_process_init_values(0x80000000, capc, capv, argc, argv,
+    if (!build_new_process_init_values(STACK_TOP, capc, capv, argc, argv,
                                        &init_stack_values)) {
         // failed to init stack...
         return 0;

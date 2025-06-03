@@ -92,7 +92,11 @@ static inline void cpu_set_satp(uintptr_t pt_base, uint8_t mode) {
     __asm__ volatile("csrw %0, %1" ::"I"(CSR_SATP), "r"(satp));
 
     // Flush the TLB
-    __asm__ volatile("sfence.vma");
+    __asm__ volatile("sfence.vma" : : : "memory");
+}
+
+static inline uintptr_t cpu_make_pagetable_register_value(uintptr_t pt_base) {
+    return ((uint64_t)SATP_MODE_SV48 << 60) | (pt_base >> 12);
 }
 
 static inline uint64_t cpu_read_sscratch() {

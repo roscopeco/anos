@@ -71,6 +71,10 @@ void cpu_invalidate_tlb_all(void);
 
 void cpu_swapgs(void);
 
+static inline uintptr_t cpu_make_pagetable_register_value(uintptr_t pt_base) {
+    return pt_base;
+}
+
 uintptr_t cpu_read_cr3(void);
 
 #define cpu_get_pagetable_root_phys (cpu_read_cr3())

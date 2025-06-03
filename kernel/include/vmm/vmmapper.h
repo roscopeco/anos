@@ -240,6 +240,6 @@ uintptr_t vmm_get_pagetable_root_phys();
  * This **only** works for 4KiB pages (and only with SV48) -
  * large pages will not work with this (and that's by design!)
  */
-uint64_t vmm_virt_to_pt_entry(const uintptr_t virt_addr);
+uint64_t vmm_virt_to_pt_entry(uintptr_t virt_addr);
 
 #endif //__ANOS_KERNEL_VM_MAPPER_H

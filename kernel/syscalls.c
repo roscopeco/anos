@@ -314,7 +314,8 @@ SYSCALL_HANDLER(map_virtual) {
         }
 
         // TODO allow flags to be controlled (to an extent) by caller...
-        if (!vmm_map_page(addr, new_page, PG_PRESENT | PG_WRITE | PG_USER)) {
+        if (!vmm_map_page(addr, new_page,
+                          PG_PRESENT | PG_READ | PG_WRITE | PG_USER)) {
             undo_partial_map(virtual_base, addr, new_page);
             return 0;
         }

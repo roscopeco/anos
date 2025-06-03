@@ -187,7 +187,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
                 // TODO what if this fails (to alloc table pages)?
                 //
                 vmm_map_page_in((uint64_t *)new_pml4_virt, ptr, shared_phys,
-                                PG_PRESENT | PG_READ | PG_USER |
+                                PG_PRESENT | PG_READ | PG_USER | PG_EXEC |
                                         PG_COPY_ON_WRITE);
 
                 // TODO pmm_free_shareable(page) needs implementing to check this and handle appropriately...
