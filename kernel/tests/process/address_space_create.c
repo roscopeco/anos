@@ -26,6 +26,10 @@ extern MemoryRegion *physical_region;
 
 uint32_t refcount_map_increment(uintptr_t addr) { return 1; }
 
+uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys, uint64_t flags) {
+    return ((phys & ~0xFFF) >> 2) | flags;
+}
+
 static void *test_setup(const MunitParameter params[], void *user_data) {
     // Reset complete_pml4 to a known state
     memset(&complete_pml4, 0, sizeof(PageTable));

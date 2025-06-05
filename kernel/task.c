@@ -151,10 +151,12 @@ Task *task_create_new(Process *owner, const uintptr_t sp,
         vdebug("\n");
     }
 
-    // push zero for initial SEPC of new task, the entrypoint will deal
-    // with that properly anwyay
+#ifdef ARCH_RISCV64
+    // Push zero at bottom of stack. On RISC-V, this becomes initial SEPC
+    // of new task (the entrypoint will deal with that properly anwyay)
     task->ssp -= 8;
     *((uint64_t *)task->ssp) = 0;
+#endif
 
     // push address of entrypoint func as first place this task will "return" to...
     task->ssp -= 8;

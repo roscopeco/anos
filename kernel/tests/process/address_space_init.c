@@ -17,6 +17,10 @@
 
 uint32_t refcount_map_increment(uintptr_t addr) { return 1; }
 
+uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys, uint64_t flags) {
+    return ((phys & ~0xFFF) >> 2) | flags;
+}
+
 #define TEST_PML4_ADDR (((uint64_t *)0x100000))
 #define TEST_PAGE_COUNT ((32768))
 static void *test_setup(const MunitParameter params[], void *user_data) {
