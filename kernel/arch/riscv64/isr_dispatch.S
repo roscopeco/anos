@@ -69,6 +69,8 @@
     csrr    t0, scause          # Load trap cause
     li      t1, 8               # U-mode ecall
     beq     t0, t1, handle_user_ecall_\idx
+    li      t1, 0x8000000000000005
+    beq     t0, t1, handle_timer_interrupt_\idx
     li      t1, 12              # Instruction page fault
     beq     t0, t1, handle_page_fault_exec_\idx
     li      t1, 13              # Load page fault
@@ -89,6 +91,16 @@ handle_user_ecall_\idx:
     csrw    sepc, a7
     call    handle_syscall_69
     j       handled_no_a0_\idx
+
+handle_timer_interrupt_\idx:
+    li      t0, 32
+    csrc    sip, t0
+    addi    sp, sp, -8
+    sd      ra, (sp)
+    call    handle_bsp_timer_interrupt
+    ld      ra, (sp)
+    addi    sp, sp, 8
+    j       handled_\idx
 
 handle_page_fault_exec_\idx:
     li      a0, 8           # a0 = code (eight for insn fetch, PG_EXEC is set)

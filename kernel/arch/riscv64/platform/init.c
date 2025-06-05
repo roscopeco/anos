@@ -17,6 +17,7 @@
 #endif
 
 #include "riscv64/kdrivers/cpu.h"
+#include "riscv64/kdrivers/sbi.h"
 
 // We set this at startup, and once the APs are started up,
 // they'll wait for this to go false before they start
@@ -46,6 +47,13 @@ bool platform_await_init_complete(void) {
 
 bool platform_task_init(void) { return true; }
 
+static inline void enable_timer_interrupts(void) {
+    uint64_t sie;
+    __asm__ volatile("csrr %0, sie" : "=r"(sie));
+    sie |= (1 << 5); // STIE
+    __asm__ volatile("csrw sie, %0" ::"r"(sie));
+}
+
 static bool init_this_cpu(uint64_t hart_id) {
     PerCPUState *cpu_state = fba_alloc_block();
 
@@ -66,6 +74,9 @@ static bool init_this_cpu(uint64_t hart_id) {
     cpu_set_tp((uint64_t)cpu_state);
 
     state_register_cpu(0, cpu_state);
+
+    sbi_set_timer(cpu_read_rdtime());
+    enable_timer_interrupts();
 
     return true;
 }

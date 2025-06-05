@@ -12,7 +12,7 @@
 # more direct compile-time option settings.
 #
 
-ARCH?=x86_64
+ARCH?=riscv64
 
 # We don't yet have a custom riscv toolchain, which means
 #
@@ -134,7 +134,7 @@ endif
 #
 #	UNIT_TESTS			Enables stubs and mocks used in unit tests (don't use unless building tests!)
 #
-CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS -DRISCV_LFG_INIT
+CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS -DRISCV_LFG_INIT -DDEBUG_TASK_SWITCH
 
 ifeq ($(ARCH),x86_64)
 QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 256M -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -d mmu,cpu_reset,guest_errors,unimp -monitor stdio
@@ -221,7 +221,8 @@ STAGE3_OBJS_RISCV64=$(STAGE3_ARCH_RISCV64_DIR)/entrypoints/limine_init.o		\
 					$(STAGE3_ARCH_RISCV64_DIR)/task_switch.o					\
 					$(STAGE3_ARCH_RISCV64_DIR)/task_user_entrypoint.o			\
 					$(STAGE3_ARCH_RISCV64_DIR)/task_kernel_entrypoint.o			\
-					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o
+					$(STAGE3_ARCH_RISCV64_DIR)/spinlock.o						\
+					$(STAGE3_ARCH_RISCV64_DIR)/kdrivers/sbi.o
 
 ifeq ($(ARCH),x86_64)
 STAGE3_ARCH_OBJS=$(STAGE3_OBJS_X86_64)
@@ -353,6 +354,7 @@ CLEAN_ARTIFACTS=$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 				$(STAGE3_ARCH_RISCV64_DIR)/capabilities/*.o						\
 				$(STAGE3_ARCH_RISCV64_DIR)/platform/*.o							\
 				$(STAGE3_ARCH_RISCV64_DIR)/process/*.o							\
+				$(STAGE3_ARCH_RISCV64_DIR)/kdrivers/*.o							\
 				$(STAGE3_ARCH_RISCV64_DIR)/*.o
 
 ifeq ($(CONSERVATIVE_BUILD),true)

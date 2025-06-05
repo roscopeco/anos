@@ -140,7 +140,11 @@ static inline uint64_t cpu_read_rdcycle(void) {
 
 static inline uint64_t cpu_read_rdtime(void) {
     uint64_t val;
+#ifdef USE_RDTIME
     __asm__ volatile("rdtime %0" : "=r"(val));
+#else
+    __asm__ volatile("csrr %0, time" : "=r"(val));
+#endif
     return val;
 }
 

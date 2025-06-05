@@ -8,6 +8,7 @@
 #include <stdnoreturn.h>
 
 #include <riscv64/kdrivers/cpu.h>
+#include <riscv64/kdrivers/sbi.h>
 
 void wait_for_interrupt(void) { __asm__ volatile("wfi"); }
 
@@ -50,5 +51,11 @@ void restore_saved_interrupts(uint64_t sstatus) {
 }
 
 void kernel_timer_eoe(void) {
-    // TODO clear interrupts on RISC-V!
+    // TODO calibrate / calculate this interval!
+    sbi_set_timer(cpu_read_rdtime() + 100000);
+    __asm__ volatile("li t0, 32\n\t"
+                     "csrc sip, t0\n\t"
+                     :
+                     :
+                     : "t0");
 }

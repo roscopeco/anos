@@ -92,7 +92,9 @@ task_do_switch:
 .skip_fp_save:
     sd   ra, 0*54(sp)
 
-    # Store current stack pointer
+    # Store current stack pointers
+    csrr t0, sscratch
+    sd t0, TASK_RSP0(t2)
     sd sp, TASK_SSP(t2)
 
 .restore_next:
@@ -100,6 +102,8 @@ task_do_switch:
     sd a0, CPU_TASK_CURRENT(tp)
 
     # Restore next task's stack
+    ld t0, TASK_RSP0(a0)
+    csrw sscratch, t0
     ld sp, TASK_SSP(a0)
 
     # Switch to next task's pagetables

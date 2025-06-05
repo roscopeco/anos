@@ -95,6 +95,7 @@ uint64_t ipc_channel_create(void) {
 
     const uint64_t cookie = capability_cookie_generate();
 
+    channel->cookie = cookie;
     channel->queue = NULL;
     channel->receivers = NULL;
 
@@ -204,7 +205,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
 
             if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
                 vmm_map_page((uintptr_t)buffer, (uint64_t)msg->arg_buf_phys,
-                             PG_USER | PG_WRITE | PG_PRESENT);
+                             PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
             } else {
                 msg->arg_buf_phys = 0;
             }
@@ -249,7 +250,6 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
         channel = hash_table_lookup(channel_hash, cookie);
 
         if (!channel) {
-            spinlock_unlock(channel->queue_lock);
             sched_unlock_this_cpu(lock_flags);
             return 0;
         }
@@ -273,7 +273,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
 
             if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
                 vmm_map_page((uintptr_t)buffer, msg->arg_buf_phys,
-                             PG_USER | PG_WRITE | PG_PRESENT);
+                             PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
             } else {
                 msg->arg_buf_phys = 0;
             }
@@ -345,7 +345,6 @@ uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, size_t size,
             list_add((ListNode *)channel->queue, (ListNode *)message);
         } else {
             channel->queue = message;
-            message->this.next = NULL;
         }
 
         spinlock_unlock(channel->queue_lock);

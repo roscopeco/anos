@@ -20,21 +20,27 @@
 
 #ifdef DEBUG_TASK_SWITCH
 #include "debugprint.h"
+#include "kprintf.h"
 #include "printhex.h"
 #ifdef VERY_NOISY_TASK_SWITCH
 #define vdebug(...) debugstr(__VA_ARGS__)
 #define vdbgx64(arg) printhex64(arg, debugchar)
+#define vdebugf(...) kprintf(__VA_ARGS__)
 #else
+#define vdebugf(...)
 #define vdebug(...)
 #define vdbgx64(...)
 #endif
 #define tdebug(...) debugstr(__VA_ARGS__)
 #define tdbgx64(arg) printhex64(arg, debugchar)
+#define tdebugf(...) kprintf(__VA_ARGS__)
 #else
+#define tdebugf(...)
 #define tdebug(...)
 #define tdbgx64(...)
 #define vdebug(...)
 #define vdbgx64(...)
+#define vdebugf(...)
 #endif
 
 #ifndef NULL
@@ -256,8 +262,8 @@ noreturn void task_current_exitpoint(void) {
     Task *task = task_current();
     Process *owner = task->owner;
 
-    tdebug("Thread %ld (process %ld) is exiting..\n", task->sched->tid,
-           owner->pid);
+    tdebugf("Thread %ld (process %ld) is exiting..\n", task->sched->tid,
+            owner->pid);
 
     task_remove_from_process(task);
 
@@ -271,8 +277,8 @@ noreturn void task_current_exitpoint(void) {
     // The scheduler **must** remain locked throughout obviously...
 
     if (owner->tasks == NULL) {
-        tdebug("Last thread for process %ld exited, killing process\n",
-               owner->pid);
+        tdebugf("Last thread for process %ld exited, killing process\n",
+                owner->pid);
         process_destroy(owner);
     }
 

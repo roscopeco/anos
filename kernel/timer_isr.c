@@ -27,7 +27,7 @@ uint64_t get_kernel_upticks(void) { return lapic_timer_upticks; }
 void handle_ap_timer_interrupt(void) {
     kernel_timer_eoe();
 
-    uint64_t lock_flags = sched_lock_this_cpu();
+    const uint64_t lock_flags = sched_lock_this_cpu();
     check_sleepers();
     sched_schedule();
     sched_unlock_this_cpu(lock_flags);
@@ -56,7 +56,7 @@ void handle_bsp_timer_interrupt(void) {
 
     kernel_timer_eoe();
 
-    uint64_t lock_flags = sched_lock_this_cpu();
+    const uint64_t lock_flags = sched_lock_this_cpu();
     check_sleepers();
     sched_schedule();
     sched_unlock_this_cpu(lock_flags);

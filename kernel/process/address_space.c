@@ -186,6 +186,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr,
             if (shared_phys) {
                 // TODO what if this fails (to alloc table pages)?
                 //
+                // TODO don't always map these PG_EXEC, pass flags instead!
                 vmm_map_page_in((uint64_t *)new_pml4_virt, ptr, shared_phys,
                                 PG_PRESENT | PG_READ | PG_USER | PG_EXEC |
                                         PG_COPY_ON_WRITE);
