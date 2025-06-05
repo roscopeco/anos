@@ -12,9 +12,7 @@
 #include "smp/state.h"
 #include "std/string.h"
 
-#ifndef RISCV_LFG_INIT
 #include "panic.h"
-#endif
 
 #include "riscv64/kdrivers/cpu.h"
 #include "riscv64/kdrivers/sbi.h"
@@ -28,22 +26,7 @@
 // theirs...
 volatile bool ap_startup_wait;
 
-bool platform_await_init_complete(void) {
-#ifndef RISCV_LFG_INIT
-    panic("This is as far as we go right now on RISC-V...\n\n             "
-          "Quite a lot of the platform is already up, including memory\n       "
-          "      "
-          "management, tasks/processes & sleep, channels, IPWI and \n          "
-          "   "
-          "supporting infrastructure, but there's still plenty more that\n     "
-          "        "
-          "needs to be done!\n\n             "
-          "Visit https://github.com/roscopeco/anos to help with the port! "
-          ":)\n\n");
-#else
-    return true;
-#endif
-}
+bool platform_await_init_complete(void) { return true; }
 
 bool platform_task_init(void) { return true; }
 

@@ -24,7 +24,7 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
 #	TEST_LIBC_MALLOC		Do a bit of malloc'ing to check that's all working
 #
-CDEFS=-DDEBUG_SYS_IPC
+CDEFS=
 
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(THIS_DIR)/..)
