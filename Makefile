@@ -12,13 +12,8 @@
 # more direct compile-time option settings.
 #
 
-ARCH?=riscv64
+ARCH?=x86_64
 
-# We don't yet have a custom riscv toolchain, which means
-#
-#  * We need to hack the triple here to use the baseline one
-#  * We can't build system or any usermode stuff for riscv...
-#
 TARGET_TRIPLE?=$(ARCH)-elf-anos
 
 ifeq ($(ARCH),x86_64)

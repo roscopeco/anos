@@ -28,8 +28,8 @@ task_do_switch:
     # Note: a2-a7 are caller-saved, so we don't need to save them
     #       (a0-a1 are too, but we use them for passing args to the bootstraps so we do need them).
     #
-    addi sp, sp, -440    # Allocate space for registers
-    sd   a0, 0*8(sp)
+    addi sp, sp, -448    # Allocate space for registers - (MUST EQUAL TASK_SAVED_REGISTER_BYTES + 16)
+    sd   a0, 0*8(sp)     # where the +16 is for RA and SEPC that we don't count as saved registers from the task POV.
     sd   a1, 1*8(sp)
     sd   gp, 2*8(sp)
     sd   t0, 3*8(sp)
@@ -90,12 +90,17 @@ task_do_switch:
     fsd  f30, 52*8(sp)
     fsd  f31, 53*8(sp)
 .skip_fp_save:
-    sd   ra, 0*54(sp)
+    sd   ra, 54*8(sp)   # NOTE: RA is **expected** to go exactly here on the stack,
+                        #     : and everything is setup in task_create_new for that.
+                        #     : it is **not** counted in the SAVED_REGISTER_COUNT
 
     # Store current stack pointers
     csrr t0, sscratch
     sd t0, TASK_RSP0(t2)
     sd sp, TASK_SSP(t2)
+
+    csrr t0, sepc
+    sd   t0, 55*8(sp)
 
 .restore_next:
     # Load next task
@@ -110,6 +115,9 @@ task_do_switch:
     ld t0, TASK_PML4(a0)
     csrw satp, t0
     sfence.vma
+
+    ld  t0, 55*8(sp)
+    csrw sepc, t0
 
     # Restore floating point state if enabled
     csrr t0, sstatus
@@ -174,7 +182,7 @@ task_do_switch:
     ld s10, 20*8(sp)
     ld s11, 21*8(sp)
     ld ra, 54*8(sp)
-    addi sp, sp, 440     # Restore stack pointer
+    addi sp, sp, 448     # Restore stack pointer - (MUST EQUAL TASK_SAVED_REGISTER_BYTES + 16)
 
     # Return to the next task
     ret 

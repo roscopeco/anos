@@ -104,6 +104,10 @@ static_assert_sizeof(SyscallCapability, ==, 64);
 #define VALID_SYSCALL_ID(id)                                                   \
     (((id > SYSCALL_ID_INVALID) && (id < SYSCALL_ID_COUNT)))
 
+constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_READ = 0x1;
+constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_WRITE = 0x2;
+constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_EXEC = 0x4;
+
 // Set things up for fast syscalls (via `sysenter`)
 void syscall_init(void);
 

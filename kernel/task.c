@@ -151,18 +151,25 @@ Task *task_create_new(Process *owner, const uintptr_t sp,
         vdebug("\n");
     }
 
+    // push zero for initial SEPC of new task, the entrypoint will deal
+    // with that properly anwyay
+    task->ssp -= 8;
+    *((uint64_t *)task->ssp) = 0;
+
     // push address of entrypoint func as first place this task will "return" to...
     task->ssp -= 8;
     *((uint64_t *)task->ssp) = bootstrap;
 
-    // space for initial registers except rdi, rsi, values don't care...
+    // space for initial registers except first two arg regs, values don't care...
     task->ssp -= 8 * (TASK_SAVED_REGISTER_COUNT - 2);
 
-    // push address of thread user stack, this will get popped into rsi...
+    // push address of thread user stack, this will get popped into second
+    // arg reg (rsi/a1)...
     task->ssp -= 8;
     *((uint64_t *)task->ssp) = sp;
 
-    // push address of thread func, this will get popped into rdi...
+    // push address of thread func, this will get popped into first arg
+    // reg (rdi/a0)...
     task->ssp -= 8;
     *((uint64_t *)task->ssp) = func;
 

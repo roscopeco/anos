@@ -193,9 +193,6 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     PerCPUState *cpu_state = state_get_for_this_cpu();
     spinlock_init(&cpu_state->sched_lock_this_cpu);
 
-    // Set up our state...
-    PerCPUSchedState *state = init_this_cpu_sched_state();
-
     // Create a process & task to represent the init thread (which System will inherit)
     Process *new_process = process_create(vmm_get_pagetable_root_phys());
 
