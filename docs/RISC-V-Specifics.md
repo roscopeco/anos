@@ -44,13 +44,9 @@ We also need to ensure that the places where usermode is entered or exited
 all account for the fact they need to put a kernel stack in `sscratch`.
 
 > ![WARNING]
-> Currently, this is not handled properly - we _do_ pass in a new kernel
-> stack-per-thread to the `task_create_XXXX` functions, but those are not
-> hooked up on RISC-V yet - we **do not** have proper stack-per-thread
-> yet on the platform like we do on x86_64.
-> 
-> This also means that some of the fields in the `PerCPUState` and `Task`
-> structs aren't doing the things they're supposed to do.
+> The way thread stacks are handled on RISC-V means that some of the fields 
+> in the `PerCPUState` and `Task` structs aren't doing the same things they
+> do on x86_64 - and may be counterintuitively named.
 > 
 > Basically, expect some weirdness in this area on RISC-V while this is
 > all being settled.
