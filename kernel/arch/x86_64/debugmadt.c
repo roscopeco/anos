@@ -9,8 +9,8 @@
 
 #include "debugprint.h"
 #include "machine.h"
+#include "platform/acpi/acpitables.h"
 #include "printhex.h"
-#include "x86_64/acpitables.h"
 
 #ifndef NULL
 #define NULL (((void *)0))

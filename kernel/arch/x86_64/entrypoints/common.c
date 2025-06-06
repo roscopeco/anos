@@ -6,9 +6,9 @@
  */
 
 #include "debugprint.h"
-#include "interrupts.h"
 #include "machine.h"
 #include "x86_64/gdt.h"
+#include "x86_64/interrupts.h"
 #include "x86_64/kdrivers/cpu.h"
 
 // Replace the bootstrap 32-bit segments with 64-bit user segments.

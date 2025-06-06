@@ -43,7 +43,7 @@ SYSTEM_OBJS=main.o																\
 			path.o																\
 			loader.o															\
 			elf.o																\
-			trampolines.o														\
+			arch/$(ARCH)/trampolines.o											\
 			process.o															\
 			system_ramfs_linkable.o
 
@@ -62,11 +62,25 @@ build: $(ALL_TARGETS)
 clean:
 	rm -rf $(CLEAN_ARTIFACTS)
 
+ifeq ($(ARCH),x86_64)
 %.o: %.asm
 	$(ASM) 																		\
 	-DVERSTR=$(SHORT_HASH) 														\
+	$(CDEFS)																	\
 	$(ASFLAGS) 																	\
 	-o $@ $<
+else
+ifeq ($(ARCH),riscv64)
+%.o: %.S
+	$(ASM) 																		\
+	-x assembler-with-cpp														\
+	-DVERSTR=$(SHORT_HASH) 														\
+	$(STAGE3_INC)																\
+	$(CFLAGS)																	\
+	$(CDEFS)																	\
+	-c -o $@ $<
+endif
+endif
 
 %.o: %.c
 	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -Iinclude $(CFLAGS) -c -o $@ $<
@@ -75,9 +89,6 @@ $(SYSTEM).elf: $(SYSTEM_OBJS)
 	$(XLD) -T $(SYSTEM).ld -o $@ $^
 	chmod a-x $@
 
-$(SYSTEM).dis: $(SYSTEM).elf
-	$(XOBJDUMP) -D -mi386 -Maddr32,data32 $< > $@
-
 $(SYSTEM_BIN): $(SYSTEM).elf $(SYSTEM).dis
 	$(XOBJCOPY) --strip-debug -O binary $< $@
 	chmod a-x $@
@@ -85,6 +96,20 @@ $(SYSTEM_BIN): $(SYSTEM).elf $(SYSTEM).dis
 $(ROOT_DIR)/servers/system.ramfs: $(ROOT_DIR)/servers
 	$(MAKE) -C $< system_ramfs
 
+ifeq ($(ARCH),x86_64)
+$(SYSTEM).dis: $(SYSTEM).elf
+	$(XOBJDUMP) -D -mi386 -Maddr32,data32 $< > $@
+
 system_ramfs_linkable.o: $(ROOT_DIR)/servers/system.ramfs
 	$(XOBJCOPY) -I binary --rename-section .data=.system_ramfs_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+else
+ifeq ($(ARCH),riscv64)
+$(SYSTEM).dis: $(SYSTEM).elf
+	$(XOBJDUMP) -D -mriscv -Maddr32,data32 $< > $@
 
+system_ramfs_linkable.o: $(ROOT_DIR)/servers/system.ramfs
+	$(XOBJCOPY) -I binary --rename-section .data=.system_ramfs_bin -O elf64-littleriscv --binary-architecture riscv:rv64 $< $@
+else
+$(error Need an architecture-specific setup for objcopy:ramfs_linkable in system/Makefile)
+endif
+endif

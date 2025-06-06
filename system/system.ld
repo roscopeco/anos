@@ -6,7 +6,6 @@
  * See LICENSE.md (spoiler: GPLv2)
  */
 
-OUTPUT_FORMAT("elf64-x86-64")
 ENTRY(_start)
 
 MEMORY {

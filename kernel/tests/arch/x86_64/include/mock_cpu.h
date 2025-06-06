@@ -14,8 +14,8 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "interrupts.h"
 #include "x86_64/gdt.h"
+#include "x86_64/interrupts.h"
 
 #define MSR_FSBase ((0xC0000100))
 #define MSR_GSBase ((0xC0000101))

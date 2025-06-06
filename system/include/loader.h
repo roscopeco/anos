@@ -23,7 +23,7 @@
 #define INIT_STACK_CAP_SIZE_LONGS ((2))
 #define INIT_STACK_STATIC_VALUE_COUNT ((4))
 
-#define STACK_TOP ((0x80000000))
+#define STACK_TOP ((0x44000000))
 #define MIN_STACK_SIZE ((0x40000)) // 256KiB minimum stack
 #define MAX_ARG_LENGTH ((256))
 #define MAX_ARG_COUNT ((512))
@@ -36,6 +36,6 @@
 #define MAX_STACK_VALUE_COUNT                                                  \
     ((INIT_STACK_ARG_PAGES_COUNT - 1) * VM_PAGE_SIZE / (sizeof(uintptr_t)))
 
-noreturn void initial_server_loader(void *initial_sp);
+noreturn void initial_server_loader(void);
 
 #endif

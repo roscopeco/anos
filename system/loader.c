@@ -60,10 +60,19 @@ static noreturn void sleep_loop(void) {
 // TODO we shouldn't have inline x86_64 in here!!!
 static noreturn void restore_stack_and_jump(void *stack_ptr,
                                             void (*target)(void)) {
+#ifdef __x86_64__
     __asm__ volatile("mov %0, %%rsp\n"
                      "jmp *%1\n"
                      :
                      : "r"(stack_ptr), "r"(target));
+#elifdef __riscv
+    __asm__ volatile("mv sp, %0\n"
+                     "jr %1\n"
+                     :
+                     : "r"(stack_ptr), "r"(target));
+#else
+#error Need an arch-specific restore_stack_and_jump in system:loader.c
+#endif
     __builtin_unreachable();
 }
 
@@ -86,7 +95,10 @@ static bool on_program_header(const int num, const Elf64ProgramHeader *phdr,
            num, phdr->p_offset, phdr->p_vaddr, phdr->p_filesz, phdr->p_memsz);
 
     // TODO support flags in syscall for RO / RW / NX etc...
-    char *buffer = anos_map_virtual(phdr->p_memsz, phdr->p_vaddr);
+    char *buffer = anos_map_virtual(phdr->p_memsz, phdr->p_vaddr,
+                                    ANOS_MAP_VIRTUAL_FLAG_READ |
+                                            ANOS_MAP_VIRTUAL_FLAG_WRITE |
+                                            ANOS_MAP_VIRTUAL_FLAG_EXEC);
 
     if (!buffer) {
         return false;
@@ -144,7 +156,9 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
         sleep_loop();
     }
 
-    char *msg_buffer = anos_map_virtual(0x1000, 0x1fff000);
+    char *msg_buffer = anos_map_virtual(0x1000, 0x1fff000,
+                                        ANOS_MAP_VIRTUAL_FLAG_READ |
+                                                ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
     strncpy(msg_buffer, filename, 1024);
 

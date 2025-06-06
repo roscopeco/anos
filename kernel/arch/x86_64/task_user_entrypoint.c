@@ -65,7 +65,7 @@ noreturn void user_thread_entrypoint(uintptr_t thread_entrypoint,
     sched_unlock_this_cpu(INT_FLAG_ENABLED);
 
     tdebug("Starting new user thread with func @ ");
-    tdbgx8(thread_entrypoint);
+    tdbgx64(thread_entrypoint);
     tdebug("\n");
 
     // clang-format off

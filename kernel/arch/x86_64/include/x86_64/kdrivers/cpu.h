@@ -14,9 +14,9 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
-#include "interrupts.h"
 #include "x86_64/cpuid.h"
 #include "x86_64/gdt.h"
+#include "x86_64/interrupts.h"
 
 #define MSR_FSBase ((0xC0000100))
 #define MSR_GSBase ((0xC0000101))
@@ -71,7 +71,13 @@ void cpu_invalidate_tlb_all(void);
 
 void cpu_swapgs(void);
 
+static inline uintptr_t cpu_make_pagetable_register_value(uintptr_t pt_base) {
+    return pt_base;
+}
+
 uintptr_t cpu_read_cr3(void);
+
+#define cpu_get_pagetable_root_phys (cpu_read_cr3())
 
 bool cpu_rdseed64(uint64_t *value);
 

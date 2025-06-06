@@ -7,7 +7,7 @@
 
 #include <stdbool.h>
 
-#include "x86_64/acpitables.h"
+#include "platform/acpi/acpitables.h"
 #include "x86_64/kdrivers/hpet.h"
 
 static ACPI_RSDT *hpet_init_last_rsdt;

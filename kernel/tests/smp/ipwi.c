@@ -35,7 +35,7 @@ void arch_ipwi_notify_all_except_current(void) {
     // Called from notify test
 }
 
-void cpu_invalidate_tlb_addr(const uintptr_t addr) {
+void vmm_invalidate_page(const uintptr_t addr) {
     if (invalidate_page_called < 16) {
         invalidate_page_addrs[invalidate_page_called++] = addr;
     }

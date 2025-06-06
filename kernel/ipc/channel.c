@@ -1,4 +1,3 @@
-
 /*
  * stage3 - IPC message channel
  * anos - An Operating System
@@ -11,7 +10,7 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
-#include "fba/alloc.h"
+#include "capabilities/cookies.h"
 #include "once.h"
 #include "panic.h"
 #include "sched.h"
@@ -21,7 +20,6 @@
 #include "structs/list.h"
 #include "task.h"
 #include "vmm/vmmapper.h"
-#include "x86_64/kdrivers/cpu.h"
 
 #include "ipc/channel_internal.h"
 
@@ -35,7 +33,6 @@
 
 #define INITIAL_CHANNEL_HASH_PAGE_COUNT ((4))
 #define INITIAL_IN_FLIGHT_MESSAGE_HASH_PAGE_COUNT ((1))
-#define NEXT_COOKIE_ADD_TSC_MASK ((0xffff))
 #define ARG_BUF_MAX ((0x1000))
 
 #ifdef UNIT_TESTS
@@ -45,19 +42,14 @@
 #define STATIC_EXCEPT_TESTS static
 #endif
 
-static _Atomic uint64_t next_channel_cookie;
-static _Atomic uint64_t next_message_cookie;
-
 STATIC_EXCEPT_TESTS HashTable *channel_hash;
 STATIC_EXCEPT_TESTS HashTable *in_flight_message_hash;
 
 void ipc_channel_init(void) {
     kernel_guard_once();
 
-    next_channel_cookie = cpu_read_tsc();
     channel_hash = hash_table_create(INITIAL_CHANNEL_HASH_PAGE_COUNT);
 
-    next_message_cookie = cpu_read_tsc();
     in_flight_message_hash =
             hash_table_create(INITIAL_IN_FLIGHT_MESSAGE_HASH_PAGE_COUNT);
 
@@ -101,12 +93,9 @@ uint64_t ipc_channel_create(void) {
     spinlock_init(channel->receivers_lock);
     spinlock_init(channel->queue_lock);
 
-    uint64_t cookie =
-            next_channel_cookie++; // just do ++ in case another thread cuts in...
-    next_channel_cookie +=
-            (cpu_read_tsc() &
-             NEXT_COOKIE_ADD_TSC_MASK); // ... then adjust by "random" value
+    const uint64_t cookie = capability_cookie_generate();
 
+    channel->cookie = cookie;
     channel->queue = NULL;
     channel->receivers = NULL;
 
@@ -216,7 +205,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
 
             if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
                 vmm_map_page((uintptr_t)buffer, (uint64_t)msg->arg_buf_phys,
-                             PG_USER | PG_WRITE | PG_PRESENT);
+                             PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
             } else {
                 msg->arg_buf_phys = 0;
             }
@@ -261,7 +250,6 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
         channel = hash_table_lookup(channel_hash, cookie);
 
         if (!channel) {
-            spinlock_unlock(channel->queue_lock);
             sched_unlock_this_cpu(lock_flags);
             return 0;
         }
@@ -285,7 +273,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
 
             if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
                 vmm_map_page((uintptr_t)buffer, msg->arg_buf_phys,
-                             PG_USER | PG_WRITE | PG_PRESENT);
+                             PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
             } else {
                 msg->arg_buf_phys = 0;
             }
@@ -311,11 +299,7 @@ static bool init_message(IpcMessage *message, uint64_t tag, size_t size,
         size = VM_PAGE_SIZE;
     }
 
-    uint64_t cookie =
-            next_message_cookie++; // do ++ in case another thread cuts in...
-    next_message_cookie +=
-            (cpu_read_tsc() &
-             NEXT_COOKIE_ADD_TSC_MASK); // ... then adjust by "random" value
+    uint64_t cookie = capability_cookie_generate();
 
     message->this.next = 0;
     message->tag = tag;
@@ -361,7 +345,6 @@ uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, size_t size,
             list_add((ListNode *)channel->queue, (ListNode *)message);
         } else {
             channel->queue = message;
-            message->this.next = NULL;
         }
 
         spinlock_unlock(channel->queue_lock);

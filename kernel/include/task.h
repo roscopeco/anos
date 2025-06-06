@@ -27,7 +27,7 @@
 #if defined ARCH_X86_64
 #define TASK_SAVED_REGISTER_COUNT ((15))
 #elif defined ARCH_RISCV64
-#define TASK_SAVED_REGISTER_COUNT ((31))
+#define TASK_SAVED_REGISTER_COUNT ((54))
 #elif defined UNIT_TESTS
 #define TASK_SAVED_REGISTER_COUNT ((15))
 #else

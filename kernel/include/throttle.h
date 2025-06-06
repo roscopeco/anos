@@ -23,6 +23,8 @@
 
 #ifdef ARCH_X86_64
 #include "x86_64/throttle.h"
+#elifdef ARCH_RISCV64
+#include "riscv64/throttle.h"
 #else
 #error Need an architecture-specific throttle implementation
 #endif

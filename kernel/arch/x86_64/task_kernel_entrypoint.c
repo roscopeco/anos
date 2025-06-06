@@ -61,15 +61,13 @@
 
 #define INT_FLAG_ENABLED ((0x200))
 
-uint64_t get_cpu_flags(void);
-
 noreturn void kernel_thread_entrypoint(uintptr_t thread_entrypoint,
                                        uintptr_t thread_stack) {
     // Scheduler will **always** be locked when we get here!
     sched_unlock_this_cpu(INT_FLAG_ENABLED);
 
     tdebug("Starting new kernel thread with func @ ");
-    tdbgx8(thread_entrypoint);
+    tdbgx64(thread_entrypoint);
     tdebug("\n");
 
     // Start kernel thread at entrypoint

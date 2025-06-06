@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "cpu.h"
 #include "process.h"
 #include "process/memory.h"
 #include "slab/alloc.h"
@@ -63,6 +64,8 @@ Process *process_create(uintptr_t pml4) {
         return nullptr;
     }
 
+    spinlock_init(lock);
+
     ProcessMemoryInfo *meminfo = slab_alloc_block();
 
     if (!meminfo) {
@@ -79,7 +82,8 @@ Process *process_create(uintptr_t pml4) {
     }
 
     process->pid = next_pid++;
-    process->pml4 = pml4;
+    process->pml4 = cpu_make_pagetable_register_value(pml4);
+    process->cap_failures = 0;
 
     meminfo->pages = nullptr;
     meminfo->pages_lock = lock;

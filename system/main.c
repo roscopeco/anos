@@ -180,7 +180,7 @@ static noreturn void ramfs_driver_thread(void) {
 
         if (message_cookie) {
 #ifdef DEBUG_SYS_IPC
-            printf("SYSTEM::VFS received [0x%016lx] 0x%016lx (%ld "
+            printf("SYSTEM::<ramfs> received [0x%016lx] 0x%016lx (%ld "
                    "bytes): %s\n",
                    message_cookie, tag, message_size, message_buffer);
 #endif
@@ -196,7 +196,7 @@ static noreturn void ramfs_driver_thread(void) {
             default:
 #ifdef DEBUG_SYS_IPC
                 printf("WARN: Unhandled message [tag 0x%016lx] to "
-                       "SYSTEM::VFS\n",
+                       "SYSTEM::<ramfs>\n",
                        tag);
 #endif
                 anos_reply_message(message_cookie, 0);

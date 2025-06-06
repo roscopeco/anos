@@ -16,6 +16,10 @@ Anos is a modern, opinionated, non-POSIX operating system
 (just a hobby, won't be big and professional like GNU-Linux®) 
 for x86_64 PCs and RISC-V machines.
 
+Anos currently comprises the `STAGE3` microkernel, `SYSTEM` 
+user-mode supervisor, and a base set of servers implementing
+the base of the operating system.
+
 It is free software licensed under the GPLv2, with similar
 linkage exceptions as other major free operating systems.
 
@@ -40,11 +44,10 @@ far are, briefly:
 
 * Non-zealous microkernel providing _only_:
   * **Bare-minimum drivers for hardware used in the kernel itself**
-    * **CPU**
-    * **HPET**
-    * **LAPIC**
-    * **Legacy serial (debug/test builds only)**
-  * **Physical / virtual memory management**
+    * **CPU** (both **x86_64** and **RISC-V**)
+    * Basic timers (e.g. **HPET**)
+    * Interrupts (**LAPIC**, IOAPIC, CLINT etc)
+  * **Physical / virtual memory management** (48-bit on both architectures)
   * **Thread / Process management & address space primitives**
   * **Scheduling (and directly-related concurrency primitives)**
   * **IPC** (_just a single primitive mechanism, still WIP_)
@@ -87,12 +90,18 @@ Things are developing quite nicely, if I do say so myself.
 We have enough support for everything (page fault handling,
 IDT, virtual memory management, etc) to be able to get to a 
 multitasking user mode and then back via a simple syscall interface
-(accessible via both `int` and `syscall` interfaces).
+(accessible via both `int` and `syscall` interfaces on x86_64,
+and `ecall` on RISC-V). 
 
 Scheduling is currently handled by a simple prioritised round-robin 
 scheduler with four priority classes and 255 priority levels per
 class. The design is currently simple and rather suboptimal, and 
 there are significant opportunities for improvement in this area.
+
+> [!NOTE]
+> SMP support is currently x86_64 only. On RISC-V, only the 
+> bootstrap hart is spun up and used at the moment. SMP on that
+> architecture is WIP currently.
 
 SMP is supported, up to a maximum of 16 symmetric cores (one BSP
 and 15 APs) - although anything over 8 cores will be unstable 
@@ -107,31 +116,40 @@ in the final design.
 > Realtime scheduling is, like realtime behaviour in general, a non-goal 
 > of this project.
 
-There's a (_very much WIP_) custom toolchain, based on binutils,
-GCC (15) and with Newlib providing libc (with Anos-specifics handled
-by a custom `libgloss` implementation). 
+There's a (_very much WIP_) custom toolchain supporting both x86_64 and
+RISC-V. The toolchain is based on binutils, GCC (`16-experimental`) and 
+Newlib for libc suooirt (with Anos-specifics handled by a custom 
+`libgloss` implementation). 
 
 You can find the toolchain, along with build instructions,
 [here](https://github.com/roscopeco/anos-toolchain).
 
-> [!NOTE]
-> The toolchain is currently x86_64 only. There will be a RISC-V
-> port in the fullness of time, but currently the kernel port for
-> that architecture isn't advanced enough to make it anywhere near
-> user mode, so it's not needed yet - a `riscv64-elf-` toolchain
-> is good enough for building on that architecture.
+The toolchain is **required** to build Anos - all code is
+built with it, the kernel in `freestanding` mode and `SYSTEM`
+and all user-mode code in `hosted`.
+
+As far as possible, there is feature parity between the two
+architectures - when something is implemented for one, it is
+not merged to `main` until it is implemented for both. Exceptions
+to this exist (for example, where a given feature only makes
+sense for one architecture, or where implementing a feature
+is a heavy-enough lift that it makes sense to split them).
 
 ### Building
 
+Everything is built with `make`. The
+[anos toolchain](https://github.com/roscopeco/anos-toolchain)
+is **required**. Ensure you download, build and install the
+toolchain (follow the instructions in the README over there
+to build for your chosen target architecture).
+
+Once built and installed, ensure it's available somewhere in
+your path.
+
 #### x86_64
 
-Everything is built with `make`. The 
-[anos toolchain](https://github.com/roscopeco/anos-toolchain) 
-is **required**. Ensure you download, build and install the 
-toolchain (follow the instructions in the README over there)
-and that it's available somewhere in your path.
-
-All assembly code is built with NASM. 2.16 or higher is recommended.
+All x86_64 assembly code is built with NASM. 2.16 or higher 
+is recommended.
 
 For running and debugging, you'll want `qemu-system-x86_64`. 
 Bochs is also supported if you prefer (there's a minimal `bochsrc`
@@ -164,7 +182,7 @@ This will do the following:
 * Build the `SYSTEM` user-mode supervisor and test servers
 * Link the kernel and initial RAMFS into a single ELF64 
 * Create a disassembly file (`.dis`)
-* Build a UEFI-bootable FAT floppy with the OS
+* Build a UEFI-bootable FAT image for USB flash drive with the OS
 
 You can also choose to just run `make test` if you only want to
 run the tests, or `make build` if you just want the image. If 
@@ -178,32 +196,23 @@ the `gcov/kernel` directory as HTML.
 
 #### RISC-V
 
-> [!WARNING]
-> RISC-V support is _very_ much in its infancy right now - there's
-> enough to get through early boot and start the PMM and VMM, 
-> including setting up a direct map but that's it.
-> 
-> I'm targeting the DeepComputing Framework mainboard currently, 
-> but at time of writing the RISC-V port has only run in emulators 
-> and has some weird requirements that need to be overcome before 
-> real hardware is a thing. It has basically zero features beyond
-> booting and printing. It doesn't even get nearly far enough to 
-> start additional harts.
->
-> Unless you're hacking on it, stick with x86_64 for now.
+No additional assembler is required for RISC-V - everything
+is built with the GCC toolchain.
 
-Currently, we have no custom toolchain, but one isn't needed
-since the RISC-V port is far away from booting to SYSTEM 
-right now.
-
-You'll want to have the `riscv64-elf-` binutils and GCC toolchains
-installed. Then run:
+To build, pass the `ARCH=riscv64` option to `make`, e.g:
 
 ```shell
-ARCH=riscv64 make clean qemu-uefi
+ARCH=riscv64 make clean all
 ```
 
-You'll obviously also need `qemu-system-riscv64` installed.
+The same targets as for x86_64 are supported, including 
+the qemu targets and debugging targets.
+
+The `test` targets do not currently work cross-platform,
+and tests on RISC-V are not fully supported yet.
+
+To run the OS, you'll need `qemu-system-riscv64` installed
+and available somewhere in your path.
 
 ### Running
 
@@ -214,8 +223,9 @@ YMMV may vary on other emulators (and if you hit issues with
 them, we _may_ accept PRs but _will not_ accept bug reports 🙂).
 
 You must use a qemu that supports UEFI. Everything you need (except
-qemu-system-x86_64 itself) should be in the repo. Assuming qemu is
-installed, you should just need to do:
+`qemu-system-[x86_64|riscv64]` itself) should be in the repo. 
+
+Assuming qemu is installed, you should just need to do:
 
 To run in qemu:
 
@@ -223,10 +233,28 @@ To run in qemu:
 make qemu-uefi
 ```
 
+or 
+
+```shell
+ARCH=riscv64 make qemu-uefi
+```
+
 #### On real hardware
 
-If you want to run this on real hardware, you'll need something
-that can burn bootable USB sticks.
+> [!WARNING]
+> The RISC-V version is not yet tested on real hardware, and I
+> suspect there'll be work needed to get it running there.
+> 
+> I am targeting the DeepComputing RISC-V mainboard for Framework,
+> so that will be hardware that gets the most attention once
+> this _is_ running on hardware - but until it's tested 
+> I make no guarantees.
+> 
+> If you get it running on a hardware platform before I do, 
+> please let me know as it'd be great to integrate your work!
+
+For x86_64, if you want to run this on real hardware, you'll
+need something that can burn bootable USB sticks.
 
 [balenaEtcher](https://etcher.balena.io) does the job nicely, and
 [UNetbootin](https://unetbootin.github.io) will work (but is not
@@ -250,25 +278,35 @@ mean it'll work on your machine necessarily.
 > To achieve this, pass `OPTIMIZE=0` at the beginning of your `make`
 > command, e.g. `OPTIMIZE=0 make clean debug-qemu-uefi`.
 
-The recommended way to debug is with qemu's built-in GDB remote stub.
+Debugging is supported equally well on both platforms, using qemu's
+built-in GDB remote debug stub.
+
 qemu _does_ have some built-in debugging commands, but full-fat GDB is
-pretty hard to beat, and it works well with qemu.
+pretty hard to beat, and it works well with qemum so this is the 
+recommended way to debug.
 
 For convenience, a `.gdbinit` file is provided that will automate
 loading the symbols and connecting to qemu. This can be easily
 kicked off with:
 
 ```shell
-make debug-qemu-uefi
+OPTIMIZE=0 make debug-qemu-uefi
+```
+
+or
+
+```shell
+OPTIMIZE=0 ARCH=riscv64 make debug-qemu-uefi
 ```
 
 This will build what needs to be built, start qemu with debugging,
 and launch GDB automatically.
 
-> **Note** You'll want NASM 2.16 or higher if you have a modern
-> GDB (13 and up) - I've observed issues with loading DWARF data
-> generated by NASM 2.15, which causes symbol clashes and sources 
-> not to be loaded.
+> [!NOTE]
+> For x86_64 debugging, you'll want NASM 2.16 or higher if you 
+> have a modern GDB (13 and up) - I've observed issues with 
+> loading DWARF data generated by NASM 2.15, which causes 
+> symbol clashes and sources not to be loaded.
 
 Because symbols and sources are loaded, you can set breakpoints 
 easily based on labels or line numbers, e.g:
@@ -277,6 +315,10 @@ easily based on labels or line numbers, e.g:
 b entrypoint.c:bsp_kernel_entrypoint
 b startup.c:35
 ```
+
+The toolchain is built with appropriate source relocations, so
+you should have no problem referring to libc code by source 
+file and line, assuming you built the toolchain on your machine.
 
 If you prefer to use debugging in an IDE or have some other alternative
 GDB frontend you like to use, you can just run:
@@ -398,19 +440,12 @@ The following things are not shown in this shot, but are still happening under t
 
 #### On RISC-V
 
-Currently, RISC-V support is untested on real hardware, but known not-working 
-except on some _seriously weird_ dev board that doesn't exist - with VGA etc.
+Currently, RISC-V support is untested on real hardware, and there are
+various known work items that'll need to be completed before it boots
+successfully on any real board.
 
-It's also early days for the port, so we don't get very far - but it **does**
-boot on `qemu-system-riscv64`:
+It does, however, work very well on `qemu-system-riscv64`, supporting 
+broadly the same feature-set as on x86_64 (though not currently SMP
+as mentioned above).
 
-* Boot
-  * With Limine (UEFI) - Take over from Limine and set everything up for Kernel
-* Set up our graphical terminal (or text-mode if non-UEFI)
-* Set up a RLE stack-based PMM
-* Set up VMM & direct-mapped paging
-* Do some tests of memory allocation and mapping
-* Initialise enough to be able to `panic` and print a message inviting you to 
-  help with the RISC-V port! ;)
-
-<img src="images/Screenshot 2025-05-18 at 10.56.16.png" alt="RISC-V ANOS running in qemu">
+<img src="images/Screenshot%202025-06-06%20at%2023.27.08.png" alt="RISC-V ANOS running in qemu">

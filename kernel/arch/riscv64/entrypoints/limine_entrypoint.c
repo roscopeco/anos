@@ -15,6 +15,7 @@
 #include "kprintf.h"
 #include "machine.h"
 #include "panic.h"
+#include "platform.h"
 #include "pmm/pagealloc.h"
 #include "riscv64/kdrivers/cpu.h"
 #include "riscv64/pmm/config.h"
@@ -22,6 +23,8 @@
 #include "riscv64/vmm/vmmapper.h"
 #include "std/string.h"
 #include "vmm/vmconfig.h"
+
+#include "riscv64/interrupts.h"
 
 #define MAX_MEMMAP_ENTRIES 64
 
@@ -146,10 +149,15 @@ static volatile Limine_HHDMRequest limine_hhdm_request
                 .response = NULL,
 };
 
+/* Defined by the linker */
 extern uint64_t _kernel_vma_start;
 extern uint64_t _kernel_vma_end;
 extern uint64_t _bss_end;
 extern uint64_t _code;
+
+extern void *_system_bin_start;
+
+uintptr_t _system_bin_start_phys;
 
 static Limine_MemMap static_memmap;
 static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
@@ -168,7 +176,7 @@ static uint64_t pmm_pt[512] __attribute__((aligned(4096)));
 static uint64_t pmm_bootstrap_page[512] __attribute__((aligned(4096)));
 
 /* Globals */
-MemoryRegion *physical_region;
+extern MemoryRegion *physical_region;
 
 static Limine_MemMap static_memmap;
 static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
@@ -178,6 +186,8 @@ static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
 noreturn void bootstrap_trampoline(uint16_t fb_width, uint16_t fb_height,
                                    uintptr_t new_stack, uintptr_t new_pt_phys,
                                    void *boing);
+
+noreturn void bsp_kernel_entrypoint(uintptr_t platform_data);
 
 // Forwards
 static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height);
@@ -427,6 +437,8 @@ noreturn void bsp_kernel_entrypoint_limine() {
         halt_and_catch_fire();
     }
 
+    install_interrupts();
+
     // For ease, just copy the memmap into a static buffer, so we can use it later
     // when the time comes to initialize the PMM...
     if (!limine_memmap_request.memmap) {
@@ -532,6 +544,17 @@ noreturn void bsp_kernel_entrypoint_limine() {
             ((fb_phys + 0x400000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
     new_pd[0x13] =
             ((fb_phys + 0x600000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+
+    // Find the phys address of the embedded SYSTEM image as well, we'll need
+    // that later on when we come to map it in...
+    if (vmm_table_walk_mode((uintptr_t)&_system_bin_start, cpu_satp_mode(satp),
+                            cpu_satp_to_root_table_phys(satp),
+                            limine_hhdm_request.response->offset, &page)) {
+        _system_bin_start_phys = page.phys_addr;
+    } else {
+        kprintf("Failed to detemine PT physical address; Halting\n");
+        halt_and_catch_fire();
+    }
 
     // setup PMM stack area and bootstrap page
     uintptr_t pmm_pd_phys, pmm_pt_phys, pmm_bootstrap_phys;
@@ -683,13 +706,5 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
             new_page_paddr, (uintptr_t)new_page_ptr);
 #endif
 
-    uintptr_t new_phys = page_alloc(physical_region);
-
-    vmm_map_page(0x1000, new_phys, PG_READ | PG_WRITE | PG_USER);
-
-    panic("This is as far as we go right now on RISC-V...\n             "
-          "Visit https://github.com/roscopeco/anos to help with the port! "
-          ":)\n\n");
-
-    halt_and_catch_fire();
+    bsp_kernel_entrypoint(0);
 }

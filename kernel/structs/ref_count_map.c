@@ -9,7 +9,6 @@
 #include <stdint.h>
 
 #include "fba/alloc.h"
-#include "machine.h"
 #include "slab/alloc.h"
 #include "spinlock.h"
 
@@ -21,17 +20,11 @@
 #define NULL (((void *)0))
 #endif
 
-#define SPINLOCK_LOCK()                                                        \
-    uint64_t intflags = spinlock_lock_irqsave(&refcount_map_lock)
-
-#define SPINLOCK_UNLOCK()                                                      \
-    spinlock_unlock_irqrestore(&refcount_map_lock, intflags)
-
 // Global map instance and lock for now...
 static RefCountMap *global_refcount_map = NULL;
 static SpinLock refcount_map_lock;
 
-static inline uint64_t hash_address(uintptr_t addr, uint64_t size) {
+static inline uint64_t hash_address(const uintptr_t addr, const uint64_t size) {
     const uint64_t golden_ratio = 0x9E3779B97F4A7C15ULL;
     return ((addr * golden_ratio) >> 32) % size;
 }
@@ -57,10 +50,7 @@ static BlockNode *add_block(RefCountMap *map) {
     return node;
 }
 
-static Entry **allocate_bucket_array(uint64_t size, RefCountMap *map) {
-    uint64_t total_size = size * sizeof(Entry *);
-    uint64_t blocks_needed = (total_size + 4095) / 4096;
-
+static Entry **allocate_bucket_array(const uint64_t size, RefCountMap *map) {
     BlockNode *first_node = add_block(map);
     if (!first_node)
         return NULL;
@@ -76,7 +66,6 @@ static Entry **allocate_bucket_array(uint64_t size, RefCountMap *map) {
     first_node->used = (current_block_ptrs * sizeof(Entry *));
     ptrs_remaining -= current_block_ptrs;
 
-    BlockNode *current_node = first_node;
     while (ptrs_remaining > 0) {
         BlockNode *new_node = add_block(map);
         if (!new_node) {
@@ -104,9 +93,9 @@ static Entry **allocate_bucket_array(uint64_t size, RefCountMap *map) {
     return buckets;
 }
 
-static Entry **get_bucket_ptr(RefCountMap *map, uint64_t idx) {
-    uint64_t block_idx = idx / PTRS_PER_BLOCK;
-    uint64_t offset = idx % PTRS_PER_BLOCK;
+static Entry **get_bucket_ptr(const RefCountMap *map, const uint64_t idx) {
+    const uint64_t block_idx = idx / PTRS_PER_BLOCK;
+    const uint64_t offset = idx % PTRS_PER_BLOCK;
 
     BlockNode *current = map->block_list;
     for (uint64_t i = 0; i < block_idx && current; i++) {
@@ -121,16 +110,16 @@ static Entry **get_bucket_ptr(RefCountMap *map, uint64_t idx) {
 }
 
 bool refcount_map_init(void) {
-    SPINLOCK_LOCK();
+    const uint64_t intflags = spinlock_lock_irqsave(&refcount_map_lock);
 
     if (global_refcount_map != NULL) {
-        SPINLOCK_UNLOCK();
+        spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
         return true; // Already initialized
     }
 
     RefCountMap *map = slab_alloc_block();
     if (!map) {
-        SPINLOCK_UNLOCK();
+        spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
         return false;
     }
 
@@ -141,17 +130,17 @@ bool refcount_map_init(void) {
     map->buckets = allocate_bucket_array(INITIAL_SIZE, map);
     if (!map->buckets) {
         slab_free(map);
-        SPINLOCK_UNLOCK();
+        spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
         return false;
     }
 
     global_refcount_map = map;
-    SPINLOCK_UNLOCK();
+    spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
     return true;
 }
 
 static bool resize_map(RefCountMap *map) {
-    uint64_t new_size = map->size * 2;
+    const uint64_t new_size = map->size * 2;
 
     RefCountMap *new_map = slab_alloc_block();
     if (!new_map)
@@ -174,7 +163,8 @@ static bool resize_map(RefCountMap *map) {
 
         while (entry) {
             Entry *next = entry->next;
-            uint64_t new_idx = hash_address(entry->physical_addr, new_size);
+            const uint64_t new_idx =
+                    hash_address(entry->physical_addr, new_size);
             Entry **new_bucket = get_bucket_ptr(new_map, new_idx);
 
             entry->next = *new_bucket;
@@ -202,10 +192,10 @@ static bool resize_map(RefCountMap *map) {
 }
 
 uint32_t refcount_map_increment(uintptr_t addr) {
-    SPINLOCK_LOCK();
+    const uint64_t intflags = spinlock_lock_irqsave(&refcount_map_lock);
 
     if (!global_refcount_map) {
-        SPINLOCK_UNLOCK();
+        spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
         return 0;
     }
 
@@ -218,8 +208,8 @@ uint32_t refcount_map_increment(uintptr_t addr) {
     while (entry) {
         if (entry->physical_addr == addr && entry->is_occupied) {
             entry->ref_count++;
-            uint32_t result = entry->ref_count;
-            SPINLOCK_UNLOCK();
+            const uint32_t result = entry->ref_count;
+            spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
             return result;
         }
         entry = entry->next;
@@ -228,7 +218,7 @@ uint32_t refcount_map_increment(uintptr_t addr) {
     // Check if resize needed
     if (4 * map->num_entries >= 3 * map->size) { // == 0.75 load factor...
         if (!resize_map(map)) {
-            SPINLOCK_UNLOCK();
+            spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
             return 0;
         }
         idx = hash_address(addr, map->size);
@@ -238,7 +228,7 @@ uint32_t refcount_map_increment(uintptr_t addr) {
     // Create new entry
     Entry *new_entry = slab_alloc_block();
     if (!new_entry) {
-        SPINLOCK_UNLOCK();
+        spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
         return 0;
     }
 
@@ -249,20 +239,20 @@ uint32_t refcount_map_increment(uintptr_t addr) {
     *bucket_ptr = new_entry;
     map->num_entries++;
 
-    SPINLOCK_UNLOCK();
+    spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
     return 1;
 }
 
 uint32_t refcount_map_decrement(uintptr_t addr) {
-    SPINLOCK_LOCK();
+    const uint64_t intflags = spinlock_lock_irqsave(&refcount_map_lock);
 
     if (!global_refcount_map) {
-        SPINLOCK_UNLOCK();
+        spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
         return 0;
     }
 
     RefCountMap *map = global_refcount_map;
-    uint64_t idx = hash_address(addr, map->size);
+    const uint64_t idx = hash_address(addr, map->size);
     Entry **bucket_ptr = get_bucket_ptr(map, idx);
     Entry *entry = *bucket_ptr;
     Entry *prev = NULL;
@@ -279,28 +269,28 @@ uint32_t refcount_map_decrement(uintptr_t addr) {
                 }
                 slab_free(entry);
                 map->num_entries--;
-                SPINLOCK_UNLOCK();
+                spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
                 return 1;
             }
 
-            uint32_t result = entry->ref_count + 1;
-            SPINLOCK_UNLOCK();
+            const uint32_t result = entry->ref_count + 1;
+            spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
             return result;
         }
         prev = entry;
         entry = entry->next;
     }
 
-    SPINLOCK_UNLOCK();
+    spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
     return 0; // Address not found
 }
 
 #ifdef UNIT_TESTS
 void refcount_map_cleanup(void) {
-    SPINLOCK_LOCK();
+    const uint64_t intflags = spinlock_lock_irqsave(&refcount_map_lock);
 
     if (!global_refcount_map) {
-        SPINLOCK_UNLOCK();
+        spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
         return;
     }
 
@@ -328,6 +318,6 @@ void refcount_map_cleanup(void) {
     slab_free(map);
     global_refcount_map = NULL;
 
-    SPINLOCK_UNLOCK();
+    spinlock_unlock_irqrestore(&refcount_map_lock, intflags);
 }
 #endif

@@ -20,21 +20,27 @@
 
 #ifdef DEBUG_TASK_SWITCH
 #include "debugprint.h"
+#include "kprintf.h"
 #include "printhex.h"
 #ifdef VERY_NOISY_TASK_SWITCH
 #define vdebug(...) debugstr(__VA_ARGS__)
 #define vdbgx64(arg) printhex64(arg, debugchar)
+#define vdebugf(...) kprintf(__VA_ARGS__)
 #else
+#define vdebugf(...)
 #define vdebug(...)
 #define vdbgx64(...)
 #endif
 #define tdebug(...) debugstr(__VA_ARGS__)
 #define tdbgx64(arg) printhex64(arg, debugchar)
+#define tdebugf(...) kprintf(__VA_ARGS__)
 #else
+#define tdebugf(...)
 #define tdebug(...)
 #define tdbgx64(...)
 #define vdebug(...)
 #define vdbgx64(...)
+#define vdebugf(...)
 #endif
 
 #ifndef NULL
@@ -118,8 +124,9 @@ void task_switch(Task *next) {
     task_do_switch(next);
 }
 
-Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
-                      uintptr_t bootstrap, uintptr_t func, TaskClass class) {
+Task *task_create_new(Process *owner, const uintptr_t sp,
+                      const uintptr_t sys_ssp, const uintptr_t bootstrap,
+                      const uintptr_t func, const TaskClass class) {
 
     Task *task = fba_alloc_block();
 
@@ -144,18 +151,27 @@ Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
         vdebug("\n");
     }
 
+#ifdef ARCH_RISCV64
+    // Push zero at bottom of stack. On RISC-V, this becomes initial SEPC
+    // of new task (the entrypoint will deal with that properly anwyay)
+    task->ssp -= 8;
+    *((uint64_t *)task->ssp) = 0;
+#endif
+
     // push address of entrypoint func as first place this task will "return" to...
     task->ssp -= 8;
     *((uint64_t *)task->ssp) = bootstrap;
 
-    // space for initial registers except rdi, rsi, values don't care...
+    // space for initial registers except first two arg regs, values don't care...
     task->ssp -= 8 * (TASK_SAVED_REGISTER_COUNT - 2);
 
-    // push address of thread user stack, this will get popped into rsi...
+    // push address of thread user stack, this will get popped into second
+    // arg reg (rsi/a1)...
     task->ssp -= 8;
     *((uint64_t *)task->ssp) = sp;
 
-    // push address of thread func, this will get popped into rdi...
+    // push address of thread func, this will get popped into first arg
+    // reg (rdi/a0)...
     task->ssp -= 8;
     *((uint64_t *)task->ssp) = func;
 
@@ -215,14 +231,16 @@ void task_destroy(Task *task) {
     }
 }
 
-Task *task_create_user(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
-                       uintptr_t func, TaskClass class) {
+Task *task_create_user(Process *owner, const uintptr_t sp,
+                       const uintptr_t sys_ssp, const uintptr_t func,
+                       const TaskClass class) {
     return task_create_new(owner, sp, sys_ssp,
                            (uintptr_t)user_thread_entrypoint, func, class);
 }
 
-Task *task_create_kernel(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
-                         uintptr_t func, TaskClass class) {
+Task *task_create_kernel(Process *owner, const uintptr_t sp,
+                         const uintptr_t sys_ssp, const uintptr_t func,
+                         const TaskClass class) {
     return task_create_new(owner, sp, sys_ssp,
                            (uintptr_t)kernel_thread_entrypoint, func, class);
 }
@@ -253,8 +271,8 @@ noreturn void task_current_exitpoint(void) {
     Task *task = task_current();
     Process *owner = task->owner;
 
-    tdebug("Thread %ld (process %ld) is exiting..\n", task->sched->tid,
-           owner->pid);
+    tdebugf("Thread %ld (process %ld) is exiting..\n", task->sched->tid,
+            owner->pid);
 
     task_remove_from_process(task);
 
@@ -268,8 +286,8 @@ noreturn void task_current_exitpoint(void) {
     // The scheduler **must** remain locked throughout obviously...
 
     if (owner->tasks == NULL) {
-        tdebug("Last thread for process %ld exited, killing process\n",
-               owner->pid);
+        tdebugf("Last thread for process %ld exited, killing process\n",
+                owner->pid);
         process_destroy(owner);
     }
 

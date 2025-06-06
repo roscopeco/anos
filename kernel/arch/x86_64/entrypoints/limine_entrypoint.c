@@ -18,7 +18,8 @@
 #include "std/string.h"
 #include "vmm/vmmapper.h"
 
-#include "x86_64/acpitables.h"
+#include "platform/acpi/acpitables.h"
+
 #include "x86_64/entrypoints/common.h"
 #include "x86_64/init_pagetables.h"
 #include "x86_64/pmm/config.h"
@@ -163,6 +164,14 @@ extern uint64_t _kernel_vma_end;
 extern uint64_t _bss_end;
 extern uint64_t _code;
 
+// Defined by the linker.
+extern void *_system_bin_start;
+
+// We'll need this later when we come to map the SYSTEM image. On x86_64,
+// we still keep the direct map of the bottom 2MiB, so for now we can
+// just infer this...
+uintptr_t _system_bin_start_phys;
+
 static Limine_MemMap static_memmap;
 static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
 static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
@@ -287,6 +296,10 @@ static noreturn void bootstrap_continue(const uint16_t fb_width,
     //
     // IOW we have a baseline environment.
     //
+    // Stash this for later - because we're still mapping the kernel code space,
+    // we can just infer it for now...
+    _system_bin_start_phys = (uint64_t)&_system_bin_start & ~0xFFFFFFFF80000000;
+
     debugterm_init((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
 
     init_kernel_gdt();

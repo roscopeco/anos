@@ -128,7 +128,8 @@ SYSCALL_HANDLER(create_process) {
     ProcessCreateParams *process_create_params = (ProcessCreateParams *)arg0;
 
     // Validate process create is in userspace
-    if (!IS_USER_ADDRESS(process_create_params)) {
+    if (!IS_USER_ADDRESS(process_create_params) ||
+        !(IS_USER_ADDRESS(process_create_params + 1))) {
         return SYSCALL_BADARGS;
     }
 
@@ -278,9 +279,7 @@ static inline void undo_partial_map(const uintptr_t virtual_base,
 SYSCALL_HANDLER(map_virtual) {
     size_t size = (size_t)arg0;
     uintptr_t virtual_base = (uintptr_t)arg1;
-    uint64_t type = (uint64_t)arg2;
-    uint64_t flags = (uint64_t)arg3;
-    uint64_t arg = (uint64_t)arg4;
+    uint64_t flags = (uint64_t)arg2;
 
     if (size == 0) {
         // we don't map empty regions...
@@ -312,8 +311,18 @@ SYSCALL_HANDLER(map_virtual) {
             return 0;
         }
 
-        // TODO allow flags to be controlled (to an extent) by caller...
-        if (!vmm_map_page(addr, new_page, PG_PRESENT | PG_WRITE | PG_USER)) {
+        uint64_t vmm_flags = PG_PRESENT | PG_USER;
+        if (flags & ANOS_MAP_VIRTUAL_FLAG_READ) {
+            vmm_flags |= PG_READ;
+        }
+        if (flags & ANOS_MAP_VIRTUAL_FLAG_WRITE) {
+            vmm_flags |= PG_WRITE;
+        }
+        if (flags & ANOS_MAP_VIRTUAL_FLAG_EXEC) {
+            vmm_flags |= PG_EXEC;
+        }
+
+        if (!vmm_map_page(addr, new_page, vmm_flags)) {
             undo_partial_map(virtual_base, addr, new_page);
             return 0;
         }

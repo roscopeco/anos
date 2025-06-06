@@ -145,7 +145,7 @@ static bool nolock_vmm_map_page_containing_in(uint64_t *pml4,
 inline bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
                                        const uint64_t phys_addr,
                                        const uint16_t flags) {
-    uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
     const bool result = nolock_vmm_map_page_containing_in(pml4, virt_addr,
                                                           phys_addr, flags);
     spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
@@ -170,7 +170,8 @@ bool vmm_map_page(const uintptr_t virt_addr, const uint64_t page,
     return vmm_map_page_containing(virt_addr, page, flags);
 }
 
-inline bool vmm_map_pages_containing_in(uint64_t *pml4, uintptr_t virt_addr,
+inline bool vmm_map_pages_containing_in(uint64_t *pml4,
+                                        const uintptr_t virt_addr,
                                         const uint64_t phys_addr,
                                         const uint16_t flags,
                                         const size_t num_pages) {
@@ -299,4 +300,35 @@ uintptr_t vmm_unmap_page(const uintptr_t virt_addr) {
     return vmm_unmap_page_in(
             vmm_phys_to_virt_ptr(cpu_satp_to_root_table_phys(cpu_read_satp())),
             virt_addr);
+}
+
+uintptr_t vmm_get_pagetable_root_phys() {
+    return cpu_satp_to_root_table_phys(cpu_read_satp());
+}
+
+uint64_t vmm_virt_to_pt_entry(const uintptr_t virt_addr) {
+    const uint64_t pml4e =
+            vmm_find_pml4()->entries[vmm_virt_to_pml4_index(virt_addr)];
+    if (pml4e & PG_PRESENT) {
+        const uint64_t pdpte =
+                ((PageTable *)vmm_phys_to_virt(vmm_table_entry_to_phys(pml4e)))
+                        ->entries[vmm_virt_to_pdpt_index(virt_addr)];
+        if (pdpte & PG_PRESENT) {
+            const uint64_t pde =
+                    ((PageTable *)vmm_phys_to_virt(
+                             vmm_table_entry_to_phys(pdpte)))
+                            ->entries[vmm_virt_to_pd_index(virt_addr)];
+            if (pde & PG_PRESENT) {
+                const uint64_t pte =
+                        ((PageTable *)vmm_phys_to_virt(
+                                 vmm_table_entry_to_phys(pde)))
+                                ->entries[vmm_virt_to_pt_index(virt_addr)];
+                if (pte & PG_PRESENT) {
+                    return pte;
+                }
+            }
+        }
+    }
+
+    return 0;
 }
