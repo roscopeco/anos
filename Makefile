@@ -110,6 +110,9 @@ endif
 #										good idea outside some very specific startup tests!
 #	EXPERIMENTAL_SCHED_LOCK				Change the way the scheduler lock works. 
 #										The experimental way is simpler, but less well tested...
+#   MAP_VIRT_SYSCALL_STATIC 			Don't lazily allocate in the anos_map_virtual syscall,
+#										use the old way instead (immediately allocate pages,
+#										and fail the call if we can't allocate).
 #
 # These set options you might feel like configuring
 #
