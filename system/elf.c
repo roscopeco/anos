@@ -83,7 +83,7 @@ uintptr_t elf_map_elf64(ElfPagedReader *reader,
         return 0;
     }
 
-    uintptr_t entry = ehdr->e_entry;
+    const uintptr_t entry = ehdr->e_entry;
 
     if (memcmp(ehdr->e_ident,
                "\x7f"
@@ -108,7 +108,7 @@ uintptr_t elf_map_elf64(ElfPagedReader *reader,
         if (phdr->p_type != PT_LOAD)
             continue;
 
-        if (!handler(i, phdr, data)) {
+        if (!handler(reader, phdr, data)) {
             return 0;
         }
     }
