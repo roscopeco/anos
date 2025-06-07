@@ -109,12 +109,19 @@ static void handle_file_size_query(const uint64_t message_cookie,
             path++;
         }
 
-        AnosRAMFSFileHeader *target =
-                ramfs_find_file((AnosRAMFSHeader *)&_system_ramfs_start, path);
+        const AnosRAMFSFileHeader *target =
+                ramfs_find_file(&_system_ramfs_start, path);
 
         if (target) {
+#ifdef DEBUG_SYS_IPC
+            printf("    -> %s found: %ld byte(s)\n", target->file_name,
+                   target->file_length);
+#endif
             anos_reply_message(message_cookie, target->file_length);
         } else {
+#ifdef DEBUG_SYS_IPC
+            printf("    -> %s not found\n", path);
+#endif
             anos_reply_message(message_cookie, 0);
         }
     } else {
@@ -272,13 +279,23 @@ int main(int argc, char **argv) {
             },
     };
 
-    const char *new_process_argv[] = {"boot:/test_server.elf", "Hello, world!"};
+#ifdef TEST_BEEP_BOOP
+    const char *test_server_argv[] = {"boot:/test_server.elf", "Hello, world!"};
 
-    const int64_t new_pid = create_server_process(0x100000, 3, new_process_caps,
-                                                  2, new_process_argv);
-    if (new_pid < 0) {
+    const int64_t test_server_pid = create_server_process(
+            0x100000, 3, new_process_caps, 2, test_server_argv);
+    if (test_server_pid < 0) {
         printf("%s: Failed to create server process\n",
                "boot:/test_server.elf");
+    }
+#endif
+
+    const char *devman_argv[] = {"boot:/devman.elf", "Hello, world!"};
+
+    const int64_t devman_pid = create_server_process(
+            0x100000, 3, new_process_caps, 2, devman_argv);
+    if (devman_pid < 0) {
+        printf("%s: Failed to create server process\n", "boot:/devman.elf");
     }
 
     const uint64_t vfs_channel = anos_create_channel();
