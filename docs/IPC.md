@@ -294,7 +294,7 @@ Or by using the (**not-recommened!**) software interrupt "slow path"
 The kernel design favours simple, synchronous message-passing IPC
 for the following reasons:
 
-* Simple to use and easy to reason about (The _simplicity_ pillar from the [Three Pillars](ThreePillars.md))
+* Simple to use and easy to reason about
 * Servers can implement asynchronous messaging on top of sync where desired
 * Frees clients from having to consider _some_ potential race conditions
 * Promotes a concurrent programming model for userspace code
@@ -383,8 +383,7 @@ manipulations) incur significant performance cost over copying.
 
 This can only be partly mitigated in exchange for significantly increased 
 complexity in the general case, and this does make the whole system more 
-difficult to reason about, debug, and develop software for (breaching
-the _Simplicity_ pillar from the [Three Pillars](ThreePillars.md)).
+difficult to reason about, debug, and develop software for.
 
 In contrast, for small message buffers, copying - especially when leveraging
 advanced CPU features such as non-temporal stores (for cache management)
