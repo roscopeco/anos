@@ -56,6 +56,7 @@ extern CapabilityMap global_capability_map;
 typedef void (*ThreadFunc)(void);
 
 extern MemoryRegion *physical_region;
+extern uintptr_t kernel_zero_page;
 
 #define SYSCALL_ARGS                                                           \
     SyscallArg arg0, SyscallArg arg1, SyscallArg arg2, SyscallArg arg3,        \
@@ -248,6 +249,7 @@ static inline uintptr_t page_align(const uintptr_t addr) {
     return addr & 0xfff ? (addr + VM_PAGE_SIZE) & ~(0xfff) : addr;
 }
 
+#ifdef MAP_VIRT_SYSCALL_STATIC
 static inline void undo_partial_map(const uintptr_t virtual_base,
                                     const uintptr_t virtual_last,
                                     const uintptr_t new_page) {
@@ -275,11 +277,12 @@ static inline void undo_partial_map(const uintptr_t virtual_base,
         process_page_free(task_current()->owner, page);
     }
 }
+#endif
 
 SYSCALL_HANDLER(map_virtual) {
     size_t size = (size_t)arg0;
     uintptr_t virtual_base = (uintptr_t)arg1;
-    uint64_t flags = (uint64_t)arg2;
+    const uint64_t flags = (uint64_t)arg2;
 
     if (size == 0) {
         // we don't map empty regions...
@@ -303,6 +306,8 @@ SYSCALL_HANDLER(map_virtual) {
     const uintptr_t virtual_end = virtual_base + size;
     for (uintptr_t addr = virtual_base; addr < virtual_end;
          addr += VM_PAGE_SIZE) {
+
+#ifdef MAP_VIRT_SYSCALL_STATIC
         const uintptr_t new_page =
                 process_page_alloc(task_current()->owner, physical_region);
 
@@ -310,25 +315,48 @@ SYSCALL_HANDLER(map_virtual) {
             undo_partial_map(virtual_base, addr, new_page);
             return 0;
         }
+#endif
 
         uint64_t vmm_flags = PG_PRESENT | PG_USER;
         if (flags & ANOS_MAP_VIRTUAL_FLAG_READ) {
             vmm_flags |= PG_READ;
         }
+
         if (flags & ANOS_MAP_VIRTUAL_FLAG_WRITE) {
+#ifdef MAP_VIRT_SYSCALL_STATIC
             vmm_flags |= PG_WRITE;
+#else
+            // TODO need to figure out if already mapped and writeable,
+            //      what to do about COW and other flags...
+            vmm_flags |= PG_COPY_ON_WRITE;
+#endif
         }
+
         if (flags & ANOS_MAP_VIRTUAL_FLAG_EXEC) {
             vmm_flags |= PG_EXEC;
         }
 
+#ifdef MAP_VIRT_SYSCALL_STATIC
         if (!vmm_map_page(addr, new_page, vmm_flags)) {
             undo_partial_map(virtual_base, addr, new_page);
+#else
+        if (!vmm_map_page(addr, kernel_zero_page, vmm_flags)) {
+            // TODO also need to figure out here if page was previously
+            //      mapped. so don't unmap pages that were fine before if
+            //      we fail here...
+
+            for (uintptr_t unmap_addr = virtual_base; unmap_addr < addr;
+                 unmap_addr += VM_PAGE_SIZE) {
+                vmm_unmap_page(addr);
+            }
+#endif
             return 0;
         }
     }
 
+#ifdef MAP_VIRT_SYSCALL_STATIC
     memclr((void *)virtual_base, size);
+#endif
 
     return virtual_base;
 }

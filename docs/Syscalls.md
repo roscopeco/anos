@@ -1,94 +1,499 @@
 ## Syscalls for Anos
 
-### User-mode Interface Spec
+### High-level overview
 
-Anos provides two parallel interfaces for system calls:
+The `STAGE3` kernel exposes a minimal set of low-level system calls
+for user-mode software that requires access to kernel-provided services
+such as memory management and execution control. 
 
-* x86_64 `syscall` instruction (the "fast call interface")
-* x86 software interrupt via `int 0x69` (the "slow call interface")
+Collectively, these functions comprise the `STAGE3` System Call 
+(syscall) interface.
 
-These are functionally equivalent, but the former is faster and so should
-be preferred by user code wherever possible (which _should_ be basically
-everywhere =])
+As a microkernel, the functionality provided via syscalls is intentionally
+minimal and limited to core operations that cannot be safely or portably 
+implemented in user space. These operations typically involve privileged 
+access or system integrity concerns.
+
+In most cases, user-mode applications will not invoke system calls directly.
+Instead, they are expected to use higher-level wrappers provided by runtime 
+libraries—such as libanos, available as part of the standard Anos toolchain.
+
+Unlike traditional monolithic kernels, `STAGE3` does not implement 
+functionality like file I/O or networking via system calls. Instead, such
+services are provided by user-mode servers (e.g. `SYSTEM`) and accessed 
+through Inter-Process Communication (IPC). This document only describes the
+direct kernel syscall interface and does not cover IPC mechanisms or
+user-mode service protocols.
+
+### System Call Capabilities
+
+In `STAGE3`, access to system calls is governed entirely by capabilities. 
+There is no ambient authority, and no access checks are performed by the 
+system calls themselves. Possession of the appropriate capability by a 
+caller unconditionally confers the ability to invoke the corresponding 
+system call, subject only to any restrictions encoded within the capability itself.
+
+By default, programs in Anos operate with a minimal set of system call 
+capabilities, limiting them to a narrow subset of system-level operations.
+
+System call capabilities are always inherited from a parent process during process
+creation. The kernel does not provide any mechanism for processes to request or
+acquire additional capabilities at runtime.
+
+A process that holds the capability to spawn new processes may delegate some
+or all of its own system call capabilities to its children. 
+Delegated capabilities may be passed through unchanged or refined to enforce stricter
+controls. However, a process cannot delegate any capability it does not itself possess.
+
+For a more detailed explanation of capabilities and their role within `STAGE3` and 
+Anos as a whole, see the [Capabilities documentation](/docs/Capabilities.md).
+
+### System Call Reference
+
+Below is the list of direct kernel system calls provided by the `STAGE3` interface. 
+All calls require possession of a corresponding capability token. 
+All pointer arguments must refer to valid memory within the caller’s address space.
+Syscall ID numbers not defined below are reserved.
+
+> [!WARNING]
+> These syscall IDs and the specifics of the functionality provided are
+> subject to change, until such time as a major version of Anos is released.
+> 
+> Once Anos is major-versioned, each major-version will guarantee a stable
+> (i.e. self-consistent) system call ID scheme and function interfaces.
+
+---
+
+#### Call ID 1: `SyscallResult anos_kprint(const char *msg)`
+
+Writes a null-terminated string to the kernel debug output.
+
+* **Parameters:**
+  `msg` – Pointer to a null-terminated UTF-8 string.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+#### Call ID 2: `SyscallResult anos_kputchar(char chr)`
+
+Writes a single character to the kernel debug output.
+
+* **Parameters:**
+  `chr` – The character to output.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+#### Call ID 3: `SyscallResult anos_create_thread(ThreadFunc func, uintptr_t stack_pointer)`
+
+Creates a new thread in the calling process.
+
+* **Parameters:**
+  `func` – Pointer to the thread entry function.
+  `stack_pointer` – Initial stack pointer for the new thread.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+#### Call ID 4: `SyscallResult anos_get_mem_info(AnosMemInfo *meminfo)`
+
+Retrieves basic memory usage statistics for the calling process.
+
+* **Parameters:**
+  `meminfo` – Pointer to a `AnosMemInfo` structure to populate.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+#### Call ID 5: `SyscallResult anos_task_sleep_current(uint64_t ticks)`
+
+Suspends the current thread for a number of scheduler ticks.
+
+* **Parameters:**
+  `ticks` – Number of ticks to sleep.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+#### Call ID 6: `int64_t anos_create_process(ProcessCreateParams *params)`
+
+Creates a new process.
+
+* **Parameters:**
+  `params` – Pointer to a populated `ProcessCreateParams` structure.
+
+* **Returns:**
+  Process ID (`pid`) of the new process on success; negative `SyscallResult` value on failure.
+
+---
+
+#### Call ID 7: `void *anos_map_virtual(uint64_t size, uintptr_t base_address, uint64_t flags)`
+
+Requests allocation and virtual memory mapping in the process's 
+address space.
+
+When successful, the memory returned will be zeroed and ready for
+use according to the flags given.
+
+> [!NOTE]
+> This function _may_ not allocate physical memory immediately,
+> and lazy allocation may be employed instead.
+
+* **Parameters:**
+  `size` – Size in bytes to map (must be page-aligned).
+  `base_address` – Desired base virtual address (must be page-aligned).
+  `flags` – Mapping flags (e.g., read/write/exec - see `anos/syscalls.h`).
+
+* **Returns:**
+  Address of mapped region on success; `NULL` on failure.
+
+---
+
+#### Call ID 8: `uint64_t anos_send_message(uint64_t channel_cookie, uint64_t tag, size_t buffer_size, void *buffer)`
+
+Sends a message to the specified IPC channel.
+
+* **Parameters:**
+  `channel_cookie` – Capability identifying the IPC channel.
+  `tag` – User-defined message tag.
+  `buffer_size` – Size of the message payload.
+  `buffer` – Pointer to message buffer.
+
+* **Returns:**
+  Message cookie on success; `0` on failure.
+
+---
+
+#### Call ID 9: `uint64_t anos_recv_message(uint64_t channel_cookie, uint64_t *tag, size_t *buffer_size, void *buffer)`
+
+Receives a message from the specified IPC channel. Blocks until a message is available.
+
+* **Parameters:**
+  `channel_cookie` – Capability identifying the IPC channel.
+  `tag` – Out: message tag.
+  `buffer_size` – In: max buffer size; out: actual received size.
+  `buffer` – Pointer to receive buffer.
+
+* **Returns:**
+  Message cookie on success; `0` on failure.
+
+---
+
+#### Call ID 10: `uint64_t anos_reply_message(uint64_t message_cookie, uint64_t reply)`
+
+Sends a reply to a received message.
+
+* **Parameters:**
+  `message_cookie` – Cookie returned by `recv_message`.
+  `reply` – Reply value.
+
+* **Returns:**
+  `message_cookie` on success; `0` on failure.
+
+---
+
+#### Call ID 11: `uint64_t anos_create_channel(void)`
+
+Creates a new IPC channel.
+
+* **Returns:**
+  A capability cookie for the new channel on success; `0` on failure.
+
+---
+
+#### Call ID 12: `SyscallResult anos_destroy_channel(uint64_t cookie)`
+
+Destroys an IPC channel.
+
+* **Parameters:**
+  `cookie` – Capability identifying the channel.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+#### Call ID 13: `SyscallResult anos_register_channel_name(uint64_t cookie, char *name)`
+
+Registers a human-readable name for an IPC channel.
+
+* **Parameters:**
+  `cookie` – Capability for the channel.
+  `name` – Null-terminated UTF-8 name.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+#### Call ID 14: `SyscallResult anos_remove_channel_name(char *name)`
+
+Unregisters a channel name.
+
+* **Parameters:**
+  `name` – Null-terminated UTF-8 string.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+#### Call ID 15: `uint64_t anos_find_named_channel(char *name)`
+
+Resolves a registered channel name to a capability.
+
+* **Parameters:**
+  `name` – Null-terminated UTF-8 name.
+
+* **Returns:**
+  Channel capability cookie on success; `0` on failure.
+
+---
+
+#### Call ID 16: `noreturn void anos_kill_current_task(void)`
+
+Terminates the current thread.
+
+* **Returns:**
+  Does not return.
+
+---
+
+#### Call ID 17: `SyscallResult anos_unmap_virtual(uint64_t size, uintptr_t base_address)`
+
+Unmaps a previously mapped virtual memory region.
+
+* **Parameters:**
+  `size` – Size in bytes (must match original mapping).
+  `base_address` – Start address of the region.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+#### Call ID 18: `SyscallResult anos_create_region(uintptr_t start, uintptr_t end, uint64_t flags)`
+
+Declares a virtual memory region with specified access semantics.
+
+* **Parameters:**
+  `start` – Start address (inclusive).
+  `end` – End address (exclusive).
+  `flags` – Access flags.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+#### Call ID 19: `SyscallResult anos_destroy_region(uintptr_t start)`
+
+Destroys a previously created virtual region.
+
+* **Parameters:**
+  `start` – Start address of the region to destroy.
+
+* **Returns:**
+  `0` on success; negative value on failure.
+
+---
+
+### Return Values
+
+#### System Call Result Codes
+
+System calls in Anos return a `SyscallResult`, which is a 64-bit signed integer.
+While the specific interpretation may vary depending on the call, standard values 
+are used to indicate success or various failure conditions for most calls.
+
+#### Enumeration: `SyscallResult`
+
+> [!NOTE]
+> This can be found in `anos/syscalls.h`
+
+
+```c
+typedef enum {
+    SYSCALL_OK = 0LL,
+    SYSCALL_FAILURE = -1LL,
+    SYSCALL_BAD_NUMBER = -2LL,
+    SYSCALL_NOT_IMPL = -3LL,
+    SYSCALL_BADARGS = -4LL,
+    SYSCALL_BAD_NAME = -5LL,
+
+    /* ... reserved ... */
+    SYSCALL_INCAPABLE = -254LL
+} SyscallResult;
+```
+
+##### Meaning of Values
+
+| Name                 | Value  | Meaning                                                               |
+| -------------------- | ------ | --------------------------------------------------------------------- |
+| `SYSCALL_OK`         | `0`    | The system call completed successfully.                               |
+| `SYSCALL_FAILURE`    | `-1`   | Generic failure; reason is not specified.                             |
+| `SYSCALL_BAD_NUMBER` | `-2`   | Invalid or unrecognized syscall number or capability.                 |
+| `SYSCALL_NOT_IMPL`   | `-3`   | The requested system call exists but is not implemented.              |
+| `SYSCALL_BADARGS`    | `-4`   | One or more arguments were invalid or out of bounds.                  |
+| `SYSCALL_BAD_NAME`   | `-5`   | The specified name was not found or could not be resolved.            |
+| `SYSCALL_INCAPABLE`  | `-254` | The caller lacks the required capability for the requested operation. |
+
+#### Notes
+
+* `SyscallResult` return codes are 64-bit signed integers.
+* These values are consistent across architectures and syscall interfaces.
+* Where a function returns a `SyscallResult`, a return value of `SYSCALL_OK` (`0`) universally indicates success.
+  * (Note that some calls, e.g. `map_virtual` do **not** return a SyscallResult and have their own semantics)
+* Additional error codes may be added in future; values `-6` through `-253` are currently unassigned.
+
+## User-mode Interface Specification
+
+### x86\_64 Syscall Interface
+
+Anos provides two functionally equivalent mechanisms for invoking system calls on x86\_64:
+
+* The `syscall` instruction (preferred)
+* A software interrupt via `int 0x69` (fallback / compatibility)
+
+The `syscall` instruction is faster and should be used in all performance-sensitive code.
 
 #### Calling Convention
 
-Both `syscall` and `int` interfaces have the same calling convention:
+Both interfaces share a unified calling convention:
 
-* Syscall number passed in `r9`
-* Up to five register arguments in `rdi`, `rsi`, `rdx`, `r10` and `r8`
-* Return value in `rax`
-* Preserved registers: `rbx`, `rsp`, `rbp`, `r12`, `r13`, `r14`, and `r15`
-* Scratch registers: `rdi`, `rsi`, `rdx`, `rcx`, `r8`, `r9`, `r10`, `r11`
-* No stack-alignment requirements (this may change in future)
+| Role             | Register |
+| ---------------- | -------- |
+| Capability token | `r9`     |
+| Argument 1       | `rdi`    |
+| Argument 2       | `rsi`    |
+| Argument 3       | `rdx`    |
+| Argument 4       | `r10`    |
+| Argument 5       | `r8`     |
+| Return value     | `rax`    |
 
-This is _close_ to the SysV x86_64 ABI, but not _the same_ due to differences
-required by the syscall interface (e.g. 4th argument in `r10` rather than
-`rcx` due to `syscall` using the latter for the return address.)
+Register preservation follows the **System V x86\_64 ABI**, with the following exceptions:
 
-A (simplified) example of a C-callable syscall shim for call #0 
-(currently implemented as `TESTCALL`) might be:
+* `rcx` is *not* used for arguments and is clobbered by `syscall`
+* `r10` is used in place of `rcx` (required by `syscall` encoding)
 
-```
+> There are no stack alignment constraints enforced by the kernel, but future versions may require standard 16-byte alignment.
+
+#### Example Shim (syscall)
+
+```asm
 anos_testcall:
-    xor r9, r9              ; Zero syscall number in r9
-    mov r10, rcx            ; Fourth arg in SysV is rcx, but r10 in syscalls
-    syscall                 ; Make the call
+    mov     r9, 0x12345678      ; Syscall capability
+    mov     r10, rcx            ; SysV 4th arg -> syscall 4th arg
+    syscall
     ret
 ```
 
-for the `syscall` interface, or:
+#### Example Shim (int 0x69)
 
-```
+```asm
 anos_testcall:
-    xor r9, r9              ; Zero syscall number in r9
-    mov r10, rcx            ; Fourth arg in SysV is rcx, but r10 in syscalls
-    int 0x69                ; Make the call
+    mov     r9, 0x12345678
+    mov     r10, rcx
+    int     0x69
     ret
 ```
 
-for the `int 0x69` one. 
+---
 
-### Kernel Interface Spec
+### riscv64 Syscall Interface
+
+System calls on `riscv64` are made using the `ecall` instruction, with arguments and 
+return values passed through the standard integer argument registers.
+
+#### Calling Convention
+
+| Role             | Register |
+| ---------------- | -------- |
+| Capability token | `a7`     |
+| Argument 1       | `a0`     |
+| Argument 2       | `a1`     |
+| Argument 3       | `a2`     |
+| Argument 4       | `a3`     |
+| Argument 5       | `a4`     |
+| Return value     | `a0`     |
+
+Register usage and calling conventions conform fully to the **standard RISC-V ABI**. 
+Stack alignment and register preservation follow ABI rules and are not modified by 
+the syscall dispatcher.
+
+#### Example Shim
+
+```asm
+anos_testcall:
+    li      a7, 0x12345678       # Syscall capability token
+    ecall                        # Invoke syscall
+    ret
+```
+
+## Kernel Interface Specification
+
+### x86\_64
 
 #### Dispatch
 
-Syscalls are dispatched in two places, one for `syscall` instructions
-(`syscall_enter` in `kernel/init_syscalls.asm`) and the other for
-`int 0x69` software interrupts (`syscall_69_handler` in `kernel/isr_dispatch.asm`).
-Both of these dispatch to the increasingly-inaptly-named `handle_syscall_69` 
-in `kernel/syscalls.c`, with the dispatchers responsible for smoothing
-out differences between the `syscall` and interrupt interfaces and
-presenting a standard call sequence to the handler itself:
+System calls are dispatched via two separate mechanisms:
 
-```C
+* `syscall_enter` in `kernel/init_syscalls.asm` handles calls via the `syscall` instruction
+* `syscall_69_handler` in `kernel/isr_dispatch.asm` handles calls via `int 0x69`
+
+Both ultimately dispatch to the unified handler function `handle_syscall_69` defined
+in `kernel/syscalls.c`. The dispatchers normalize argument passing between the two
+mechanisms, ensuring a consistent call interface:
+
+```c
 SyscallResult handle_syscall_69(SyscallArg arg0, SyscallArg arg1,
                                 SyscallArg arg2, SyscallArg arg3,
                                 SyscallArg arg4, SyscallArg syscall_num);
 ```
 
-where `SyscallArg` and `SyscallResult` are both 64-bit integer types (nominally 
-signed, but actual intepretation is up to the individual syscall).
+Where `SyscallArg` and `SyscallResult` are both 64-bit signed integers. 
+Interpretation of argument semantics is syscall-specific.
 
-Using the examples in the `Syscall Argument Passing` section, above, if called 
-from C with the prototype:
+For example, a user-mode C call with prototype:
 
-```C
+```c
 int64_t anos_testcall(int64_t arg0, int64_t arg1, int64_t arg2, int64_t arg3, int64_t arg4);
 ```
 
-It would routed through the dispatch layer and wind up calling into 
-`handle_syscall_69` with the original arguments, and the call number
-(0 in this case) appended, i.e (conceptually):
+Will be dispatched internally as:
 
-```C
+```c
 return handle_syscall_69(arg0, arg1, arg2, arg3, arg4, 0);
 ```
 
+Where `0` represents the syscall capability token (see calling convention for details).
+
 #### Stack & Environment
 
-Syscalls _will_ run with the process' kernel stack in RSP (and the appropriate `SS` for
-kernel) but this is still **TODO**! 
+System calls will eventually execute on the kernel stack associated with the calling 
+thread, with `RSP` and segment selectors (`SS`) correctly configured. However, 
+this is currently **TODO**.
 
-Currently, `syscall` calls run with the kernel `SS` and `DS`, but `rsp` still as set
-at entry, which is weird, but there you go.
+At present, `syscall`-initiated calls set `SS` and `DS` to kernel values, but retain
+the user-mode `RSP`. This is a temporary implementation state and subject to change.
+
+---
+
+### riscv64
+
+> \[!WARNING]
+> This section is still under construction.
+>
+> Refer to the x86\_64 dispatch description above for a general structure;
+> the RISC-V syscall entry path follows similar principles in argument
+> normalization and delegation to a central handler.
