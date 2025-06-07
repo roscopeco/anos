@@ -56,6 +56,7 @@ extern CapabilityMap global_capability_map;
 typedef void (*ThreadFunc)(void);
 
 extern MemoryRegion *physical_region;
+extern uintptr_t kernel_zero_page;
 
 #define SYSCALL_ARGS                                                           \
     SyscallArg arg0, SyscallArg arg1, SyscallArg arg2, SyscallArg arg3,        \
@@ -248,38 +249,20 @@ static inline uintptr_t page_align(const uintptr_t addr) {
     return addr & 0xfff ? (addr + VM_PAGE_SIZE) & ~(0xfff) : addr;
 }
 
-static inline void undo_partial_map(const uintptr_t virtual_base,
-                                    const uintptr_t virtual_last,
-                                    const uintptr_t new_page) {
-    if ((new_page & 0xff) == 0) {
-        // we allocated a page, so must be failing because there's already a page
-        // mapped here... We need to free the page we allocated.
-        process_page_free(task_current()->owner, new_page);
-    }
-
+static void undo_partial_map(const uintptr_t virtual_base,
+                             const uintptr_t virtual_last) {
     // Either way, we're failing, so need to undo what we've already done...
     for (uintptr_t unmap_addr = virtual_base; unmap_addr < virtual_last;
          unmap_addr += VM_PAGE_SIZE) {
-        uintptr_t page = vmm_virt_to_phys_page(unmap_addr);
 
-#ifdef CONSERVATIVE_BUILD
-        if (!page) {
-            panic("unmapped page found during map_virtual syscall failure "
-                  "loop");
-        }
-#endif
         vmm_unmap_page(unmap_addr);
-        // TODO likely some opportunity to make this more
-        //      efficient, it's spinning through the owned
-        //      page list to free each individual page...
-        process_page_free(task_current()->owner, page);
     }
 }
 
 SYSCALL_HANDLER(map_virtual) {
     size_t size = (size_t)arg0;
     uintptr_t virtual_base = (uintptr_t)arg1;
-    uint64_t flags = (uint64_t)arg2;
+    const uint64_t flags = (uint64_t)arg2;
 
     if (size == 0) {
         // we don't map empty regions...
@@ -299,36 +282,30 @@ SYSCALL_HANDLER(map_virtual) {
         return 0;
     }
 
-    // Let's try to map it in, just using small pages for now...
+    // TODO need to figure out if already mapped and writeable,
+    //      what to do about COW and other flags...
+
+    // Let's try to map it in as zeropage / COW - using small pages for now
     const uintptr_t virtual_end = virtual_base + size;
     for (uintptr_t addr = virtual_base; addr < virtual_end;
          addr += VM_PAGE_SIZE) {
-        const uintptr_t new_page =
-                process_page_alloc(task_current()->owner, physical_region);
-
-        if (new_page & 0xff || vmm_virt_to_phys_page(addr)) {
-            undo_partial_map(virtual_base, addr, new_page);
-            return 0;
-        }
 
         uint64_t vmm_flags = PG_PRESENT | PG_USER;
         if (flags & ANOS_MAP_VIRTUAL_FLAG_READ) {
             vmm_flags |= PG_READ;
         }
         if (flags & ANOS_MAP_VIRTUAL_FLAG_WRITE) {
-            vmm_flags |= PG_WRITE;
+            vmm_flags |= PG_COPY_ON_WRITE;
         }
         if (flags & ANOS_MAP_VIRTUAL_FLAG_EXEC) {
             vmm_flags |= PG_EXEC;
         }
 
-        if (!vmm_map_page(addr, new_page, vmm_flags)) {
-            undo_partial_map(virtual_base, addr, new_page);
+        if (!vmm_map_page(addr, kernel_zero_page, vmm_flags)) {
+            undo_partial_map(virtual_base, addr);
             return 0;
         }
     }
-
-    memclr((void *)virtual_base, size);
 
     return virtual_base;
 }
