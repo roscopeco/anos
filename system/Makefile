@@ -23,8 +23,9 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #
 #	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
 #	TEST_LIBC_MALLOC		Do a bit of malloc'ing to check that's all working
+#	TEST_BEEP_BOOP			Start the Beep Boop test server process
 #
-CDEFS=
+CDEFS=-DTEST_BEEP_BOOP
 
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(THIS_DIR)/..)
@@ -49,7 +50,7 @@ SYSTEM_OBJS=main.o																\
 
 ALL_TARGETS=$(SYSTEM_BIN)
 
-CLEAN_ARTIFACTS=*.dis *.elf *.o $(SYSTEM_BIN)
+CLEAN_ARTIFACTS=*.dis *.elf *.o arch/x86_64/*.o arch/riscv64/*.o $(SYSTEM_BIN)
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
