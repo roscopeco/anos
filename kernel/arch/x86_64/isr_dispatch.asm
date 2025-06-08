@@ -197,12 +197,12 @@ ap_timer_interrupt_handler:
 syscall_69_handler:
   irq_conditional_swapgs                  ; Syscalls are set up to mask interrupts...
   pusha_sysv_not_rax
-  add   rsp,$8
+
+  ; Stack should already be 16-byte aligned here...
 
   mov   rcx,r10
   call  handle_syscall_69                 ; Just call directly to C handler
 
-  sub   rsp,$8
   popa_sysv_not_rax
   irq_conditional_swapgs
   iretq
