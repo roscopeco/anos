@@ -5,6 +5,8 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+#include <stdio.h>
+
 #include <anos/syscalls.h>
 
 #ifndef VERSTR
@@ -17,11 +19,8 @@
 #define VERSION STRVER(VERSTR)
 
 int main(const int argc, char **argv) {
-    anos_kprint("\nDEVMAN System device manager #");
-    anos_kprint(VERSION);
-    anos_kprint(" [libanos #");
-    anos_kprint(libanos_version());
-    anos_kprint("]\n\n");
+    printf("\nDEVMAN System device manager #%s [libanos #%s]\n\n", VERSION,
+           libanos_version());
 
     while (1) {
         anos_task_sleep_current_secs(5);
