@@ -74,20 +74,21 @@ static bool on_program_header(const ElfPagedReader *reader,
                               const Elf64ProgramHeader *phdr,
                               const uint64_t ramfs_cookie) {
     if ((phdr->p_offset & (VM_PAGE_SIZE - 1)) != 0) {
-        debugf("ERROR: Segment %d file offset 0x%016lx not page aligned\n", num,
-               phdr->p_offset);
+        debugf("ERROR: %s: Segment file offset 0x%016lx not page aligned\n",
+               reader->filename, phdr->p_offset);
         return false;
     }
 
     if ((phdr->p_vaddr & (VM_PAGE_SIZE - 1)) != 0) {
-        debugf("ERROR: Segment %d vaddr 0x%16lx not page aligned\n", num,
-               phdr->p_vaddr);
+        debugf("ERROR: %s Segment vaddr 0x%16lx not page aligned\n",
+               reader->filename, phdr->p_vaddr);
         return false;
     }
 
-    debugf("LOAD segment %2d: file=0x%016lx vaddr=0x%016lx filesz=0x%016lx "
+    debugf("LOAD: %s: segment file=0x%016lx vaddr=0x%016lx filesz=0x%016lx "
            "memsz=0x%016lx\n",
-           num, phdr->p_offset, phdr->p_vaddr, phdr->p_filesz, phdr->p_memsz);
+           reader->filename, phdr->p_offset, phdr->p_vaddr, phdr->p_filesz,
+           phdr->p_memsz);
 
     // TODO support flags in syscall for RO / RW / NX etc...
     char *buffer = anos_map_virtual(phdr->p_memsz, phdr->p_vaddr,
