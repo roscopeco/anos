@@ -279,25 +279,6 @@ int main(int argc, char **argv) {
             },
     };
 
-#ifdef TEST_BEEP_BOOP
-    const char *test_server_argv[] = {"boot:/test_server.elf", "Hello, world!"};
-
-    const int64_t test_server_pid = create_server_process(
-            0x100000, 3, new_process_caps, 2, test_server_argv);
-    if (test_server_pid < 0) {
-        printf("%s: Failed to create server process\n",
-               "boot:/test_server.elf");
-    }
-#endif
-
-    const char *devman_argv[] = {"boot:/devman.elf", "Hello, world!"};
-
-    const int64_t devman_pid = create_server_process(
-            0x100000, 3, new_process_caps, 2, devman_argv);
-    if (devman_pid < 0) {
-        printf("%s: Failed to create server process\n", "boot:/devman.elf");
-    }
-
     const uint64_t vfs_channel = anos_create_channel();
     ramfs_channel = anos_create_channel();
 
@@ -307,6 +288,27 @@ int main(int argc, char **argv) {
             if (!anos_create_thread(ramfs_driver_thread,
                                     (uintptr_t)ramfs_driver_thread_stack)) {
                 printf("Failed to create RAMFS driver thread!\n");
+            }
+
+#ifdef TEST_BEEP_BOOP
+            const char *test_server_argv[] = {"boot:/test_server.elf",
+                                              "Hello, world!"};
+
+            const int64_t test_server_pid = create_server_process(
+                    0x100000, 3, new_process_caps, 2, test_server_argv);
+            if (test_server_pid < 0) {
+                printf("%s: Failed to create server process\n",
+                       "boot:/test_server.elf");
+            }
+#endif
+
+            const char *devman_argv[] = {"boot:/devman.elf", "Hello, world!"};
+
+            const int64_t devman_pid = create_server_process(
+                    0x100000, 3, new_process_caps, 2, devman_argv);
+            if (devman_pid < 0) {
+                printf("%s: Failed to create server process\n",
+                       "boot:/devman.elf");
             }
 
             while (true) {
