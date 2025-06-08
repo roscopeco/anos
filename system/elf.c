@@ -31,7 +31,7 @@ ssize_t load_page(ElfPagedReader *r, const off_t offset) {
         uint64_t *const pos = (uint64_t *)r->page;
         *pos = offset;
 
-        strcpy(r->page + sizeof(uint64_t), "boot:/test_server.elf");
+        strcpy(r->page + sizeof(uint64_t), r->filename);
 
         const int loaded_bytes = anos_send_message(
                 r->fs_cookie, SYS_VFS_TAG_LOAD_PAGE, 26, r->page);
