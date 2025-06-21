@@ -97,17 +97,17 @@ structures at this point, leaving us with:
 | Start                | End                  | Use                                                           |
 |----------------------|----------------------|---------------------------------------------------------------|
 | `0x0000000000000000` | `0x00007fffffffffff` | User space (128TiB)                                           |
-| `0x0000800000000000` | `0xffff7fffffffffff` | [_Non-canonical memory hole_]                                 |
+| `0x0000800000000000` | `0xffff7fffffffffff` | [_Non-canonical memory hole, almost 16EiB_]                   |
 | `0xffff800000000000` | `0xfffffeffffffffff` | Virtual Mapping area (127TiB) (see below)                     |
 | `0xffffff0000000000` | `0xffffff7fffffffff` | [_Currently unused, 512GiB_]                                  |
 | `0xffffff8000000000` | `0xffffff9fffffefff` | PMM structures area (only the first page is actually present) |
 | `0xffffff9ffffff000` | `0xffffff9fffffffff` | PMM structures guard page (Reserved, never mapped)            |
-| `0xffffffa000000000` | `0xffffffa0000003ff` | Local APIC (for all CPUs) [_TODO_ move to driver space]       |
-| `0xffffffa000000400` | `0xffffffff7fffffff` | [_Currently unused, ~382GiB_]                                 |
+| `0xffffffa000000000` | `0xffffffff7fffffff` | [_Currently unused, 382GiB_]                                  |
 | `0xffffffff80000000` | `0xffffffff803fffff` | Kernel code / data static mapping (4MiB)                      |
 | `0xffffffff80400000` | `0xffffffff80ffffff` | 256 per-CPU temporary mapping pages (**see notes, below**)    |
 | `0xffffffff81000000` | `0xffffffff8101ffff` | (Temporary) Reserved space for ACPI tables                    |
-| `0xffffffff81020000` | `0xffffffff810fffff` | Kernel driver MMIO mapping space (895KiB, 224 pages)          |
+| `0xffffffff81020000` | `0xffffffff81020fff` | Kernel driver LAPIC mapping page                              |
+| `0xffffffff81021000` | `0xffffffff810fffff` | Kernel driver MMIO mapping space (892KiB, 223 pages)          |
 | `0xffffffff81100000` | `0xffffffff81ffffff` | [_Currently unused, 15MiB_]                                   |
 | `0xffffffff82000000` | `0xffffffff827fffff` | Bootup terminal framebuffer (8MiB)                            |
 | `0xffffffff82800000` | `0xffffffffbfffffff` | [_Currently unused, 984MiB_]                                  |
@@ -178,7 +178,7 @@ This is currently used for mapping new pages for COW pages in the pagefault hand
 
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
-| `0xFFFFFFFF80400000` | `0xFFFFFFFF80FFFFFF` | 256 Per-CPU temporary mapping pages                          |
+| `0xffffffff80400000` | `0xffffffff80ffffff` | 256 Per-CPU temporary mapping pages                          |
 
 This space is not represented by page tables at boot, but if there's a page
 fault there the handler will automatically map in a page. 
@@ -193,16 +193,16 @@ The local APIC is mapped to:
 
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
-| `0xffffffa000000000` | `0xffffffa0000003ff` | Local APIC (for all CPUs)                                    |
+| `0xffffffff81020000` | `0xffffffff81020fff` | Local APIC (for all CPUs)                                    |
 
-This, again, won't be staying there, but it works for now. It'll eventually
-get moved into:
+While the immediately following region is reserved for kernel driver 
+MMIO mapping:
 
 | Start                | End                  | Use                                                          |
 |----------------------|----------------------|--------------------------------------------------------------|
-| `0xffffffff81008000` | `0xffffffff810fffff` | Kernel driver MMIO mapping space                             |
+| `0xffffffff81021000` | `0xffffffff810fffff` | Kernel driver MMIO mapping space                             |
 
-This area (of 248 pages, or 992KiB) is specifically reserved for mapping the
+This area (of 223 pages, or 892KiB) is specifically reserved for mapping the
 basic kernel drivers (the ones in `kdrivers/`). Allocation is handled in 
 `kdrivers/drivers.c` with a simple check and increment - there's no ability
 to free pages here (because there's no expectation we'll ever unmap these 

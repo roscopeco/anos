@@ -618,9 +618,9 @@ static void cleanup_temp_page_tables(uint64_t *const pml4) {
  *
  * Other than that, it's all much of a muchness.
  */
-void vmm_init_direct_mapping(uint64_t *pml4_virt, Limine_MemMap *memmap) {
+void vmm_init_direct_mapping(uint64_t *pml4_virt, const Limine_MemMap *memmap) {
     vdebugf("vmm_init_direct_mapping: init with %ld entries at pml4 0x%016lx\n",
-            memmap->entry_count, (uintptr_t)pml4);
+            memmap->entry_count, (uintptr_t)pml4_virt);
 
     const uintptr_t temp_pdpt_phys = (uintptr_t)temp_pdpt - STATIC_KERNEL_SPACE;
     const uintptr_t saved_pml4_0 = pml4_virt[0];
