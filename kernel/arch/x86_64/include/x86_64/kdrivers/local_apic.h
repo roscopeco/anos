@@ -18,8 +18,8 @@
 // This doesn't belong here, it'll go away when we go tickless...
 #define KERNEL_HZ ((100))
 
-#define REG_LAPIC_ID_O 0x04
-#define REG_LAPIC_VERSION_O 0x08
+#define REG_LAPIC_ID_O 0x08
+#define REG_LAPIC_VERSION_O 0x0c
 #define REG_LAPIC_EOI_O 0x2c
 #define REG_LAPIC_SPURIOUS_O 0x3c
 #define REG_LAPIC_DIVIDE_O 0xf8

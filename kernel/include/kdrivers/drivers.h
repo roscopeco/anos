@@ -22,8 +22,8 @@
 #include "platform/acpi/acpitables.h"
 
 // See MemoryMap.md for details on the size and purpose of these...
-#define KERNEL_HARDWARE_VADDR_BASE 0xffffffa000000000
-#define KERNEL_DRIVER_VADDR_BASE 0xffffffff81020000
+#define KERNEL_HARDWARE_VADDR_LAPIC 0xffffffff81020000
+#define KERNEL_DRIVER_VADDR_BASE ((KERNEL_HARDWARE_VADDR_LAPIC + 0x1000))
 #define KERNEL_DRIVER_VADDR_SIZE 0x00000000000e0000
 
 typedef uint64_t (*KDriverEntrypoint)(void *arg);

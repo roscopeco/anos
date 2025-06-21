@@ -30,7 +30,7 @@ static void start_timer(uint32_t volatile *lapic, uint8_t mode,
 
 static uint64_t local_apic_calibrate_count(const KernelTimer *calibrated_timer,
                                            const uint32_t desired_hz) {
-    uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
+    uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_LAPIC);
 
     const uint64_t calibrated_ticks_20ms =
             NANOS_IN_20MS / calibrated_timer->nanos_per_tick();
@@ -65,16 +65,16 @@ uint32_t volatile *init_local_apic(ACPI_MADT *madt, bool bsp) {
     uint32_t lapic_addr = madt->lapic_address;
 #ifdef DEBUG_LAPIC_INIT
     uint32_t *flags = (uint32_t *)((uintptr_t)lapic_addr) + 1;
-    kprintf("LAPIC address (phys : virt) = 0x%08x : 0xffffffa000000000\n",
-            lapic_addr);
+    kprintf("LAPIC address (phys : virt) = 0x%08x : 0x%016lx\n", lapic_addr,
+            KERNEL_HARDWARE_VADDR_LAPIC);
 #endif
 
     if (bsp) {
-        vmm_map_page(KERNEL_HARDWARE_VADDR_BASE, lapic_addr,
+        vmm_map_page(KERNEL_HARDWARE_VADDR_LAPIC, lapic_addr,
                      PG_PRESENT | PG_WRITE);
     }
 
-    uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
+    uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_LAPIC);
 
 #ifdef DEBUG_LAPIC_INIT
     kprintf("LAPIC ID: 0x%08x; Version: 0x%08x\n", *REG_LAPIC_ID(lapic),
@@ -105,11 +105,11 @@ uint32_t volatile *init_local_apic(ACPI_MADT *madt, bool bsp) {
 }
 
 uint64_t local_apic_get_count(void) {
-    uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
+    uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_LAPIC);
     return *REG_LAPIC_CURRENT_COUNT(lapic);
 }
 
 void local_apic_eoe(void) {
-    uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_BASE);
+    uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_LAPIC);
     *(REG_LAPIC_EOI(lapic)) = 0;
 }
