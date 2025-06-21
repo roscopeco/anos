@@ -43,7 +43,7 @@ kernel init, which is no real hardship.
 We also need to ensure that the places where usermode is entered or exited
 all account for the fact they need to put a kernel stack in `sscratch`.
 
-> ![WARNING]
+> [!WARNING]
 > The way thread stacks are handled on RISC-V means that some of the fields 
 > in the `PerCPUState` and `Task` structs aren't doing the same things they
 > do on x86_64 - and may be counterintuitively named.

@@ -79,6 +79,7 @@ mapping). This happens at the end of the platform-specific bootstrap.
 
 ### Long Mode Page Table Layout After Kernel Bootstrap
 
+#### x86_64 & RISC-V SV48
 > [!NOTE]
 > From this point on, the map is the same regardless of how we were booted.
 > 
@@ -113,9 +114,44 @@ structures at this point, leaving us with:
 | `0xffffffff82800000` | `0xffffffffbfffffff` | [_Currently unused, 984MiB_]                                  |
 | `0xffffffffc0000000` | `0xffffffffffffffff` | 1GiB FBA space                                                |
 
+#### RISC-V SV39
+
+> [!WARNING]
+> This is still evolving, and subject to change. Especially the PMM structures 
+> area probably isn't big enough at 2GiB to handle worst-case fragmentation of the
+> fill 252GiB physical RAM.
+
+On SV39 systems (i.e. `riscv64` with three-level pagetables) the memory map looks like this:
+
+| Start                | End                  | Use                                                           |
+|----------------------|----------------------|---------------------------------------------------------------|
+| `0x0000000000000000` | `0x00007fffffffffff` | User space (128TiB)                                           |
+| `0x0000004000000000` | `0xffffffbfffffffff` | [_Non-canonical memory hole, almost 16EiB_]                   |
+| `0xffffffc000000000` | `0xfffffffeffffffff` | Virtual Mapping area (252GiB) (see below)                     |
+| `0xffffffff00000000` | `0xffffffff7fffefff` | PMM structures area (only the first page is actually present) |
+| `0xffffffff7ffff000` | `0xffffffff7fffffff` | PMM structures guard page (Reserved, never mapped)            |
+| `0xffffffff80000000` | `0xffffffff803fffff` | Kernel code / data static mapping (4MiB)                      |
+| `0xffffffff80400000` | `0xffffffff80ffffff` | 256 per-CPU temporary mapping pages (**see notes, below**)    |
+| `0xffffffff81000000` | `0xffffffff8101ffff` | (Temporary) Reserved space for ACPI tables                    |
+| `0xffffffff81020000` | `0xffffffff81020fff` | Kernel driver LAPIC mapping page                              |
+| `0xffffffff81021000` | `0xffffffff810fffff` | Kernel driver MMIO mapping space (891KiB, 223 pages)          |
+| `0xffffffff81100000` | `0xffffffff81ffffff` | [_Currently unused, 15MiB_]                                   |
+| `0xffffffff82000000` | `0xffffffff827fffff` | Bootup terminal framebuffer (8MiB)                            |
+| `0xffffffff82800000` | `0xffffffffbfffffff` | [_Currently unused, 984MiB_]                                  |
+| `0xffffffffc0000000` | `0xffffffffffffffff` | 1GiB FBA space                                                |
+
+The primary difference here is that the Virtual Mapping area is **much** smaller at 252GiB
+(thus making the maximum RAM size on three-level-table systems 252GiB) and the PMM 
+structures area is similarly compressed to 2GiB.
+
 #### Notes on specific areas
 
 ##### Virtual mapping area
+
+> [!WARNING]
+> This section currently documents systems with four-level pagetables only.
+> It has not yet been updated for three-level paging - see the memory map 
+> above for the raw details.
 
 We reserve the first available 127TiB of kernel space for the virtual mapping area. 
 This area covers 254 PML4 entries from 256 to 509, leaving one entry (510) unused
@@ -251,3 +287,12 @@ x86_64s that have less RAM than that? 🤷
 This is essentially what we currently do for RISV-V, so it should be no
 real hardship to replicate that for x86_65 (especially now we have 
 direct virtual mapping instead of recursive).
+
+### Kernel base-addresses with different pagetable levels
+
+> [!NOTE]
+> This currently applies only to RISC-V, on x86_64 only four-level paging
+> is supported (as this is supported by all our supported processor 
+> families on that architecture, and five-level is just silly right now).
+
+![Kernel Base Addresses.svg](../images/diagrams/Kernel%20Base%20Addresses.svg)
