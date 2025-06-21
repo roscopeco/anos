@@ -51,12 +51,6 @@ const extern void *_code_end;
 const extern void *_bss_start;
 const extern void *_bss_end;
 
-static noreturn void sleep_loop(void) {
-    while (1) {
-        anos_task_sleep_current_secs(1000);
-    }
-}
-
 // TODO we shouldn't have inline x86_64 in here!!!
 static noreturn void restore_stack_and_jump(void *stack_ptr,
                                             void (*target)(void)) {
@@ -76,23 +70,25 @@ static noreturn void restore_stack_and_jump(void *stack_ptr,
     __builtin_unreachable();
 }
 
-static bool on_program_header(const int num, const Elf64ProgramHeader *phdr,
-                              uint64_t ramfs_cookie) {
+static bool on_program_header(const ElfPagedReader *reader,
+                              const Elf64ProgramHeader *phdr,
+                              const uint64_t ramfs_cookie) {
     if ((phdr->p_offset & (VM_PAGE_SIZE - 1)) != 0) {
-        debugf("ERROR: Segment %d file offset 0x%016lx not page aligned\n", num,
-               phdr->p_offset);
+        debugf("ERROR: %s: Segment file offset 0x%016lx not page aligned\n",
+               reader->filename, phdr->p_offset);
         return false;
     }
 
     if ((phdr->p_vaddr & (VM_PAGE_SIZE - 1)) != 0) {
-        debugf("ERROR: Segment %d vaddr 0x%16lx not page aligned\n", num,
-               phdr->p_vaddr);
+        debugf("ERROR: %s Segment vaddr 0x%16lx not page aligned\n",
+               reader->filename, phdr->p_vaddr);
         return false;
     }
 
-    debugf("LOAD segment %2d: file=0x%016lx vaddr=0x%016lx filesz=0x%016lx "
+    debugf("LOAD: %s: segment file=0x%016lx vaddr=0x%016lx filesz=0x%016lx "
            "memsz=0x%016lx\n",
-           num, phdr->p_offset, phdr->p_vaddr, phdr->p_filesz, phdr->p_memsz);
+           reader->filename, phdr->p_offset, phdr->p_vaddr, phdr->p_filesz,
+           phdr->p_memsz);
 
     // TODO support flags in syscall for RO / RW / NX etc...
     char *buffer = anos_map_virtual(phdr->p_memsz, phdr->p_vaddr,
@@ -112,7 +108,7 @@ static bool on_program_header(const int num, const Elf64ProgramHeader *phdr,
             uint64_t *const pos = (uint64_t *)(phdr->p_vaddr + i);
             *pos = i + phdr->p_offset;
 
-            strcpy(msg_buffer + sizeof(uint64_t), "boot:/test_server.elf");
+            strncpy(msg_buffer + sizeof(uint64_t), reader->filename, 1024);
 
             const int loaded_bytes = anos_send_message(
                     ramfs_cookie, SYS_VFS_TAG_LOAD_PAGE, 26, msg_buffer);
@@ -153,7 +149,7 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
 
     if (!sys_vfs_cookie) {
         printf("Failed to find named VFS channel\n");
-        sleep_loop();
+        anos_kill_current_task();
     }
 
     char *msg_buffer = anos_map_virtual(0x1000, 0x1fff000,
@@ -167,9 +163,7 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
 
     if (!sys_ramfs_cookie) {
         anos_kprint("Failed to find RAMFS driver. Dying.\n");
-        while (true) {
-            sleep_loop();
-        }
+        anos_kill_current_task();
     }
 
     const uint64_t exec_size = anos_send_message(
@@ -178,7 +172,8 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
     if (exec_size) {
         ElfPagedReader reader = {.current_page_offset = -1,
                                  .fs_cookie = sys_ramfs_cookie,
-                                 .page = msg_buffer};
+                                 .page = msg_buffer,
+                                 .filename = filename};
 
         const uintptr_t entrypoint =
                 elf_map_elf64(&reader, on_program_header, sys_ramfs_cookie);
@@ -196,8 +191,5 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
     }
 
     anos_kprint("Server exec failed. Dying.\n");
-
-    sleep_loop();
-
-    __builtin_unreachable();
+    anos_kill_current_task();
 }

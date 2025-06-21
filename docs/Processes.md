@@ -99,9 +99,6 @@ Briefly, we need to:
 * Set up the new process' memory in the way it expects
 * Ensure everything is set up so that the new process receives CPU time
 
-The way this works in Anos is designed around the core 
-design principles in the [Three Pillars](ThreePillars.md).
-
 In more detail, the flow looks like this:
 
 ![Detailed Process Startup Flow](../images/diagrams/Process%20Creation%20-%20System%20Perspective.svg)
