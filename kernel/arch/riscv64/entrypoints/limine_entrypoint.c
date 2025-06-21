@@ -164,7 +164,9 @@ static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
 static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
 
 /* Static initial pagetables */
+#ifdef RISCV_SV48
 static uint64_t new_pml4[512] __attribute__((aligned(4096)));
+#endif
 static uint64_t new_pdpt[512] __attribute__((aligned(4096)));
 static uint64_t new_pd[512] __attribute__((aligned(4096)));
 static uint64_t new_pt[512] __attribute__((aligned(4096)));
@@ -488,10 +490,46 @@ noreturn void bsp_kernel_entrypoint_limine() {
     // backwards-compatibility...
     //
 
-    uint64_t satp = cpu_read_satp();
-    uintptr_t pml4_phys, pdpt_phys, pd_phys, pt_phys;
+    const uint64_t satp = cpu_read_satp();
+    const uint8_t satp_mode = cpu_satp_mode(satp);
+#ifdef RISCV_SV48
+    uintptr_t pml4_phys;
+
+    if (satp_mode != SATP_MODE_SV48) {
+        panic("SV48 kernel started in incorrect mode - check limine.conf");
+    }
+#elifdef RISCV_SV39
+    if (satp_mode != SATP_MODE_SV39) {
+        panic("SV39 kernel started in incorrect mode - check limine.conf");
+    }
+#else
+#error RISC-V paging mode invalid or not defined
+#endif
+    uintptr_t pdpt_phys, pd_phys, pt_phys;
     VmmPage page;
 
+#ifdef DEBUG_VMM
+    kprintf("CPU paging mode is ");
+    switch (satp_mode) {
+    case SATP_MODE_SV39:
+        kprintf("SV_39\n");
+        break;
+    case SATP_MODE_SV48:
+        kprintf("SV_48\n");
+        break;
+    case SATP_MODE_SV57:
+        kprintf("SV_57\n");
+        break;
+    case SATP_MODE_SV64:
+        kprintf("SV_64\n");
+        break;
+    default:
+        kprintf("SV_WFT?\n");
+        break;
+    }
+#endif
+
+#ifdef RISCV_SV48
     // These are static, so part of the kernel's bss, and not in the HHDM area. We need to table walk
     // to get the physical addresses, just subtracting the HHDM offset from the virtual addresses
     // won't work...
@@ -504,6 +542,7 @@ noreturn void bsp_kernel_entrypoint_limine() {
         kprintf("Failed to detemine PML4 physical address; Halting\n");
         halt_and_catch_fire();
     }
+#endif
     if (vmm_table_walk_mode((uintptr_t)new_pdpt, cpu_satp_mode(satp),
                             cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
@@ -529,10 +568,19 @@ noreturn void bsp_kernel_entrypoint_limine() {
         halt_and_catch_fire();
     }
 
+#ifdef RISCV_SV48
+    const uintptr_t root_table_phys = pml4_phys;
+
     new_pml4[0x1ff] =
-            (pdpt_phys >> 2) | PG_PRESENT; // Set up the entries we need for
-    new_pdpt[0x1fe] =
-            (pd_phys >> 2) | PG_PRESENT; // the mappings in kernel space...
+            (pdpt_phys >> 2) | PG_PRESENT; // Top level kernel space mapping
+#elifdef RISCV_SV39
+    const uintptr_t root_table_phys = pdpt_phys;
+#else
+#error RISC-V paging mode invalid or not defined
+#endif
+
+    // Setup mapping for static kernel space
+    new_pdpt[0x1fe] = (pd_phys >> 2) | PG_PRESENT;
     new_pd[0] = (pt_phys >> 2) | PG_PRESENT;
 
     // map framebuffer, as four 2MiB large pages at 0xffffffff82000000 - 0xffffffff827fffff
@@ -545,14 +593,14 @@ noreturn void bsp_kernel_entrypoint_limine() {
     new_pd[0x13] =
             ((fb_phys + 0x600000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
 
-    // Find the phys address of the embedded SYSTEM image as well, we'll need
+    // Find the phys address of the embedded RAMFS image as well, we'll need
     // that later on when we come to map it in...
     if (vmm_table_walk_mode((uintptr_t)&_system_bin_start, cpu_satp_mode(satp),
                             cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
         _system_bin_start_phys = page.phys_addr;
     } else {
-        kprintf("Failed to detemine PT physical address; Halting\n");
+        kprintf("Failed to detemine RAMFS physical address; Halting\n");
         halt_and_catch_fire();
     }
 
@@ -589,7 +637,13 @@ noreturn void bsp_kernel_entrypoint_limine() {
     pmm_pt[0] = (pmm_bootstrap_phys >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
 
     // ... then hook this into the kernel-space mapping
+#ifdef RISCV_SV48
     new_pdpt[0] = (pmm_pd_phys >> 2) | PG_PRESENT;
+#elifdef RISCV_SV39
+    new_pdpt[0x1fc] = (pmm_pd_phys >> 2) | PG_PRESENT;
+#else
+#error RISC-V paging mode invalid or not defined
+#endif
 
     // Copy BSS mappings....
     for (uintptr_t page_virt = (uintptr_t)&_kernel_vma_start;
@@ -597,7 +651,7 @@ noreturn void bsp_kernel_entrypoint_limine() {
         if (vmm_table_walk_mode(page_virt, cpu_satp_mode(satp),
                                 cpu_satp_to_root_table_phys(satp),
                                 limine_hhdm_request.response->offset, &page)) {
-            if (!vmm_map_page_no_alloc(page_virt, SATP_MODE_SV48, pml4_phys,
+            if (!vmm_map_page_no_alloc(page_virt, satp_mode, root_table_phys,
                                        limine_hhdm_request.response->offset,
                                        &page)) {
                 kprintf("Failed to map kernel data page %p; Halting\n",
@@ -618,7 +672,7 @@ noreturn void bsp_kernel_entrypoint_limine() {
         if (vmm_table_walk_mode(page_virt, cpu_satp_mode(satp),
                                 cpu_satp_to_root_table_phys(satp),
                                 limine_hhdm_request.response->offset, &page)) {
-            if (!vmm_map_page_no_alloc(page_virt, SATP_MODE_SV48, pml4_phys,
+            if (!vmm_map_page_no_alloc(page_virt, satp_mode, root_table_phys,
                                        limine_hhdm_request.response->offset,
                                        &page)) {
                 kprintf("Failed to map kernel code page %p; Halting\n",
@@ -633,9 +687,10 @@ noreturn void bsp_kernel_entrypoint_limine() {
         }
     }
 
-    bootstrap_trampoline(fb_width, fb_height, KERNEL_INIT_STACK_TOP,
-                         ((pml4_phys >> 12) | ((uint64_t)SATP_MODE_SV48 << 60)),
-                         bootstrap_continue);
+    bootstrap_trampoline(
+            fb_width, fb_height, KERNEL_INIT_STACK_TOP,
+            ((root_table_phys >> 12) | ((uint64_t)satp_mode << 60)),
+            bootstrap_continue);
 }
 
 static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
@@ -680,7 +735,13 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
 
     size_t pre_direct_free = physical_region->free;
 #endif
+#ifdef RISCV_SV48
     vmm_init_direct_mapping(new_pml4, &static_memmap);
+#elifdef RISCV_SV39
+    vmm_init_direct_mapping(new_pdpt, &static_memmap);
+#else
+#error RISC-V paging mode invalid or not defined
+#endif
 #ifdef DEBUG_VMM
     size_t post_direct_free = physical_region->free;
     kprintf("\nPage tables for VMM Direct Mapping: %ld bytes of physical "
@@ -694,8 +755,7 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
 
 #ifdef TEST_RISCV_VMM_INIT
     uintptr_t new_page_paddr = page_alloc(physical_region);
-    uint64_t *new_page_ptr =
-            (uint64_t *)(new_page_paddr + 0xffff800000000000ULL);
+    uint64_t *new_page_ptr = (uint64_t *)(new_page_paddr + DIRECT_MAP_BASE);
 
     for (int i = 0; i < 512; i++) {
         new_page_ptr[i] = i;

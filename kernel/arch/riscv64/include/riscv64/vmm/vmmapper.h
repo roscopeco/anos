@@ -60,7 +60,13 @@
 // Base of the per-CPU temporary mapping pages
 #define PER_CPU_TEMP_PAGE_BASE ((0xFFFFFFFF80400000))
 
+#ifdef RISCV_SV48
 #define IS_USER_ADDRESS(ptr) (((((uint64_t)(ptr)) & 0xffff800000000000) == 0))
+#elifdef RISCV_SV39
+#define IS_USER_ADDRESS(ptr) (((((uint64_t)(ptr)) & 0xffffffc000000000) == 0))
+#else
+#error RISC-V paging mode invalid or not defined
+#endif
 
 typedef struct {
     uint64_t entries[PAGE_TABLE_ENTRIES];
@@ -139,6 +145,6 @@ static inline uintptr_t vmm_per_cpu_temp_page_addr(uint8_t cpu) {
 // Initialize the direct mapping for physical memory
 // This must be called during early boot, before SMP
 // or userspace is up (since it abuses both those things)
-void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap);
+void vmm_init_direct_mapping(uint64_t *pml4, const Limine_MemMap *memmap);
 
 #endif // __ANOS_KERNEL_ARCH_RISCV64_VMM_VMMAPPER_H

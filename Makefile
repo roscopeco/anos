@@ -14,17 +14,9 @@
 
 ARCH?=x86_64
 
+export ARCH
+
 TARGET_TRIPLE?=$(ARCH)-elf-anos
-
-ifeq ($(ARCH),x86_64)
-ASM?=nasm
-else
-ifeq ($(ARCH),riscv64)
-ASM?=$(TARGET_TRIPLE)-gcc
-endif
-endif
-
-export ASM
 
 OPTIMIZE?=3
 XLD?=$(TARGET_TRIPLE)-ld
@@ -39,15 +31,19 @@ CFLAGS=-Wall -Werror -Wno-unused-but-set-variable -Wno-unused-variable -std=c23	
 		-g -O$(OPTIMIZE)														\
 		-DARCH=$(ARCH) -DARCH_$(shell echo '$(ARCH)' | tr '[:lower:]' '[:upper:]')
 
-export OPTIMIZE
-
 ifeq ($(ARCH),x86_64)
+ASM?=nasm
 CFLAGS+=-mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel
 else
 ifeq ($(ARCH),riscv64)
-CFLAGS+=-mcmodel=medany -DRISCV_SV48
+ASM?=$(TARGET_TRIPLE)-gcc
+RISCV_PAGING_MODE?=SV48
+CFLAGS+=-mcmodel=medany -DRISCV_$(RISCV_PAGING_MODE)
 endif
 endif
+
+export ASM
+export OPTIMIZE
 
 # Setup host stuff for tests etc.
 HOST_ARCH?=$(shell uname -p)
@@ -139,7 +135,7 @@ QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 256M -M q35 -device ioh3420,bus=pci
 QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
 else
 ifeq ($(ARCH),riscv64)
-QEMU_BASEOPTS=-M virt,pflash0=pflash0,pflash1=pflash1,acpi=off -m 8G -cpu rv64,sv57=on								\
+QEMU_BASEOPTS=-M virt,pflash0=pflash0,pflash1=pflash1,acpi=off -m 8G -cpu rv64,sv57=off								\
     -device VGA																										\
     -device qemu-xhci																								\
     -device usb-kbd																									\

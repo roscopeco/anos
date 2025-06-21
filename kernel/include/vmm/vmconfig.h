@@ -12,7 +12,17 @@
 
 #include "anos_assert.h"
 
+#ifdef ARCH_RISCV64
+#ifdef RISCV_SV48
 #define VM_KERNEL_SPACE_START ((0xffff800000000000ULL))
+#elifdef RISCV_SV39
+#define VM_KERNEL_SPACE_START ((0xffffffc000000000ULL))
+#else
+#error RISC-V paging mode invalid or not defined
+#endif
+#else
+#define VM_KERNEL_SPACE_START ((0xffff800000000000ULL))
+#endif
 
 #ifdef ARCH_X86_64
 #include "x86_64/vmm/vmconfig.h"

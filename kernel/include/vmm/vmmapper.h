@@ -44,7 +44,17 @@ static constexpr uintptr_t STATIC_KERNEL_SPACE = 0xFFFFFFFF80000000;
 static constexpr uintptr_t DIRECT_MAP_BASE = 0;
 #else
 // Direct mapping base address (from MemoryMap.md)
+#ifdef ARCH_RISCV64
+#ifdef RISCV_SV48
 static constexpr uintptr_t DIRECT_MAP_BASE = 0xffff800000000000;
+#elifdef RISCV_SV39
+static constexpr uintptr_t DIRECT_MAP_BASE = 0xffffffc000000000;
+#else
+#error RISC-V paging mode invalid or not defined
+#endif
+#else
+static constexpr uintptr_t DIRECT_MAP_BASE = 0xffff800000000000;
+#endif
 #endif
 
 #ifdef ARCH_X86_64

@@ -386,6 +386,11 @@ static inline uintptr_t offset_in_terapage(uintptr_t addr) {
 // (ab)uses some of the userspace PML4 mappings to do its work.
 //
 static uint64_t* ensure_temp_page_tables(uint64_t * const pml4, const uintptr_t temp_map_addr) {
+#ifdef RISCV_SV39
+    panic("This is as far as we go on RISC-V SV39 currently,\n             "
+          "we need to redo the VM mapper for three levels!");
+#endif
+
     vdebugf("ensure_temp_page_tables(0x%016lx, 0x%016lx)\n", (uintptr_t)pml4, temp_map_addr);
 
     uint16_t pml4e = vmm_virt_to_pml4_index(temp_map_addr);
@@ -638,7 +643,7 @@ static void cleanup_temp_page_tables(uint64_t *const pml4) {
     cpu_invalidate_tlb_all();
 }
 
-void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap) {
+void vmm_init_direct_mapping(uint64_t *pml4, const Limine_MemMap *memmap) {
     vdebugf("vmm_init_direct_mapping: init with %ld entries at pml4 0x%016lx\n",
             memmap->entry_count, (uintptr_t)pml4);
 
