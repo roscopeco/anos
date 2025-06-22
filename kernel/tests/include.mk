@@ -320,6 +320,9 @@ kernel/tests/build/vmm/vmm_shootdown: kernel/tests/munit.o kernel/tests/vmm/vmm_
 kernel/tests/build/platform/acpi/acpitables: kernel/tests/munit.o kernel/tests/platform/acpi/acpitables.o kernel/tests/build/platform/acpi/acpitables.o kernel/tests/mock_vmm.o kernel/tests/arch/x86_64/mock_machine.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/sched/mutex: kernel/tests/munit.o kernel/tests/sched/mutex.o kernel/tests/build/sched/mutex.o kernel/tests/build/structs/pq.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/x86_64/spinlock: kernel/tests/munit.o kernel/tests/arch/x86_64/spinlock.o kernel/tests/build/arch/x86_64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -386,7 +389,8 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/structs/region_tree								\
 			kernel/tests/build/smp/ipwi											\
 			kernel/tests/build/vmm/vmm_shootdown								\
-			kernel/tests/build/platform/acpi/acpitables
+			kernel/tests/build/platform/acpi/acpitables							\
+			kernel/tests/build/sched/mutex
 
 ifeq ($(HOST_ARCH),i386)	# macOS
 ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\

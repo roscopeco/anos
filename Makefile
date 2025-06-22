@@ -270,6 +270,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/smp/ipwi.o											\
 			$(STAGE3_DIR)/vmm/vmm_shootdown.o									\
 			$(STAGE3_DIR)/process/address_space.o								\
+			$(STAGE3_DIR)/sched/mutex.o											\
 			$(STAGE3_ARCH_OBJS)													\
 			$(SYSTEM)_linkable.o
 else
@@ -308,6 +309,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/structs/region_tree.o									\
 			$(STAGE3_DIR)/managed_resources/resources.o							\
 			$(STAGE3_DIR)/process/address_space.o								\
+			$(STAGE3_DIR)/sched/mutex.o											\
             $(STAGE3_ARCH_OBJS)													\
         	$(SYSTEM)_linkable.o
 endif
