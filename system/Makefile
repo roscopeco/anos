@@ -21,7 +21,6 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #	DEBUG_SERVER_LOADER		Debug the initial server program loader
 #
 #	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
-#	TEST_LIBC_MALLOC		Do a bit of malloc'ing to check that's all working
 #	TEST_BEEP_BOOP			Start the Beep Boop test server process
 #
 CDEFS=-DTEST_BEEP_BOOP
