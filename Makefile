@@ -101,7 +101,6 @@ endif
 #
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
 #	SYSCALL_SCHED_ONLY_THIS_CPU			Syscalls will only schedule things on the current CPU
-#	TEST_RISCV_VMM_INIT					Do a basic test of the VMM on RISC-V after initialisation
 #
 #	DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL	address_space_create will copy **all** PDPT entries,
 #										not just kernel ones. This is unlikely to ever be a
