@@ -16,7 +16,6 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 
 # The following C defines are recognised by system and enable various things
 #
-#   DEBUG_INT_SYSCALLS		Use int 0x69 instead of syscall instruction
 #	DEBUG_INIT_RAMFS		Dump info about the initial RAMFS loaded by system
 #	DEBUG_SYS_IPC			Debug IPC messages received by SYSTEM
 #	DEBUG_SERVER_LOADER		Debug the initial server program loader
