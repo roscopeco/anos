@@ -660,19 +660,6 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
             physical_region, physical_region->size, physical_region->free);
 #endif
 
-#ifdef TEST_RISCV_PMM_INIT
-    uintptr_t test_page = page_alloc(physical_region);
-
-    if (test_page & 0xfff) {
-        kprintf("Test physical page alloc: failed to allocate test physical "
-                "page!\n");
-        page_free(physical_region, test_page);
-    } else {
-        kprintf("Test physical page alloc: allocated at 0x%016lx [phys]\n",
-                test_page);
-    }
-#endif
-
 #ifdef DEBUG_VMM
     extern uint64_t vmm_direct_mapping_terapages_used,
             vmm_direct_mapping_gigapages_used,
@@ -690,20 +677,6 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
             vmm_direct_mapping_terapages_used,
             vmm_direct_mapping_gigapages_used,
             vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used);
-#endif
-
-#ifdef TEST_RISCV_VMM_INIT
-    uintptr_t new_page_paddr = page_alloc(physical_region);
-    uint64_t *new_page_ptr =
-            (uint64_t *)(new_page_paddr + 0xffff800000000000ULL);
-
-    for (int i = 0; i < 512; i++) {
-        new_page_ptr[i] = i;
-    }
-
-    kprintf("Physical allocated at 0x%016lx, direct map is 0x%016lx, should be "
-            "dirty\n",
-            new_page_paddr, (uintptr_t)new_page_ptr);
 #endif
 
     bsp_kernel_entrypoint(0);

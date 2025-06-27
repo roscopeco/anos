@@ -11,12 +11,6 @@
 #include "sched.h"
 #include "sleep.h"
 
-#ifdef WITH_KERNEL_HEART
-// TODO Obviously doesn't belong here, just a hack for proof of life...
-#define VRAM_VIRTUAL_HEART 0xffffffff800b809e
-static bool heart_state = false;
-#endif
-
 static volatile uint32_t counter;
 
 // TODO could probably derive this directly from timer count now...?
@@ -35,24 +29,6 @@ void handle_ap_timer_interrupt(void) {
 
 void handle_bsp_timer_interrupt(void) {
     lapic_timer_upticks += 1;
-
-#ifdef WITH_KERNEL_HEART
-    if (counter++ == (KERNEL_HZ / 2)) /* one full cycle / sec */ {
-        counter = 0;
-
-        uint8_t *vram = (uint8_t *)VRAM_VIRTUAL_HEART;
-
-        vram[0] = 0x03; // heart
-
-        if (heart_state) {
-            vram[1] = 0x0C; // red
-        } else {
-            vram[1] = 0x08; // "light black"
-        }
-
-        heart_state = !heart_state;
-    }
-#endif
 
     kernel_timer_eoe();
 

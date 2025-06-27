@@ -100,10 +100,7 @@ endif
 # These ones enable some specific feature tests
 #
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
-#	DEBUG_SLEEPY_KERNEL_TASK			Start a noisy kernel task that sleeps on all CPUs
 #	SYSCALL_SCHED_ONLY_THIS_CPU			Syscalls will only schedule things on the current CPU
-#	TEST_RISCV_PMM_INIT					Do a basic test of the PMM on RISC-V after initialisation
-#	TEST_RISCV_VMM_INIT					Do a basic test of the VMM on RISC-V after initialisation
 #
 #	DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL	address_space_create will copy **all** PDPT entries,
 #										not just kernel ones. This is unlikely to ever be a
@@ -120,7 +117,6 @@ endif
 #
 # And these will selectively disable features
 #
-#	WITH_KERNEL_HEART		Enable the old visual heartbeat in the top-right of the console
 #	NO_SMP					Disable SMP (don't spin-up any of the APs)
 #	SMP_TWO_SIPI_ATTEMPTS	Try a second SIPI if an AP doesn't respond to the first (x86-only)
 #	NO_USER_GS				Disable user-mode GS swap at kernel entry/exit (x86-only, debugging only)

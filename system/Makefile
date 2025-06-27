@@ -16,13 +16,11 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 
 # The following C defines are recognised by system and enable various things
 #
-#   DEBUG_INT_SYSCALLS		Use int 0x69 instead of syscall instruction
 #	DEBUG_INIT_RAMFS		Dump info about the initial RAMFS loaded by system
 #	DEBUG_SYS_IPC			Debug IPC messages received by SYSTEM
 #	DEBUG_SERVER_LOADER		Debug the initial server program loader
 #
 #	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
-#	TEST_LIBC_MALLOC		Do a bit of malloc'ing to check that's all working
 #	TEST_BEEP_BOOP			Start the Beep Boop test server process
 #
 CDEFS=-DTEST_BEEP_BOOP
