@@ -214,63 +214,6 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     return true;
 }
 
-#ifdef DEBUG_SLEEPY_KERNEL_TASK
-#include "fba/alloc.h"
-#include "kprintf.h"
-#include "sleep.h"
-#include "task.h"
-
-// TODO It seems there's a bug here (or possibly in kernel tasks generally).
-//      When sleepy task is enabled, it _looks_ like user tasks start up
-//      multiple times. This may be true, or it may be a terminal artifact
-//      (though it does occur on the serial term too).
-//
-//      Investigate. Check the entrypoint and how we're handling the locks
-//      especially, it feels very much like a straight-up race condition...
-//
-void sleepy_kernel_task(void) {
-    PerCPUState *state = state_get_for_this_cpu();
-
-    while (1) {
-        kprintf("    Hello from #%ld    ", state->cpu_id);
-        sleep_task(task_current(), 5000000000 + (1000000000 * state->cpu_id));
-    }
-
-    __builtin_unreachable();
-}
-
-static bool init_sleepy_kernel_task(PerCPUSchedState *state,
-                                    uintptr_t bootstrap_func) {
-    uintptr_t sleepy_sstack = (uintptr_t)fba_alloc_block();
-    if (!sleepy_sstack) {
-        return false;
-    }
-
-    uintptr_t sleepy_ustack = (uintptr_t)fba_alloc_block();
-    if (!sleepy_ustack) {
-        fba_free((void *)sleepy_sstack);
-        return false;
-    }
-
-    Task *sleepy_task = task_create_kernel(
-            system_process, sleepy_ustack + 0x1000, sleepy_sstack + 0x1000,
-            (uint64_t)sleepy_kernel_task, TASK_CLASS_NORMAL);
-
-    if (!sleepy_task) {
-        fba_free((void *)sleepy_sstack);
-        fba_free((void *)sleepy_ustack);
-        return false;
-    }
-
-    state->all_queue_total += 1;
-    task_pq_push(&state->normal_head, sleepy_task);
-
-    return true;
-}
-#else
-#define init_sleepy_kernel_task(...) true
-#endif
-
 bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp,
                      uintptr_t bootstrap_func) {
 
@@ -289,7 +232,7 @@ bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp,
         return false;
     }
 
-    return init_sleepy_kernel_task(state, bootstrap_func);
+    return true;
 }
 
 #include "kprintf.h"

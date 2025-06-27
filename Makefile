@@ -100,7 +100,6 @@ endif
 # These ones enable some specific feature tests
 #
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
-#	DEBUG_SLEEPY_KERNEL_TASK			Start a noisy kernel task that sleeps on all CPUs
 #	SYSCALL_SCHED_ONLY_THIS_CPU			Syscalls will only schedule things on the current CPU
 #	TEST_RISCV_PMM_INIT					Do a basic test of the PMM on RISC-V after initialisation
 #	TEST_RISCV_VMM_INIT					Do a basic test of the VMM on RISC-V after initialisation
