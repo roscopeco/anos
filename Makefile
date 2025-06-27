@@ -120,7 +120,6 @@ endif
 #
 # And these will selectively disable features
 #
-#	WITH_KERNEL_HEART		Enable the old visual heartbeat in the top-right of the console
 #	NO_SMP					Disable SMP (don't spin-up any of the APs)
 #	SMP_TWO_SIPI_ATTEMPTS	Try a second SIPI if an AP doesn't respond to the first (x86-only)
 #	NO_USER_GS				Disable user-mode GS swap at kernel entry/exit (x86-only, debugging only)
