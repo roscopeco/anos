@@ -269,6 +269,11 @@ int main(int argc, char **argv) {
                             [SYSCALL_ID_MAP_FIRMWARE_TABLES],
                     .capability_id = SYSCALL_ID_MAP_FIRMWARE_TABLES,
             },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL],
+                    .capability_id = SYSCALL_ID_MAP_PHYSICAL,
+            },
     };
 
     const uint64_t vfs_channel = anos_create_channel();
@@ -290,7 +295,7 @@ int main(int argc, char **argv) {
                                               "Hello, world!"};
 
             const int64_t test_server_pid = create_server_process(
-                    0x100000, 4, new_process_caps, 2, test_server_argv);
+                    0x100000, 3, new_process_caps, 2, test_server_argv);
             if (test_server_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/test_server.elf");
@@ -300,7 +305,7 @@ int main(int argc, char **argv) {
             const char *devman_argv[] = {"boot:/devman.elf", "Hello, world!"};
 
             const int64_t devman_pid = create_server_process(
-                    0x100000, 4, new_process_caps, 2, devman_argv);
+                    0x100000, 5, new_process_caps, 2, devman_argv);
             if (devman_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/devman.elf");

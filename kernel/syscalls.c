@@ -34,6 +34,7 @@
 #include "structs/region_tree.h"
 #include "syscalls.h"
 
+#include "platform.h"
 #include "printhex.h"
 #include "task.h"
 #include "throttle.h"
@@ -612,8 +613,6 @@ SYSCALL_HANDLER(destroy_region) {
 SYSCALL_HANDLER(map_firmware_tables) {
 #ifdef ARCH_X86_64
     const uintptr_t user_vaddr = (uintptr_t)arg0;
-    constexpr size_t acpi_region_size =
-            ACPI_TABLES_VADDR_LIMIT - ACPI_TABLES_VADDR_BASE;
 
     // Validate user address
     if (!IS_USER_ADDRESS(user_vaddr)) {
@@ -625,40 +624,22 @@ SYSCALL_HANDLER(map_firmware_tables) {
         return SYSCALL_BADARGS;
     }
 
-    // Ensure the entire ACPI region fits in userspace
-    if (!IS_USER_ADDRESS(user_vaddr + acpi_region_size - 1)) {
-        return SYSCALL_BADARGS;
+    // Get the RSDP pointer from platform initialization
+    ACPI_RSDP *rsdp = platform_get_root_firmware_table();
+    if (!rsdp) {
+        return SYSCALL_FAILURE;
     }
 
-    // Map each page of the ACPI tables region from kernel space to userspace
-    for (uintptr_t offset = 0; offset < acpi_region_size;
-         offset += VM_PAGE_SIZE) {
-        const uintptr_t kernel_vaddr = ACPI_TABLES_VADDR_BASE + offset;
-        const uintptr_t target_user_vaddr = user_vaddr + offset;
+    // Get the physical address of the RSDP page
+    const uintptr_t rsdp_phys_addr = vmm_virt_to_phys_page((uintptr_t)rsdp);
+    if (rsdp_phys_addr == 0) {
+        return SYSCALL_FAILURE;
+    }
 
-        // Get the physical address of the kernel ACPI page
-        const uintptr_t phys_addr = vmm_virt_to_phys_page(kernel_vaddr);
-
-        // Skip unmapped pages (some areas in ACPI region may be sparse)
-        if (phys_addr == 0) {
-            continue;
-        }
-
-        // Map the physical page into userspace as read-only
-        if (!vmm_map_page(target_user_vaddr, phys_addr,
-                          PG_PRESENT | PG_USER | PG_READ)) {
-            // If mapping fails, unmap what we've already done
-            for (uintptr_t unmap_offset = 0; unmap_offset < offset;
-                 unmap_offset += VM_PAGE_SIZE) {
-                const uintptr_t unmap_user_vaddr = user_vaddr + unmap_offset;
-                const uintptr_t unmap_phys =
-                        vmm_virt_to_phys_page(unmap_user_vaddr);
-                if (unmap_phys != 0) {
-                    vmm_unmap_page(unmap_user_vaddr);
-                }
-            }
-            return SYSCALL_FAILURE;
-        }
+    // Map the RSDP page into userspace as read-only
+    if (!vmm_map_page(user_vaddr, rsdp_phys_addr,
+                      PG_PRESENT | PG_USER | PG_READ)) {
+        return SYSCALL_FAILURE;
     }
 
     return SYSCALL_OK;
@@ -666,6 +647,47 @@ SYSCALL_HANDLER(map_firmware_tables) {
     // On non-x86_64 architectures, firmware tables are not yet supported
     return SYSCALL_NOT_IMPL;
 #endif
+}
+
+SYSCALL_HANDLER(map_physical) {
+    const uintptr_t phys_addr = (uintptr_t)arg0;
+    const uintptr_t user_vaddr = (uintptr_t)arg1;
+    const size_t size = (size_t)arg2;
+
+    // Validate user address
+    if (!IS_USER_ADDRESS(user_vaddr)) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Ensure addresses are page-aligned
+    if ((user_vaddr & 0xFFF) || (phys_addr & 0xFFF) || (size & 0xFFF)) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Ensure the entire region fits in userspace
+    if (!IS_USER_ADDRESS(user_vaddr + size - 1)) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Map each page from physical to user virtual
+    for (uintptr_t offset = 0; offset < size; offset += VM_PAGE_SIZE) {
+        const uintptr_t target_phys_addr = phys_addr + offset;
+        const uintptr_t target_user_vaddr = user_vaddr + offset;
+
+        // Map the physical page into userspace as read-only
+        if (!vmm_map_page(target_user_vaddr, target_phys_addr,
+                          PG_PRESENT | PG_USER | PG_READ)) {
+            // If mapping fails, unmap what we've already done
+            for (uintptr_t unmap_offset = 0; unmap_offset < offset;
+                 unmap_offset += VM_PAGE_SIZE) {
+                const uintptr_t unmap_user_vaddr = user_vaddr + unmap_offset;
+                vmm_unmap_page(unmap_user_vaddr);
+            }
+            return SYSCALL_FAILURE;
+        }
+    }
+
+    return SYSCALL_OK;
 }
 
 static uint64_t init_syscall_capability(CapabilityMap *map,
@@ -765,6 +787,8 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
                                     SYSCALL_NAME(destroy_region));
     stack_syscall_capability_cookie(SYSCALL_ID_MAP_FIRMWARE_TABLES,
                                     SYSCALL_NAME(map_firmware_tables));
+    stack_syscall_capability_cookie(SYSCALL_ID_MAP_PHYSICAL,
+                                    SYSCALL_NAME(map_physical));
 
     // Stack dummy argc/argv for now
     // TODO this needs refactoring, syscall init shouldn't be responsible
