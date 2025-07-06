@@ -244,7 +244,7 @@ map_sdt(uint64_t phys_addr) {
 #endif
 
         for (int i = 0; i < entries; i++) {
-            *entry = (((uint64_t)map_sdt((uint64_t)*entry)) & 0xFFFFFFFF);
+            *entry = (uint64_t)map_sdt(*entry);
             entry++;
         }
     }

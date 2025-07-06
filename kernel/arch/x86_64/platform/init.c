@@ -235,3 +235,5 @@ bool platform_init(const uintptr_t platform_data) {
 }
 
 ACPI_RSDP *platform_get_root_firmware_table(void) { return acpi_rsdp_pointer; }
+
+ACPI_RSDT *platform_get_acpi_root_table(void) { return acpi_root_table; }

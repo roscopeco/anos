@@ -43,6 +43,24 @@
 
 #ifdef ARCH_X86_64
 #include "platform/acpi/acpitables.h"
+
+// ACPI utility functions for firmware table handover
+static inline bool has_sig(const char *expect, ACPI_SDTHeader *sdt) {
+    for (int i = 0; i < 4; i++) {
+        if (expect[i] != sdt->signature[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static inline uint32_t RSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
+    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 4);
+}
+
+static inline uint32_t XSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
+    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 8);
+}
 #endif
 
 #ifdef DEBUG_PROCESS_SYSCALLS
@@ -612,7 +630,14 @@ SYSCALL_HANDLER(destroy_region) {
 
 SYSCALL_HANDLER(map_firmware_tables) {
 #ifdef ARCH_X86_64
+    static bool acpi_tables_handed_over = false;
+
     const uintptr_t user_vaddr = (uintptr_t)arg0;
+
+    // Check if tables have already been handed over
+    if (acpi_tables_handed_over) {
+        return SYSCALL_FAILURE;
+    }
 
     // Validate user address
     if (!IS_USER_ADDRESS(user_vaddr)) {
@@ -624,23 +649,71 @@ SYSCALL_HANDLER(map_firmware_tables) {
         return SYSCALL_BADARGS;
     }
 
-    // Get the RSDP pointer from platform initialization
+    // Get the RSDP and root table pointers from platform initialization
     ACPI_RSDP *rsdp = platform_get_root_firmware_table();
-    if (!rsdp) {
+    ACPI_RSDT *root_table = platform_get_acpi_root_table();
+    if (!rsdp || !root_table) {
         return SYSCALL_FAILURE;
     }
 
-    // Get the physical address of the RSDP page
-    const uintptr_t rsdp_phys_addr = vmm_virt_to_phys_page((uintptr_t)rsdp);
-    if (rsdp_phys_addr == 0) {
-        return SYSCALL_FAILURE;
+    // Convert kernel virtual addresses back to physical addresses in the tables
+    if (has_sig("XSDT", &root_table->header)) {
+        uint32_t entries = XSDT_ENTRY_COUNT(root_table);
+        uint64_t *entry = ((uint64_t *)(root_table + 1));
+
+        for (int i = 0; i < entries; i++) {
+            // Convert kernel virtual address back to physical
+            uintptr_t phys_addr = vmm_virt_to_phys_page(*entry);
+            if (phys_addr == 0) {
+                return SYSCALL_FAILURE;
+            }
+            *entry = phys_addr;
+            entry++;
+        }
+    } else if (has_sig("RSDT", &root_table->header)) {
+        uint32_t entries = RSDT_ENTRY_COUNT(root_table);
+        uint32_t *entry = ((uint32_t *)(root_table + 1));
+
+        for (int i = 0; i < entries; i++) {
+            // Convert kernel virtual address back to physical
+            uintptr_t phys_addr =
+                    vmm_virt_to_phys_page(*entry | 0xFFFFFFFF00000000);
+            if (phys_addr == 0) {
+                return SYSCALL_FAILURE;
+            }
+            *entry = (uint32_t)phys_addr;
+            entry++;
+        }
     }
 
-    // Map the RSDP page into userspace as read-only
-    if (!vmm_map_page(user_vaddr, rsdp_phys_addr,
-                      PG_PRESENT | PG_USER | PG_READ)) {
-        return SYSCALL_FAILURE;
+    // Map the entire ACPI tables region to userspace
+    // We'll map the reserved ACPI virtual address range to userspace
+    const uintptr_t acpi_virt_start = ACPI_TABLES_VADDR_BASE;
+    const uintptr_t acpi_virt_end = ACPI_TABLES_VADDR_LIMIT;
+    const size_t acpi_region_size = acpi_virt_end - acpi_virt_start;
+
+    // Map each page from the ACPI virtual region to userspace
+    uintptr_t current_user_addr = user_vaddr;
+    for (uintptr_t virt_addr = acpi_virt_start; virt_addr < acpi_virt_end;
+         virt_addr += VM_PAGE_SIZE, current_user_addr += VM_PAGE_SIZE) {
+
+        // Check if this virtual page is actually mapped in kernel space
+        uintptr_t phys_addr = vmm_virt_to_phys_page(virt_addr);
+        if (phys_addr != 0) {
+            // Map this physical page to userspace
+            if (!vmm_map_page(current_user_addr, phys_addr,
+                              PG_PRESENT | PG_USER | PG_READ)) {
+                // TODO: Clean up partial mappings on failure
+                return SYSCALL_FAILURE;
+            }
+
+            // Unmap from kernel space
+            vmm_unmap_page(virt_addr);
+        }
     }
+
+    // Mark tables as handed over
+    acpi_tables_handed_over = true;
 
     return SYSCALL_OK;
 #else
