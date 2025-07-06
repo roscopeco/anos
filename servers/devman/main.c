@@ -50,11 +50,8 @@ typedef struct {
     ACPI_SDTHeader header;
 } __attribute__((packed)) ACPI_RSDT;
 
-// ACPI region constants (matches kernel definitions)
-#define ACPI_TABLES_VADDR_BASE 0xFFFFFFFF81000000
-#define ACPI_TABLES_VADDR_LIMIT 0xFFFFFFFF81020000
-#define ACPI_REGION_SIZE (ACPI_TABLES_VADDR_LIMIT - ACPI_TABLES_VADDR_BASE)
-#define USER_ACPI_BASE 0x8040000000 // Userspace base for entire ACPI region
+// ACPI constants
+#define USER_ACPI_BASE 0x8040000000 // Base for mapping ACPI tables
 
 static void print_signature(const char *sig, size_t len) {
     for (size_t i = 0; i < len && sig[i] != '\0'; i++) {
@@ -62,35 +59,11 @@ static void print_signature(const char *sig, size_t len) {
     }
 }
 
-static bool has_signature(const char *expected, const char *actual,
-                          size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        if (expected[i] != actual[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static void parse_acpi_rsdp(void *acpi_region) {
-    printf("Scanning for RSDP in ACPI region at user address 0x%lx...\n",
-           (uintptr_t)acpi_region);
-
-    ACPI_RSDP *rsdp = NULL;
-
-    // Find the RSDP by scanning the entire ACPI region for the signature "RSD PTR "
-    for (uintptr_t offset = 0; offset < ACPI_REGION_SIZE; offset += 16) {
-        ACPI_RSDP *candidate = (ACPI_RSDP *)((uint8_t *)acpi_region + offset);
-
-        if (has_signature("RSD PTR ", candidate->signature, 8)) {
-            rsdp = candidate;
-            printf("Found RSDP at offset 0x%lx\n", offset);
-            break;
-        }
-    }
+static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
+    printf("Parsing ACPI RSDP at 0x%lx...\n", (uintptr_t)rsdp);
 
     if (!rsdp) {
-        printf("RSDP not found in the mapped page.\n");
+        printf("No RSDP provided.\n");
         return;
     }
 
@@ -122,30 +95,24 @@ static void parse_acpi_rsdp(void *acpi_region) {
         return;
     }
 
-    // Since the kernel has already handed over the tables and converted virtual
-    // addresses back to physical, we can find the table by scanning for its signature
-    ACPI_SDTHeader *table = NULL;
+    // Map the table (align address down to page boundary and map one page)
+    uint64_t table_phys_page = table_addr & ~0xFFF;
+    uint64_t table_offset = table_addr & 0xFFF;
 
-    // Scan the ACPI region to find the table with the correct signature
-    for (uintptr_t offset = 0; offset < ACPI_REGION_SIZE; offset += 16) {
-        void *candidate_ptr = (uint8_t *)acpi_region + offset;
-        ACPI_SDTHeader *candidate = (ACPI_SDTHeader *)candidate_ptr;
+    printf("Mapping physical page 0x%016lx to user address 0x%lx\n",
+           table_phys_page, USER_ACPI_BASE);
 
-        // Check if this looks like the table we're looking for
-        if ((use_xsdt && has_signature("XSDT", candidate->signature, 4)) ||
-            (!use_xsdt && has_signature("RSDT", candidate->signature, 4))) {
-            table = candidate;
-            printf("Found %s table in mapped region at offset 0x%lx\n",
-                   use_xsdt ? "XSDT" : "RSDT", offset);
-            break;
-        }
-    }
-
-    if (!table) {
-        printf("Could not find %s table in mapped ACPI region\n",
-               use_xsdt ? "XSDT" : "RSDT");
+    // Map the physical page containing the table
+    const SyscallResult result =
+            anos_map_physical(table_phys_page, (void *)USER_ACPI_BASE, 4096);
+    if (result != SYSCALL_OK) {
+        printf("Failed to map ACPI table! Error code: %d\n", result);
         return;
     }
+
+    // Access the table at the correct offset within the mapped page
+    ACPI_SDTHeader *table =
+            (ACPI_SDTHeader *)((uint8_t *)USER_ACPI_BASE + table_offset);
 
     if (use_xsdt) {
         printf("\nXSDP (64-bit system descriptor table) at 0x%lx:\n",
@@ -177,36 +144,25 @@ static void parse_acpi_rsdp(void *acpi_region) {
             printf("Looking for first table at physical 0x%016lx\n",
                    first_table_addr);
 
-            // Since all ACPI tables are now mapped in our region, find it by scanning
-            ACPI_SDTHeader *first_table = NULL;
-            for (uintptr_t offset = 0; offset < ACPI_REGION_SIZE;
-                 offset += 16) {
-                void *candidate_ptr = (uint8_t *)acpi_region + offset;
-                ACPI_SDTHeader *candidate = (ACPI_SDTHeader *)candidate_ptr;
+            // Map the first table using map_physical
+            uint64_t first_table_phys_page = first_table_addr & ~0xFFF;
+            uint64_t first_table_offset = first_table_addr & 0xFFF;
 
-                // Check if this is a valid ACPI table header (has proper signature format)
-                if (candidate->signature[0] >= 'A' &&
-                    candidate->signature[0] <= 'Z' &&
-                    candidate->signature[1] >= 'A' &&
-                    candidate->signature[1] <= 'Z' &&
-                    candidate->signature[2] >= 'A' &&
-                    candidate->signature[2] <= 'Z' &&
-                    candidate->signature[3] >= 'A' &&
-                    candidate->signature[3] <= 'Z' &&
-                    candidate->length >= sizeof(ACPI_SDTHeader) &&
-                    candidate->length < 0x100000) {
-                    // Found a potential table - for now, let's use the first one we find
-                    first_table = candidate;
-                    printf("Found potential ACPI table at offset 0x%lx with "
-                           "signature: ",
-                           offset);
-                    print_signature(first_table->signature, 4);
-                    printf("\n");
-                    break;
-                }
-            }
+            printf("Mapping first table at physical 0x%016lx (page 0x%016lx, "
+                   "offset 0x%lx)\n",
+                   first_table_addr, first_table_phys_page, first_table_offset);
 
-            if (first_table) {
+            // Map the first table (use a different base address)
+            const uintptr_t first_table_base = USER_ACPI_BASE + 0x1000;
+            const SyscallResult table_result = anos_map_physical(
+                    first_table_phys_page, (void *)first_table_base, 4096);
+            if (table_result != SYSCALL_OK) {
+                printf("Failed to map first table! Error code: %d\n",
+                       table_result);
+            } else {
+                ACPI_SDTHeader *first_table =
+                        (ACPI_SDTHeader *)((uint8_t *)first_table_base +
+                                           first_table_offset);
 
                 printf("First table header:\n");
                 printf("  Signature: ");
@@ -238,10 +194,9 @@ static void parse_acpi_rsdp(void *acpi_region) {
                 }
                 if (dump_size % 16 != 0)
                     printf("\n");
-            } else {
-                printf("Could not find any valid ACPI table in the mapped "
-                       "region\n");
             }
+        } else {
+            printf("Could not map first ACPI table\n");
         }
     } else {
         printf("\nRSDT (32-bit system descriptor table) at 0x%lx:\n",
@@ -268,22 +223,23 @@ static void parse_acpi_rsdp(void *acpi_region) {
 }
 
 static int map_and_test_acpi(void) {
-    printf("Attempting to map ACPI tables region...\n");
+    printf("Attempting to get ACPI RSDP from kernel...\n");
 
-    // Try to map the entire ACPI tables region
-    const SyscallResult result = anos_map_firmware_tables(USER_ACPI_BASE);
+    // Allocate space for the RSDP in userspace
+    ACPI_RSDP rsdp;
+
+    // Call the syscall to copy RSDP data from kernel to userspace
+    const SyscallResult result = anos_map_firmware_tables((uintptr_t)&rsdp);
 
     if (result != SYSCALL_OK) {
-        printf("Failed to map ACPI tables! Error code: %d\n", result);
+        printf("Failed to get ACPI RSDP! Error code: %d\n", result);
         return -1;
     }
 
-    void *acpi_region = (void *)USER_ACPI_BASE;
-    printf("Successfully mapped ACPI region (%ld KB) at 0x%lx\n",
-           ACPI_REGION_SIZE / 1024, (uintptr_t)acpi_region);
+    printf("Successfully received ACPI RSDP from kernel\n");
 
     // Parse the RSDP and follow it to the ACPI tables
-    parse_acpi_rsdp(acpi_region);
+    parse_acpi_rsdp(&rsdp);
 
     return 0;
 }
