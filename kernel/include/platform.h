@@ -41,6 +41,12 @@ bool platform_task_init(void);
  * This provides direct access to the firmware table root pointer.
  */
 ACPI_RSDP *platform_get_root_firmware_table(void);
+
+/*
+ * Get the ACPI root table (RSDT/XSDT) that was initialized during platform init.
+ * This provides access to the table that contains pointers to all other ACPI tables.
+ */
+ACPI_RSDT *platform_get_acpi_root_table(void);
 #endif
 
 #endif
