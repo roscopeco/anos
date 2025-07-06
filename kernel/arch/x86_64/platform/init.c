@@ -43,6 +43,7 @@ void debug_madt(ACPI_RSDT *rsdt);
 #endif
 
 static ACPI_RSDT *acpi_root_table;
+static ACPI_RSDP *acpi_rsdp_pointer;
 
 static uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
                                         const uint8_t cpu_num) {
@@ -208,6 +209,9 @@ bool platform_init(const uintptr_t platform_data) {
     debugstr("\n");
 #endif
 
+    // Save the RSDP pointer for later use
+    acpi_rsdp_pointer = rsdp;
+
     acpi_root_table = acpi_tables_init(rsdp);
     if (acpi_root_table == NULL) {
         panic("ACPI table mapping failed");
@@ -229,3 +233,5 @@ bool platform_init(const uintptr_t platform_data) {
 
     return true;
 }
+
+ACPI_RSDP *platform_get_root_firmware_table(void) { return acpi_rsdp_pointer; }

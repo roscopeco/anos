@@ -50,9 +50,11 @@ typedef struct {
     ACPI_SDTHeader header;
 } __attribute__((packed)) ACPI_RSDT;
 
-// ACPI region size - matches kernel definition (128KB)
-#define ACPI_REGION_SIZE (128 * 1024)
-#define USER_ACPI_BASE 0x8040000000 // Arbitrary userspace address for mapping
+// RSDP page size
+#define RSDP_PAGE_SIZE 4096
+#define USER_RSDP_BASE                                                         \
+    0x8040000000 // Arbitrary userspace address for RSDP mapping
+#define USER_ACPI_BASE 0x8050000000 // Base for mapping other ACPI tables
 
 static void print_signature(const char *sig, size_t len) {
     for (size_t i = 0; i < len && sig[i] != '\0'; i++) {
@@ -70,15 +72,15 @@ static bool has_signature(const char *expected, const char *actual,
     return true;
 }
 
-static void parse_acpi_tables(void *acpi_base) {
+static void parse_acpi_rsdp(void *rsdp_page) {
     printf("Scanning for RSDP at user address 0x%lx...\n",
-           (uintptr_t)acpi_base);
+           (uintptr_t)rsdp_page);
 
     ACPI_RSDP *rsdp = NULL;
 
     // Find the RSDP by scanning for the signature "RSD PTR "
-    for (uintptr_t offset = 0; offset < ACPI_REGION_SIZE; offset += 16) {
-        ACPI_RSDP *candidate = (ACPI_RSDP *)((uint8_t *)acpi_base + offset);
+    for (uintptr_t offset = 0; offset < RSDP_PAGE_SIZE; offset += 16) {
+        ACPI_RSDP *candidate = (ACPI_RSDP *)((uint8_t *)rsdp_page + offset);
 
         if (has_signature("RSD PTR ", candidate->signature, 8)) {
             rsdp = candidate;
@@ -88,7 +90,7 @@ static void parse_acpi_tables(void *acpi_base) {
     }
 
     if (!rsdp) {
-        printf("RSDP not found in the mapped ACPI region.\n");
+        printf("RSDP not found in the mapped page.\n");
         return;
     }
 
@@ -101,96 +103,104 @@ static void parse_acpi_tables(void *acpi_base) {
     printf("  RSDT Address: 0x%08x\n", rsdp->rsdt_address);
     printf("  XSDT Address: 0x%016lx\n", rsdp->xsdt_address);
 
-    // Use XSDT if available (revision >= 2), otherwise fall back to RSDT
+    // Now we need to map the XSDT/RSDT using the new map_physical_memory syscall
+    uint64_t table_addr = 0;
+    bool use_xsdt = false;
+
     if (rsdp->revision >= 2 && rsdp->xsdt_address != 0) {
-        // Try to access XSDT - convert physical address to our mapped region
-        // This assumes the XSDT is within our mapped 128KB region
-        const uint64_t xsdt_offset =
-                rsdp->xsdt_address -
-                0xFFFFFFFF81000000; // Convert from kernel virtual to offset
-
-        if (xsdt_offset < ACPI_REGION_SIZE) {
-            ACPI_SDTHeader *xsdt =
-                    (ACPI_SDTHeader *)((uint8_t *)acpi_base + xsdt_offset);
-
-            printf("\nUsing XSDT (64-bit system descriptor table):\n");
-            printf("  Signature: ");
-            print_signature(xsdt->signature, 4);
-            printf("\n  Length: %u bytes\n", xsdt->length);
-            printf("  Revision: %u\n", xsdt->revision);
-            printf("  OEM ID: ");
-            print_signature(xsdt->oem_id, 6);
-            printf("\n  OEM Table ID: ");
-            print_signature(xsdt->oem_table_id, 8);
-            printf("\n  OEM Revision: 0x%x\n", xsdt->oem_revision);
-
-            // Count and display entries (64-bit pointers)
-            uint32_t entry_count = (xsdt->length - sizeof(ACPI_SDTHeader)) / 8;
-            printf("  Number of entries: %u\n", entry_count);
-
-            uint64_t *entries = (uint64_t *)(xsdt + 1);
-            for (uint32_t i = 0; i < entry_count && i < 8; i++) {
-                printf("  Entry %u: 0x%016lx\n", i, entries[i]);
-            }
-        } else {
-            printf("XSDT address 0x%016lx is outside our mapped region.\n",
-                   rsdp->xsdt_address);
-        }
+        table_addr = rsdp->xsdt_address;
+        use_xsdt = true;
+        printf("\nWill use XSDT at physical address 0x%016lx\n", table_addr);
     } else if (rsdp->rsdt_address != 0) {
-        // Use RSDT
-        uint64_t rsdt_offset =
-                rsdp->rsdt_address -
-                0xFFFFFFFF81000000; // Convert from kernel virtual to offset
-
-        if (rsdt_offset < ACPI_REGION_SIZE) {
-            ACPI_SDTHeader *rsdt =
-                    (ACPI_SDTHeader *)((uint8_t *)acpi_base + rsdt_offset);
-
-            printf("\nUsing RSDT (32-bit system descriptor table):\n");
-            printf("  Signature: ");
-            print_signature(rsdt->signature, 4);
-            printf("\n  Length: %u bytes\n", rsdt->length);
-            printf("  Revision: %u\n", rsdt->revision);
-            printf("  OEM ID: ");
-            print_signature(rsdt->oem_id, 6);
-            printf("\n  OEM Table ID: ");
-            print_signature(rsdt->oem_table_id, 8);
-            printf("\n  OEM Revision: 0x%x\n", rsdt->oem_revision);
-
-            // Count and display entries (32-bit pointers)
-            uint32_t entry_count = (rsdt->length - sizeof(ACPI_SDTHeader)) / 4;
-            printf("  Number of entries: %u\n", entry_count);
-
-            uint32_t *entries = (uint32_t *)(rsdt + 1);
-            for (uint32_t i = 0; i < entry_count && i < 8; i++) {
-                printf("  Entry %u: 0x%08x\n", i, entries[i]);
-            }
-        } else {
-            printf("RSDT address 0x%08x is outside our mapped region.\n",
-                   rsdp->rsdt_address);
-        }
+        table_addr = rsdp->rsdt_address;
+        use_xsdt = false;
+        printf("\nWill use RSDT at physical address 0x%08x\n",
+               (uint32_t)table_addr);
     } else {
         printf("No valid RSDT or XSDT address found in RSDP.\n");
+        return;
+    }
+
+    // Map the table (align address down to page boundary and map one page)
+    uint64_t table_phys_page = table_addr & ~0xFFF;
+    uint64_t table_offset = table_addr & 0xFFF;
+
+    printf("Mapping physical page 0x%016lx to user address 0x%lx\n",
+           table_phys_page, USER_ACPI_BASE);
+
+    // Map the physical page containing the table
+    const SyscallResult result =
+            anos_map_physical(table_phys_page, (void *)USER_ACPI_BASE, 4096);
+    if (result != SYSCALL_OK) {
+        printf("Failed to map ACPI table! Error code: %d\n", result);
+        return;
+    }
+
+    // Access the table at the correct offset within the mapped page
+    ACPI_SDTHeader *table =
+            (ACPI_SDTHeader *)((uint8_t *)USER_ACPI_BASE + table_offset);
+
+    if (use_xsdt) {
+        printf("\nXSDP (64-bit system descriptor table) at 0x%lx:\n",
+               (uintptr_t)table);
+        printf("  Signature: ");
+        print_signature(table->signature, 4);
+        printf("\n  Length: %u bytes\n", table->length);
+        printf("  Revision: %u\n", table->revision);
+        printf("  OEM ID: ");
+        print_signature(table->oem_id, 6);
+        printf("\n  OEM Table ID: ");
+        print_signature(table->oem_table_id, 8);
+        printf("\n  OEM Revision: 0x%x\n", table->oem_revision);
+
+        // Count and display entries (64-bit pointers)
+        uint32_t entry_count = (table->length - sizeof(ACPI_SDTHeader)) / 8;
+        printf("  Number of entries: %u\n", entry_count);
+
+        uint64_t *entries = (uint64_t *)(table + 1);
+        for (uint32_t i = 0; i < entry_count && i < 8; i++) {
+            printf("  Entry %u: 0x%016lx\n", i, entries[i]);
+        }
+    } else {
+        printf("\nRSDT (32-bit system descriptor table) at 0x%lx:\n",
+               (uintptr_t)table);
+        printf("  Signature: ");
+        print_signature(table->signature, 4);
+        printf("\n  Length: %u bytes\n", table->length);
+        printf("  Revision: %u\n", table->revision);
+        printf("  OEM ID: ");
+        print_signature(table->oem_id, 6);
+        printf("\n  OEM Table ID: ");
+        print_signature(table->oem_table_id, 8);
+        printf("\n  OEM Revision: 0x%x\n", table->oem_revision);
+
+        // Count and display entries (32-bit pointers)
+        uint32_t entry_count = (table->length - sizeof(ACPI_SDTHeader)) / 4;
+        printf("  Number of entries: %u\n", entry_count);
+
+        uint32_t *entries = (uint32_t *)(table + 1);
+        for (uint32_t i = 0; i < entry_count && i < 8; i++) {
+            printf("  Entry %u: 0x%08x\n", i, entries[i]);
+        }
     }
 }
 
 static int map_and_test_acpi(void) {
-    printf("Attempting to map firmware tables...\n");
+    printf("Attempting to map RSDP...\n");
 
-    // Try to map the ACPI tables
-    const SyscallResult result = anos_map_firmware_tables(USER_ACPI_BASE);
+    // Try to map the RSDP page
+    const SyscallResult result = anos_map_firmware_tables(USER_RSDP_BASE);
 
     if (result != SYSCALL_OK) {
-        printf("Failed to map firmware tables! Error code: %d\n", result);
+        printf("Failed to map RSDP! Error code: %d\n", result);
         return -1;
     }
 
-    void *acpi_tables = (void *)USER_ACPI_BASE;
-    printf("Successfully mapped firmware tables at 0x%lx\n",
-           (uintptr_t)acpi_tables);
+    void *rsdp_page = (void *)USER_RSDP_BASE;
+    printf("Successfully mapped RSDP at 0x%lx\n", (uintptr_t)rsdp_page);
 
-    // Parse the tables
-    parse_acpi_tables(acpi_tables);
+    // Parse the RSDP and follow it to the ACPI tables
+    parse_acpi_rsdp(rsdp_page);
 
     return 0;
 }
