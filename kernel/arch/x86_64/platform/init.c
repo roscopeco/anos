@@ -29,6 +29,11 @@
 #include "x86_64/kdrivers/hpet.h"
 #include "x86_64/kdrivers/local_apic.h"
 
+#ifdef DEBUG_ACPI
+#include "debugprint.h"
+#include "printhex.h"
+#endif
+
 #define AP_CPUINIT_TIMEOUT 100000000 // 100ms
 
 #ifdef DEBUG_MADT
@@ -182,7 +187,7 @@ bool platform_task_init(void) {
 bool platform_init(const uintptr_t platform_data) {
 #ifdef DEBUG_ACPI
     debugstr("RSDP at ");
-    printhex64((uint64_t)rsdp, debugchar);
+    printhex64((uint64_t)platform_data, debugchar);
     debugstr(" (physical): OEM is ");
 #endif
 

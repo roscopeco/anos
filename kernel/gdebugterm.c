@@ -225,16 +225,16 @@ void debugchar_np(char chr) {
     }
 }
 
-void debugattr(uint8_t new_attr) { attr = new_attr; }
+void debugattr(const uint8_t new_attr) { attr = new_attr; }
 
 void debugchar(char chr) {
-    uint64_t lock_flags = spinlock_lock_irqsave(&debugterm_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&debugterm_lock);
     debugchar_np(chr);
     spinlock_unlock_irqrestore(&debugterm_lock, lock_flags);
 }
 
 static inline void debugstr_np(const char *str) {
-    unsigned char c;
+    char c;
 
     while ((c = *str++)) {
         debugchar_np(c);
@@ -242,14 +242,24 @@ static inline void debugstr_np(const char *str) {
 }
 
 void debugstr(const char *str) {
-    uint64_t lock_flags = spinlock_lock_irqsave(&debugterm_lock);
+    const uint64_t lock_flags = spinlock_lock_irqsave(&debugterm_lock);
     debugstr_np(str);
     spinlock_unlock_irqrestore(&debugterm_lock, lock_flags);
 }
 
+void debugstr_len(const char *str, const int len) {
+    for (int i = 0; i < len; i++) {
+        if (str[i] == '\0') {
+            break;
+        }
+
+        debugchar_np(str[i]);
+    }
+}
+
 /* printhex */
 
-static inline void hex_preamble(PrintHexCharHandler printfunc) {
+static inline void hex_preamble(const PrintHexCharHandler printfunc) {
     printfunc(ZERO);
     printfunc(EX);
 }

@@ -40,6 +40,10 @@
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
 
+#ifdef ARCH_X86_64
+#include "platform/acpi/acpitables.h"
+#endif
+
 #ifdef DEBUG_PROCESS_SYSCALLS
 #include "printhex.h"
 #endif
@@ -605,9 +609,68 @@ SYSCALL_HANDLER(destroy_region) {
     return SYSCALL_OK;
 }
 
+SYSCALL_HANDLER(map_firmware_tables) {
+#ifdef ARCH_X86_64
+    const uintptr_t user_vaddr = (uintptr_t)arg0;
+    constexpr size_t acpi_region_size =
+            ACPI_TABLES_VADDR_LIMIT - ACPI_TABLES_VADDR_BASE;
+
+    // Validate user address
+    if (!IS_USER_ADDRESS(user_vaddr)) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Ensure user address is page-aligned
+    if (user_vaddr & 0xFFF) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Ensure the entire ACPI region fits in userspace
+    if (!IS_USER_ADDRESS(user_vaddr + acpi_region_size - 1)) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Map each page of the ACPI tables region from kernel space to userspace
+    for (uintptr_t offset = 0; offset < acpi_region_size;
+         offset += VM_PAGE_SIZE) {
+        const uintptr_t kernel_vaddr = ACPI_TABLES_VADDR_BASE + offset;
+        const uintptr_t target_user_vaddr = user_vaddr + offset;
+
+        // Get the physical address of the kernel ACPI page
+        const uintptr_t phys_addr = vmm_virt_to_phys_page(kernel_vaddr);
+
+        // Skip unmapped pages (some areas in ACPI region may be sparse)
+        if (phys_addr == 0) {
+            continue;
+        }
+
+        // Map the physical page into userspace as read-only
+        if (!vmm_map_page(target_user_vaddr, phys_addr,
+                          PG_PRESENT | PG_USER | PG_READ)) {
+            // If mapping fails, unmap what we've already done
+            for (uintptr_t unmap_offset = 0; unmap_offset < offset;
+                 unmap_offset += VM_PAGE_SIZE) {
+                const uintptr_t unmap_user_vaddr = user_vaddr + unmap_offset;
+                const uintptr_t unmap_phys =
+                        vmm_virt_to_phys_page(unmap_user_vaddr);
+                if (unmap_phys != 0) {
+                    vmm_unmap_page(unmap_user_vaddr);
+                }
+            }
+            return SYSCALL_FAILURE;
+        }
+    }
+
+    return SYSCALL_OK;
+#else
+    // On non-x86_64 architectures, firmware tables are not yet supported
+    return SYSCALL_NOT_IMPL;
+#endif
+}
+
 static uint64_t init_syscall_capability(CapabilityMap *map,
-                                        SyscallId syscall_id,
-                                        SyscallHandler handler) {
+                                        const SyscallId syscall_id,
+                                        const SyscallHandler handler) {
     if (!map) {
         return 0;
     }
@@ -618,7 +681,7 @@ static uint64_t init_syscall_capability(CapabilityMap *map,
         return 0;
     }
 
-    uint64_t cookie = capability_cookie_generate();
+    const uint64_t cookie = capability_cookie_generate();
 
     if (!cookie) {
         slab_free(capability);
@@ -641,6 +704,12 @@ static uint64_t init_syscall_capability(CapabilityMap *map,
 
 #define STACKED_LONGS_PER_CAPABILITY ((2))
 
+#ifdef DEBUG_SYSCALL_CAPS
+#define debug_syscall_cap_assignment kprintf
+#else
+#define debug_syscall_cap_assignment(...)
+#endif
+
 #define stack_syscall_capability_cookie(id, handler)                           \
     do {                                                                       \
         uint64_t cookie =                                                      \
@@ -648,6 +717,7 @@ static uint64_t init_syscall_capability(CapabilityMap *map,
         if (!cookie) {                                                         \
             return nullptr;                                                    \
         }                                                                      \
+        debug_syscall_cap_assignment("COOKIE %d = 0x%016lx\n", id, cookie);    \
         *--current_stack = cookie;                                             \
         *--current_stack = id;                                                 \
     } while (0)
@@ -693,6 +763,8 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
                                     SYSCALL_NAME(create_region));
     stack_syscall_capability_cookie(SYSCALL_ID_DESTROY_REGION,
                                     SYSCALL_NAME(destroy_region));
+    stack_syscall_capability_cookie(SYSCALL_ID_MAP_FIRMWARE_TABLES,
+                                    SYSCALL_NAME(map_firmware_tables));
 
     // Stack dummy argc/argv for now
     // TODO this needs refactoring, syscall init shouldn't be responsible
@@ -721,7 +793,9 @@ SyscallResult handle_syscall_69(const SyscallArg arg0, const SyscallArg arg1,
             &global_capability_map, (uint64_t)capability_cookie);
 
     if (cap && cap->handler) {
+#ifdef ENABLE_SYSCALL_THROTTLE_RESET
         throttle_reset(proc);
+#endif
         return cap->handler(arg0, arg1, arg2, arg3, arg4);
     }
 

@@ -46,14 +46,16 @@ static inline void throttle_abuse(Process *proc) {
     if (base > 1000000)
         base = 1000000;
 
-    uint64_t jitter = rand_entropy() % base;
-    uint64_t delay = base + jitter;
+    const uint64_t jitter = rand_entropy() % base;
+    const uint64_t delay = base + jitter;
 
     spin_delay_cycles(delay);
     proc->cap_failures++;
 }
 
+#ifdef ENABLE_SYSCALL_THROTTLE_RESET
 // Call this after a successful access to reset penalty
 static inline void throttle_reset(Process *proc) { proc->cap_failures = 0; }
+#endif
 
 #endif // __ANOS_KERNEL_ARCH_RISCV64_THROTTLE_H
