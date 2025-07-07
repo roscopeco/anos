@@ -198,6 +198,31 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         } else {
             printf("Could not map first ACPI table\n");
         }
+
+        // Dump all table signatures
+        printf("\n--- All ACPI Table Signatures ---\n");
+        for (uint32_t i = 0; i < entry_count; i++) {
+            uint64_t table_addr = entries[i];
+
+            // Map each table to read its signature
+            uint64_t table_phys_page = table_addr & ~0xFFF;
+            uint64_t table_offset = table_addr & 0xFFF;
+
+            const uintptr_t sig_table_base =
+                    USER_ACPI_BASE + 0x2000 + (i * 0x1000);
+            const SyscallResult sig_result = anos_map_physical(
+                    table_phys_page, (void *)sig_table_base, 4096);
+            if (sig_result == SYSCALL_OK) {
+                ACPI_SDTHeader *table =
+                        (ACPI_SDTHeader *)((uint8_t *)sig_table_base +
+                                           table_offset);
+                printf("  Table %u: ", i);
+                print_signature(table->signature, 4);
+                printf("\n");
+            } else {
+                printf("  Table %u: <mapping failed>\n", i);
+            }
+        }
     } else {
         printf("\nRSDT (32-bit system descriptor table) at 0x%lx:\n",
                (uintptr_t)table);
