@@ -105,10 +105,10 @@ structures at this point, leaving us with:
 | `0xffffffa000000000` | `0xffffffff7fffffff` | [_Currently unused, 382GiB_]                                  |
 | `0xffffffff80000000` | `0xffffffff803fffff` | Kernel code / data static mapping (4MiB)                      |
 | `0xffffffff80400000` | `0xffffffff80ffffff` | 256 per-CPU temporary mapping pages (**see notes, below**)    |
-| `0xffffffff81000000` | `0xffffffff8101ffff` | (Temporary) Reserved space for ACPI tables                    |
+| `0xffffffff81000000` | `0xffffffff8101ffff` | [_Currently unused, 128KiB_]                                  |
 | `0xffffffff81020000` | `0xffffffff81020fff` | Kernel driver LAPIC mapping page                              |
 | `0xffffffff81021000` | `0xffffffff810fffff` | Kernel driver MMIO mapping space (892KiB, 223 pages)          |
-| `0xffffffff81100000` | `0xffffffff81ffffff` | [_Currently unused, 15MiB_]                                   |
+| `0xffffffff81100000` | `0xffffffff81ffffff` | (Temporary) ACPI tables (Early boot only, 15MiB)              |
 | `0xffffffff82000000` | `0xffffffff827fffff` | Bootup terminal framebuffer (8MiB)                            |
 | `0xffffffff82800000` | `0xffffffffbfffffff` | [_Currently unused, 984MiB_]                                  |
 | `0xffffffffc0000000` | `0xffffffffffffffff` | 1GiB FBA space                                                |
