@@ -50,12 +50,94 @@ typedef struct {
     ACPI_SDTHeader header;
 } __attribute__((packed)) ACPI_RSDT;
 
+typedef struct {
+    uint64_t base_address;
+    uint16_t pci_segment_group;
+    uint8_t start_bus_number;
+    uint8_t end_bus_number;
+    uint32_t reserved;
+} __attribute__((packed)) MCFG_Entry;
+
+typedef struct {
+    ACPI_SDTHeader header;
+    uint64_t reserved;
+} __attribute__((packed)) MCFG_Table;
+
 // ACPI constants
 #define USER_ACPI_BASE 0x8040000000 // Base for mapping ACPI tables
 
 static void print_signature(const char *sig, const size_t len) {
     for (size_t i = 0; i < len && sig[i] != '\0'; i++) {
         printf("%c", sig[i]);
+    }
+}
+
+static ACPI_SDTHeader *find_acpi_table(const char *signature,
+                                       const uint64_t *entries,
+                                       uint32_t entry_count) {
+    for (uint32_t i = 0; i < entry_count; i++) {
+        const uint64_t table_addr = entries[i];
+
+        const uint64_t table_phys_page = table_addr & ~0xFFF;
+        const uint64_t table_offset = table_addr & 0xFFF;
+
+        const uintptr_t temp_base = USER_ACPI_BASE + 0x10000 + (i * 0x1000);
+        const SyscallResult result =
+                anos_map_physical(table_phys_page, (void *)temp_base, 4096);
+
+        if (result == SYSCALL_OK) {
+            ACPI_SDTHeader *table =
+                    (ACPI_SDTHeader *)((uint8_t *)temp_base + table_offset);
+
+            if (strncmp(table->signature, signature, 4) == 0) {
+                return table;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+static void parse_mcfg_table(ACPI_SDTHeader *mcfg_header) {
+    if (!mcfg_header) {
+        printf("No MCFG table found\n");
+        return;
+    }
+
+    printf("\n--- MCFG (PCI Express Memory Configuration Space) Table ---\n");
+    printf("Signature: ");
+    print_signature(mcfg_header->signature, 4);
+    printf("\nLength: %u bytes\n", mcfg_header->length);
+    printf("Revision: %u\n", mcfg_header->revision);
+    printf("OEM ID: ");
+    print_signature(mcfg_header->oem_id, 6);
+    printf("\nOEM Table ID: ");
+    print_signature(mcfg_header->oem_table_id, 8);
+    printf("\n");
+
+    MCFG_Table *mcfg = (MCFG_Table *)mcfg_header;
+
+    uint32_t entries_size = mcfg->header.length - sizeof(MCFG_Table);
+    uint32_t num_entries = entries_size / sizeof(MCFG_Entry);
+
+    printf("Number of PCI host bridge entries: %u\n", num_entries);
+
+    if (num_entries == 0) {
+        printf("No PCI host bridge entries found\n");
+        return;
+    }
+
+    MCFG_Entry *entries = (MCFG_Entry *)(mcfg + 1);
+
+    for (uint32_t i = 0; i < num_entries; i++) {
+        printf("\nPCI Host Bridge %u:\n", i);
+        printf("  Base Address: 0x%016lx\n", entries[i].base_address);
+        printf("  PCI Segment Group: %u\n", entries[i].pci_segment_group);
+        printf("  Start Bus Number: %u\n", entries[i].start_bus_number);
+        printf("  End Bus Number: %u\n", entries[i].end_bus_number);
+        printf("  Bus Range: %u-%u (%u buses)\n", entries[i].start_bus_number,
+               entries[i].end_bus_number,
+               entries[i].end_bus_number - entries[i].start_bus_number + 1);
     }
 }
 
@@ -201,27 +283,33 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         // Dump all table signatures
         printf("\n--- All ACPI Table Signatures ---\n");
         for (uint32_t i = 0; i < entry_count; i++) {
-            uint64_t table_addr = entries[i];
+            uint64_t sig_table_addr = entries[i];
 
             // Map each table to read its signature
-            uint64_t table_phys_page = table_addr & ~0xFFF;
-            uint64_t table_offset = table_addr & 0xFFF;
+            uint64_t sig_table_phys_page = sig_table_addr & ~0xFFF;
+            uint64_t sig_table_offset = sig_table_addr & 0xFFF;
 
             const uintptr_t sig_table_base =
                     USER_ACPI_BASE + 0x2000 + (i * 0x1000);
             const SyscallResult sig_result = anos_map_physical(
-                    table_phys_page, (void *)sig_table_base, 4096);
+                    sig_table_phys_page, (void *)sig_table_base, 4096);
             if (sig_result == SYSCALL_OK) {
-                ACPI_SDTHeader *table =
+                ACPI_SDTHeader *sig_table =
                         (ACPI_SDTHeader *)((uint8_t *)sig_table_base +
-                                           table_offset);
+                                           sig_table_offset);
                 printf("  Table %u: ", i);
-                print_signature(table->signature, 4);
+                print_signature(sig_table->signature, 4);
                 printf("\n");
             } else {
                 printf("  Table %u: <mapping failed>\n", i);
             }
         }
+
+        // Look for and parse MCFG table
+        printf("\n--- Searching for MCFG Table ---\n");
+        ACPI_SDTHeader *mcfg_table =
+                find_acpi_table("MCFG", entries, entry_count);
+        parse_mcfg_table(mcfg_table);
     } else {
         printf("\nRSDT (32-bit system descriptor table) at 0x%lx:\n",
                (uintptr_t)table);
