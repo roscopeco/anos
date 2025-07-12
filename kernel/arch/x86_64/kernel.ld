@@ -10,7 +10,7 @@ OUTPUT_FORMAT("elf64-x86-64")
 ENTRY(_start_limine)
 
 MEMORY {
-    CODE    : org = 0xFFFFFFFF80120000,  l = 0x000e0000     /* 896KiB for Stage 3 code */
+    CODE    : org = 0xFFFFFFFF80120000,  l = 0x002e0000     /* 2944KiB for Stage 3 code */
     DATA    : org = 0xFFFFFFFF80110000,  l = 0x00010000     /* 64KiB for bss, stack goes below this */
 }
 
