@@ -62,7 +62,7 @@ static bool zeropage_init() {
 }
 
 // Common entrypoint once bootloader-specific stuff is handled
-noreturn void bsp_kernel_entrypoint(uintptr_t platform_data) {
+noreturn void bsp_kernel_entrypoint(const uintptr_t platform_data) {
     if (!fba_init((uint64_t *)vmm_find_pml4(), KERNEL_FBA_BEGIN,
                   KERNEL_FBA_SIZE_BLOCKS)) {
         panic("FBA init failed");

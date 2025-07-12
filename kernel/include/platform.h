@@ -16,6 +16,10 @@
 
 #include <stdint.h>
 
+#ifdef ARCH_X86_64
+#include "platform/acpi/acpitables.h"
+#endif
+
 /*
  * This is the platform-specific initialization routine. The passed
  * platform_data value is handled specifically by each different
@@ -30,5 +34,19 @@ bool platform_init(uintptr_t platform_data);
 bool platform_await_init_complete(void);
 
 bool platform_task_init(void);
+
+#ifdef ARCH_X86_64
+/*
+ * Get the RSDP pointer that was saved during platform initialization.
+ * This provides direct access to the firmware table root pointer.
+ */
+ACPI_RSDP *platform_get_root_firmware_table(void);
+
+/*
+ * Get the ACPI root table (RSDT/XSDT) that was initialized during platform init.
+ * This provides access to the table that contains pointers to all other ACPI tables.
+ */
+ACPI_RSDT *platform_get_acpi_root_table(void);
+#endif
 
 #endif
