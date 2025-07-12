@@ -279,9 +279,6 @@ int main(int argc, char **argv) {
     const uint64_t vfs_channel = anos_create_channel();
     ramfs_channel = anos_create_channel();
 
-    printf("Map tables (%d) cap is 0x%016lx\n", SYSCALL_ID_MAP_FIRMWARE_TABLES,
-           __syscall_capabilities[SYSCALL_ID_MAP_FIRMWARE_TABLES]);
-
     if (vfs_channel && ramfs_channel) {
         if (anos_register_channel_name(vfs_channel, "SYSTEM::VFS") == 0) {
             // set up RAMFS driver thread
