@@ -53,7 +53,7 @@ typedef struct {
 // ACPI constants
 #define USER_ACPI_BASE 0x8040000000 // Base for mapping ACPI tables
 
-static void print_signature(const char *sig, size_t len) {
+static void print_signature(const char *sig, const size_t len) {
     for (size_t i = 0; i < len && sig[i] != '\0'; i++) {
         printf("%c", sig[i]);
     }
@@ -76,8 +76,6 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
     printf("  RSDT Address: 0x%08x\n", rsdp->rsdt_address);
     printf("  XSDT Address: 0x%016lx\n", rsdp->xsdt_address);
 
-    // With the new handover approach, all ACPI tables are directly accessible
-    // in the mapped region. We need to find the RSDT/XSDT by its signature.
     uint64_t table_addr = 0;
     bool use_xsdt = false;
 
@@ -96,8 +94,8 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
     }
 
     // Map the table (align address down to page boundary and map one page)
-    uint64_t table_phys_page = table_addr & ~0xFFF;
-    uint64_t table_offset = table_addr & 0xFFF;
+    const uint64_t table_phys_page = table_addr & ~0xFFF;
+    const uint64_t table_offset = table_addr & 0xFFF;
 
     printf("Mapping physical page 0x%016lx to user address 0x%lx\n",
            table_phys_page, USER_ACPI_BASE);
@@ -128,32 +126,33 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         printf("\n  OEM Revision: 0x%x\n", table->oem_revision);
 
         // Count and display entries (64-bit pointers)
-        uint32_t entry_count = (table->length - sizeof(ACPI_SDTHeader)) / 8;
+        const uint32_t entry_count =
+                (table->length - sizeof(ACPI_SDTHeader)) / 8;
         printf("  Number of entries: %u\n", entry_count);
 
-        uint64_t *entries = (uint64_t *)(table + 1);
+        const uint64_t *entries = (uint64_t *)(table + 1);
         for (uint32_t i = 0; i < entry_count && i < 8; i++) {
             printf("  Entry %u: 0x%016lx\n", i, entries[i]);
         }
 
         // Let's dump the first table as a test
         if (entry_count > 0) {
-            printf("\n--- Dumping first ACPI table as test ---\n");
-            uint64_t first_table_addr = entries[0];
+            printf("\n--- Dumping first ACPI table ---\n");
+            const uint64_t first_table_addr = entries[0];
 
             printf("Looking for first table at physical 0x%016lx\n",
                    first_table_addr);
 
             // Map the first table using map_physical
-            uint64_t first_table_phys_page = first_table_addr & ~0xFFF;
-            uint64_t first_table_offset = first_table_addr & 0xFFF;
+            const uint64_t first_table_phys_page = first_table_addr & ~0xFFF;
+            const uint64_t first_table_offset = first_table_addr & 0xFFF;
 
             printf("Mapping first table at physical 0x%016lx (page 0x%016lx, "
                    "offset 0x%lx)\n",
                    first_table_addr, first_table_phys_page, first_table_offset);
 
             // Map the first table (use a different base address)
-            const uintptr_t first_table_base = USER_ACPI_BASE + 0x1000;
+            constexpr uintptr_t first_table_base = USER_ACPI_BASE + 0x1000;
             const SyscallResult table_result = anos_map_physical(
                     first_table_phys_page, (void *)first_table_base, 4096);
             if (table_result != SYSCALL_OK) {
@@ -179,10 +178,10 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
                        first_table->creator_revision);
 
                 // Dump first 64 bytes of table data (after header)
-                uint8_t *table_data = (uint8_t *)(first_table + 1);
-                uint32_t data_size =
+                const uint8_t *table_data = (uint8_t *)(first_table + 1);
+                const uint32_t data_size =
                         first_table->length - sizeof(ACPI_SDTHeader);
-                uint32_t dump_size = data_size < 64 ? data_size : 64;
+                const uint32_t dump_size = data_size < 64 ? data_size : 64;
 
                 printf("\nFirst %u bytes of table data:\n", dump_size);
                 for (uint32_t i = 0; i < dump_size; i++) {
@@ -237,7 +236,8 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         printf("\n  OEM Revision: 0x%x\n", table->oem_revision);
 
         // Count and display entries (32-bit pointers)
-        uint32_t entry_count = (table->length - sizeof(ACPI_SDTHeader)) / 4;
+        const uint32_t entry_count =
+                (table->length - sizeof(ACPI_SDTHeader)) / 4;
         printf("  Number of entries: %u\n", entry_count);
 
         uint32_t *entries = (uint32_t *)(table + 1);
