@@ -66,15 +66,17 @@ typedef struct {
 // ACPI constants
 #define USER_ACPI_BASE 0x8040000000 // Base for mapping ACPI tables
 
+#ifdef DEBUG_ACPI
 static void print_signature(const char *sig, const size_t len) {
     for (size_t i = 0; i < len && sig[i] != '\0'; i++) {
         printf("%c", sig[i]);
     }
 }
+#endif
 
 static ACPI_SDTHeader *find_acpi_table(const char *signature,
                                        const uint64_t *entries,
-                                       uint32_t entry_count) {
+                                       const uint32_t entry_count) {
     for (uint32_t i = 0; i < entry_count; i++) {
         const uint64_t table_addr = entries[i];
 
@@ -98,12 +100,50 @@ static ACPI_SDTHeader *find_acpi_table(const char *signature,
     return nullptr;
 }
 
+static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
+#ifdef DEBUG_PCI
+    printf("Spawning PCI bus driver for segment %u, buses %u-%u...\n",
+           entry->pci_segment_group, entry->start_bus_number,
+           entry->end_bus_number);
+#endif
+
+    // Prepare arguments for the PCI driver
+    char ecam_base_str[32];
+    char segment_str[16];
+    char bus_start_str[16];
+    char bus_end_str[16];
+
+    snprintf(ecam_base_str, sizeof(ecam_base_str), "%lx", entry->base_address);
+    snprintf(segment_str, sizeof(segment_str), "%u", entry->pci_segment_group);
+    snprintf(bus_start_str, sizeof(bus_start_str), "%u",
+             entry->start_bus_number);
+    snprintf(bus_end_str, sizeof(bus_end_str), "%u", entry->end_bus_number);
+
+    // const char *argv[] = {
+    //     "pcidrv",
+    //     ecam_base_str,
+    //     segment_str,
+    //     bus_start_str,
+    //     bus_end_str,
+    //     nullptr
+    // };
+
+    // TODO: Call SYSTEM to spawn the PCI driver
+#ifdef DEBUG_PCI
+    printf("  --> spawn: pcidrv %s %s %s %s\n", ecam_base_str, segment_str,
+           bus_start_str, bus_end_str);
+#endif
+}
+
 static void parse_mcfg_table(ACPI_SDTHeader *mcfg_header) {
     if (!mcfg_header) {
+#ifdef DEBUG_PCI_MCFG
         printf("No MCFG table found\n");
+#endif
         return;
     }
 
+#ifdef DEBUG_PCI_MCFG
     printf("\n--- MCFG (PCI Express Memory Configuration Space) Table ---\n");
     printf("Signature: ");
     print_signature(mcfg_header->signature, 4);
@@ -114,22 +154,28 @@ static void parse_mcfg_table(ACPI_SDTHeader *mcfg_header) {
     printf("\nOEM Table ID: ");
     print_signature(mcfg_header->oem_table_id, 8);
     printf("\n");
+#endif
 
     MCFG_Table *mcfg = (MCFG_Table *)mcfg_header;
 
-    uint32_t entries_size = mcfg->header.length - sizeof(MCFG_Table);
+    const uint32_t entries_size = mcfg->header.length - sizeof(MCFG_Table);
     uint32_t num_entries = entries_size / sizeof(MCFG_Entry);
 
+#ifdef DEBUG_PCI_MCFG
     printf("Number of PCI host bridge entries: %u\n", num_entries);
+#endif
 
     if (num_entries == 0) {
+#ifdef DEBUG_PCI_MCFG
         printf("No PCI host bridge entries found\n");
+#endif
         return;
     }
 
-    MCFG_Entry *entries = (MCFG_Entry *)(mcfg + 1);
+    const MCFG_Entry *entries = (MCFG_Entry *)(mcfg + 1);
 
     for (uint32_t i = 0; i < num_entries; i++) {
+#ifdef DEBUG_PCI_MCFG
         printf("\nPCI Host Bridge %u:\n", i);
         printf("  Base Address: 0x%016lx\n", entries[i].base_address);
         printf("  PCI Segment Group: %u\n", entries[i].pci_segment_group);
@@ -138,17 +184,25 @@ static void parse_mcfg_table(ACPI_SDTHeader *mcfg_header) {
         printf("  Bus Range: %u-%u (%u buses)\n", entries[i].start_bus_number,
                entries[i].end_bus_number,
                entries[i].end_bus_number - entries[i].start_bus_number + 1);
+#endif
+        // Launch PCI bus driver for this host bridge
+        spawn_pci_bus_driver(&entries[i]);
     }
 }
 
 static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
+#ifdef DEBUG_ACPI
     printf("Parsing ACPI RSDP at 0x%lx...\n", (uintptr_t)rsdp);
+#endif
 
     if (!rsdp) {
+#ifdef DEBUG_ACPI
         printf("No RSDP provided.\n");
+#endif
         return;
     }
 
+#ifdef DEBUG_ACPI
     printf("\nRSDP Information:\n");
     printf("  Signature: ");
     print_signature(rsdp->signature, 8);
@@ -157,6 +211,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
     printf("\n  Revision: %u\n", rsdp->revision);
     printf("  RSDT Address: 0x%08x\n", rsdp->rsdt_address);
     printf("  XSDT Address: 0x%016lx\n", rsdp->xsdt_address);
+#endif
 
     uint64_t table_addr = 0;
     bool use_xsdt = false;
@@ -164,14 +219,20 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
     if (rsdp->revision >= 2 && rsdp->xsdt_address != 0) {
         table_addr = rsdp->xsdt_address;
         use_xsdt = true;
+#ifdef DEBUG_ACPI
         printf("\nWill use XSDT at physical address 0x%016lx\n", table_addr);
+#endif
     } else if (rsdp->rsdt_address != 0) {
         table_addr = rsdp->rsdt_address;
         use_xsdt = false;
+#ifdef DEBUG_ACPI
         printf("\nWill use RSDT at physical address 0x%08x\n",
                (uint32_t)table_addr);
+#endif
     } else {
+#ifdef DEBUG_ACPI
         printf("No valid RSDT or XSDT address found in RSDP.\n");
+#endif
         return;
     }
 
@@ -179,8 +240,10 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
     const uint64_t table_phys_page = table_addr & ~0xFFF;
     const uint64_t table_offset = table_addr & 0xFFF;
 
+#ifdef DEBUG_ACPI
     printf("Mapping physical page 0x%016lx to user address 0x%lx\n",
            table_phys_page, USER_ACPI_BASE);
+#endif
 
     // Map the physical page containing the table
     const SyscallResult result =
@@ -195,7 +258,8 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
             (ACPI_SDTHeader *)((uint8_t *)USER_ACPI_BASE + table_offset);
 
     if (use_xsdt) {
-        printf("\nXSDP (64-bit system descriptor table) at 0x%lx:\n",
+#ifdef DEBUG_ACPI
+        printf("\nXSDT (64-bit system descriptor table) at 0x%lx:\n",
                (uintptr_t)table);
         printf("  Signature: ");
         print_signature(table->signature, 4);
@@ -206,18 +270,23 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         printf("\n  OEM Table ID: ");
         print_signature(table->oem_table_id, 8);
         printf("\n  OEM Revision: 0x%x\n", table->oem_revision);
+#endif
 
         // Count and display entries (64-bit pointers)
         const uint32_t entry_count =
                 (table->length - sizeof(ACPI_SDTHeader)) / 8;
+#ifdef DEBUG_ACPI
         printf("  Number of entries: %u\n", entry_count);
+#endif
 
         const uint64_t *entries = (uint64_t *)(table + 1);
+#ifdef DEBUG_ACPI
         for (uint32_t i = 0; i < entry_count && i < 8; i++) {
             printf("  Entry %u: 0x%016lx\n", i, entries[i]);
         }
+#endif
 
-        // Let's dump the first table as a test
+#ifdef DEBUG_ACPI
         if (entry_count > 0) {
             printf("\n--- Dumping first ACPI table ---\n");
             const uint64_t first_table_addr = entries[0];
@@ -305,12 +374,15 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
             }
         }
 
-        // Look for and parse MCFG table
         printf("\n--- Searching for MCFG Table ---\n");
+#endif
+
+        // Look for and parse MCFG table
         ACPI_SDTHeader *mcfg_table =
                 find_acpi_table("MCFG", entries, entry_count);
         parse_mcfg_table(mcfg_table);
     } else {
+#ifdef DEBUG_ACPI
         printf("\nRSDT (32-bit system descriptor table) at 0x%lx:\n",
                (uintptr_t)table);
         printf("  Signature: ");
@@ -332,12 +404,14 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         for (uint32_t i = 0; i < entry_count && i < 8; i++) {
             printf("  Entry %u: 0x%08x\n", i, entries[i]);
         }
+#endif
     }
 }
 
-static int map_and_test_acpi(void) {
+static int map_and_init_acpi(void) {
+#ifdef DEBUG_ACPI
     printf("Attempting to get ACPI RSDP from kernel...\n");
-
+#endif
     // Allocate space for the RSDP in userspace
     ACPI_RSDP rsdp;
 
@@ -349,7 +423,9 @@ static int map_and_test_acpi(void) {
         return -1;
     }
 
+#ifdef DEBUG_ACPI
     printf("Successfully received ACPI RSDP from kernel\n");
+#endif
 
     // Parse the RSDP and follow it to the ACPI tables
     parse_acpi_rsdp(&rsdp);
@@ -358,18 +434,22 @@ static int map_and_test_acpi(void) {
 }
 
 int main(const int argc, char **argv) {
-    printf("\nDEVMAN System device manager #%s [libanos #%s]\n\n", VERSION,
+    printf("\nDEVMAN System device manager #%s [libanos #%s]\n", VERSION,
            libanos_version());
 
     // Test the firmware table mapping
-    const int result = map_and_test_acpi();
+    const int result = map_and_init_acpi();
     if (result != 0) {
-        printf("ACPI table mapping test failed with code %d\n", result);
+#ifdef DEBUG_ACPI
+        printf("ACPI table mapping failed with code %d\n", result);
+#endif
     } else {
-        printf("\nACPI table mapping test completed successfully!\n");
+#ifdef DEBUG_ACPI
+        printf("\nACPI table mapping completed successfully!\n");
+#endif
     }
 
-    printf("\nDevice manager initialization complete. Going into service "
+    printf("Device manager initialization complete. Going into service "
            "loop...\n");
 
     while (1) {
