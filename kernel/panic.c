@@ -382,6 +382,27 @@ noreturn void panic_general_protection_fault_sloc(const uint64_t code,
     halt_and_catch_fire();
 }
 
+noreturn void panic_double_fault_sloc(const uintptr_t origin_addr,
+                                      const char *filename,
+                                      const uint64_t line) {
+    // double fault is an IRQ handler, interrupts already disabled...
+
+    const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
+
+    if (smp_is_up) {
+        panic_stop_all_processors();
+    }
+
+    print_header_vec("[BUG] Double fault", 0x0d);
+    print_loc(filename, line);
+    print_origin_ip(origin_addr);
+    print_stack_trace();
+    print_footer();
+
+    spinlock_unlock_irqrestore(&panic_lock, lock_flags);
+    halt_and_catch_fire();
+}
+
 noreturn void panic_exception_with_code_sloc(const uint8_t vector,
                                              const uint64_t code,
                                              const uintptr_t origin_addr,
