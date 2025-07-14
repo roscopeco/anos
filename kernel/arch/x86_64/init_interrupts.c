@@ -21,6 +21,13 @@
                   idt_attr(1, 0, IDT_TYPE_TRAP));                              \
     } while (0)
 
+#define install_trap_ist(N, ISTNUM)                                            \
+    do {                                                                       \
+        extern void(trap_dispatcher_##N)(void);                                \
+        idt_entry(idt + N, trap_dispatcher_##N, kernel_cs, ISTNUM,             \
+                  idt_attr(1, 0, IDT_TYPE_TRAP));                              \
+    } while (0)
+
 extern void pic_irq_handler(void);
 extern void bsp_timer_interrupt_handler(void);
 extern void ap_timer_interrupt_handler(void);
@@ -46,7 +53,10 @@ void idt_install(uint16_t kernel_cs) {
     install_trap(5);
     install_trap(6);
     install_trap(7);
-    install_trap(8);
+
+    // double fault handler uses a separate IST to guarantee a good stack
+    install_trap_ist(8, 7);
+
     install_trap(9);
     install_trap(10);
     install_trap(11);
