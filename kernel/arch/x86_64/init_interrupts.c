@@ -34,6 +34,7 @@ extern void ap_timer_interrupt_handler(void);
 extern void unknown_interrupt_handler(void);
 extern void syscall_69_handler(void);
 extern void ipwi_ipi_dispatcher(void);
+extern void double_fault_dispatcher(void);
 
 extern void pic_init(void);
 
@@ -53,10 +54,7 @@ void idt_install(uint16_t kernel_cs) {
     install_trap(5);
     install_trap(6);
     install_trap(7);
-
-    // double fault handler uses a separate IST to guarantee a good stack
-    install_trap_ist(8, 7);
-
+    install_trap(8);
     install_trap(9);
     install_trap(10);
     install_trap(11);
@@ -95,6 +93,13 @@ void idt_install(uint16_t kernel_cs) {
         idt_entry(idt + i, unknown_interrupt_handler, kernel_cs, 0,
                   idt_attr(1, 0, IDT_TYPE_IRQ));
     }
+
+    // double fault handler uses a separate IST to guarantee a good stack,
+    // so pass 7 as IST for this dispatcher...
+    //
+    // We'll make it an IRQ as well because that'll kill interrupts for us.
+    idt_entry(idt + 8, double_fault_dispatcher, kernel_cs, 7,
+              idt_attr(1, 0, IDT_TYPE_IRQ));
 
     // Set up the handlers for the LAPIC Timer vectors...
     idt_entry(idt + LAPIC_TIMER_BSP_VECTOR, bsp_timer_interrupt_handler,

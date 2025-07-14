@@ -177,6 +177,7 @@ STAGE3_OBJS_X86_64= $(STAGE3_DIR)/platform/acpi/acpitables.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/vmm/vmmapper.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/gdt.o								\
 					$(STAGE3_ARCH_X86_64_DIR)/general_protection_fault.o		\
+					$(STAGE3_ARCH_X86_64_DIR)/double_fault.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/cpu.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/local_apic.o				\
 					$(STAGE3_ARCH_X86_64_DIR)/kdrivers/hpet.o					\

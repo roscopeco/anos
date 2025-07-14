@@ -59,4 +59,10 @@ NORETURN_EXCEPT_TESTS void
 panic_general_protection_fault_sloc(uint64_t code, uintptr_t origin_addr,
                                     const char *filename, const uint64_t line);
 
+#define panic_double_fault(origin_addr)                                        \
+    panic_double_fault_sloc(origin_addr, __FILE__, __LINE__)
+NORETURN_EXCEPT_TESTS void panic_double_fault_sloc(uintptr_t origin_addr,
+                                                   const char *filename,
+                                                   const uint64_t line);
+
 #endif //__ANOS_KERNEL_PANIC_H

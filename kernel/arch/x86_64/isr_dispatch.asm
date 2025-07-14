@@ -12,11 +12,13 @@ global pic_irq_handler, unknown_interrupt_handler, spurious_irq_count
 global bsp_timer_interrupt_handler, ap_timer_interrupt_handler
 global syscall_69_handler
 global page_fault_dispatcher
+global double_fault_dispatcher
 
 extern handle_exception_nc, handle_exception_wc, handle_unknown_interrupt
 extern handle_bsp_timer_interrupt, handle_ap_timer_interrupt, 
 extern handle_syscall_69
 extern page_fault_handler
+extern double_fault_handler
 
 %macro pusha_sysv_not_rax 0
   push  rcx                               ; Save all C-clobbered registers, except rax for returns
@@ -246,3 +248,21 @@ page_fault_dispatcher:
 
   trap_conditional_swapgs_no_code         ; We already discarded the code 👆
   iretq                                   ; And done...
+
+; Double fault handler
+double_fault_dispatcher:
+  trap_conditional_swapgs_with_code
+  pusha_sysv                              ; Push all caller-saved registers
+
+  mov   rdi,80[rsp]                       ; Peek return address into first C argument
+
+  ; Set up stack frame (so we can do sane backtrace)...
+  call  .stack_frame_setup                ; push $rip first
+.stack_frame_setup:
+  push  0                                 ; then push 0 for previous base pointer
+  mov   rbp,rsp                           ; Set base pointer to point there
+  call  double_fault_handler              ; Call the handler
+
+.die:
+  hlt                                     ; handler should never return...
+  jmp   .die                              ; ... but just in case...
