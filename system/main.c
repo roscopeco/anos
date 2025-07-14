@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdnoreturn.h>
+#include <string.h>
 
 #include <anos/syscalls.h>
 #include <anos/types.h>
@@ -31,6 +32,8 @@
 #define FS_QUERY_OBJECT_SIZE ((1))
 #define FS_LOAD_OBJECT_PAGE ((2))
 
+#define PROCESS_SPAWN ((1))
+
 #define VM_PAGE_SIZE ((0x1000))
 
 typedef struct {
@@ -38,12 +41,21 @@ typedef struct {
     char name[];
 } FileLoadPageQuery;
 
+typedef struct {
+    uint64_t stack_size;
+    uint16_t argc;
+    uint16_t capc;
+    char data[];
+} ProcessSpawnRequest;
+
 extern AnosRAMFSHeader _system_ramfs_start;
 
 extern uint64_t __syscall_capabilities[];
 
 static char __attribute__((
         aligned(VM_PAGE_SIZE))) ramfs_driver_thread_stack[VM_PAGE_SIZE];
+static char __attribute__((
+        aligned(VM_PAGE_SIZE))) process_manager_thread_stack[VM_PAGE_SIZE];
 
 #ifdef TEST_THREAD_KILL
 static char __attribute__((
@@ -51,6 +63,7 @@ static char __attribute__((
 #endif
 
 static uint64_t ramfs_channel;
+static uint64_t process_manager_channel;
 
 static inline void banner() {
     printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION,
@@ -176,6 +189,120 @@ static void handle_file_load_page_query(const uint64_t message_cookie,
     }
 }
 
+static void handle_process_spawn_request(const uint64_t message_cookie,
+                                         const size_t message_size,
+                                         void *message_buffer) {
+    ProcessSpawnRequest *spawn_req = (ProcessSpawnRequest *)message_buffer;
+
+    if (message_size < sizeof(ProcessSpawnRequest) || !spawn_req) {
+        anos_reply_message(message_cookie, -1);
+        return;
+    }
+
+    const uint16_t argc = spawn_req->argc;
+    const uint16_t capc = spawn_req->capc;
+    const uint64_t stack_size = spawn_req->stack_size;
+
+    if (argc > 64 || capc > 32) {
+        anos_reply_message(message_cookie, -10);
+        return;
+    }
+
+    char *data_ptr = spawn_req->data;
+    size_t remaining_size = message_size - sizeof(ProcessSpawnRequest);
+
+    static InitCapability capabilities[32];
+    static const char *argv[64];
+
+    if (capc > 0) {
+        if (remaining_size < capc * sizeof(InitCapability)) {
+            anos_reply_message(message_cookie, -2);
+            return;
+        }
+
+        memcpy(capabilities, data_ptr, capc * sizeof(InitCapability));
+        data_ptr += capc * sizeof(InitCapability);
+        remaining_size -= capc * sizeof(InitCapability);
+    }
+
+    if (argc > 0) {
+        char *str_data = data_ptr;
+        size_t str_offset = 0;
+
+        for (uint16_t i = 0; i < argc; i++) {
+            if (str_offset >= remaining_size) {
+                anos_reply_message(message_cookie, -3);
+                return;
+            }
+
+            argv[i] = str_data + str_offset;
+
+            while (str_offset < remaining_size &&
+                   str_data[str_offset] != '\0') {
+                str_offset++;
+            }
+
+            if (str_offset >= remaining_size) {
+                anos_reply_message(message_cookie, -4);
+                return;
+            }
+
+            str_offset++;
+        }
+    }
+
+#ifdef DEBUG_SYS_IPC
+    printf("SYSTEM::PROCESS spawning process with stack_size=%lu, argc=%u, "
+           "capc=%u\n",
+           stack_size, argc, capc);
+    if (argc > 0) {
+        printf("  -> executable: %s\n", argv[0]);
+    }
+#endif
+
+    const int64_t pid = create_server_process(stack_size, capc,
+                                              capc > 0 ? capabilities : NULL,
+                                              argc, argc > 0 ? argv : NULL);
+
+    anos_reply_message(message_cookie, pid);
+}
+
+static noreturn void process_manager_thread(void) {
+    while (true) {
+        uint64_t tag;
+        size_t message_size;
+        char *message_buffer = (char *)0xc0000000;
+
+        uint64_t message_cookie = anos_recv_message(
+                process_manager_channel, &tag, &message_size, message_buffer);
+
+        if (message_cookie) {
+#ifdef DEBUG_SYS_IPC
+            printf("SYSTEM::PROCESS received [0x%016lx] 0x%016lx (%ld bytes)\n",
+                   message_cookie, tag, message_size);
+#endif
+            switch (tag) {
+            case PROCESS_SPAWN:
+                handle_process_spawn_request(message_cookie, message_size,
+                                             message_buffer);
+                break;
+            default:
+#ifdef DEBUG_SYS_IPC
+                printf("WARN: Unhandled message [tag 0x%016lx] to "
+                       "SYSTEM::PROCESS\n",
+                       tag);
+#endif
+                anos_reply_message(message_cookie, -999);
+                break;
+            }
+#ifdef CONSERVATIVE_BUILD
+        } else {
+            printf("WARN: NULL message cookie in process manager\n");
+#endif
+        }
+    }
+}
+
 static noreturn void ramfs_driver_thread(void) {
     while (true) {
         uint64_t tag;
@@ -274,17 +401,38 @@ int main(int argc, char **argv) {
                             __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL],
                     .capability_id = SYSCALL_ID_MAP_PHYSICAL,
             },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
+                    .capability_id = SYSCALL_ID_SEND_MESSAGE,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities
+                            [SYSCALL_ID_FIND_NAMED_CHANNEL],
+                    .capability_id = SYSCALL_ID_FIND_NAMED_CHANNEL,
+            },
     };
 
     const uint64_t vfs_channel = anos_create_channel();
     ramfs_channel = anos_create_channel();
+    process_manager_channel = anos_create_channel();
 
-    if (vfs_channel && ramfs_channel) {
+    if (vfs_channel && ramfs_channel && process_manager_channel) {
         if (anos_register_channel_name(vfs_channel, "SYSTEM::VFS") == 0) {
+            if (anos_register_channel_name(process_manager_channel,
+                                           "SYSTEM::PROCESS") != 0) {
+                printf("Failed to register SYSTEM::PROCESS channel!\n");
+            }
             // set up RAMFS driver thread
             if (!anos_create_thread(ramfs_driver_thread,
                                     (uintptr_t)ramfs_driver_thread_stack)) {
                 printf("Failed to create RAMFS driver thread!\n");
+            }
+
+            // set up process manager thread
+            if (!anos_create_thread(process_manager_thread,
+                                    (uintptr_t)process_manager_thread_stack)) {
+                printf("Failed to create process manager thread!\n");
             }
 
 #ifdef TEST_BEEP_BOOP
@@ -299,10 +447,10 @@ int main(int argc, char **argv) {
             }
 #endif
 
-            const char *devman_argv[] = {"boot:/devman.elf", "Hello, world!"};
+            const char *devman_argv[] = {"boot:/devman.elf"};
 
             const int64_t devman_pid = create_server_process(
-                    0x100000, 5, new_process_caps, 2, devman_argv);
+                    0x100000, 7, new_process_caps, 1, devman_argv);
             if (devman_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/devman.elf");

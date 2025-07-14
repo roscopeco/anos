@@ -66,6 +66,21 @@ typedef struct {
 // ACPI constants
 #define USER_ACPI_BASE 0x8040000000 // Base for mapping ACPI tables
 
+// Process spawning constants
+#define PROCESS_SPAWN ((1))
+
+typedef struct {
+    uint64_t capability_id;
+    uint64_t capability_cookie;
+} InitCapability;
+
+typedef struct {
+    uint64_t stack_size;
+    uint16_t argc;
+    uint16_t capc;
+    char data[];
+} ProcessSpawnRequest;
+
 #ifdef DEBUG_ACPI
 static void print_signature(const char *sig, const size_t len) {
     for (size_t i = 0; i < len && sig[i] != '\0'; i++) {
@@ -100,6 +115,73 @@ static ACPI_SDTHeader *find_acpi_table(const char *signature,
     return nullptr;
 }
 
+static int64_t spawn_process_via_system(const uint64_t stack_size,
+                                        const uint16_t capc,
+                                        const InitCapability *capabilities,
+                                        const uint16_t argc,
+                                        const char *argv[]) {
+    uint64_t system_process_channel =
+            anos_find_named_channel("SYSTEM::PROCESS");
+    if (!system_process_channel) {
+        printf("ERROR: Could not find SYSTEM::PROCESS channel\n");
+        return -1;
+    }
+
+    size_t capabilities_size = capc * sizeof(InitCapability);
+    size_t argv_size = 0;
+
+    for (uint16_t i = 0; i < argc; i++) {
+        if (argv[i]) {
+            argv_size += strlen(argv[i]) + 1;
+        }
+    }
+
+    size_t total_size =
+            sizeof(ProcessSpawnRequest) + capabilities_size + argv_size;
+
+    // Use page-aligned buffer for IPC (required by kernel)
+    static char __attribute__((aligned(4096))) ipc_buffer[4096];
+    char *buffer = ipc_buffer;
+
+    if (total_size > sizeof(ipc_buffer)) {
+        printf("ERROR: Message too large (%zu > %zu)\n", total_size,
+               sizeof(ipc_buffer));
+        return -2;
+    }
+
+    ProcessSpawnRequest *req = (ProcessSpawnRequest *)buffer;
+    req->stack_size = stack_size;
+    req->argc = argc;
+    req->capc = capc;
+
+    char *data_ptr = req->data;
+
+    if (capc > 0 && capabilities) {
+        memcpy(data_ptr, capabilities, capabilities_size);
+        data_ptr += capabilities_size;
+    }
+
+    if (argc > 0 && argv) {
+        for (uint16_t i = 0; i < argc; i++) {
+            if (argv[i]) {
+                size_t len = strlen(argv[i]);
+                memcpy(data_ptr, argv[i], len);
+                data_ptr[len] = '\0';
+                data_ptr += len + 1;
+            }
+        }
+    }
+
+#ifdef DEBUG_PCI
+    printf("Sending process spawn request (total_size=%zu)\n", total_size);
+#endif
+
+    uint64_t response = anos_send_message(system_process_channel, PROCESS_SPAWN,
+                                          total_size, buffer);
+
+    return (int64_t)response;
+}
+
 static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
 #ifdef DEBUG_PCI
     printf("Spawning PCI bus driver for segment %u, buses %u-%u...\n",
@@ -119,20 +201,29 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
              entry->start_bus_number);
     snprintf(bus_end_str, sizeof(bus_end_str), "%u", entry->end_bus_number);
 
-    // const char *argv[] = {
-    //     "pcidrv",
-    //     ecam_base_str,
-    //     segment_str,
-    //     bus_start_str,
-    //     bus_end_str,
-    //     nullptr
-    // };
+    const char *argv[] = {"boot:/pcidrv.elf", ecam_base_str, segment_str,
+                          bus_start_str, bus_end_str};
 
-    // TODO: Call SYSTEM to spawn the PCI driver
+    InitCapability pci_caps[] = {
+            {.capability_id = 1, .capability_cookie = 0},  // Debug print
+            {.capability_id = 2, .capability_cookie = 0},  // Debug char
+            {.capability_id = 6, .capability_cookie = 0},  // Sleep
+            {.capability_id = 11, .capability_cookie = 0}, // Map physical
+    };
+
 #ifdef DEBUG_PCI
-    printf("  --> spawn: pcidrv %s %s %s %s\n", ecam_base_str, segment_str,
-           bus_start_str, bus_end_str);
+    printf("  --> spawn: %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3],
+           argv[4]);
 #endif
+
+    int64_t pid = spawn_process_via_system(0x100000, 4, pci_caps, 5, argv);
+    if (pid > 0) {
+#ifdef DEBUG_PCI
+        printf("  --> PCI driver spawned with PID %ld\n", pid);
+#endif
+    } else {
+        printf("ERROR: Failed to spawn PCI driver (error code: %ld)\n", pid);
+    }
 }
 
 static void parse_mcfg_table(ACPI_SDTHeader *mcfg_header) {
