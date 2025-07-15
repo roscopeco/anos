@@ -9,6 +9,6 @@ BINARY_OBJS=main.o
 #	DEBUG_PCI				Dump info about PCI drivers that are spawned
 #	DEBUG_PCI_MCFG			Dump info about the MCFG ACPI table
 #
-CDEFS=-DDEBUG_PCI
+CDEFS=
 
 include ../server_common.mk

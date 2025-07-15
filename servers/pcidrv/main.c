@@ -76,8 +76,9 @@ typedef struct {
 
 static PCIBusDriver bus_driver = {0};
 
-static uint32_t pci_config_read32(uint8_t bus, uint8_t device, uint8_t function,
-                                  uint8_t offset) {
+static uint32_t pci_config_read32(const uint8_t bus, const uint8_t device,
+                                  const uint8_t function,
+                                  const uint8_t offset) {
     if (bus < bus_driver.bus_start || bus > bus_driver.bus_end) {
         return 0xFFFFFFFF;
     }
@@ -86,9 +87,9 @@ static uint32_t pci_config_read32(uint8_t bus, uint8_t device, uint8_t function,
         return 0xFFFFFFFF;
     }
 
-    uint64_t device_offset = ((uint64_t)(bus - bus_driver.bus_start) << 20) |
-                             ((uint64_t)device << 15) |
-                             ((uint64_t)function << 12) | offset;
+    const uint64_t device_offset =
+            ((uint64_t)(bus - bus_driver.bus_start) << 20) |
+            ((uint64_t)device << 15) | ((uint64_t)function << 12) | offset;
 
     const uint32_t *config_addr =
             (uint32_t *)((uint8_t *)bus_driver.mapped_ecam + device_offset);
@@ -123,6 +124,9 @@ static void pci_enumerate_function(const uint8_t bus, const uint8_t device,
         return;
     }
 
+    const uint8_t header_type =
+            pci_config_read8(bus, device, function, PCI_HEADER_TYPE);
+#ifdef DEBUG_BUS_DRIVER_ENUM
     const uint16_t vendor_id =
             pci_config_read16(bus, device, function, PCI_VENDOR_ID);
     const uint16_t device_id =
@@ -133,24 +137,27 @@ static void pci_enumerate_function(const uint8_t bus, const uint8_t device,
             pci_config_read8(bus, device, function, PCI_CLASS_CODE - 1);
     const uint8_t prog_if =
             pci_config_read8(bus, device, function, PCI_CLASS_CODE - 2);
-    const uint8_t header_type =
-            pci_config_read8(bus, device, function, PCI_HEADER_TYPE);
 
     printf("PCI %02x:%02x.%x - Vendor: 0x%04x Device: 0x%04x Class: "
            "%02x.%02x.%02x",
            bus, device, function, vendor_id, device_id, class_code, subclass,
            prog_if);
+#endif
 
     // Check if it's a bridge
     if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
+#ifdef DEBUG_BUS_DRIVER_ENUM
         const uint8_t secondary_bus =
                 pci_config_read8(bus, device, function, 0x19);
         printf(" [Bridge to bus %02x]", secondary_bus);
+#endif
 
         // TODO: Recursively enumerate secondary bus
     }
 
+#ifdef DEBUG_BUS_DRIVER_ENUM
     printf("\n");
+#endif
 }
 
 static void pci_enumerate_device(const uint8_t bus, const uint8_t device) {
@@ -172,9 +179,10 @@ static void pci_enumerate_device(const uint8_t bus, const uint8_t device) {
     }
 }
 
-static void pci_enumerate_bus(uint8_t bus) {
+static void pci_enumerate_bus(const uint8_t bus) {
+#ifdef VERY_NOISY_BUS_DRIVER
     printf("Enumerating PCI bus %02x...\n", bus);
-
+#endif
     for (uint8_t device = 0; device < 32; device++) {
         pci_enumerate_device(bus, device);
     }
@@ -183,10 +191,12 @@ static void pci_enumerate_bus(uint8_t bus) {
 static int pci_initialize_driver(uint64_t ecam_base, const uint16_t segment,
                                  const uint8_t bus_start,
                                  const uint8_t bus_end) {
+#ifdef DEBUG_BUS_DRIVER_INIT
     printf("Initializing PCI bus driver:\n");
     printf("  ECAM Base: 0x%016lx\n", ecam_base);
     printf("  Segment: %u\n", segment);
     printf("  Bus Range: %u-%u\n", bus_start, bus_end);
+#endif
 
     bus_driver.ecam_base = ecam_base;
     bus_driver.segment = segment;
@@ -197,8 +207,10 @@ static int pci_initialize_driver(uint64_t ecam_base, const uint16_t segment,
     const uint32_t num_buses = bus_end - bus_start + 1;
     bus_driver.mapped_size = num_buses * 1024 * 1024;
 
+#ifdef DEBUG_BUS_DRIVER_INIT
     printf("  Mapping %lu MB of ECAM space...\n",
            bus_driver.mapped_size / (1024 * 1024));
+#endif
 
     // Map the ECAM space
     const SyscallResult result = anos_map_physical(
@@ -210,14 +222,19 @@ static int pci_initialize_driver(uint64_t ecam_base, const uint16_t segment,
 
     bus_driver.mapped_ecam = (void *)0x9000000000;
 
+#ifdef DEBUG_BUS_DRIVER_INIT
     printf("ECAM mapping successful at virtual address 0x%lx\n",
            (uintptr_t)bus_driver.mapped_ecam);
+#endif
 
     return 0;
 }
 
 static void pci_enumerate_all_buses(void) {
-    for (uint8_t bus = bus_driver.bus_start; bus <= bus_driver.bus_end; bus++) {
+    // TODO maybe don't run through all the buses?
+    //      should only have one root bus, can recursively scan from there...
+    for (uint16_t bus = bus_driver.bus_start; bus <= bus_driver.bus_end;
+         bus++) {
         pci_enumerate_bus(bus);
     }
 }
@@ -257,12 +274,6 @@ int main(const int argc, char **argv) {
     // Enumerate all devices on all buses in our range
     pci_enumerate_all_buses();
 
-    printf("\nPCI enumeration complete. Entering service loop...\n");
-
-    // TODO: Enter IPC service loop to handle requests from other drivers
-    while (1) {
-        anos_task_sleep_current_secs(10);
-    }
-
+    printf("\nPCI enumeration complete, PCI driver exiting.\n");
     return 0;
 }

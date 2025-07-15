@@ -89,6 +89,8 @@ static void print_signature(const char *sig, const size_t len) {
 }
 #endif
 
+extern uint64_t __syscall_capabilities[];
+
 static ACPI_SDTHeader *find_acpi_table(const char *signature,
                                        const uint64_t *entries,
                                        const uint32_t entry_count) {
@@ -173,11 +175,11 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
     }
 
 #ifdef DEBUG_PCI
-    printf("Sending process spawn request (total_size=%zu)\n", total_size);
+    printf("Sending process spawn request (total_size=%ld)\n", total_size);
 #endif
 
-    uint64_t response = anos_send_message(system_process_channel, PROCESS_SPAWN,
-                                          total_size, buffer);
+    const uint64_t response = anos_send_message(
+            system_process_channel, PROCESS_SPAWN, total_size, buffer);
 
     return (int64_t)response;
 }
@@ -205,10 +207,20 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
                           bus_start_str, bus_end_str};
 
     InitCapability pci_caps[] = {
-            {.capability_id = 1, .capability_cookie = 0},  // Debug print
-            {.capability_id = 2, .capability_cookie = 0},  // Debug char
-            {.capability_id = 6, .capability_cookie = 0},  // Sleep
-            {.capability_id = 11, .capability_cookie = 0}, // Map physical
+            {.capability_id = SYSCALL_ID_DEBUG_PRINT,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT]},
+            {.capability_id = SYSCALL_ID_DEBUG_CHAR,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR]},
+            {.capability_id = SYSCALL_ID_SLEEP,
+             .capability_cookie = __syscall_capabilities[SYSCALL_ID_SLEEP]},
+            {.capability_id = SYSCALL_ID_MAP_PHYSICAL,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL]},
+            {.capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK]},
     };
 
 #ifdef DEBUG_PCI
@@ -216,7 +228,7 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
            argv[4]);
 #endif
 
-    int64_t pid = spawn_process_via_system(0x100000, 4, pci_caps, 5, argv);
+    int64_t pid = spawn_process_via_system(0x100000, 5, pci_caps, 5, argv);
     if (pid > 0) {
 #ifdef DEBUG_PCI
         printf("  --> PCI driver spawned with PID %ld\n", pid);
