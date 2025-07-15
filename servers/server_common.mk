@@ -23,7 +23,7 @@ ALL_TARGETS=$(BINARY_NAME)
 CLEAN_ARTIFACTS=$(THIS_DIR)/*.dis $(THIS_DIR)/*.elf $(THIS_DIR)/*.o $(THIS_DIR)/$(BINARY_NAME)
 SHORT_HASH?=`git rev-parse --short HEAD`
 
-CDEFS=-D$(BINARY_UC)_BUILD
+CDEFS+=-D$(BINARY_UC)_BUILD
 
 .PHONY: all build clean test
 

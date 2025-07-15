@@ -96,20 +96,29 @@ endif
 #   DEBUG_REGION_SYSCALLS	Enable debugging of process-related syscalls
 #	DEBUG_PAGEFAULT			Enable debugging of pagefault handling
 #	VERY_NOISY_PAGEFAULT	Enable **lots** of debugging of pagefault handling
+#	DEBUG_SYSCALL_CAPS		Enable debugging of system call capability assignments (insecure!)
 #
-# These ones enable some specific feature tests
+# These ones enable some specific features
 #
 #	DEBUG_NO_START_SYSTEM				Don't start the user-mode supervisor
+#
 #	SYSCALL_SCHED_ONLY_THIS_CPU			Syscalls will only schedule things on the current CPU
 #
 #	DEBUG_ADDRESS_SPACE_CREATE_COPY_ALL	address_space_create will copy **all** PDPT entries,
 #										not just kernel ones. This is unlikely to ever be a
 #										good idea outside some very specific startup tests!
-#	EXPERIMENTAL_SCHED_LOCK				Change the way the scheduler lock works. 
+#
+#	EXPERIMENTAL_SCHED_LOCK				Change the way the scheduler lock works.
 #										The experimental way is simpler, but less well tested...
+#
 #   MAP_VIRT_SYSCALL_STATIC 			Don't lazily allocate in the anos_map_virtual syscall,
 #										use the old way instead (immediately allocate pages,
 #										and fail the call if we can't allocate).
+#
+#	ENABLE_SYSCALL_THROTTLE_RESET		Enable reset of the syscall abuse throttle after a
+#										successful syscall. This should not be used in a
+#										production kernel as it can allow user code to circumvent
+#										the brute-force protection on syscall capabilities.
 #
 # These set options you might feel like configuring
 #
@@ -131,7 +140,7 @@ endif
 CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS
 
 ifeq ($(ARCH),x86_64)
-QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 256M -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -d mmu,cpu_reset,guest_errors,unimp -monitor stdio
+QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 256M -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -d int,mmu,cpu_reset,guest_errors,unimp -D qemu.log --no-reboot -monitor stdio
 QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
 else
 ifeq ($(ARCH),riscv64)

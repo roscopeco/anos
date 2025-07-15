@@ -34,11 +34,34 @@
 #include "structs/region_tree.h"
 #include "syscalls.h"
 
+#include "platform.h"
 #include "printhex.h"
 #include "task.h"
 #include "throttle.h"
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
+
+#ifdef ARCH_X86_64
+#include "platform/acpi/acpitables.h"
+
+// ACPI utility functions for firmware table handover
+static inline bool has_sig(const char *expect, ACPI_SDTHeader *sdt) {
+    for (int i = 0; i < 4; i++) {
+        if (expect[i] != sdt->signature[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static inline uint32_t RSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
+    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 4);
+}
+
+static inline uint32_t XSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
+    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 8);
+}
+#endif
 
 #ifdef DEBUG_PROCESS_SYSCALLS
 #include "printhex.h"
@@ -605,9 +628,136 @@ SYSCALL_HANDLER(destroy_region) {
     return SYSCALL_OK;
 }
 
+SYSCALL_HANDLER(map_firmware_tables) {
+#ifdef ARCH_X86_64
+    static bool acpi_tables_handed_over = false;
+
+    ACPI_RSDP *user_rsdp = (ACPI_RSDP *)arg0;
+
+    // Check if tables have already been handed over
+    if (acpi_tables_handed_over) {
+        return SYSCALL_FAILURE;
+    }
+
+    // Validate user address
+    if (!IS_USER_ADDRESS(user_rsdp)) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Get the RSDP and root table pointers from platform initialization
+    ACPI_RSDP *kernel_rsdp = platform_get_root_firmware_table();
+    ACPI_RSDT *root_table = platform_get_acpi_root_table();
+    if (!kernel_rsdp || !root_table) {
+        return SYSCALL_FAILURE;
+    }
+
+    // Convert kernel virtual addresses back to physical addresses in the tables
+    if (has_sig("XSDT", &root_table->header)) {
+        uint32_t entries = XSDT_ENTRY_COUNT(root_table);
+        uint64_t *entry = ((uint64_t *)(root_table + 1));
+
+        for (int i = 0; i < entries; i++) {
+            // Convert kernel virtual address back to physical
+            uintptr_t phys_addr = vmm_virt_to_phys(*entry);
+            if (phys_addr == 0) {
+                return SYSCALL_FAILURE;
+            }
+            *entry = phys_addr;
+            entry++;
+        }
+    } else if (has_sig("RSDT", &root_table->header)) {
+        uint32_t entries = RSDT_ENTRY_COUNT(root_table);
+        uint32_t *entry = ((uint32_t *)(root_table + 1));
+
+        for (int i = 0; i < entries; i++) {
+            // Convert kernel virtual address back to physical
+            uintptr_t phys_addr = vmm_virt_to_phys(*entry | 0xFFFFFFFF00000000);
+            if (phys_addr == 0) {
+                return SYSCALL_FAILURE;
+            }
+            *entry = (uint32_t)phys_addr;
+            entry++;
+        }
+    }
+
+    // Copy the RSDP to userspace
+    // Note: We need to copy the full RSDP structure size
+    size_t rsdp_size = (kernel_rsdp->revision == 0) ? ACPI_R0_RSDP_SIZE
+                                                    : kernel_rsdp->length;
+
+    // Simple byte-by-byte copy to userspace
+    uint8_t *src = (uint8_t *)kernel_rsdp;
+    uint8_t *dst = (uint8_t *)user_rsdp;
+    for (size_t i = 0; i < rsdp_size; i++) {
+        dst[i] = src[i];
+    }
+
+    // Unmap all ACPI tables from kernel space
+    const uintptr_t acpi_virt_start = ACPI_TABLES_VADDR_BASE;
+    const uintptr_t acpi_virt_end = ACPI_TABLES_VADDR_LIMIT;
+
+    for (uintptr_t virt_addr = acpi_virt_start; virt_addr < acpi_virt_end;
+         virt_addr += VM_PAGE_SIZE) {
+        // Check if this virtual page is mapped and unmap it
+        if (vmm_virt_to_phys_page(virt_addr) != 0) {
+            vmm_unmap_page(virt_addr);
+        }
+    }
+
+    // Mark tables as handed over
+    acpi_tables_handed_over = true;
+
+    return SYSCALL_OK;
+#else
+    // On non-x86_64 architectures, firmware tables are not yet supported
+    return SYSCALL_NOT_IMPL;
+#endif
+}
+
+SYSCALL_HANDLER(map_physical) {
+    const uintptr_t phys_addr = (uintptr_t)arg0;
+    const uintptr_t user_vaddr = (uintptr_t)arg1;
+    const size_t size = (size_t)arg2;
+
+    // Validate user address
+    if (!IS_USER_ADDRESS(user_vaddr)) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Ensure addresses are page-aligned
+    if ((user_vaddr & 0xFFF) || (phys_addr & 0xFFF) || (size & 0xFFF)) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Ensure the entire region fits in userspace
+    if (!IS_USER_ADDRESS(user_vaddr + size - 1)) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Map each page from physical to user virtual
+    for (uintptr_t offset = 0; offset < size; offset += VM_PAGE_SIZE) {
+        const uintptr_t target_phys_addr = phys_addr + offset;
+        const uintptr_t target_user_vaddr = user_vaddr + offset;
+
+        // Map the physical page into userspace as read-only
+        if (!vmm_map_page(target_user_vaddr, target_phys_addr,
+                          PG_PRESENT | PG_USER | PG_READ)) {
+            // If mapping fails, unmap what we've already done
+            for (uintptr_t unmap_offset = 0; unmap_offset < offset;
+                 unmap_offset += VM_PAGE_SIZE) {
+                const uintptr_t unmap_user_vaddr = user_vaddr + unmap_offset;
+                vmm_unmap_page(unmap_user_vaddr);
+            }
+            return SYSCALL_FAILURE;
+        }
+    }
+
+    return SYSCALL_OK;
+}
+
 static uint64_t init_syscall_capability(CapabilityMap *map,
-                                        SyscallId syscall_id,
-                                        SyscallHandler handler) {
+                                        const SyscallId syscall_id,
+                                        const SyscallHandler handler) {
     if (!map) {
         return 0;
     }
@@ -618,7 +768,7 @@ static uint64_t init_syscall_capability(CapabilityMap *map,
         return 0;
     }
 
-    uint64_t cookie = capability_cookie_generate();
+    const uint64_t cookie = capability_cookie_generate();
 
     if (!cookie) {
         slab_free(capability);
@@ -641,6 +791,12 @@ static uint64_t init_syscall_capability(CapabilityMap *map,
 
 #define STACKED_LONGS_PER_CAPABILITY ((2))
 
+#ifdef DEBUG_SYSCALL_CAPS
+#define debug_syscall_cap_assignment kprintf
+#else
+#define debug_syscall_cap_assignment(...)
+#endif
+
 #define stack_syscall_capability_cookie(id, handler)                           \
     do {                                                                       \
         uint64_t cookie =                                                      \
@@ -648,6 +804,7 @@ static uint64_t init_syscall_capability(CapabilityMap *map,
         if (!cookie) {                                                         \
             return nullptr;                                                    \
         }                                                                      \
+        debug_syscall_cap_assignment("COOKIE %d = 0x%016lx\n", id, cookie);    \
         *--current_stack = cookie;                                             \
         *--current_stack = id;                                                 \
     } while (0)
@@ -693,6 +850,10 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
                                     SYSCALL_NAME(create_region));
     stack_syscall_capability_cookie(SYSCALL_ID_DESTROY_REGION,
                                     SYSCALL_NAME(destroy_region));
+    stack_syscall_capability_cookie(SYSCALL_ID_MAP_FIRMWARE_TABLES,
+                                    SYSCALL_NAME(map_firmware_tables));
+    stack_syscall_capability_cookie(SYSCALL_ID_MAP_PHYSICAL,
+                                    SYSCALL_NAME(map_physical));
 
     // Stack dummy argc/argv for now
     // TODO this needs refactoring, syscall init shouldn't be responsible
@@ -721,7 +882,9 @@ SyscallResult handle_syscall_69(const SyscallArg arg0, const SyscallArg arg1,
             &global_capability_map, (uint64_t)capability_cookie);
 
     if (cap && cap->handler) {
+#ifdef ENABLE_SYSCALL_THROTTLE_RESET
         throttle_reset(proc);
+#endif
         return cap->handler(arg0, arg1, arg2, arg3, arg4);
     }
 

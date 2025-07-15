@@ -166,9 +166,13 @@ static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
 /* Static initial pagetables */
 static uint64_t new_pml4[512] __attribute__((aligned(4096)));
 static uint64_t new_pdpt[512] __attribute__((aligned(4096)));
-static uint64_t new_pd[512] __attribute__((aligned(4096)));
-static uint64_t new_pt[512] __attribute__((aligned(4096)));
 
+// One PD, two PTs to cover the full kernel code/data space...
+static uint64_t code_data_pd[512] __attribute__((aligned(4096)));
+static uint64_t code_data_pt_1[512] __attribute__((aligned(4096)));
+static uint64_t code_data_pt_2[512] __attribute__((aligned(4096)));
+
+// One PD, one PT for the PMM bootstrap mappings
 static uint64_t pmm_pd[512] __attribute__((aligned(4096)));
 static uint64_t pmm_pt[512] __attribute__((aligned(4096)));
 
@@ -489,7 +493,7 @@ noreturn void bsp_kernel_entrypoint_limine() {
     //
 
     uint64_t satp = cpu_read_satp();
-    uintptr_t pml4_phys, pdpt_phys, pd_phys, pt_phys;
+    uintptr_t pml4_phys, pdpt_phys, pd_phys, pt_1_phys, pt_2_phys;
     VmmPage page;
 
     // These are static, so part of the kernel's bss, and not in the HHDM area. We need to table walk
@@ -512,7 +516,7 @@ noreturn void bsp_kernel_entrypoint_limine() {
         kprintf("Failed to detemine PDPT physical address; Halting\n");
         halt_and_catch_fire();
     }
-    if (vmm_table_walk_mode((uintptr_t)new_pd, cpu_satp_mode(satp),
+    if (vmm_table_walk_mode((uintptr_t)code_data_pd, cpu_satp_mode(satp),
                             cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
         pd_phys = page.phys_addr;
@@ -520,12 +524,20 @@ noreturn void bsp_kernel_entrypoint_limine() {
         kprintf("Failed to detemine PD physical address; Halting\n");
         halt_and_catch_fire();
     }
-    if (vmm_table_walk_mode((uintptr_t)new_pt, cpu_satp_mode(satp),
+    if (vmm_table_walk_mode((uintptr_t)code_data_pt_1, cpu_satp_mode(satp),
                             cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
-        pt_phys = page.phys_addr;
+        pt_1_phys = page.phys_addr;
     } else {
-        kprintf("Failed to detemine PT physical address; Halting\n");
+        kprintf("Failed to detemine PT1 physical address; Halting\n");
+        halt_and_catch_fire();
+    }
+    if (vmm_table_walk_mode((uintptr_t)code_data_pt_2, cpu_satp_mode(satp),
+                            cpu_satp_to_root_table_phys(satp),
+                            limine_hhdm_request.response->offset, &page)) {
+        pt_2_phys = page.phys_addr;
+    } else {
+        kprintf("Failed to detemine PT2 physical address; Halting\n");
         halt_and_catch_fire();
     }
 
@@ -533,16 +545,17 @@ noreturn void bsp_kernel_entrypoint_limine() {
             (pdpt_phys >> 2) | PG_PRESENT; // Set up the entries we need for
     new_pdpt[0x1fe] =
             (pd_phys >> 2) | PG_PRESENT; // the mappings in kernel space...
-    new_pd[0] = (pt_phys >> 2) | PG_PRESENT;
+    code_data_pd[0] = (pt_1_phys >> 2) | PG_PRESENT;
+    code_data_pd[1] = (pt_2_phys >> 2) | PG_PRESENT;
 
     // map framebuffer, as four 2MiB large pages at 0xffffffff82000000 - 0xffffffff827fffff
     // TODO write-combining!
-    new_pd[0x10] = (fb_phys >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
-    new_pd[0x11] =
+    code_data_pd[0x10] = (fb_phys >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+    code_data_pd[0x11] =
             ((fb_phys + 0x200000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
-    new_pd[0x12] =
+    code_data_pd[0x12] =
             ((fb_phys + 0x400000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
-    new_pd[0x13] =
+    code_data_pd[0x13] =
             ((fb_phys + 0x600000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
 
     // Find the phys address of the embedded SYSTEM image as well, we'll need

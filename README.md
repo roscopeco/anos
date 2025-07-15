@@ -408,7 +408,7 @@ It also runs in emulators, of course - here's Qemu booted via UEFI, using the
 graphical debug terminal at 1280x800 resolution and again showing the 
 experimental IPC features:
 
-<img src="images/Screenshot 2025-05-18 at 10.27.58.png" alt="UEFI-booted ANOS running in Qemu">
+<img src="images/Screenshot 2025-07-15 at 22.03.35.png" alt="UEFI-booted ANOS running in Qemu">
 
 Broadly, this is happening here:
 
@@ -424,19 +424,21 @@ Broadly, this is happening here:
 * Initialise inter-processor work queues and set up IPIs 
 * Set everything up for usermode startup
 * Start a prioritised round-robin scheduler on all CPUs
-* User-mode supervisor ("`SYSTEM`") starts some threads with a `syscall`
-* Supervisor also creates a new process with another `syscall`
-* New process sets up its own execution environment
+* User-mode supervisor ("`SYSTEM`") creates some IPC channels for VFS and other services
+* Supervisor starts some threads with a `syscall`, and sets up listeners for the IPC channels
+* Supervisor starts the device manager ("`DEVMAN`") with another `syscall`
+* Device manager is given enhanced capabilities (e.g. map physical memory) and sets up its environment
   * Uses IPC messaging to request system load its (ELF) binary from RAMFS
   * Sets up capabilities delegated to it from SYSTEM
   * Sets up its own user-space memory using `syscall`s to the kernel
-  * Uses a GCC static constructor (just as a test) to print a "loaded" message
-  * Prints out `argc` passed to it by SYSTEM
-  * Goes into a "beep/boop" loop, calling back to the kernel to sleep between messages.
-
-The following things are not shown in this shot, but are still happening under the hood:
-
-* Enumerate PCI bus (including bridges)
+  * Takes control of the ACPI tables from the kernel
+  * Uses the ACPI `MCFG` table to find PCI buses
+  * For each bus segment, starts an PCI driver process (via an IPC call to `SYSTEM`, `DEVMAN` does not have the `create_process` syscall capability!)
+  * Goes into a sleep-loop, waiting for IPC
+* PCI bus driver also receives enhanced capabilities, and then:
+  * Initializes itself in the same way as the device manager did
+  * Maps each PCI bus configuration space into its user-mode address space
+  * Enumerates devices on the PCI bus
 
 #### On RISC-V
 
@@ -449,3 +451,7 @@ broadly the same feature-set as on x86_64 (though not currently SMP
 as mentioned above).
 
 <img src="images/Screenshot%202025-06-06%20at%2023.27.08.png" alt="RISC-V ANOS running in qemu">
+
+It should be noted that currently, the RISC-V port _userspace_ is significantly
+behind the x86_64 version, with no device tree / ACPI, no device manager and no 
+PCI support.

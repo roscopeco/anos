@@ -143,7 +143,7 @@ static void unmap_system_memory() {
 }
 
 noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
-    printf("\nLoading '%s'...\n", filename);
+    debugf("\nLoading '%s'...\n", filename);
 
     const uint64_t sys_vfs_cookie = anos_find_named_channel("SYSTEM::VFS");
 

@@ -6,11 +6,12 @@ MKRAMFS_BIN?=$(MKRAMFS_DIR)/$(MKRAMFS)
 
 .PHONY: all clean 
 
-all: test_server/test_server.elf devman/devman.elf
+all: test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf
 
 clean:
 	$(MAKE) -C test_server clean
 	$(MAKE) -C devman clean
+	$(MAKE) -C pcidrv clean
 	$(RM) system.ramfs
 
 $(MKRAMFS_BIN): $(MKRAMFS_DIR)
@@ -22,5 +23,8 @@ test_server/test_server.elf: server_common.mk test_server/Makefile Makefile test
 devman/devman.elf: server_common.mk devman/Makefile Makefile devman/main.c
 	$(MAKE) -C devman devman.elf
 
-system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf
-	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf
+pcidrv/pcidrv.elf: server_common.mk pcidrv/Makefile Makefile pcidrv/main.c
+	$(MAKE) -C pcidrv pcidrv.elf
+
+system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf
+	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf
