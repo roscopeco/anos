@@ -56,6 +56,8 @@ typedef enum {
 #define TASK_SCHED_FLAG_DYING ((1 << 1))   // Task is actively dying, or is dead (see TaskState for confirmation)
 // clang-format on
 
+#define TASK_DATA_SIZE 2048
+
 /**
  * Task scheduler data - Stuff not needed in best-case fast
  * path (e.g. syscalls).
@@ -88,10 +90,10 @@ typedef struct Task {
 
     uintptr_t usp_stash; // 64
 
-    TaskSched ssched;        // 128
-    uint64_t reserved0[112]; // 1024
-    uint8_t sdata[2048];     // 3072
-    uint64_t reserved1[128]; // 4096
+    TaskSched ssched;              // 128
+    uint64_t reserved0[112];       // 1024
+    uint8_t sdata[TASK_DATA_SIZE]; // 3072
+    uint64_t reserved1[128];       // 4096
 } __attribute__((packed)) Task;
 
 static_assert_sizeof(Task, ==, 4096);
