@@ -139,8 +139,8 @@ Task *task_create_new(Process *owner, const uintptr_t sp,
     task->sched = &task->ssched;
 
     // clear out data and sched data
-    memclr(task->sdata, TASK_DATA_SIZE);
-    memclr(&task->ssched, sizeof(TaskSched));
+    memset(task->sdata, 0, TASK_DATA_SIZE);
+    memset(&task->ssched, 0, sizeof(TaskSched));
     tdebugf("sdata @ 0x%016lx; ssched @ 0x%016lx\n", (uintptr_t)&task->sdata,
             (uintptr_t)&task->sched);
 
