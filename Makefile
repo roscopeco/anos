@@ -78,15 +78,13 @@ endif
 #	DEBUG_MADT				Enable debug dump of the Multiple APIC Descriptor Table at boot
 #	VERY_NOISY_ACPI			Enable *lots* of debugging in the ACPI (requires DEBUG_ACPI)
 #	DEBUG_LAPIC_INIT		Enable debugging of LAPIC initialisation
-#	DEBUG_PCI_ENUM			Enable debugging of PCI enumeration
-#	VERY_NOISY_PCI_ENUM		Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
 #	DEBUG_HPET				Enable debugging of the HPET initialisation
 #	DEBUG_SLEEP				Enable debugging of the sleep (and eventually yield etc) syscall(s)
 #	VERY_NOISY_SLEEP		Enable *lots* of debugging of sleep syscall(s)
 #	DEBUG_CPU				Enable debugging of CPU information at boot
 #	DEBUG_CPU_FREQ			Enable debugging of CPU frequency calibration (requires DEBUG_CPU)
 #	DEBUG_SMP_STARTUP		Enable debugging of SMP AP startup
-#	VERY_NOISY_SMP_STARTUP	Enable *lots* of debugging in the PCI enum (requires DEBUG_PCI_ENUM)
+#	VERY_NOISY_SMP_STARTUP	Enable *lots* of debugging in the SMP startup routines
 #	DEBUG_ADDR_SPACE		Enable debugging of address-space management
 #   DEBUG_PROCESS_SYSCALLS	Enable debugging of process-related syscalls
 #	DEBUG_TASK_SWITCH		Enable debugging info when switching tasks
@@ -170,8 +168,6 @@ STAGE3_INC=-I$(STAGE3)/include -I$(STAGE3)/arch/$(ARCH)/include
 
 STAGE3_ARCH_X86_64_DIR=$(STAGE3_DIR)/arch/x86_64
 STAGE3_OBJS_X86_64= $(STAGE3_DIR)/platform/acpi/acpitables.o					\
-					$(STAGE3_DIR)/platform/pci/bus.o							\
-					$(STAGE3_DIR)/platform/pci/enumerate.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_init.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/entrypoints/limine_entrypoint.o	\
 					$(STAGE3_ARCH_X86_64_DIR)/platform/init.o					\
@@ -330,7 +326,6 @@ CLEAN_ARTIFACTS=$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 				$(STAGE3_DIR)/ipc/*.o											\
 				$(STAGE3_DIR)/managed_resources/*.o								\
 				$(STAGE3_DIR)/capabilities/*.o									\
-				$(STAGE3_DIR)/platform/pci/*.o									\
 				$(STAGE3_DIR)/platform/acpi/*.o									\
 				$(SYSTEM)_linkable.o											\
 		   		$(FLOPPY_IMG)													\
@@ -389,8 +384,9 @@ clean:
 
 include kernel/tests/include.mk
 include system/tests/include.mk
+include servers/pcidrv/tests/include.mk
 
-test: test-kernel test-system
+test: test-kernel test-system test-pcidrv
 coverage: coverage-kernel coverage-system
 
 ifeq ($(ARCH),x86_64)
