@@ -248,9 +248,6 @@ kernel/tests/build/structs/pq: kernel/tests/munit.o kernel/tests/structs/pq.o ke
 kernel/tests/build/gdt: kernel/tests/munit.o kernel/tests/arch/x86_64/gdt.o kernel/tests/build/arch/x86_64/gdt.o kernel/tests/arch/x86_64/mock_cpu.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
-kernel/tests/build/platform/pci/bus: kernel/tests/munit.o kernel/tests/platform/pci/bus.o kernel/tests/build/platform/pci/bus.o kernel/tests/arch/x86_64/mock_machine.o
-	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
-
 kernel/tests/build/fba/alloc: kernel/tests/munit.o kernel/tests/fba/alloc.o kernel/tests/build/fba/alloc.o kernel/tests/mock_pmm_noalloc.o kernel/tests/mock_vmm.o kernel/tests/mock_spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -365,7 +362,6 @@ ALL_TESTS=kernel/tests/build/interrupts 										\
 			kernel/tests/build/vmm/vmalloc_linkedlist							\
 			kernel/tests/build/structs/pq										\
 			kernel/tests/build/gdt												\
-			kernel/tests/build/platform/pci/bus									\
 			kernel/tests/build/fba/alloc										\
 			kernel/tests/build/slab/alloc										\
 			kernel/tests/build/sched/lock										\

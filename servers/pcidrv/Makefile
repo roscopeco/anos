@@ -1,7 +1,7 @@
 SERVER_NAME?=pcidrv
 BINARY?=$(SERVER_NAME)
 
-BINARY_OBJS=main.o
+BINARY_OBJS=main.o pci.o enumerate.o
 
 # The following C defines are recognised by the PCI driver and enable various things
 #

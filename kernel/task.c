@@ -17,6 +17,7 @@
 #include "task.h"
 
 #include "printdec.h"
+#include "std/string.h"
 
 #ifdef DEBUG_TASK_SWITCH
 #include "debugprint.h"
@@ -136,6 +137,12 @@ Task *task_create_new(Process *owner, const uintptr_t sp,
 
     task->data = &task->sdata;
     task->sched = &task->ssched;
+
+    // clear out data and sched data
+    memset(task->sdata, 0, TASK_DATA_SIZE);
+    memset(&task->ssched, 0, sizeof(TaskSched));
+    tdebugf("sdata @ 0x%016lx; ssched @ 0x%016lx\n", (uintptr_t)&task->sdata,
+            (uintptr_t)&task->sched);
 
     task->sched->tid = next_tid++;
 

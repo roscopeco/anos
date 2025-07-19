@@ -23,7 +23,6 @@
 #include "task.h"
 
 #include "platform/acpi/acpitables.h"
-#include "platform/pci/enumerate.h"
 
 #include "x86_64/kdrivers/cpu.h"
 #include "x86_64/kdrivers/hpet.h"
@@ -226,8 +225,6 @@ bool platform_init(const uintptr_t platform_data) {
     ap_startup_wait = true;
     smp_bsp_start_aps(acpi_root_table, lapic);
 #endif
-
-    pci_enumerate();
 
     syscall_init();
 

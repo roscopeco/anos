@@ -41,6 +41,18 @@
 #include "vmm/vmconfig.h"
 #include "vmm/vmmapper.h"
 
+#ifdef DEBUG_ACPI
+#define acpi_debugf(...) kprintf(__VA_ARGS__)
+#ifdef VERY_NOISY_ACPI
+#define acpi_vdebugf(...) kprintf(__VA_ARGS__)
+#else
+#define acpi_vdebugf(...)
+#endif
+#else
+#define acpi_debugf(...)
+#define acpi_vdebugf(...)
+#endif
+
 #ifdef ARCH_X86_64
 #include "platform/acpi/acpitables.h"
 
@@ -636,11 +648,13 @@ SYSCALL_HANDLER(map_firmware_tables) {
 
     // Check if tables have already been handed over
     if (acpi_tables_handed_over) {
+        acpi_debugf("--> ACPI already handed over\n");
         return SYSCALL_FAILURE;
     }
 
     // Validate user address
     if (!IS_USER_ADDRESS(user_rsdp)) {
+        acpi_debugf("--> ACPI not at user address\n");
         return SYSCALL_BADARGS;
     }
 
@@ -648,53 +662,98 @@ SYSCALL_HANDLER(map_firmware_tables) {
     ACPI_RSDP *kernel_rsdp = platform_get_root_firmware_table();
     ACPI_RSDT *root_table = platform_get_acpi_root_table();
     if (!kernel_rsdp || !root_table) {
+        acpi_debugf("--> ACPI roots are NULL: 0x%016lx : 0x%016lx\n",
+                    (uintptr_t)kernel_rsdp, (uintptr_t)root_table);
         return SYSCALL_FAILURE;
     }
 
     // Convert kernel virtual addresses back to physical addresses in the tables
     if (has_sig("XSDT", &root_table->header)) {
-        uint32_t entries = XSDT_ENTRY_COUNT(root_table);
+        acpi_debugf("--> ACPI root is XSDT with %d entries\n",
+                    XSDT_ENTRY_COUNT(root_table));
+        const uint32_t entries = XSDT_ENTRY_COUNT(root_table);
         uint64_t *entry = ((uint64_t *)(root_table + 1));
 
         for (int i = 0; i < entries; i++) {
-            // Convert kernel virtual address back to physical
-            uintptr_t phys_addr = vmm_virt_to_phys(*entry);
-            if (phys_addr == 0) {
-                return SYSCALL_FAILURE;
+            acpi_vdebugf("----> Entry %d = 0x%016lx", i, *entry);
+            if (*entry) {
+                const ACPI_SDTHeader *header = ((ACPI_SDTHeader *)*entry);
+                acpi_vdebugf(" [%c%c%c%c]\n", header->signature[0],
+                             header->signature[1], header->signature[2],
+                             header->signature[3]);
+            } else {
+                acpi_vdebugf(" [????]\n");
             }
-            *entry = phys_addr;
+
+            // On real hardware, entries are sometimes 0 for some reason...
+            if (*entry) {
+                // Convert kernel virtual address back to physical
+                const uintptr_t phys_addr = vmm_virt_to_phys(*entry);
+                if (phys_addr == 0) {
+                    acpi_debugf("--> Remapping XSDT failed: 0x%016lx\n",
+                                (uintptr_t)*entry);
+                    return SYSCALL_FAILURE;
+                }
+                *entry = phys_addr;
+            } else {
+                acpi_debugf("--> WARN: NULL entry %d in XSDT\n", i);
+            }
             entry++;
         }
     } else if (has_sig("RSDT", &root_table->header)) {
-        uint32_t entries = RSDT_ENTRY_COUNT(root_table);
+        acpi_debugf("--> ACPI root is RSDT with %d entries\n",
+                    RSDT_ENTRY_COUNT(root_table));
+        const uint32_t entries = RSDT_ENTRY_COUNT(root_table);
         uint32_t *entry = ((uint32_t *)(root_table + 1));
 
         for (int i = 0; i < entries; i++) {
-            // Convert kernel virtual address back to physical
-            uintptr_t phys_addr = vmm_virt_to_phys(*entry | 0xFFFFFFFF00000000);
-            if (phys_addr == 0) {
-                return SYSCALL_FAILURE;
+            acpi_vdebugf("----> Entry %d = 0x%08x", i, *entry);
+            if (*entry) {
+                const ACPI_SDTHeader *header =
+                        ((ACPI_SDTHeader *)*(uintptr_t *)entry);
+                acpi_vdebugf(" [%c%c%c%c]\n", header->signature[0],
+                             header->signature[1], header->signature[2],
+                             header->signature[3]);
+            } else {
+                acpi_vdebugf(" [????]\n");
             }
-            *entry = (uint32_t)phys_addr;
+
+            // On real hardware, entries are sometimes 0 for some reason...
+            if (*entry) {
+                // Convert kernel virtual address back to physical
+                const uintptr_t phys_addr =
+                        vmm_virt_to_phys(*entry | 0xFFFFFFFF00000000);
+                if (phys_addr == 0) {
+                    acpi_debugf("--> Remapping RSDT failed: 0x%016lx\n",
+                                (uintptr_t)*entry);
+                    return SYSCALL_FAILURE;
+                }
+                *entry = (uint32_t)phys_addr;
+            } else {
+                acpi_debugf("--> WARN: NULL entry %d in RSDT\n", i);
+            }
             entry++;
         }
+    } else {
+        acpi_debugf("--> Unknown root entry signature\n");
+        return SYSCALL_FAILURE;
     }
 
     // Copy the RSDP to userspace
     // Note: We need to copy the full RSDP structure size
-    size_t rsdp_size = (kernel_rsdp->revision == 0) ? ACPI_R0_RSDP_SIZE
-                                                    : kernel_rsdp->length;
+    const size_t rsdp_size = (kernel_rsdp->revision == 0) ? ACPI_R0_RSDP_SIZE
+                                                          : kernel_rsdp->length;
 
     // Simple byte-by-byte copy to userspace
-    uint8_t *src = (uint8_t *)kernel_rsdp;
+    const uint8_t *src = (uint8_t *)kernel_rsdp;
     uint8_t *dst = (uint8_t *)user_rsdp;
     for (size_t i = 0; i < rsdp_size; i++) {
         dst[i] = src[i];
     }
 
     // Unmap all ACPI tables from kernel space
-    const uintptr_t acpi_virt_start = ACPI_TABLES_VADDR_BASE;
-    const uintptr_t acpi_virt_end = ACPI_TABLES_VADDR_LIMIT;
+    constexpr uintptr_t acpi_virt_start = ACPI_TABLES_VADDR_BASE;
+    constexpr uintptr_t acpi_virt_end = ACPI_TABLES_VADDR_LIMIT;
 
     for (uintptr_t virt_addr = acpi_virt_start; virt_addr < acpi_virt_end;
          virt_addr += VM_PAGE_SIZE) {
@@ -706,6 +765,8 @@ SYSCALL_HANDLER(map_firmware_tables) {
 
     // Mark tables as handed over
     acpi_tables_handed_over = true;
+
+    acpi_debugf("--> ACPI handover complete\n");
 
     return SYSCALL_OK;
 #else

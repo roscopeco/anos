@@ -41,7 +41,8 @@ clean:
 	-o $@ $<
 
 %.o: %.c
-	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) $(CFLAGS) -c -o $@ $<
+	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) $(CFLAGS) -c -o $@ $<				\
+	-I$(THIS_DIR)/include
 
 $(BINARY_NAME): $(BINARY_OBJS)
 	$(XCC) -o $@ $^
