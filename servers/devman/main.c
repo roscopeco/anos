@@ -206,21 +206,42 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
     const char *argv[] = {"boot:/pcidrv.elf", ecam_base_str, segment_str,
                           bus_start_str, bus_end_str};
 
-    InitCapability pci_caps[] = {
-            {.capability_id = SYSCALL_ID_DEBUG_PRINT,
-             .capability_cookie =
-                     __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT]},
-            {.capability_id = SYSCALL_ID_DEBUG_CHAR,
-             .capability_cookie =
-                     __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR]},
-            {.capability_id = SYSCALL_ID_SLEEP,
-             .capability_cookie = __syscall_capabilities[SYSCALL_ID_SLEEP]},
-            {.capability_id = SYSCALL_ID_MAP_PHYSICAL,
-             .capability_cookie =
-                     __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL]},
-            {.capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
-             .capability_cookie =
-                     __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK]},
+    const InitCapability pci_caps[] = {
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
+                    .capability_id = SYSCALL_ID_DEBUG_PRINT,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
+                    .capability_id = SYSCALL_ID_DEBUG_CHAR,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_SLEEP],
+                    .capability_id = SYSCALL_ID_SLEEP,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL],
+                    .capability_id = SYSCALL_ID_MAP_PHYSICAL,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
+                    .capability_id = SYSCALL_ID_SEND_MESSAGE,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities
+                            [SYSCALL_ID_FIND_NAMED_CHANNEL],
+                    .capability_id = SYSCALL_ID_FIND_NAMED_CHANNEL,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities
+                            [SYSCALL_ID_KILL_CURRENT_TASK],
+                    .capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
+            },
     };
 
 #ifdef DEBUG_PCI
@@ -228,7 +249,7 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
            argv[4]);
 #endif
 
-    int64_t pid = spawn_process_via_system(0x100000, 5, pci_caps, 5, argv);
+    int64_t pid = spawn_process_via_system(0x100000, 7, pci_caps, 5, argv);
     if (pid > 0) {
 #ifdef DEBUG_PCI
         printf("  --> PCI driver spawned with PID %ld\n", pid);

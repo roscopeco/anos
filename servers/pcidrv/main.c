@@ -15,6 +15,20 @@
 #include "enumerate.h"
 #include "pci.h"
 
+#define PROCESS_SPAWN ((1))
+
+typedef struct {
+    uint64_t capability_id;
+    uint64_t capability_cookie;
+} InitCapability;
+
+typedef struct {
+    uint64_t stack_size;
+    uint16_t argc;
+    uint16_t capc;
+    char data[];
+} ProcessSpawnRequest;
+
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
 #define VERSTR #unknown
@@ -25,6 +39,109 @@
 #define VERSION STRVER(VERSTR)
 
 static PCIBusDriver bus_driver = {0};
+
+extern uint64_t __syscall_capabilities[];
+
+static int64_t spawn_process_via_system(const uint64_t stack_size,
+                                        const uint16_t capc,
+                                        const InitCapability *capabilities,
+                                        const uint16_t argc,
+                                        const char *argv[]) {
+    uint64_t system_process_channel =
+            anos_find_named_channel("SYSTEM::PROCESS");
+    if (!system_process_channel) {
+        printf("ERROR: Could not find SYSTEM::PROCESS channel\n");
+        return -1;
+    }
+
+    size_t capabilities_size = capc * sizeof(InitCapability);
+    size_t argv_size = 0;
+
+    for (uint16_t i = 0; i < argc; i++) {
+        if (argv[i]) {
+            argv_size += strlen(argv[i]) + 1;
+        }
+    }
+
+    size_t total_size =
+            sizeof(ProcessSpawnRequest) + capabilities_size + argv_size;
+
+    static char __attribute__((aligned(4096))) ipc_buffer[4096];
+    char *buffer = ipc_buffer;
+
+    if (total_size > sizeof(ipc_buffer)) {
+        printf("ERROR: Message too large (%zu > %zu)\n", total_size,
+               sizeof(ipc_buffer));
+        return -2;
+    }
+
+    ProcessSpawnRequest *req = (ProcessSpawnRequest *)buffer;
+    req->stack_size = stack_size;
+    req->argc = argc;
+    req->capc = capc;
+
+    char *data_ptr = req->data;
+
+    if (capc > 0 && capabilities) {
+        memcpy(data_ptr, capabilities, capabilities_size);
+        data_ptr += capabilities_size;
+    }
+
+    if (argc > 0 && argv) {
+        for (uint16_t i = 0; i < argc; i++) {
+            if (argv[i]) {
+                size_t len = strlen(argv[i]);
+                memcpy(data_ptr, argv[i], len);
+                data_ptr[len] = '\0';
+                data_ptr += len + 1;
+            }
+        }
+    }
+
+#ifdef DEBUG_AHCI_SPAWN
+    printf("Sending process spawn request (total_size=%ld)\n", total_size);
+#endif
+
+    const uint64_t response = anos_send_message(
+            system_process_channel, PROCESS_SPAWN, total_size, buffer);
+
+    return (int64_t)response;
+}
+
+void spawn_ahci_driver(uint64_t ahci_base) {
+    printf("Spawning AHCI driver for controller at 0x%016lx...\n", ahci_base);
+
+    char ahci_base_str[32];
+    snprintf(ahci_base_str, sizeof(ahci_base_str), "%lx", ahci_base);
+
+    const char *argv[] = {"boot:/ahcidrv.elf", ahci_base_str};
+
+    InitCapability ahci_caps[] = {
+            {.capability_id = SYSCALL_ID_DEBUG_PRINT,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT]},
+            {.capability_id = SYSCALL_ID_DEBUG_CHAR,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR]},
+            {.capability_id = SYSCALL_ID_SLEEP,
+             .capability_cookie = __syscall_capabilities[SYSCALL_ID_SLEEP]},
+            {.capability_id = SYSCALL_ID_MAP_PHYSICAL,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL]},
+            {.capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK]},
+    };
+
+    printf("  --> spawn: %s %s\n", argv[0], argv[1]);
+
+    int64_t pid = spawn_process_via_system(0x100000, 5, ahci_caps, 2, argv);
+    if (pid > 0) {
+        printf("  --> AHCI driver spawned with PID %ld\n", pid);
+    } else {
+        printf("ERROR: Failed to spawn AHCI driver (error code: %ld)\n", pid);
+    }
+}
 
 static int pci_initialize_driver(uint64_t ecam_base, const uint16_t segment,
                                  const uint8_t bus_start,

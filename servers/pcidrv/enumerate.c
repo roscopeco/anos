@@ -11,6 +11,8 @@
 
 #include "pci.h"
 
+void spawn_ahci_driver(uint64_t ahci_base);
+
 bool pci_device_exists(const PCIBusDriver *bus_driver, const uint8_t bus,
                        const uint8_t device, const uint8_t function) {
     const uint16_t vendor_id =
@@ -26,7 +28,7 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
 
     const uint8_t header_type = pci_config_read8(bus_driver, bus, device,
                                                  function, PCI_HEADER_TYPE);
-#ifdef DEBUG_BUS_DRIVER_ENUM
+
     const uint16_t vendor_id =
             pci_config_read16(bus_driver, bus, device, function, PCI_VENDOR_ID);
 
@@ -39,11 +41,32 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
     const uint8_t subclass = PCI_REG_UM_B(class_d);
     const uint8_t prog_if = PCI_REG_LM_B(class_d);
 
+#ifdef DEBUG_BUS_DRIVER_ENUM
+
     printf("PCI %02x:%02x.%x - Vendor: 0x%04x Device: 0x%04x Class: "
            "%02x.%02x.%02x",
            bus, device, function, vendor_id, device_id, class_code, subclass,
            prog_if);
 #endif
+
+    // Check for AHCI controller (Intel ICH9)
+    if (vendor_id == 0x8086 && device_id == 0x2922 && class_code == 0x01 &&
+        subclass == 0x06 && prog_if == 0x01) {
+
+        uint32_t bar5 =
+                pci_config_read32(bus_driver, bus, device, function, 0x24);
+        if (bar5 != 0 && bar5 != 0xFFFFFFFF) {
+            uint64_t ahci_base = bar5 & 0xFFFFFFF0;
+
+#ifdef DEBUG_BUS_DRIVER_ENUM
+            printf(" [AHCI Controller - Base: 0x%016lx]", ahci_base);
+#endif
+
+            printf("\nDETECTED: Intel ICH9 AHCI Controller at 0x%016lx\n",
+                   ahci_base);
+            spawn_ahci_driver(ahci_base);
+        }
+    }
 
     // Check if it's a bridge
     if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {
