@@ -779,6 +779,7 @@ SYSCALL_HANDLER(map_physical) {
     const uintptr_t phys_addr = (uintptr_t)arg0;
     const uintptr_t user_vaddr = (uintptr_t)arg1;
     const size_t size = (size_t)arg2;
+    const uint64_t flags = (uint64_t)arg3;
 
     // Validate user address
     if (!IS_USER_ADDRESS(user_vaddr)) {
@@ -800,9 +801,24 @@ SYSCALL_HANDLER(map_physical) {
         const uintptr_t target_phys_addr = phys_addr + offset;
         const uintptr_t target_user_vaddr = user_vaddr + offset;
 
-        // Map the physical page into userspace as read-only
-        if (!vmm_map_page(target_user_vaddr, target_phys_addr,
-                          PG_PRESENT | PG_USER | PG_READ)) {
+        // Build page flags from the provided permission flags
+        uint64_t page_flags = PG_PRESENT | PG_USER;
+
+        // Default to read-only if no flags specified, otherwise use provided flags
+        if (flags == 0) {
+            page_flags |= PG_READ;
+        } else {
+            if (flags & ANOS_MAP_VIRTUAL_FLAG_READ) {
+                page_flags |= PG_READ;
+            }
+            if (flags & ANOS_MAP_VIRTUAL_FLAG_WRITE) {
+                page_flags |= PG_WRITE;
+            }
+            // Note: PG_EXEC flag would be needed for ANOS_MAP_VIRTUAL_FLAG_EXEC
+        }
+
+        // Map the physical page into userspace with specified permissions
+        if (!vmm_map_page(target_user_vaddr, target_phys_addr, page_flags)) {
             // If mapping fails, unmap what we've already done
             for (uintptr_t unmap_offset = 0; unmap_offset < offset;
                  unmap_offset += VM_PAGE_SIZE) {
