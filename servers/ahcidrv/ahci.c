@@ -21,18 +21,23 @@
 
 static uint64_t memory_offset = 0;
 
-static void *allocate_aligned_memory(size_t size, size_t alignment) {
-    size_t aligned_size = (size + alignment - 1) & ~(alignment - 1);
+static void *allocate_aligned_memory(const size_t size,
+                                     const size_t alignment) {
+    const size_t aligned_size = (size + alignment - 1) & ~(alignment - 1);
     void *addr = (void *)(AHCI_MEMORY_BASE + memory_offset);
     memory_offset += aligned_size;
 
-    SyscallResult result = anos_map_physical(0, addr, aligned_size);
-    if (result != SYSCALL_OK) {
+    // For DMA buffers, we need to allocate actual virtual memory pages
+    void *mapped_addr = anos_map_virtual(aligned_size, (uintptr_t)addr,
+                                         ANOS_MAP_VIRTUAL_FLAG_READ |
+                                                 ANOS_MAP_VIRTUAL_FLAG_WRITE);
+    if (mapped_addr == nullptr) {
         return nullptr;
     }
 
-    memset(addr, 0, aligned_size);
-    return addr;
+    // Use the address that was actually allocated, not our requested address
+    memset(mapped_addr, 0, aligned_size);
+    return mapped_addr;
 }
 
 static void ahci_port_stop(AHCIPortRegs *port) {
@@ -77,7 +82,7 @@ static void ahci_reset_controller(AHCIRegs *regs) {
 #endif
 }
 
-bool ahci_controller_init(AHCIController *ctrl, uint64_t pci_base) {
+bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
     if (!ctrl) {
         return false;
     }
@@ -87,14 +92,18 @@ bool ahci_controller_init(AHCIController *ctrl, uint64_t pci_base) {
 
     ctrl->mapped_size = 0x1000;
 
-#ifdef DEBUG_AHCI_INIT
-    printf("Mapping AHCI registers at 0x%016lx\n", pci_base);
-#endif
+    printf("Mapping AHCI registers: phys=0x%016lx -> virt=0x%016llx "
+           "(size=0x%lx)\n",
+           pci_base, 0xB000000000ULL, ctrl->mapped_size);
 
-    SyscallResult result = anos_map_physical(pci_base, (void *)0xB000000000ULL,
-                                             ctrl->mapped_size);
+    const SyscallResult result = anos_map_physical(
+            pci_base, (void *)0xB000000000ULL, ctrl->mapped_size,
+            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
     if (result != SYSCALL_OK) {
-        printf("Failed to map AHCI registers! Error: %d\n", result);
+        printf("FAILED to map AHCI registers! Error code: %d\n", result);
+        printf("  Attempted mapping: phys=0x%016lx -> virt=0x%016llx "
+               "(size=0x%lx)\n",
+               pci_base, 0xB000000000ULL, ctrl->mapped_size);
         return false;
     }
 
@@ -185,8 +194,8 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
         return false;
     }
 
-    uint64_t cmd_list_phys = (uint64_t)port->cmd_list;
-    uint64_t fis_base_phys = (uint64_t)port->fis_base;
+    const uint64_t cmd_list_phys = (uint64_t)port->cmd_list;
+    const uint64_t fis_base_phys = (uint64_t)port->fis_base;
 
     port_regs->clb = (uint32_t)(cmd_list_phys & 0xFFFFFFFF);
     port_regs->clbu = (uint32_t)(cmd_list_phys >> 32);
@@ -194,8 +203,9 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
     port_regs->fbu = (uint32_t)(fis_base_phys >> 32);
 
     AHCICmdHeader *cmd_headers = (AHCICmdHeader *)port->cmd_list;
+
     for (int i = 0; i < 32; i++) {
-        uint64_t cmd_table_phys =
+        const uint64_t cmd_table_phys =
                 (uint64_t)port->cmd_tables + (i * CMD_TABLE_SIZE);
         cmd_headers[i].ctba = (uint32_t)(cmd_table_phys & 0xFFFFFFFF);
         cmd_headers[i].ctbau = (uint32_t)(cmd_table_phys >> 32);
@@ -217,8 +227,9 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
     return true;
 }
 
-static bool ahci_wait_for_completion(AHCIPort *port, uint8_t slot) {
-    AHCIPortRegs *port_regs = &port->controller->regs->ports[port->port_num];
+static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
+    const AHCIPortRegs *port_regs =
+            &port->controller->regs->ports[port->port_num];
 
     int timeout = 10000;
     while (timeout > 0) {
@@ -301,8 +312,9 @@ bool ahci_port_identify(AHCIPort *port) {
     return true;
 }
 
-bool ahci_port_read(AHCIPort *port, uint64_t lba, uint16_t count,
+bool ahci_port_read(AHCIPort *port, const uint64_t lba, const uint16_t count,
                     void *buffer) {
+
     if (!port || !port->initialized || !buffer || count == 0) {
         return false;
     }
@@ -341,7 +353,7 @@ bool ahci_port_read(AHCIPort *port, uint64_t lba, uint16_t count,
     return ahci_wait_for_completion(port, 0);
 }
 
-bool ahci_port_write(AHCIPort *port, uint64_t lba, uint16_t count,
+bool ahci_port_write(AHCIPort *port, const uint64_t lba, const uint16_t count,
                      const void *buffer) {
     if (!port || !port->initialized || !buffer || count == 0) {
         return false;
