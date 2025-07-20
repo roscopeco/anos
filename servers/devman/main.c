@@ -102,7 +102,8 @@ static ACPI_SDTHeader *find_acpi_table(const char *signature,
 
         const uintptr_t temp_base = USER_ACPI_BASE + 0x10000 + (i * 0x1000);
         const SyscallResult result =
-                anos_map_physical(table_phys_page, (void *)temp_base, 4096);
+                anos_map_physical(table_phys_page, (void *)temp_base, 4096,
+                                  ANOS_MAP_VIRTUAL_FLAG_READ);
 
         if (result == SYSCALL_OK) {
             ACPI_SDTHeader *table =
@@ -229,6 +230,11 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
             },
             {
                     .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL],
+                    .capability_id = SYSCALL_ID_MAP_VIRTUAL,
+            },
+            {
+                    .capability_cookie =
                             __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
                     .capability_id = SYSCALL_ID_SEND_MESSAGE,
             },
@@ -249,7 +255,7 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
            argv[4]);
 #endif
 
-    int64_t pid = spawn_process_via_system(0x100000, 7, pci_caps, 5, argv);
+    int64_t pid = spawn_process_via_system(0x100000, 8, pci_caps, 5, argv);
     if (pid > 0) {
 #ifdef DEBUG_PCI
         printf("  --> PCI driver spawned with PID %ld\n", pid);
@@ -371,7 +377,8 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
 
     // Map the physical page containing the table
     const SyscallResult result =
-            anos_map_physical(table_phys_page, (void *)USER_ACPI_BASE, 4096);
+            anos_map_physical(table_phys_page, (void *)USER_ACPI_BASE, 4096,
+                              ANOS_MAP_VIRTUAL_FLAG_READ);
     if (result != SYSCALL_OK) {
         printf("Failed to map ACPI table! Error code: %d\n", result);
         return;
@@ -429,7 +436,8 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
             // Map the first table (use a different base address)
             constexpr uintptr_t first_table_base = USER_ACPI_BASE + 0x1000;
             const SyscallResult table_result = anos_map_physical(
-                    first_table_phys_page, (void *)first_table_base, 4096);
+                    first_table_phys_page, (void *)first_table_base, 4096,
+                    ANOS_MAP_VIRTUAL_FLAG_READ);
             if (table_result != SYSCALL_OK) {
                 printf("Failed to map first table! Error code: %d\n",
                        table_result);
@@ -485,7 +493,8 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
             const uintptr_t sig_table_base =
                     USER_ACPI_BASE + 0x2000 + (i * 0x1000);
             const SyscallResult sig_result = anos_map_physical(
-                    sig_table_phys_page, (void *)sig_table_base, 4096);
+                    sig_table_phys_page, (void *)sig_table_base, 4096,
+                    ANOS_MAP_VIRTUAL_FLAG_READ);
             if (sig_result == SYSCALL_OK) {
                 ACPI_SDTHeader *sig_table =
                         (ACPI_SDTHeader *)((uint8_t *)sig_table_base +
