@@ -53,10 +53,25 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
     if (vendor_id == 0x8086 && device_id == 0x2922 && class_code == 0x01 &&
         subclass == 0x06 && prog_if == 0x01) {
 
-        uint32_t bar5 =
+        // For AHCI, the ABAR (AHCI Base Address Register) is BAR5 at offset 0x24
+        uint32_t bar5_low =
                 pci_config_read32(bus_driver, bus, device, function, 0x24);
-        if (bar5 != 0 && bar5 != 0xFFFFFFFF) {
-            uint64_t ahci_base = bar5 & 0xFFFFFFF0;
+        uint32_t bar5_high =
+                pci_config_read32(bus_driver, bus, device, function, 0x28);
+
+        printf("\nDEBUG: BAR5 raw values: low=0x%08x high=0x%08x\n", bar5_low,
+               bar5_high);
+
+        if (bar5_low != 0 && bar5_low != 0xFFFFFFFF) {
+            uint64_t ahci_base = (bar5_low & 0xFFFFFFF0);
+
+            // Check if it's a 64-bit BAR
+            if ((bar5_low & 0x6) == 0x4) {
+                ahci_base |= ((uint64_t)bar5_high << 32);
+                printf("DEBUG: 64-bit BAR detected\n");
+            } else {
+                printf("DEBUG: 32-bit BAR detected\n");
+            }
 
 #ifdef DEBUG_BUS_DRIVER_ENUM
             printf(" [AHCI Controller - Base: 0x%016lx]", ahci_base);

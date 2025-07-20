@@ -128,6 +128,9 @@ void spawn_ahci_driver(uint64_t ahci_base) {
             {.capability_id = SYSCALL_ID_MAP_PHYSICAL,
              .capability_cookie =
                      __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL]},
+            {.capability_id = SYSCALL_ID_MAP_VIRTUAL,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL]},
             {.capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
              .capability_cookie =
                      __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK]},
@@ -135,7 +138,7 @@ void spawn_ahci_driver(uint64_t ahci_base) {
 
     printf("  --> spawn: %s %s\n", argv[0], argv[1]);
 
-    int64_t pid = spawn_process_via_system(0x100000, 5, ahci_caps, 2, argv);
+    int64_t pid = spawn_process_via_system(0x100000, 6, ahci_caps, 2, argv);
     if (pid > 0) {
         printf("  --> AHCI driver spawned with PID %ld\n", pid);
     } else {
@@ -169,7 +172,8 @@ static int pci_initialize_driver(uint64_t ecam_base, const uint16_t segment,
 
     // Map the ECAM space
     const SyscallResult result = anos_map_physical(
-            ecam_base, (void *)0x9000000000, bus_driver.mapped_size);
+            ecam_base, (void *)0x9000000000, bus_driver.mapped_size,
+            ANOS_MAP_VIRTUAL_FLAG_READ);
     if (result != SYSCALL_OK) {
         printf("Failed to map ECAM space! Error: %d\n", result);
         return -1;
