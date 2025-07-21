@@ -22,6 +22,7 @@ bool pci_device_exists(const PCIBusDriver *bus_driver, const uint8_t bus,
 
 void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
                             const uint8_t device, const uint8_t function) {
+
     if (!pci_device_exists(bus_driver, bus, device, function)) {
         return;
     }
@@ -42,7 +43,6 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
     const uint8_t prog_if = PCI_REG_LM_B(class_d);
 
 #ifdef DEBUG_BUS_DRIVER_ENUM
-
     printf("PCI %02x:%02x.%x - Vendor: 0x%04x Device: 0x%04x Class: "
            "%02x.%02x.%02x",
            bus, device, function, vendor_id, device_id, class_code, subclass,
@@ -54,31 +54,41 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
         subclass == 0x06 && prog_if == 0x01) {
 
         // For AHCI, the ABAR (AHCI Base Address Register) is BAR5 at offset 0x24
-        uint32_t bar5_low =
+        const uint32_t bar5_low =
                 pci_config_read32(bus_driver, bus, device, function, 0x24);
-        uint32_t bar5_high =
+#ifdef DEBUG_BUS_DRIVER_ENUM
+        const uint32_t bar5_high =
                 pci_config_read32(bus_driver, bus, device, function, 0x28);
 
+#ifdef VERY_NOISY_BUS_DRIVER
         printf("\nDEBUG: BAR5 raw values: low=0x%08x high=0x%08x\n", bar5_low,
                bar5_high);
+#endif
+#endif
 
         if (bar5_low != 0 && bar5_low != 0xFFFFFFFF) {
             uint64_t ahci_base = (bar5_low & 0xFFFFFFF0);
 
+#ifdef DEBUG_BUS_DRIVER_ENUM
             // Check if it's a 64-bit BAR
             if ((bar5_low & 0x6) == 0x4) {
                 ahci_base |= ((uint64_t)bar5_high << 32);
+#ifdef VERY_NOISY_BUS_DRIVER
                 printf("DEBUG: 64-bit BAR detected\n");
+#endif
             } else {
+#ifdef VERY_NOISY_BUS_DRIVER
                 printf("DEBUG: 32-bit BAR detected\n");
+#endif
             }
 
-#ifdef DEBUG_BUS_DRIVER_ENUM
             printf(" [AHCI Controller - Base: 0x%016lx]", ahci_base);
+#else
+            printf("Found: Intel ICH9 AHCI Controller at 0x%016lx; Starting "
+                   "driver...\n",
+                   ahci_base);
 #endif
 
-            printf("\nDETECTED: Intel ICH9 AHCI Controller at 0x%016lx\n",
-                   ahci_base);
             spawn_ahci_driver(ahci_base);
         }
     }

@@ -9,6 +9,6 @@ BINARY_OBJS=main.o pci.o enumerate.o
 #	DEBUG_BUS_DRIVER_INIT	Dump info about the initialisation and ECAM mapping
 #	DEBUG_BUS_DRIVER_ENUM	Dump info about PCI devices that are enumerated
 #
-CDEFS=-DDEBUG_BUS_DRIVER_INIT -DDEBUG_BUS_DRIVER_ENUM
+CDEFS=
 
 include ../server_common.mk

@@ -587,8 +587,7 @@ int main(const int argc, char **argv) {
 #endif
     }
 
-    printf("Device manager initialization complete. Going into service "
-           "loop...\n");
+    printf("Device manager initialization complete.\n");
 
     while (1) {
         anos_task_sleep_current_secs(5);

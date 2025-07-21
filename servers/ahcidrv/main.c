@@ -73,16 +73,18 @@ static int ahci_initialize_driver(uint64_t pci_base) {
 }
 
 int main(const int argc, char **argv) {
-    printf("\nAHCI Driver #%s [libanos #%s]\n\n", VERSION, libanos_version());
+    printf("\nAHCI Driver #%s [libanos #%s]", VERSION, libanos_version());
 
     if (argc < 2) {
-        printf("Usage: %s <pci_base>\n", argv[0]);
+        printf("\n\nUsage: %s <pci_base>\n", argv[0]);
         printf("Arguments provided: %d\n", argc);
         for (int i = 0; i < argc; i++) {
             printf("  argv[%d]: %s\n", i, argv[i]);
         }
         return 1;
     }
+
+    printf(" @ 0x%s\n", argv[1]);
 
     const uint64_t pci_base = strtoull(argv[1], nullptr, 16);
 
@@ -91,7 +93,7 @@ int main(const int argc, char **argv) {
         return 1;
     }
 
-    printf("\nAHCI initialization complete. Starting service loop...\n");
+    printf("AHCI initialization @ 0x%s complete.\n", argv[1]);
 
     while (1) {
         anos_task_sleep_current_secs(5);

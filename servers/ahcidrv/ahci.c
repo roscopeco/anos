@@ -41,6 +41,18 @@
 #define AHCI_COMMAND_SLEEP_US 100000
 #define AHCI_MAX_DMA_ADDRESS 0x100000000ULL
 
+#ifdef DEBUG_AHCI_INIT
+#define debugf(...) printf(__VA_ARGS__)
+#ifdef VERY_NOISY_AHCI_INIT
+#define vdebugf(...) printf(__VA_ARGS__)
+#else
+#define vdebugf(...)
+#endif
+#else
+#define debugf(...)
+#define vdebugf(...)
+#endif
+
 static uint64_t memory_offset = 0;
 
 static void *allocate_aligned_memory(const size_t size, const size_t alignment,
@@ -56,19 +68,18 @@ static void *allocate_aligned_memory(const size_t size, const size_t alignment,
         return nullptr;
     }
 
-    // Map the physical pages to virtual memory
     void *virt_addr = (void *)(AHCI_MEMORY_BASE + memory_offset);
     memory_offset += page_aligned_size;
 
-    SyscallResult result = anos_map_physical(
+    const SyscallResult result = anos_map_physical(
             phys_addr, virt_addr, page_aligned_size,
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+
     if (result != SYSCALL_OK) {
         // TODO: Free the physical pages on error
         return nullptr;
     }
 
-    // Return both virtual and physical addresses
     if (phys_addr_out) {
         *phys_addr_out = phys_addr;
     }
@@ -77,83 +88,92 @@ static void *allocate_aligned_memory(const size_t size, const size_t alignment,
     return virt_addr;
 }
 
-// Helper function to try mapping firmware DMA structures
-static bool try_map_firmware_dma(AHCIPort *port, uint8_t port_num,
-                                 AHCIPortRegs *port_regs) {
-    uint64_t cmd_list_phys = ((uint64_t)port_regs->clbu << 32) | port_regs->clb;
-    uint64_t fis_base_phys = ((uint64_t)port_regs->fbu << 32) | port_regs->fb;
+static bool try_map_firmware_dma(AHCIPort *port, const uint8_t port_num,
+                                 const AHCIPortRegs *port_regs) {
 
-    printf("Port %u: Firmware DMA structures:\n", port_num);
-    printf("  Command List: phys=0x%016lx (CLB=0x%08x CLBU=0x%08x)\n",
-           cmd_list_phys, port_regs->clb, port_regs->clbu);
-    printf("  FIS Base: phys=0x%016lx (FB=0x%08x FBU=0x%08x)\n", fis_base_phys,
-           port_regs->fb, port_regs->fbu);
+    const uint64_t cmd_list_phys =
+            ((uint64_t)port_regs->clbu << 32) | port_regs->clb;
+    const uint64_t fis_base_phys =
+            ((uint64_t)port_regs->fbu << 32) | port_regs->fb;
+
+    vdebugf("Port %u: Firmware DMA structures:\n", port_num);
+    vdebugf("  Command List: phys=0x%016lx (CLB=0x%08x CLBU=0x%08x)\n",
+            cmd_list_phys, port_regs->clb, port_regs->clbu);
+    vdebugf("  FIS Base: phys=0x%016lx (FB=0x%08x FBU=0x%08x)\n", fis_base_phys,
+            port_regs->fb, port_regs->fbu);
 
     // Check if addresses look reasonable
     if (cmd_list_phys == 0 || cmd_list_phys > AHCI_MAX_DMA_ADDRESS) {
-        printf("  -> Command list address looks invalid (0x%016lx), falling "
+        debugf("  -> Command list address looks invalid (0x%016lx), falling "
                "back to our allocation\n",
                cmd_list_phys);
+
         return false;
     }
 
     // Try to map the firmware's command list
     void *cmd_list_virt = (void *)(AHCI_MEMORY_BASE + memory_offset);
-    const size_t cmd_list_map_size = (AHCI_CMD_LIST_SIZE + 0xFFF) & ~0xFFF;
+    constexpr size_t cmd_list_map_size = (AHCI_CMD_LIST_SIZE + 0xFFF) & ~0xFFF;
     memory_offset += cmd_list_map_size;
 
-    printf("  -> Attempting to map firmware command list: phys=0x%016lx -> "
-           "virt=%p (size=0x%lx)\n",
-           cmd_list_phys, cmd_list_virt, cmd_list_map_size);
+    vdebugf("  -> Attempting to map firmware command list: phys=0x%016lx -> "
+            "virt=%p (size=0x%lx)\n",
+            cmd_list_phys, cmd_list_virt, cmd_list_map_size);
 
     SyscallResult result = anos_map_physical(
             cmd_list_phys, cmd_list_virt, cmd_list_map_size,
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+
     if (result != SYSCALL_OK) {
-        printf("  -> Failed to map firmware command list (syscall error %d), "
+        debugf("  -> Failed to map firmware command list (syscall error %d), "
                "falling back to our allocation\n",
                result);
         memory_offset -= cmd_list_map_size;
         return false;
     }
+
     port->cmd_list = cmd_list_virt;
 
     // Map the firmware's FIS base
     void *fis_base_virt = (void *)(AHCI_MEMORY_BASE + memory_offset);
-    const size_t fis_map_size = (AHCI_FIS_SIZE + 0xFFF) & ~0xFFF;
+    constexpr size_t fis_map_size = (AHCI_FIS_SIZE + 0xFFF) & ~0xFFF;
     memory_offset += fis_map_size;
 
     result = anos_map_physical(fis_base_phys, fis_base_virt, fis_map_size,
                                ANOS_MAP_VIRTUAL_FLAG_READ |
                                        ANOS_MAP_VIRTUAL_FLAG_WRITE);
+
     if (result != SYSCALL_OK) {
-        printf("Failed to map firmware FIS base for port %u\n", port_num);
+        debugf("Failed to map firmware FIS base for port %u\n", port_num);
         return false;
     }
+
     port->fis_base = fis_base_virt;
 
-    printf("  -> Successfully using firmware DMA structures\n");
+    vdebugf("  -> Successfully using firmware DMA structures\n");
     return true;
 }
 
-// Helper function to allocate our own DMA structures
-static bool allocate_own_dma(AHCIPort *port, uint8_t port_num,
+static bool allocate_own_dma(AHCIPort *port, const uint8_t port_num,
                              AHCIPortRegs *port_regs) {
-    printf("  -> Allocating our own DMA structures\n");
+
+    vdebugf("  -> Allocating our own DMA structures\n");
 
     uint64_t our_cmd_list_phys;
     port->cmd_list = allocate_aligned_memory(
             AHCI_CMD_LIST_SIZE, AHCI_CMD_LIST_ALIGN, &our_cmd_list_phys);
+
     if (!port->cmd_list) {
-        printf("Failed to allocate command list for port %u\n", port_num);
+        debugf("Failed to allocate command list for port %u\n", port_num);
         return false;
     }
 
     uint64_t our_fis_base_phys;
     port->fis_base = allocate_aligned_memory(AHCI_FIS_SIZE, AHCI_FIS_ALIGN,
                                              &our_fis_base_phys);
+
     if (!port->fis_base) {
-        printf("Failed to allocate FIS base for port %u\n", port_num);
+        debugf("Failed to allocate FIS base for port %u\n", port_num);
         return false;
     }
 
@@ -166,39 +186,40 @@ static bool allocate_own_dma(AHCIPort *port, uint8_t port_num,
     return true;
 }
 
-// Helper function to set up command tables
 static bool setup_command_tables(AHCIPort *port, uint8_t port_num) {
     uint64_t cmd_tables_phys;
     port->cmd_tables = allocate_aligned_memory(
             AHCI_CMD_TABLE_SIZE * AHCI_MAX_COMMAND_SLOTS, AHCI_CMD_TABLE_ALIGN,
             &cmd_tables_phys);
+
     if (!port->cmd_tables) {
-        printf("Failed to allocate command tables for port %u\n", port_num);
+        debugf("Failed to allocate command tables for port %u\n", port_num);
         return false;
     }
 
     // Set up command headers to point to our command tables
     AHCICmdHeader *cmd_headers = (AHCICmdHeader *)port->cmd_list;
+
     for (int i = 0; i < AHCI_MAX_COMMAND_SLOTS; i++) {
         const uint64_t cmd_table_phys =
                 cmd_tables_phys + (i * AHCI_CMD_TABLE_SIZE);
+
         cmd_headers[i].ctba = (uint32_t)(cmd_table_phys & 0xFFFFFFFF);
         cmd_headers[i].ctbau = (uint32_t)(cmd_table_phys >> 32);
     }
 
 #ifdef DEBUG_AHCI_INIT
-    // Verify buffer access after setup
-    printf("  Testing DMA buffer access...\n");
-    printf("    Command header test: CTBA=0x%08x CTBAU=0x%08x\n",
+    debugf("  Testing DMA buffer access...\n");
+    debugf("    Command header test: CTBA=0x%08x CTBAU=0x%08x\n",
            cmd_headers[0].ctba, cmd_headers[0].ctbau);
 
     const AHCICmdTable *test_table = (AHCICmdTable *)port->cmd_tables;
-    printf("    Command table test: FIS[0]=0x%02x FIS[1]=0x%02x\n",
+    debugf("    Command table test: FIS[0]=0x%02x FIS[1]=0x%02x\n",
            test_table->cfis[0], test_table->cfis[1]);
 
-    printf("    Physical addr test: cmd_tables_phys=0x%016lx\n",
+    debugf("    Physical addr test: cmd_tables_phys=0x%016lx\n",
            cmd_tables_phys);
-    printf("    Slot 0 table phys: 0x%016lx\n",
+    debugf("    Slot 0 table phys: 0x%016lx\n",
            cmd_tables_phys + (0 * AHCI_CMD_TABLE_SIZE));
 #endif
 
@@ -223,31 +244,8 @@ static void ahci_port_start(AHCIPortRegs *port) {
     port->cmd |= AHCI_PORT_CMD_START;
 }
 
-// static void ahci_reset_controller(AHCIRegs *regs) {
-// #ifdef DEBUG_AHCI_INIT
-//     printf("Resetting AHCI controller...\n");
-// #endif
-//
-//     regs->host.ghc |= AHCI_GHC_RESET;
-//
-//     int timeout = 1000;
-//     while ((regs->host.ghc & AHCI_GHC_RESET) && timeout > 0) {
-//         anos_task_sleep_current(1000);
-//         timeout--;
-//     }
-//
-//     if (timeout == 0) {
-//         printf("Warning: AHCI controller reset timeout\n");
-//     }
-//
-//     regs->host.ghc |= AHCI_GHC_AHCI_ENABLE;
-//
-// #ifdef DEBUG_AHCI_INIT
-//     printf("AHCI controller reset complete\n");
-// #endif
-// }
-
 bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
+
     if (!ctrl) {
         return false;
     }
@@ -257,20 +255,20 @@ bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
 
     ctrl->mapped_size = 0x1000;
 
-#ifdef DEBUG_AHCI_INIT
-    printf("Mapping AHCI registers: phys=0x%016lx -> virt=0x%016llx "
+    debugf("Mapping AHCI registers: phys=0x%016lx -> virt=0x%016llx "
            "(size=0x%lx)\n",
            pci_base, 0xB000000000ULL, ctrl->mapped_size);
-#endif
 
     const SyscallResult result = anos_map_physical(
             pci_base, (void *)0xB000000000ULL, ctrl->mapped_size,
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+
     if (result != SYSCALL_OK) {
         printf("FAILED to map AHCI registers! Error code: %d\n", result);
         printf("  Attempted mapping: phys=0x%016lx -> virt=0x%016llx "
                "(size=0x%lx)\n",
                pci_base, 0xB000000000ULL, ctrl->mapped_size);
+
         return false;
     }
 
@@ -279,25 +277,26 @@ bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
 
 #ifdef DEBUG_AHCI_INIT
 #ifdef VERY_NOISY_AHCI_INIT
-    printf("AHCI structure sizes:\n");
-    printf("  sizeof(AHCIHostRegs): %zu (should be 256)\n",
-           sizeof(AHCIHostRegs));
-    printf("  sizeof(AHCIPortRegs): %zu (should be 128)\n",
-           sizeof(AHCIPortRegs));
-    printf("  sizeof(AHCIRegs): %zu\n", sizeof(AHCIRegs));
-    printf("  Port 0 offset: 0x%lx (should be 0x100)\n",
-           (uintptr_t)&ctrl->regs->ports[0] - (uintptr_t)ctrl->regs);
+    vdebugf("AHCI structure sizes:\n");
+    vdebugf("  sizeof(AHCIHostRegs): %zu (should be 256)\n",
+            sizeof(AHCIHostRegs));
+    vdebugf("  sizeof(AHCIPortRegs): %zu (should be 128)\n",
+            sizeof(AHCIPortRegs));
+    vdebugf("  sizeof(AHCIRegs): %zu\n", sizeof(AHCIRegs));
+    vdebugf("  Port 0 offset: 0x%lx (should be 0x100)\n",
+            (uintptr_t)&ctrl->regs->ports[0] - (uintptr_t)ctrl->regs);
 
-    printf("AHCI registers mapped successfully\n");
-    printf("  CAP: 0x%08x\n", ctrl->regs->host.cap);
-    printf("  GHC: 0x%08x\n", ctrl->regs->host.ghc);
-    printf("  IS: 0x%08x\n", ctrl->regs->host.is);
-    printf("  PI: 0x%08x\n", ctrl->regs->host.pi);
-    printf("  VS: 0x%08x\n", ctrl->regs->host.vs);
+    vdebugf("AHCI registers mapped successfully\n");
+    vdebugf("  CAP: 0x%08x\n", ctrl->regs->host.cap);
+    vdebugf("  GHC: 0x%08x\n", ctrl->regs->host.ghc);
+    vdebugf("  IS: 0x%08x\n", ctrl->regs->host.is);
+    vdebugf("  PI: 0x%08x\n", ctrl->regs->host.pi);
+    vdebugf("  VS: 0x%08x\n", ctrl->regs->host.vs);
 #endif
+
     // Verify mapping by checking if we get sane values
     if (ctrl->regs->host.cap == 0xffffffff || ctrl->regs->host.cap == 0) {
-        printf("WARNING: CAP register looks invalid (0x%08x) - mapping may be "
+        debugf("WARNING: CAP register looks invalid (0x%08x) - mapping may be "
                "wrong!\n",
                ctrl->regs->host.cap);
     }
@@ -305,11 +304,12 @@ bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
 #ifdef VERY_NOISY_AHCI_INIT
     // Test reading from different offsets to verify mapping
     volatile uint32_t *test_ptr = (volatile uint32_t *)ctrl->mapped_regs;
-    printf("Raw register reads: [0]=0x%08x [1]=0x%08x [2]=0x%08x [3]=0x%08x\n",
-           test_ptr[0], test_ptr[1], test_ptr[2], test_ptr[3]);
+    vdebugf("Raw register reads: [0]=0x%08x [1]=0x%08x [2]=0x%08x [3]=0x%08x\n",
+            test_ptr[0], test_ptr[1], test_ptr[2], test_ptr[3]);
 #endif
 #endif
-    // ahci_reset_controller(ctrl->regs);  // Skip reset - firmware already set up
+
+    // TODO reset controller and set it up from scratch? Or not worth the hassle?
 
     ctrl->port_count = (ctrl->regs->host.cap & 0x1F) + 1;
     ctrl->active_ports = ctrl->regs->host.pi;
@@ -319,7 +319,7 @@ bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
     }
 
 #ifdef DEBUG_AHCI_INIT
-    printf("Controller supports %u ports, active mask: 0x%08x\n",
+    debugf("Controller supports %u ports, active mask: 0x%08x\n",
            ctrl->port_count, ctrl->active_ports);
 #endif
 
@@ -332,7 +332,7 @@ void ahci_controller_cleanup(AHCIController *ctrl) {
         return;
     }
 
-    for (uint8_t i = 0; i < ctrl->port_count; i++) {
+    for (int i = 0; i < ctrl->port_count; i++) {
         if (ctrl->active_ports & (1 << i)) {
             ahci_port_stop(&ctrl->regs->ports[i]);
         }
@@ -355,33 +355,32 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
 #ifdef DEBUG_AHCI_INIT
 #ifdef VERY_NOISY_AHCI_INIT
     // Debug: verify port register access
-    printf("Port %u register access debug:\n", port_num);
-    printf("  ctrl->regs = %p\n", (void *)ctrl->regs);
-    printf("  port_regs = %p\n", (void *)port_regs);
-    printf("  Expected offset from base: 0x%lx\n",
-           (uintptr_t)port_regs - (uintptr_t)ctrl->regs);
+    vdebugf("Port %u register access debug:\n", port_num);
+    vdebugf("  ctrl->regs = %p\n", (void *)ctrl->regs);
+    vdebugf("  port_regs = %p\n", (void *)port_regs);
+    vdebugf("  Expected offset from base: 0x%lx\n",
+            (uintptr_t)port_regs - (uintptr_t)ctrl->regs);
 
     // Test raw access to port registers
     volatile uint32_t *port_raw = (volatile uint32_t *)port_regs;
-    printf("  Raw port reads: [0]=0x%08x [1]=0x%08x [2]=0x%08x [9]=0x%08x "
-           "[10]=0x%08x\n",
-           port_raw[0], port_raw[1], port_raw[2], port_raw[9], port_raw[10]);
-    printf("  Structured reads: CLB=0x%08x CLBU=0x%08x TFD=0x%08x SIG=0x%08x "
-           "SSTS=0x%08x\n",
-           port_regs->clb, port_regs->clbu, port_regs->tfd, port_regs->sig,
-           port_regs->ssts);
+    vdebugf("  Raw port reads: [0]=0x%08x [1]=0x%08x [2]=0x%08x [9]=0x%08x "
+            "[10]=0x%08x\n",
+            port_raw[0], port_raw[1], port_raw[2], port_raw[9], port_raw[10]);
+    vdebugf("  Structured reads: CLB=0x%08x CLBU=0x%08x TFD=0x%08x SIG=0x%08x "
+            "SSTS=0x%08x\n",
+            port_regs->clb, port_regs->clbu, port_regs->tfd, port_regs->sig,
+            port_regs->ssts);
 #endif
 #endif
 
     uint32_t ssts = port_regs->ssts;
     if ((ssts & AHCI_PORT_SSTS_DET_MASK) != AHCI_PORT_SSTS_DET_PRESENT) {
-#ifdef DEBUG_AHCI_INIT
-        printf("Port %u: No device detected (SSTS=0x%08x)\n", port_num, ssts);
-#endif
+        debugf("Port %u: No device detected (SSTS=0x%08x)\n", port_num, ssts);
         return false;
     }
 
-    // Check device signature (QEMU reports 0xffffffff, which is a known limitation)
+#ifdef DEBUG_AHCI_INIT
+    // Check device signature
     uint32_t sig = port_regs->sig;
     const char *device_type = "SATA drive (assumed)";
 
@@ -409,8 +408,7 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
                port_num, sig);
     }
 
-#ifdef DEBUG_AHCI_INIT
-    printf("Port %u: Device detected - %s (SSTS=0x%08x, SIG=0x%08x)\n",
+    debugf("Port %u: Device detected - %s (SSTS=0x%08x, SIG=0x%08x)\n",
            port_num, device_type, ssts, sig);
 #endif
 
@@ -438,9 +436,7 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
     port->connected = true;
     port->initialized = true;
 
-#ifdef DEBUG_AHCI_INIT
-    printf("Port %u initialized successfully\n", port_num);
-#endif
+    debugf("Port %u initialized successfully\n", port_num);
 
     return true;
 }
@@ -456,7 +452,8 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
         }
 
         if (port_regs->is & (1 << 30)) {
-            printf("Port %u: Task file error\n", port->port_num);
+            debugf("Port %u: Task file error\n", port->port_num);
+
             return false;
         }
 
@@ -464,9 +461,70 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
         timeout--;
     }
 
-    printf("Port %u: Command timeout on slot %u\n", port->port_num, slot);
+    debugf("Port %u: Command timeout on slot %u\n", port->port_num, slot);
     return false;
 }
+
+#ifdef DEBUG_AHCI_INIT
+#ifdef VERY_NOISY_AHCI_INIT
+static void vdebug_dump_d2h_fis(const uint8_t *fis_area) {
+    vdebugf("     D2H FIS: %02x %02x %02x %02x %02x %02x %02x "
+            "%02x\n",
+            fis_area[0x40], fis_area[0x41], fis_area[0x42], fis_area[0x43],
+            fis_area[0x44], fis_area[0x45], fis_area[0x46], fis_area[0x47]);
+    vdebugf("     SDB FIS: %02x %02x %02x %02x %02x %02x %02x "
+            "%02x\n",
+            fis_area[0x58], fis_area[0x59], fis_area[0x5A], fis_area[0x5B],
+            fis_area[0x5C], fis_area[0x5D], fis_area[0x5E], fis_area[0x5F]);
+}
+
+static void vdebug_dump_h2d_fis(const uint8_t *fis_bytes) {
+    vdebugf("Raw H2D FIS: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+            fis_bytes[0], fis_bytes[1], fis_bytes[2], fis_bytes[3],
+            fis_bytes[4], fis_bytes[5], fis_bytes[6], fis_bytes[7]);
+}
+
+static void vdebug_dump_pre_command_state(AHCICommandTable *cmd_table,
+                                          AHCIPortRegs *port_regs,
+                                          uint64_t identify_buffer_phys) {
+    vdebugf("PRDT[0]: DBA=0x%08x DBAU=0x%08x DBC=%u (phys=0x%016lx)\n",
+            cmd_table->prdt[0].dba, cmd_table->prdt[0].dbau,
+            cmd_table->prdt[0].dbc, identify_buffer_phys);
+
+    vdebugf("Port %u pre-command status:\n", port->port_num);
+    vdebugf("  TFD: 0x%08x\n", port_regs->tfd);
+    vdebugf("  SSTS: 0x%08x\n", port_regs->ssts);
+    vdebugf("  SERR: 0x%08x\n", port_regs->serr);
+    vdebugf("  IS: 0x%08x\n", port_regs->is);
+    vdebugf("  CI: 0x%08x\n", port_regs->ci);
+    vdebugf("  CMD: 0x%08x\n", port_regs->cmd);
+
+    vdebugf("  Command header slot 0: CTBA=0x%08x CTBAU=0x%08x CFL=%u "
+            "PRDTL=%u\n",
+            cmd_header->ctba, cmd_header->ctbau, cmd_header->cfl,
+            cmd_header->prdtl);
+
+    const uint64_t cmd_table_phys =
+            ((uint64_t)cmd_header->ctbau << 32) | cmd_header->ctba;
+    vdebugf("  Command table should be at phys=0x%016lx, our virtual=%p\n",
+            cmd_table_phys, (void *)cmd_table);
+
+    // Verify FIS content in the command table
+    vdebugf("  FIS in command table: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+            cmd_table->cfis[0], cmd_table->cfis[1], cmd_table->cfis[2],
+            cmd_table->cfis[3], cmd_table->cfis[4], cmd_table->cfis[5],
+            cmd_table->cfis[6], cmd_table->cfis[7]);
+}
+#else
+#define vdebug_dump_d2h_fis(...)
+#define vdebug_dump_h2d_fis(...)
+#define vdebug_dump_pre_command_state(...)
+#endif
+#else
+#define vdebug_dump_d2h_fis(...)
+#define vdebug_dump_h2d_fis(...)
+#define vdebug_dump_pre_command_state(...)
+#endif
 
 bool ahci_port_identify(AHCIPort *port) {
     if (!port || !port->initialized) {
@@ -480,21 +538,19 @@ bool ahci_port_identify(AHCIPort *port) {
     uint64_t identify_buffer_phys;
     void *identify_buffer =
             allocate_aligned_memory(512, 512, &identify_buffer_phys);
+
     if (!identify_buffer) {
-        printf("Failed to allocate identify buffer\n");
+        debugf("Failed to allocate identify buffer\n");
+
         return false;
     }
 
-#ifdef DEBUG_AHCI_INIT
-#ifdef VERY_NOISY_AHCI_INIT
-    printf("IDENTIFY setup: cmd_list=%p cmd_table=%p buffer=%p "
-           "(phys=0x%016lx)\n",
-           port->cmd_list, port->cmd_tables, identify_buffer,
-           identify_buffer_phys);
-    printf("Port registers: CLB=0x%08x:0x%08x FB=0x%08x:0x%08x\n",
-           port_regs->clbu, port_regs->clb, port_regs->fbu, port_regs->fb);
-#endif
-#endif
+    vdebugf("IDENTIFY setup: cmd_list=%p cmd_table=%p buffer=%p "
+            "(phys=0x%016lx)\n",
+            port->cmd_list, port->cmd_tables, identify_buffer,
+            identify_buffer_phys);
+    vdebugf("Port registers: CLB=0x%08x:0x%08x FB=0x%08x:0x%08x\n",
+            port_regs->clbu, port_regs->clb, port_regs->fbu, port_regs->fb);
 
     // Don't clear the entire header - preserve CTBA/CTBAU set during port init
     // memset(cmd_header, 0, sizeof(AHCICmdHeader));
@@ -512,8 +568,8 @@ bool ahci_port_identify(AHCIPort *port) {
     cmd_header->prdbc = 0;                   // Clear byte count
     cmd_header->pmp = 0;                     // Port multiplier port
 
-    printf("Command header: CFL=%u PRDTL=%u\n", cmd_header->cfl,
-           cmd_header->prdtl);
+    vdebugf("Command header: CFL=%u PRDTL=%u\n", cmd_header->cfl,
+            cmd_header->prdtl);
 
     FISRegH2D *fis = (FISRegH2D *)cmd_table->cfis;
     fis->fis_type = FIS_TYPE_REG_H2D;
@@ -530,101 +586,56 @@ bool ahci_port_identify(AHCIPort *port) {
     fis->count_exp = 0;
     // fis->control = 0;  // Not in our FIS structure
 
-    printf("H2D FIS setup: type=0x%02x flags=0x%02x cmd=0x%02x dev=0x%02x\n",
-           fis->fis_type, fis->flags, fis->command, fis->device);
+    vdebugf("H2D FIS setup: type=0x%02x flags=0x%02x cmd=0x%02x dev=0x%02x\n",
+            fis->fis_type, fis->flags, fis->command, fis->device);
 
-    // Show the raw FIS bytes we're sending
-    uint8_t *fis_bytes = (uint8_t *)fis;
-    printf("Raw H2D FIS: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-           fis_bytes[0], fis_bytes[1], fis_bytes[2], fis_bytes[3], fis_bytes[4],
-           fis_bytes[5], fis_bytes[6], fis_bytes[7]);
+    vdebug_dump_h2d_fis((uint8_t *)fis)
 
-    cmd_table->prdt[0].dba = (uint32_t)(identify_buffer_phys & 0xFFFFFFFF);
+            cmd_table->prdt[0]
+                    .dba = (uint32_t)(identify_buffer_phys & 0xFFFFFFFF);
     cmd_table->prdt[0].dbau = (uint32_t)(identify_buffer_phys >> 32);
     cmd_table->prdt[0].dbc = 511; // 512 bytes - 1 (0-based count)
     cmd_table->prdt[0].i = 1;
 
-#ifdef DEBUG_AHCI_INIT
-#ifdef VERY_NOISY_AHCI_INIT
-    printf("PRDT[0]: DBA=0x%08x DBAU=0x%08x DBC=%u (phys=0x%016lx)\n",
-           cmd_table->prdt[0].dba, cmd_table->prdt[0].dbau,
-           cmd_table->prdt[0].dbc, identify_buffer_phys);
-#endif
-#endif
-
-    // Debug: Check port status before issuing command
-    printf("Port %u pre-command status:\n", port->port_num);
-    printf("  TFD: 0x%08x\n", port_regs->tfd);
-    printf("  SSTS: 0x%08x\n", port_regs->ssts);
-    printf("  SERR: 0x%08x\n", port_regs->serr);
-    printf("  IS: 0x%08x\n", port_regs->is);
-    printf("  CI: 0x%08x\n", port_regs->ci);
-    printf("  CMD: 0x%08x\n", port_regs->cmd);
-
-    // Debug: Verify command header setup
-    printf("  Command header slot 0: CTBA=0x%08x CTBAU=0x%08x CFL=%u "
-           "PRDTL=%u\n",
-           cmd_header->ctba, cmd_header->ctbau, cmd_header->cfl,
-           cmd_header->prdtl);
-
-    // Verify the command table is accessible
-    uint64_t cmd_table_phys =
-            ((uint64_t)cmd_header->ctbau << 32) | cmd_header->ctba;
-    printf("  Command table should be at phys=0x%016lx, our virtual=%p\n",
-           cmd_table_phys, (void *)cmd_table);
-
-    // Verify FIS content in the command table
-    printf("  FIS in command table: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-           cmd_table->cfis[0], cmd_table->cfis[1], cmd_table->cfis[2],
-           cmd_table->cfis[3], cmd_table->cfis[4], cmd_table->cfis[5],
-           cmd_table->cfis[6], cmd_table->cfis[7]);
+    vdebug_dump_pre_command_state(cmd_table, port_regs, identify_buffer_phys);
 
     port_regs->ci = 1;
 
-    printf("Port %u post-command issue:\n", port->port_num);
-    printf("  CI: 0x%08x\n", port_regs->ci);
+    vdebugf("Port %u post-command issue:\n", port->port_num);
+    vdebugf("  CI: 0x%08x\n", port_regs->ci);
 
     if (!ahci_wait_for_completion(port, 0)) {
-        printf("Port %u: IDENTIFY command timeout\n", port->port_num);
-        printf("Final port status:\n");
-        printf("  TFD: 0x%08x\n", port_regs->tfd);
-        printf("  SERR: 0x%08x\n", port_regs->serr);
-        printf("  IS: 0x%08x\n", port_regs->is);
-        printf("  CI: 0x%08x\n", port_regs->ci);
+        vdebugf("Port %u: IDENTIFY command timeout\n", port->port_num);
+        vdebugf("Final port status:\n");
+        vdebugf("  TFD: 0x%08x\n", port_regs->tfd);
+        vdebugf("  SERR: 0x%08x\n", port_regs->serr);
+        vdebugf("  IS: 0x%08x\n", port_regs->is);
+        vdebugf("  CI: 0x%08x\n", port_regs->ci);
 
         // Check if device actually completed but we missed it due to interrupt handling
         if (port_regs->is & 0x1) {
-            printf("  -> Device sent D2H FIS (IS bit 0 set), trying manual "
-                   "completion...\n");
+            vdebugf("  -> Device sent D2H FIS (IS bit 0 set), trying manual "
+                    "completion...\n");
             // Clear the interrupt status
             port_regs->is = 0x1;
-            printf("  -> Cleared IS, now CI=0x%08x\n", port_regs->ci);
+            vdebugf("  -> Cleared IS, now CI=0x%08x\n", port_regs->ci);
             // Check if CI cleared after interrupt handling
             if ((port_regs->ci & 0x1) == 0) {
-                printf("  -> Command actually completed! Continuing...\n");
+                vdebugf("  -> Command actually completed! Continuing...\n");
                 // Command completed successfully, continue to identify parsing below
             } else {
-                printf("  -> CI still set (0x%08x), command may have failed\n",
-                       port_regs->ci);
+                vdebugf("  -> CI still set (0x%08x), command may have failed\n",
+                        port_regs->ci);
                 // Check for errors in the received FIS or TFD
-                printf("  -> TFD after IS clear: 0x%08x\n", port_regs->tfd);
+                vdebugf("  -> TFD after IS clear: 0x%08x\n", port_regs->tfd);
                 if (port_regs->tfd & 0x1) {
-                    printf("  -> Device reports ERROR bit set in TFD\n");
+                    vdebugf("  -> Device reports ERROR bit set in TFD\n");
                 }
 
                 // Let's see what FIS the device actually sent us
-                printf("  -> Examining received FIS at %p:\n", port->fis_base);
-                uint8_t *fis_area = (uint8_t *)port->fis_base;
-                printf("     D2H FIS: %02x %02x %02x %02x %02x %02x %02x "
-                       "%02x\n",
-                       fis_area[0x40], fis_area[0x41], fis_area[0x42],
-                       fis_area[0x43], fis_area[0x44], fis_area[0x45],
-                       fis_area[0x46], fis_area[0x47]);
-                printf("     SDB FIS: %02x %02x %02x %02x %02x %02x %02x "
-                       "%02x\n",
-                       fis_area[0x58], fis_area[0x59], fis_area[0x5A],
-                       fis_area[0x5B], fis_area[0x5C], fis_area[0x5D],
-                       fis_area[0x5E], fis_area[0x5F]);
+                vdebugf("  -> Examining received FIS at %p:\n", port->fis_base);
+                vdebug_dump_d2h_fis((uint8_t *)port->fis_base);
+
                 return false;
             }
         } else {
@@ -634,7 +645,7 @@ bool ahci_port_identify(AHCIPort *port) {
 
     // Command completed successfully - parse identify data
 
-    uint16_t *id_data = (uint16_t *)identify_buffer;
+    const uint16_t *id_data = (uint16_t *)identify_buffer;
 
     // Extract 48-bit LBA sector count first
     port->sector_count =
@@ -657,7 +668,7 @@ bool ahci_port_identify(AHCIPort *port) {
 
     // Copy and byte-swap the model string (ATA stores strings byte-swapped)
     for (int i = 0; i < ATA_IDENTIFY_MODEL_LENGTH; i++) {
-        uint16_t word = id_data[ATA_IDENTIFY_MODEL_OFFSET + i];
+        const uint16_t word = id_data[ATA_IDENTIFY_MODEL_OFFSET + i];
         model_string[i * 2] = (char)((word >> 8) & 0xFF); // High byte first
         model_string[i * 2 + 1] = (char)(word & 0xFF);    // Low byte second
     }
@@ -669,12 +680,16 @@ bool ahci_port_identify(AHCIPort *port) {
     }
 
 #ifdef DEBUG_AHCI_INIT
-    printf("Port %u: Device identification complete\n", port->port_num);
-    printf("  Model: '%s'\n", model_string);
-    printf("  Sectors: %lu\n", port->sector_count);
-    printf("  Sector size: %u bytes\n", port->sector_size);
-    printf("  Capacity: %lu MB\n",
+    debugf("Port %u: Device identification complete\n", port->port_num);
+    debugf("  Model: '%s'\n", model_string);
+    debugf("  Sectors: %lu\n", port->sector_count);
+    debugf("  Sector size: %u bytes\n", port->sector_size);
+    debugf("  Capacity: %lu MB\n",
            (port->sector_count * port->sector_size) / (1024 * 1024));
+#else
+    printf("Found %lu MiB storage device '%s' on port %u\n",
+           (port->sector_count * port->sector_size) / (1024 * 1024),
+           model_string, port->port_num);
 #endif
 
     return true;

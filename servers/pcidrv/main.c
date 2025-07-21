@@ -108,8 +108,10 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
     return (int64_t)response;
 }
 
-void spawn_ahci_driver(uint64_t ahci_base) {
-    printf("Spawning AHCI driver for controller at 0x%016lx...\n", ahci_base);
+void spawn_ahci_driver(const uint64_t ahci_base) {
+#ifdef DEBUG_BUS_DRIVER_INIT
+    printf("\nSpawning AHCI driver for controller at 0x%016lx...\n", ahci_base);
+#endif
 
     char ahci_base_str[32];
     snprintf(ahci_base_str, sizeof(ahci_base_str), "%lx", ahci_base);
@@ -139,17 +141,22 @@ void spawn_ahci_driver(uint64_t ahci_base) {
                      __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK]},
     };
 
+#ifdef DEBUG_BUS_DRIVER_INIT
     printf("  --> spawn: %s %s\n", argv[0], argv[1]);
+#endif
 
     int64_t pid = spawn_process_via_system(0x100000, 7, ahci_caps, 2, argv);
     if (pid > 0) {
+#ifdef DEBUG_BUS_DRIVER_INIT
         printf("  --> AHCI driver spawned with PID %ld\n", pid);
+#endif
     } else {
         printf("ERROR: Failed to spawn AHCI driver (error code: %ld)\n", pid);
     }
 }
 
-static int pci_initialize_driver(uint64_t ecam_base, const uint16_t segment,
+static int pci_initialize_driver(const uint64_t ecam_base,
+                                 const uint16_t segment,
                                  const uint8_t bus_start,
                                  const uint8_t bus_end) {
 #ifdef DEBUG_BUS_DRIVER_INIT

@@ -7,6 +7,6 @@ BINARY_OBJS=main.o ahci.o
 #	DEBUG_AHCI_INIT			Dump debug info about AHCI controller init
 #	VERY_NOISY_AHCI_INIT	Dump **lots** of extra debug info about AHCI init
 #
-CDEFS=-DDEBUG_AHCI_INIT
+CDEFS=
 
 include ../server_common.mk
