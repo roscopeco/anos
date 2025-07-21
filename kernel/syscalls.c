@@ -832,6 +832,30 @@ SYSCALL_HANDLER(map_physical) {
     return SYSCALL_OK;
 }
 
+SYSCALL_HANDLER(alloc_physical_pages) {
+    const size_t size = (size_t)arg0;
+
+    // Ensure size is page-aligned
+    if (size & 0xFFF) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Calculate number of pages needed
+    const size_t num_pages = size / VM_PAGE_SIZE;
+    if (num_pages == 0) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Allocate contiguous physical pages
+    const uintptr_t phys_addr = page_alloc_m(physical_region, num_pages);
+    if (phys_addr == 0) {
+        return SYSCALL_FAILURE; // Out of memory
+    }
+
+    // Return the physical address
+    return (SyscallResult)phys_addr;
+}
+
 static uint64_t init_syscall_capability(CapabilityMap *map,
                                         const SyscallId syscall_id,
                                         const SyscallHandler handler) {
@@ -931,6 +955,8 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
                                     SYSCALL_NAME(map_firmware_tables));
     stack_syscall_capability_cookie(SYSCALL_ID_MAP_PHYSICAL,
                                     SYSCALL_NAME(map_physical));
+    stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
+                                    SYSCALL_NAME(alloc_physical_pages));
 
     // Stack dummy argc/argv for now
     // TODO this needs refactoring, syscall init shouldn't be responsible
