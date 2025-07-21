@@ -14,10 +14,32 @@
 
 #include "ahci.h"
 
+// Virtual memory layout
 #define AHCI_MEMORY_BASE 0xA000000000ULL
-#define CMD_LIST_SIZE 1024
-#define FIS_SIZE 256
-#define CMD_TABLE_SIZE 128
+
+// AHCI structure sizes (from AHCI spec)
+#define AHCI_CMD_LIST_SIZE 1024
+#define AHCI_FIS_SIZE 256
+#define AHCI_CMD_TABLE_SIZE 128
+#define AHCI_MAX_COMMAND_SLOTS 32
+
+// ATA IDENTIFY data offsets
+#define ATA_IDENTIFY_MODEL_OFFSET 27
+#define ATA_IDENTIFY_MODEL_LENGTH 20
+#define ATA_IDENTIFY_SECTORS_28BIT_LO 60
+#define ATA_IDENTIFY_SECTORS_28BIT_HI 61
+#define ATA_IDENTIFY_SECTORS_48BIT_LO 100
+#define ATA_IDENTIFY_SECTORS_48BIT_HI 103
+
+// Memory alignment requirements
+#define AHCI_CMD_LIST_ALIGN 1024
+#define AHCI_FIS_ALIGN 256
+#define AHCI_CMD_TABLE_ALIGN 128
+
+// Timeouts and limits
+#define AHCI_COMMAND_TIMEOUT_MS 30
+#define AHCI_COMMAND_SLEEP_US 100000
+#define AHCI_MAX_DMA_ADDRESS 0x100000000ULL
 
 static uint64_t memory_offset = 0;
 
@@ -53,6 +75,134 @@ static void *allocate_aligned_memory(const size_t size, const size_t alignment,
 
     memset(virt_addr, 0, aligned_size);
     return virt_addr;
+}
+
+// Helper function to try mapping firmware DMA structures
+static bool try_map_firmware_dma(AHCIPort *port, uint8_t port_num,
+                                 AHCIPortRegs *port_regs) {
+    uint64_t cmd_list_phys = ((uint64_t)port_regs->clbu << 32) | port_regs->clb;
+    uint64_t fis_base_phys = ((uint64_t)port_regs->fbu << 32) | port_regs->fb;
+
+    printf("Port %u: Firmware DMA structures:\n", port_num);
+    printf("  Command List: phys=0x%016lx (CLB=0x%08x CLBU=0x%08x)\n",
+           cmd_list_phys, port_regs->clb, port_regs->clbu);
+    printf("  FIS Base: phys=0x%016lx (FB=0x%08x FBU=0x%08x)\n", fis_base_phys,
+           port_regs->fb, port_regs->fbu);
+
+    // Check if addresses look reasonable
+    if (cmd_list_phys == 0 || cmd_list_phys > AHCI_MAX_DMA_ADDRESS) {
+        printf("  -> Command list address looks invalid (0x%016lx), falling "
+               "back to our allocation\n",
+               cmd_list_phys);
+        return false;
+    }
+
+    // Try to map the firmware's command list
+    void *cmd_list_virt = (void *)(AHCI_MEMORY_BASE + memory_offset);
+    const size_t cmd_list_map_size = (AHCI_CMD_LIST_SIZE + 0xFFF) & ~0xFFF;
+    memory_offset += cmd_list_map_size;
+
+    printf("  -> Attempting to map firmware command list: phys=0x%016lx -> "
+           "virt=%p (size=0x%lx)\n",
+           cmd_list_phys, cmd_list_virt, cmd_list_map_size);
+
+    SyscallResult result = anos_map_physical(
+            cmd_list_phys, cmd_list_virt, cmd_list_map_size,
+            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+    if (result != SYSCALL_OK) {
+        printf("  -> Failed to map firmware command list (syscall error %d), "
+               "falling back to our allocation\n",
+               result);
+        memory_offset -= cmd_list_map_size;
+        return false;
+    }
+    port->cmd_list = cmd_list_virt;
+
+    // Map the firmware's FIS base
+    void *fis_base_virt = (void *)(AHCI_MEMORY_BASE + memory_offset);
+    const size_t fis_map_size = (AHCI_FIS_SIZE + 0xFFF) & ~0xFFF;
+    memory_offset += fis_map_size;
+
+    result = anos_map_physical(fis_base_phys, fis_base_virt, fis_map_size,
+                               ANOS_MAP_VIRTUAL_FLAG_READ |
+                                       ANOS_MAP_VIRTUAL_FLAG_WRITE);
+    if (result != SYSCALL_OK) {
+        printf("Failed to map firmware FIS base for port %u\n", port_num);
+        return false;
+    }
+    port->fis_base = fis_base_virt;
+
+    printf("  -> Successfully using firmware DMA structures\n");
+    return true;
+}
+
+// Helper function to allocate our own DMA structures
+static bool allocate_own_dma(AHCIPort *port, uint8_t port_num,
+                             AHCIPortRegs *port_regs) {
+    printf("  -> Allocating our own DMA structures\n");
+
+    uint64_t our_cmd_list_phys;
+    port->cmd_list = allocate_aligned_memory(
+            AHCI_CMD_LIST_SIZE, AHCI_CMD_LIST_ALIGN, &our_cmd_list_phys);
+    if (!port->cmd_list) {
+        printf("Failed to allocate command list for port %u\n", port_num);
+        return false;
+    }
+
+    uint64_t our_fis_base_phys;
+    port->fis_base = allocate_aligned_memory(AHCI_FIS_SIZE, AHCI_FIS_ALIGN,
+                                             &our_fis_base_phys);
+    if (!port->fis_base) {
+        printf("Failed to allocate FIS base for port %u\n", port_num);
+        return false;
+    }
+
+    // Update port registers with our physical addresses
+    port_regs->clb = (uint32_t)(our_cmd_list_phys & 0xFFFFFFFF);
+    port_regs->clbu = (uint32_t)(our_cmd_list_phys >> 32);
+    port_regs->fb = (uint32_t)(our_fis_base_phys & 0xFFFFFFFF);
+    port_regs->fbu = (uint32_t)(our_fis_base_phys >> 32);
+
+    return true;
+}
+
+// Helper function to set up command tables
+static bool setup_command_tables(AHCIPort *port, uint8_t port_num) {
+    uint64_t cmd_tables_phys;
+    port->cmd_tables = allocate_aligned_memory(
+            AHCI_CMD_TABLE_SIZE * AHCI_MAX_COMMAND_SLOTS, AHCI_CMD_TABLE_ALIGN,
+            &cmd_tables_phys);
+    if (!port->cmd_tables) {
+        printf("Failed to allocate command tables for port %u\n", port_num);
+        return false;
+    }
+
+    // Set up command headers to point to our command tables
+    AHCICmdHeader *cmd_headers = (AHCICmdHeader *)port->cmd_list;
+    for (int i = 0; i < AHCI_MAX_COMMAND_SLOTS; i++) {
+        const uint64_t cmd_table_phys =
+                cmd_tables_phys + (i * AHCI_CMD_TABLE_SIZE);
+        cmd_headers[i].ctba = (uint32_t)(cmd_table_phys & 0xFFFFFFFF);
+        cmd_headers[i].ctbau = (uint32_t)(cmd_table_phys >> 32);
+    }
+
+#ifdef DEBUG_AHCI_INIT
+    // Verify buffer access after setup
+    printf("  Testing DMA buffer access...\n");
+    printf("    Command header test: CTBA=0x%08x CTBAU=0x%08x\n",
+           cmd_headers[0].ctba, cmd_headers[0].ctbau);
+
+    const AHCICmdTable *test_table = (AHCICmdTable *)port->cmd_tables;
+    printf("    Command table test: FIS[0]=0x%02x FIS[1]=0x%02x\n",
+           test_table->cfis[0], test_table->cfis[1]);
+
+    printf("    Physical addr test: cmd_tables_phys=0x%016lx\n",
+           cmd_tables_phys);
+    printf("    Slot 0 table phys: 0x%016lx\n",
+           cmd_tables_phys + (0 * AHCI_CMD_TABLE_SIZE));
+#endif
+
+    return true;
 }
 
 static void ahci_port_stop(AHCIPortRegs *port) {
@@ -266,133 +416,19 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
 
     ahci_port_stop(port_regs);
 
-    // Check what firmware DMA structures look like
-    uint64_t cmd_list_phys = ((uint64_t)port_regs->clbu << 32) | port_regs->clb;
-    uint64_t fis_base_phys = ((uint64_t)port_regs->fbu << 32) | port_regs->fb;
-
-    printf("Port %u: Firmware DMA structures:\n", port_num);
-    printf("  Command List: phys=0x%016lx (CLB=0x%08x CLBU=0x%08x)\n",
-           cmd_list_phys, port_regs->clb, port_regs->clbu);
-    printf("  FIS Base: phys=0x%016lx (FB=0x%08x FBU=0x%08x)\n", fis_base_phys,
-           port_regs->fb, port_regs->fbu);
-
-    // Check if these addresses look reasonable
-    if (cmd_list_phys == 0 || cmd_list_phys > 0x100000000ULL) {
-        printf("  -> Command list address looks invalid (0x%016lx), falling "
-               "back to our allocation\n",
-               cmd_list_phys);
-        goto allocate_our_own;
+    // Try to use firmware DMA structures first, fallback to our own if needed
+    if (!try_map_firmware_dma(port, port_num, port_regs)) {
+        if (!allocate_own_dma(port, port_num, port_regs)) {
+            return false;
+        }
     }
 
-    // Try to map the firmware's command list (need page-aligned size)
-    void *cmd_list_virt = (void *)(AHCI_MEMORY_BASE + memory_offset);
-    const size_t cmd_list_map_size =
-            (CMD_LIST_SIZE + 0xFFF) & ~0xFFF; // Round up to page size
-    memory_offset += cmd_list_map_size;
-    printf("  -> Attempting to map firmware command list: phys=0x%016lx -> "
-           "virt=%p (size=0x%lx)\n",
-           cmd_list_phys, cmd_list_virt, cmd_list_map_size);
-
-    SyscallResult result = anos_map_physical(
-            cmd_list_phys, cmd_list_virt, cmd_list_map_size,
-            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
-    if (result == SYSCALL_OK) {
-        printf("  -> Failed to map firmware command list (syscall error %d), "
-               "falling back to our allocation\n",
-               result);
-        memory_offset -= cmd_list_map_size; // Undo the offset change
-        goto allocate_our_own;
-    }
-    port->cmd_list = cmd_list_virt;
-
-    // Map the firmware's FIS base to our virtual space (need page-aligned size)
-    void *fis_base_virt = (void *)(AHCI_MEMORY_BASE + memory_offset);
-    const size_t fis_map_size =
-            (FIS_SIZE + 0xFFF) & ~0xFFF; // Round up to page size
-    memory_offset += fis_map_size;
-    result = anos_map_physical(fis_base_phys, fis_base_virt, fis_map_size,
-                               ANOS_MAP_VIRTUAL_FLAG_READ |
-                                       ANOS_MAP_VIRTUAL_FLAG_WRITE);
-    if (result != SYSCALL_OK) {
-        printf("Failed to map firmware FIS base for port %u\n", port_num);
-        return false;
-    }
-    port->fis_base = fis_base_virt;
-
-    printf("  -> Successfully using firmware DMA structures\n");
-    goto setup_command_tables;
-
-allocate_our_own:
-    printf("  -> Allocating our own DMA structures\n");
-
-    uint64_t our_cmd_list_phys;
-    port->cmd_list =
-            allocate_aligned_memory(CMD_LIST_SIZE, 1024, &our_cmd_list_phys);
-    if (!port->cmd_list) {
-        printf("Failed to allocate command list for port %u\n", port_num);
+    // Set up command tables (always our own allocation)
+    if (!setup_command_tables(port, port_num)) {
         return false;
     }
 
-    uint64_t our_fis_base_phys;
-    port->fis_base = allocate_aligned_memory(FIS_SIZE, 256, &our_fis_base_phys);
-    if (!port->fis_base) {
-        printf("Failed to allocate FIS base for port %u\n", port_num);
-        return false;
-    }
-
-    port_regs->clb = (uint32_t)(our_cmd_list_phys & 0xFFFFFFFF);
-    port_regs->clbu = (uint32_t)(our_cmd_list_phys >> 32);
-    port_regs->fb = (uint32_t)(our_fis_base_phys & 0xFFFFFFFF);
-    port_regs->fbu = (uint32_t)(our_fis_base_phys >> 32);
-
-setup_command_tables:
-    // Still need to allocate command tables since firmware might not have set these up
-    uint64_t cmd_tables_phys;
-    port->cmd_tables =
-            allocate_aligned_memory(CMD_TABLE_SIZE * 32, 128, &cmd_tables_phys);
-    if (!port->cmd_tables) {
-        printf("Failed to allocate command tables for port %u\n", port_num);
-        return false;
-    }
-
-#ifdef DEBUG_AHCI_INIT
-#ifdef VERY_NOISY_AHCI_INIT
-    printf("Port %u DMA addresses:\n", port_num);
-    printf("  Command List: virt=%p phys=0x%016lx -> CLB=0x%08x:0x%08x\n",
-           port->cmd_list, cmd_list_phys, port_regs->clbu, port_regs->clb);
-    printf("  FIS Base: virt=%p phys=0x%016lx -> FB=0x%08x:0x%08x\n",
-           port->fis_base, fis_base_phys, port_regs->fbu, port_regs->fb);
-    printf("  Command Tables: virt=%p phys=0x%016lx\n", port->cmd_tables,
-           cmd_tables_phys);
-
-#endif
-#endif
-
-    AHCICmdHeader *cmd_headers = (AHCICmdHeader *)port->cmd_list;
-
-    for (int i = 0; i < 32; i++) {
-        const uint64_t cmd_table_phys = cmd_tables_phys + (i * CMD_TABLE_SIZE);
-        cmd_headers[i].ctba = (uint32_t)(cmd_table_phys & 0xFFFFFFFF);
-        cmd_headers[i].ctbau = (uint32_t)(cmd_table_phys >> 32);
-    }
-
-#ifdef DEBUG_AHCI_INIT
-    // Verify we can actually access these buffers AFTER setup
-    printf("  Testing DMA buffer access...\n");
-    printf("    Command header test: CTBA=0x%08x CTBAU=0x%08x\n",
-           cmd_headers[0].ctba, cmd_headers[0].ctbau);
-
-    const AHCICmdTable *test_table = (AHCICmdTable *)port->cmd_tables;
-    printf("    Command table test: FIS[0]=0x%02x FIS[1]=0x%02x\n",
-           test_table->cfis[0], test_table->cfis[1]);
-
-    // Test reading the physical addresses we think we allocated
-    printf("    Physical addr test: cmd_tables_phys=0x%016lx\n",
-           cmd_tables_phys);
-    printf("    Slot 0 table phys: 0x%016lx\n",
-           cmd_tables_phys + (0 * CMD_TABLE_SIZE));
-#endif
-
+    // Clear error and interrupt status, enable interrupts
     port_regs->serr = 0xFFFFFFFF;
     port_regs->is = 0xFFFFFFFF;
     port_regs->ie = 0xFFFFFFFF;
@@ -413,7 +449,7 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
     const AHCIPortRegs *port_regs =
             &port->controller->regs->ports[port->port_num];
 
-    int timeout = 300; // 30ms total timeout (300 * 100μs)
+    int timeout = AHCI_COMMAND_TIMEOUT_MS * 10; // Convert ms to 100μs units
     while (timeout > 0) {
         if ((port_regs->ci & (1 << slot)) == 0) {
             return true;
@@ -424,7 +460,7 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
             return false;
         }
 
-        anos_task_sleep_current(100000); // 100μs sleep
+        anos_task_sleep_current(AHCI_COMMAND_SLEEP_US);
         timeout--;
     }
 
@@ -566,7 +602,7 @@ bool ahci_port_identify(AHCIPort *port) {
             // Check if CI cleared after interrupt handling
             if ((port_regs->ci & 0x1) == 0) {
                 printf("  -> Command actually completed! Continuing...\n");
-                goto command_completed;
+                // Command completed successfully, continue to identify parsing below
             } else {
                 printf("  -> CI still set (0x%08x), command may have failed\n",
                        port_regs->ci);
@@ -589,34 +625,41 @@ bool ahci_port_identify(AHCIPort *port) {
                        fis_area[0x58], fis_area[0x59], fis_area[0x5A],
                        fis_area[0x5B], fis_area[0x5C], fis_area[0x5D],
                        fis_area[0x5E], fis_area[0x5F]);
+                return false;
             }
+        } else {
+            return false;
         }
-        return false;
     }
 
-command_completed:
+    // Command completed successfully - parse identify data
 
     uint16_t *id_data = (uint16_t *)identify_buffer;
 
-    port->sector_count = ((uint64_t)id_data[103] << 48) |
-                         ((uint64_t)id_data[102] << 32) |
-                         ((uint64_t)id_data[101] << 16) | id_data[100];
+    // Extract 48-bit LBA sector count first
+    port->sector_count =
+            ((uint64_t)id_data[ATA_IDENTIFY_SECTORS_48BIT_HI] << 48) |
+            ((uint64_t)id_data[ATA_IDENTIFY_SECTORS_48BIT_HI - 1] << 32) |
+            ((uint64_t)id_data[ATA_IDENTIFY_SECTORS_48BIT_LO + 1] << 16) |
+            id_data[ATA_IDENTIFY_SECTORS_48BIT_LO];
 
+    // Fallback to 28-bit LBA if 48-bit is not available
     if (port->sector_count == 0) {
-        port->sector_count = ((uint32_t)id_data[61] << 16) | id_data[60];
+        port->sector_count =
+                ((uint32_t)id_data[ATA_IDENTIFY_SECTORS_28BIT_HI] << 16) |
+                id_data[ATA_IDENTIFY_SECTORS_28BIT_LO];
     }
 
     port->sector_size = 512;
 
-    // Extract device model string (words 27-46, bytes 54-93)
-    char model_string[41]; // 40 chars + null terminator
-    memset(model_string, 0, sizeof(model_string));
+    // Extract device model string (ATA spec: words 27-46)
+    char model_string[41] = {0}; // 40 chars + null terminator
 
     // Copy and byte-swap the model string (ATA stores strings byte-swapped)
-    for (int i = 0; i < 20; i++) {
-        uint16_t word = id_data[27 + i];
-        model_string[i * 2] = (word >> 8) & 0xFF; // High byte first
-        model_string[i * 2 + 1] = word & 0xFF;    // Low byte second
+    for (int i = 0; i < ATA_IDENTIFY_MODEL_LENGTH; i++) {
+        uint16_t word = id_data[ATA_IDENTIFY_MODEL_OFFSET + i];
+        model_string[i * 2] = (char)((word >> 8) & 0xFF); // High byte first
+        model_string[i * 2 + 1] = (char)(word & 0xFF);    // Low byte second
     }
 
     // Trim trailing spaces
