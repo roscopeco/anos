@@ -56,11 +56,15 @@ static int ahci_initialize_driver(uint64_t pci_base) {
                            i, ports[i].sector_count, ports[i].sector_size);
 #endif
                 } else {
+#ifdef DEBUG_AHCI_INIT
                     printf("Warning: Failed to identify device on port %u\n",
                            i);
+#endif
                 }
             } else {
+#ifdef DEBUG_AHCI_INIT
                 printf("Warning: Failed to initialize port %u\n", i);
+#endif
             }
         }
     }
