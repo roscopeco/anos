@@ -407,6 +407,11 @@ int main(int argc, char **argv) {
                     .capability_id = SYSCALL_ID_MAP_VIRTUAL,
             },
             {
+                    .capability_cookie = __syscall_capabilities
+                            [SYSCALL_ID_ALLOC_PHYSICAL_PAGES],
+                    .capability_id = SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
+            },
+            {
                     .capability_cookie =
                             __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
                     .capability_id = SYSCALL_ID_SEND_MESSAGE,
@@ -460,7 +465,7 @@ int main(int argc, char **argv) {
             const char *devman_argv[] = {"boot:/devman.elf"};
 
             const int64_t devman_pid = create_server_process(
-                    0x100000, 9, new_process_caps, 1, devman_argv);
+                    0x100000, 10, new_process_caps, 1, devman_argv);
             if (devman_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/devman.elf");

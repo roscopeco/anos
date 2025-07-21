@@ -138,6 +138,12 @@ typedef struct {
 #define AHCI_PORT_SSTS_DET_MASK 0xF
 #define AHCI_PORT_SSTS_DET_PRESENT 0x3
 
+// AHCI device signature values
+#define AHCI_SIG_ATA 0x00000101   // SATA drive
+#define AHCI_SIG_ATAPI 0xEB140101 // SATAPI drive (CD/DVD)
+#define AHCI_SIG_SEMB 0xC33C0101  // Enclosure management bridge
+#define AHCI_SIG_PM 0x96690101    // Port multiplier
+
 typedef struct {
     uint64_t pci_base;
     void *mapped_regs;

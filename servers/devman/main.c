@@ -234,6 +234,11 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
                     .capability_id = SYSCALL_ID_MAP_VIRTUAL,
             },
             {
+                    .capability_cookie = __syscall_capabilities
+                            [SYSCALL_ID_ALLOC_PHYSICAL_PAGES],
+                    .capability_id = SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
+            },
+            {
                     .capability_cookie =
                             __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
                     .capability_id = SYSCALL_ID_SEND_MESSAGE,
@@ -255,7 +260,7 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
            argv[4]);
 #endif
 
-    int64_t pid = spawn_process_via_system(0x100000, 8, pci_caps, 5, argv);
+    int64_t pid = spawn_process_via_system(0x100000, 9, pci_caps, 5, argv);
     if (pid > 0) {
 #ifdef DEBUG_PCI
         printf("  --> PCI driver spawned with PID %ld\n", pid);

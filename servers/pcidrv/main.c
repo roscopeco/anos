@@ -131,6 +131,9 @@ void spawn_ahci_driver(uint64_t ahci_base) {
             {.capability_id = SYSCALL_ID_MAP_VIRTUAL,
              .capability_cookie =
                      __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL]},
+            {.capability_id = SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_ALLOC_PHYSICAL_PAGES]},
             {.capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
              .capability_cookie =
                      __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK]},
@@ -138,7 +141,7 @@ void spawn_ahci_driver(uint64_t ahci_base) {
 
     printf("  --> spawn: %s %s\n", argv[0], argv[1]);
 
-    int64_t pid = spawn_process_via_system(0x100000, 6, ahci_caps, 2, argv);
+    int64_t pid = spawn_process_via_system(0x100000, 7, ahci_caps, 2, argv);
     if (pid > 0) {
         printf("  --> AHCI driver spawned with PID %ld\n", pid);
     } else {
