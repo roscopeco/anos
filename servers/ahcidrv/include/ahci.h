@@ -127,13 +127,13 @@ typedef struct {
 #define ATA_CMD_WRITE_DMA_EX 0x35
 #define ATA_CMD_IDENTIFY 0xEC
 
-#define AHCI_GHC_AHCI_ENABLE (1 << 31)
-#define AHCI_GHC_RESET (1 << 0)
+#define AHCI_GHC_AHCI_ENABLE (1U << 31)
+#define AHCI_GHC_RESET (1U << 0)
 
-#define AHCI_PORT_CMD_START (1 << 0)
-#define AHCI_PORT_CMD_FRE (1 << 4)
-#define AHCI_PORT_CMD_FR (1 << 14)
-#define AHCI_PORT_CMD_CR (1 << 15)
+#define AHCI_PORT_CMD_START (1U << 0)
+#define AHCI_PORT_CMD_FRE (1U << 4)
+#define AHCI_PORT_CMD_FR (1U << 14)
+#define AHCI_PORT_CMD_CR (1U << 15)
 
 #define AHCI_PORT_SSTS_DET_MASK 0xF
 #define AHCI_PORT_SSTS_DET_PRESENT 0x3

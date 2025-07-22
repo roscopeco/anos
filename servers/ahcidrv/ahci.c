@@ -14,6 +14,45 @@
 
 #include "ahci.h"
 
+#ifdef UNIT_TESTS
+// Mock AHCI registers for unit testing
+static AHCIRegs mock_ahci_registers;
+// Mock DMA memory pool for unit testing
+static uint8_t mock_dma_memory[0x100000]; // 1MB pool
+static size_t mock_dma_offset = 0;
+
+// Reset mock state for unit tests
+void ahci_reset_test_state(void) {
+    memset(&mock_ahci_registers, 0, sizeof(mock_ahci_registers));
+    memset(mock_dma_memory, 0, sizeof(mock_dma_memory));
+    mock_dma_offset = 0;
+
+    // Set up mock AHCI controller with reasonable defaults
+    // Capability register: support 4 ports (bits 0-4 = 3), 64-bit DMA
+    mock_ahci_registers.host.cap =
+            0x3 | (1U << 31); // 4 ports + 64-bit addressing
+
+    // Port implemented register: port 0 is available
+    mock_ahci_registers.host.pi = 0x1;
+
+    // Set up port 0 with device present
+    mock_ahci_registers.ports[0].ssts = 0x3;       // AHCI_PORT_SSTS_DET_PRESENT
+    mock_ahci_registers.ports[0].sig = 0x00000101; // AHCI_SIG_ATA (SATA drive)
+}
+#endif
+
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support nullptr or constexpr yet - Jul 2025
+#ifndef nullptr
+#ifdef NULL
+#define nullptr NULL
+#else
+#define nullptr (((void *)0))
+#endif
+#endif
+#define constexpr const
+#endif
+
 // Virtual memory layout
 #define AHCI_MEMORY_BASE 0xA000000000ULL
 
@@ -68,6 +107,27 @@ static void *allocate_aligned_memory(const size_t size, const size_t alignment,
         return nullptr;
     }
 
+#ifdef UNIT_TESTS
+    // In unit tests, check if mock syscalls are set to fail
+    extern bool mock_should_alloc_fail(void);
+    if (mock_should_alloc_fail()) {
+        return nullptr;
+    }
+
+    // In unit tests, allocate from mock DMA memory pool
+    if (mock_dma_offset + aligned_size > sizeof(mock_dma_memory)) {
+        return nullptr; // Out of mock memory
+    }
+
+    void *virt_addr = mock_dma_memory + mock_dma_offset;
+    mock_dma_offset += aligned_size;
+
+    if (phys_addr_out) {
+        *phys_addr_out = phys_addr; // Use the mock physical address
+    }
+
+    memset(virt_addr, 0, aligned_size);
+#else
     void *virt_addr = (void *)(AHCI_MEMORY_BASE + memory_offset);
     memory_offset += page_aligned_size;
 
@@ -85,6 +145,7 @@ static void *allocate_aligned_memory(const size_t size, const size_t alignment,
     }
 
     memset(virt_addr, 0, aligned_size);
+#endif
     return virt_addr;
 }
 
@@ -246,7 +307,7 @@ static void ahci_port_start(AHCIPortRegs *port) {
 
 bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
 
-    if (!ctrl) {
+    if (!ctrl || pci_base == 0) {
         return false;
     }
 
@@ -264,16 +325,22 @@ bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
     if (result != SYSCALL_OK) {
-        printf("FAILED to map AHCI registers! Error code: %d\n", result);
-        printf("  Attempted mapping: phys=0x%016lx -> virt=0x%016llx "
-               "(size=0x%lx)\n",
-               pci_base, 0xB000000000ULL, ctrl->mapped_size);
+        debugf("FAILED to map AHCI registers! Error code: %ld\n", result);
+        vdebugf("  Attempted mapping: phys=0x%016lx -> virt=0x%016llx "
+                "(size=0x%lx)\n",
+                pci_base, 0xB000000000ULL, ctrl->mapped_size);
 
         return false;
     }
 
+#ifdef UNIT_TESTS
+    // In unit tests, use mock registers instead of real hardware addresses
+    ctrl->mapped_regs = &mock_ahci_registers;
+    ctrl->regs = &mock_ahci_registers;
+#else
     ctrl->mapped_regs = (void *)0xB000000000ULL;
     ctrl->regs = (AHCIRegs *)ctrl->mapped_regs;
+#endif
 
 #ifdef DEBUG_AHCI_INIT
 #ifdef VERY_NOISY_AHCI_INIT
@@ -338,7 +405,13 @@ void ahci_controller_cleanup(AHCIController *ctrl) {
         }
     }
 
+    // Clear all controller state
     ctrl->initialized = false;
+    ctrl->pci_base = 0;
+    ctrl->mapped_regs = NULL;
+    ctrl->regs = NULL;
+    ctrl->port_count = 0;
+    ctrl->active_ports = 0;
 }
 
 bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
