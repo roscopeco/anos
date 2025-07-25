@@ -159,6 +159,7 @@ TSS%1:
   dq  0                   ; IST5
   dq  0                   ; IST6
   dq  df_stack+0x1000     ; IST7 - double fault
+  dq  0                   ; Reserved
   dw  0                   ; Reserved
   dw  0                   ; IOPB
 %endmacro
