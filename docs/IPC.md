@@ -1,8 +1,10 @@
-## Interprocess Communication (IPC) Mechanisms
+# Interprocess Communication (IPC) Mechanisms
 
 > [!WARNING]
-> The IPC design is still evolving, so there's a good chance 
+> The IPC design is still evolving, so there's a good chance
 > some of the details here will change as development progresses.
+
+## IPC Architecture Overview
 
 Anos provides two fundamental primitives for IPC, available to
 all processes (provided they are endowed by their supervisor with
@@ -34,6 +36,128 @@ wrapper interface for the relevant system calls.
 Processes wishing to use IPC features will of course require the
 appropriate syscall capabilities, as well as the capability cookie
 for the channel(s) they wish to communicate via.
+
+### Data Structures
+
+The kernel implements IPC using two core structures:
+
+```c
+// kernel/include/ipc/channel_internal.h
+typedef struct {
+    ListNode this;              // Queue linkage
+    uint64_t cookie;           // Unique message identifier  
+    uint64_t tag;              // Message opcode/type
+    size_t arg_buf_size;       // Buffer size (≤ 4KB)
+    uintptr_t arg_buf_phys;    // Physical address of buffer
+    Task *waiter;              // Sending task (blocked)
+    uint64_t reply;            // Reply value from receiver
+    bool handled;              // Processing status
+} IpcMessage;
+
+typedef struct {
+    uint64_t cookie;           // Channel capability token
+    Task *receivers;           // Queue of blocked receivers
+    SpinLock *receivers_lock;  // Receiver queue protection
+    IpcMessage *queue;         // Pending message queue
+    SpinLock *queue_lock;      // Message queue protection
+    uint64_t reserved[3];      // Future expansion
+} IpcChannel;
+```
+### Core Design Principles
+
+1. **Capability-Based Security**: All IPC operations require cryptographic capability tokens
+2. **Synchronous Model**: All message sends block until the receiver processes and replies
+3. **Zero-Copy Transfers**: Large data transfers use page table manipulation
+4. **Type Safety**: Structured message protocols with explicit opcodes
+5. **Channel Abstraction**: All communication flows through typed channels
+
+## Kernel IPC Primitives
+
+### System Call Interface
+
+The kernel exposes 7 core IPC syscalls:
+
+| Syscall                                               | Purpose                                  | Parameters                  | Returns                  |
+|-------------------------------------------------------|------------------------------------------|-----------------------------|--------------------------|
+| **`anos_create_channel()`**                           | Create new IPC channel                   | None                        | Channel capability token |
+| **`anos_destroy_channel(cookie)`**                    | Destroy channel, wake blocked tasks      | Channel token               | Success/error code       |
+| **`anos_send_message(channel, tag, size, buffer)`**   | Send message (blocks until reply)        | Channel, opcode, size, data | Reply value              |
+| **`anos_recv_message(channel, &tag, &size, buffer)`** | Receive message (blocks until available) | Channel, out params         | Message token            |
+| **`anos_reply_message(message, result)`**             | Reply to received message                | Message token, result       | Success code             |
+| **`anos_register_named_channel(cookie, name)`**       | Register channel with global name        | Channel token, name string  | Success/error            |
+| **`anos_find_named_channel(name)`**                   | Find channel by name                     | Name string                 | Channel token or 0       |
+
+### Message Flow Protocol
+
+The IPC system implements a strict **send → receive → reply** protocol:
+
+```
+┌─────────┐    send_message()    ┌─────────┐
+│ Sender  │ ───────────────────► │ Channel │
+│ (BLOCK) │                      │ Queue   │
+└─────────┘                      └─────────┘
+     ▲                               │
+     │                               │ recv_message()
+     │ reply_message()               ▼
+     │                         ┌─────────┐
+     │                         │Receiver │
+     └─────────────────────────│ Process │
+                               └─────────┘
+```
+
+**Detailed Flow**:
+1. **Send Phase**: Sender creates message, queues it, and blocks waiting for reply
+2. **Receive Phase**: Receiver dequeues message, buffer mapped into receiver address space
+3. **Processing**: Receiver processes request using mapped buffer data
+4. **Reply Phase**: Receiver sends reply value, sender unblocked with result
+
+### Zero-Copy Buffer Management
+
+**Page-Aligned Requirements**: All IPC buffers must be 4KB-aligned and ≤ 4KB in size:
+
+```c
+// Buffer validation in kernel/ipc/channel.c
+if ((uintptr_t)buffer & PAGE_RELATIVE_MASK) {
+    return 0; // Invalid alignment error
+}
+```
+
+**Zero-Copy Implementation**:
+```c
+// Send: Store physical address of sender's buffer
+message->arg_buf_phys = vmm_virt_to_phys_page((uintptr_t)buffer);
+
+// Receive: Map physical page into receiver's address space  
+vmm_map_page((uintptr_t)buffer, msg->arg_buf_phys,
+             PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
+
+// Reply: Unmap page from receiver, sender continues with original mapping
+vmm_unmap_page(message->arg_buf_phys);
+```
+
+**Memory Safety**: The kernel ensures that:
+- Senders cannot access buffers during receiver processing
+- Receivers get temporary read/write access to sender's data
+- Page mappings are automatically cleaned up after reply
+- Invalid buffer addresses cause graceful error returns
+
+## Named Channel System
+
+### Channel Registration and Discovery
+
+Anos implements a **global namespace** for service discovery:
+
+```c
+// Service registration (typically done by SYSTEM)
+uint64_t vfs_channel = anos_create_channel();
+anos_register_named_channel(vfs_channel, "SYSTEM::VFS");
+
+// Service discovery (used by all other processes)
+uint64_t found_channel = anos_find_named_channel("SYSTEM::VFS");
+if (found_channel) {
+    // Use channel for communication
+}
+```
 
 ### Usage - messaging
 
