@@ -30,11 +30,11 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
     const uint8_t header_type = pci_config_read8(bus_driver, bus, device,
                                                  function, PCI_HEADER_TYPE);
 
-    const uint16_t vendor_id =
-            pci_config_read16(bus_driver, bus, device, function, PCI_VENDOR_ID);
-
-    const uint16_t device_id =
-            pci_config_read16(bus_driver, bus, device, function, PCI_DEVICE_ID);
+    // const uint16_t vendor_id =
+    //         pci_config_read16(bus_driver, bus, device, function, PCI_VENDOR_ID);
+    //
+    // const uint16_t device_id =
+    //         pci_config_read16(bus_driver, bus, device, function, PCI_DEVICE_ID);
 
     const uint32_t class_d = pci_config_read32(bus_driver, bus, device,
                                                function, PCI_CLASS_CODE);
@@ -49,9 +49,8 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
            prog_if);
 #endif
 
-    // Check for AHCI controller (Intel ICH9)
-    if (vendor_id == 0x8086 && device_id == 0x2922 && class_code == 0x01 &&
-        subclass == 0x06 && prog_if == 0x01) {
+    // Check for AHCI controller
+    if (class_code == 0x01 && subclass == 0x06 && prog_if == 0x01) {
 
         // For AHCI, the ABAR (AHCI Base Address Register) is BAR5 at offset 0x24
         const uint32_t bar5_low =
@@ -84,7 +83,7 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
 
             printf(" [AHCI Controller - Base: 0x%016lx]", ahci_base);
 #else
-            printf("Found: Intel ICH9 AHCI Controller at 0x%016lx; Starting "
+            printf("Found: AHCI Controller at 0x%016lx; Starting "
                    "driver...\n",
                    ahci_base);
 #endif
