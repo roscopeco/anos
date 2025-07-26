@@ -423,6 +423,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
 #endif
 
 #ifdef DEBUG_ACPI
+#ifdef VERY_NOISY_ACPI
         if (entry_count > 0) {
             printf("\n--- Dumping first ACPI table ---\n");
             const uint64_t first_table_addr = entries[0];
@@ -514,10 +515,18 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
 
         printf("\n--- Searching for MCFG Table ---\n");
 #endif
+#endif
 
         // Look for and parse MCFG table
         ACPI_SDTHeader *mcfg_table =
                 find_acpi_table("MCFG", entries, entry_count);
+
+        if (!mcfg_table) {
+            printf("WARN: Failed to find PCIe advanced configuration "
+                   "information, and legacy PCI is not supported!\n");
+            return;
+        }
+
         parse_mcfg_table(mcfg_table);
     } else {
 #ifdef DEBUG_ACPI
