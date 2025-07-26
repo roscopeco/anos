@@ -30,11 +30,13 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
     const uint8_t header_type = pci_config_read8(bus_driver, bus, device,
                                                  function, PCI_HEADER_TYPE);
 
-    // const uint16_t vendor_id =
-    //         pci_config_read16(bus_driver, bus, device, function, PCI_VENDOR_ID);
-    //
-    // const uint16_t device_id =
-    //         pci_config_read16(bus_driver, bus, device, function, PCI_DEVICE_ID);
+#ifdef DEBUG_BUS_DRIVER_ENUM
+    const uint16_t vendor_id =
+            pci_config_read16(bus_driver, bus, device, function, PCI_VENDOR_ID);
+
+    const uint16_t device_id =
+            pci_config_read16(bus_driver, bus, device, function, PCI_DEVICE_ID);
+#endif
 
     const uint32_t class_d = pci_config_read32(bus_driver, bus, device,
                                                function, PCI_CLASS_CODE);
