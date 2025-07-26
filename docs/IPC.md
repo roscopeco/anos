@@ -143,6 +143,13 @@ vmm_unmap_page(message->arg_buf_phys);
 
 ## Named Channel System
 
+> [!WARNING]
+> The named channel system is **planned for removal**.
+> 
+> While convenient during the development of the userspace architecture, 
+> named channels represent a kind of de-facto ambient authority that does
+> not fit with Anos' broader architectural goals.
+
 ### Channel Registration and Discovery
 
 Anos implements a **global namespace** for service discovery:
