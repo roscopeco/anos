@@ -115,13 +115,13 @@ static inline void *vmm_phys_to_virt_ptr(uintptr_t phys_addr) {
 
 uint64_t vmm_virt_to_pt_entry(uintptr_t virt_addr);
 
-// Convert direct-mapped virtual address to physical address
-static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
+static inline uintptr_t vmm_virt_to_phys_page(const uintptr_t virt_addr) {
     return vmm_table_entry_to_phys(vmm_virt_to_pt_entry(virt_addr));
 }
 
-static inline uintptr_t vmm_virt_to_phys_page(const uintptr_t virt_addr) {
-    return vmm_virt_to_phys(virt_addr) & PAGE_ALIGN_MASK;
+// Convert direct-mapped virtual address to physical address
+static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
+    return vmm_virt_to_phys_page(virt_addr) + (virt_addr & 0xfff);
 }
 
 static inline PageTable *vmm_find_pml4() {
