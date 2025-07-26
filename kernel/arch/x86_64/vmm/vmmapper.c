@@ -351,7 +351,11 @@ inline void *vmm_phys_to_virt_ptr(const uintptr_t phys_addr) {
 }
 
 inline uintptr_t vmm_virt_to_phys_page(const uintptr_t virt_addr) {
-    return vmm_virt_to_phys(virt_addr) & PAGE_ALIGN_MASK;
+    return vmm_table_entry_to_phys(vmm_virt_to_pt_entry(virt_addr));
+}
+
+uintptr_t vmm_virt_to_phys(const uintptr_t virt_addr) {
+    return vmm_virt_to_phys_page(virt_addr) + (virt_addr & 0xfff);
 }
 
 inline PageTable *vmm_find_pml4() {
@@ -424,11 +428,6 @@ uint64_t vmm_virt_to_pt_entry(const uintptr_t virt_addr) {
     }
 
     return 0;
-}
-
-// Convert virtual address to phys via table walk
-uintptr_t vmm_virt_to_phys(const uintptr_t virt_addr) {
-    return vmm_table_entry_to_phys(vmm_virt_to_pt_entry(virt_addr));
 }
 
 size_t vmm_level_page_size(const uint8_t level) {
