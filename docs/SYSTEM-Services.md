@@ -18,17 +18,17 @@ SYSTEM is the most privileged userspace process in Anos, serving as the **user-m
 ### Role in the Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│                KERNEL                   │
-│ Memory Mgmt │ Scheduler │ IPC │ Drivers │
-└─────────────┬───────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│                KERNEL                               │
+│ Memory Mgmt │ Scheduler │ IPC │ Timers & Interrupts │
+└─────────────┬───────────────────────────────────────┘
               │ Comprehensive Capabilities
-    ┌─────────▼─────────┐
-    │      SYSTEM       │ ◄─── User-mode Supervisor
+    ┌─────────▼───────────┐
+    │      SYSTEM         │ ◄─── User-mode Supervisor
     │ ┌─────┬─────┬─────┐ │
     │ │ VFS │PROC │RAMFS│ │ ◄─── Core Services  
     │ └─────┴─────┴─────┘ │
-    └─────────┬─────────────┘
+    └─────────┬───────────┘
               │ Delegated Capabilities
     ┌─────────▼─────────┐
     │   Other Servers   │ ◄─── DEVMAN, Drivers, Apps
@@ -45,16 +45,17 @@ SYSTEM is the most privileged userspace process in Anos, serving as the **user-m
 
 ### Multi-Threaded Design
 
-SYSTEM implements a **multi-threaded service architecture** with dedicated threads for each major service:
+SYSTEM implements a **multithreaded service architecture** with dedicated threads for each major service:
 
 ```c
 // system/main.c - Service thread allocation
-pthread_create(&vfs_thread_id, &vfs_thread_attr, vfs_thread, NULL);           // 1MB stack
-pthread_create(&ramfs_thread_id, &ramfs_thread_attr, ramfs_driver_thread, NULL); // 256KB stack  
-pthread_create(&proc_thread_id, &proc_thread_attr, process_manager_thread, NULL); // 256KB stack
+anos_create_thread(ramfs_driver_thread, (uintptr_t)ramfs_driver_thread_stack);        // 256KiB stack
+anos_create_thread(process_manager_thread, (uintptr_t)process_manager_thread_stack);  // 256KiB stack
 
 // Main thread continues as VFS service thread
-vfs_thread(NULL);
+while (true) {
+    // ... process VFS messages
+}
 ```
 
 **Thread Isolation**:
@@ -68,7 +69,7 @@ vfs_thread(NULL);
 SYSTEM registers **two public named channels** for external access:
 
 ```c
-// system/main.c:436-440 - Named service registration
+// system/main.c - Named service registration
 anos_register_channel_name(vfs_channel, "SYSTEM::VFS");
 anos_register_channel_name(process_manager_channel, "SYSTEM::PROCESS");
 ```
@@ -93,13 +94,12 @@ The Virtual File System service provides **filesystem abstraction and driver rou
 
 **Channel**: `SYSTEM::VFS`  
 **IPC Buffer**: `0xa0000000` (fixed address)  
-**Thread**: Main thread (`system/main.c:474-515`)
 
 #### VFS Operations
 
-| Operation | Tag | Request Format | Response | Description |
-|-----------|-----|----------------|----------|-------------|
-| **Find Filesystem Driver** | `1` | Path string | Channel ID or 0 | Maps mount prefix to driver channel |
+| Operation                  | Tag | Request Format | Response        | Description                         |
+|----------------------------|-----|----------------|-----------------|-------------------------------------|
+| **Find Filesystem Driver** | `1` | Path string    | Channel ID or 0 | Maps mount prefix to driver channel |
 
 #### VFS_FIND_FS_DRIVER Operation
 
@@ -118,7 +118,7 @@ uint64_t fs_channel = anos_send_message(vfs_channel, VFS_FIND_FS_DRIVER,
 - **Not Found**: `0` (mount point not recognized)
 - **Error**: Negative error code
 
-**Implementation** (`system/main.c:474-515`):
+**Implementation** ([`system/main.c`](../system/main.c)):
 ```c
 static void *vfs_thread(void *arg) {
     while (1) {
@@ -210,7 +210,7 @@ The Process Management service provides **comprehensive process creation and lif
 
 **Channel**: `SYSTEM::PROCESS`  
 **IPC Buffer**: `0xc0000000` (fixed address)  
-**Thread**: Dedicated process manager thread (`system/main.c:270-304`)
+**Thread**: Dedicated process manager thread (`system/main.c`)
 
 #### Process Management Operations
 
@@ -247,7 +247,7 @@ typedef struct {
   - `-3`: Memory allocation failure
   - `-4`: Process creation failure
 
-**Implementation** (`system/main.c:270-304`):
+**Implementation** ([`system/main.c`](../system/main.c)):
 ```c
 static void *process_manager_thread(void *arg) {
     while (1) {
@@ -307,7 +307,7 @@ int64_t create_server_process(uint64_t stack_size, uint16_t capc,
 #### Phase 2: Memory Layout Preparation
 
 ```c
-// system/process.c:179-190 - Map SYSTEM code into new process
+// system/process.c - Map SYSTEM code into new process
 const SyscallResult map_result = anos_map_virtual(
     (void*)0x01000000,              // Target address in new process
     (void*)0x01000000,              // SYSTEM's code address  
@@ -351,7 +351,7 @@ The stack initialization process (`system/process.c:build_new_process_init_value
 #### Phase 4: Process Creation and Trampoline
 
 ```c
-// system/process.c:200-210 - Create process with trampoline entry
+// system/process.c - Create process with trampoline entry
 const int64_t process_id = anos_create_process(
     (void*)initial_server_loader,    // Trampoline entry point  
     stack_pointer,                   // Prepared stack
@@ -545,14 +545,14 @@ The RAMFS driver provides **file system operations** on the embedded boot filesy
 
 **Channel**: Internal unnamed channel (delegated via VFS)  
 **IPC Buffer**: `0xb0000000` (fixed address)  
-**Thread**: Dedicated RAMFS thread (`system/main.c:306-344`)
+**Thread**: Dedicated RAMFS thread ([`system/main.c`](../system/main.c))
 
 #### RAMFS Operations
 
-| Operation | Tag | Request Format | Response | Description |
-|-----------|-----|----------------|----------|-------------|
-| **Query Object Size** | `1` | Filename string | File size in bytes | Get size of file |
-| **Load Object Page** | `2` | FileLoadPageQuery | Data bytes loaded | Load file data starting at offset |
+| Operation             | Tag | Request Format    | Response           | Description                       |
+|-----------------------|-----|-------------------|--------------------|-----------------------------------|
+| **Query Object Size** | `1` | Filename string   | File size in bytes | Get size of file                  |
+| **Load Object Page**  | `2` | FileLoadPageQuery | Data bytes loaded  | Load file data starting at offset |
 
 #### FS_QUERY_OBJECT_SIZE Operation
 
@@ -670,7 +670,7 @@ void *ramfs_file_open(const AnosRAMFSFileHeader *file) {
 #### Service Implementation
 
 ```c
-// system/main.c:306-344 - RAMFS service thread
+// system/main.c - RAMFS service thread
 static void *ramfs_driver_thread(void *arg) {
     while (1) {
         uint64_t tag, size;
@@ -715,18 +715,18 @@ static void *ramfs_driver_thread(void *arg) {
 
 ### RAMFS Build Integration
 
-The RAMFS is created during the build process and embedded into the system:
+The RAMFS is created during the build process and embedded directly into the system binary:
 
 ```makefile
 # servers/Makefile - RAMFS creation
 system.ramfs: $(MKRAMFS_BIN) $(SERVER_BINARIES)
-    $(MKRAMFS_BIN) system.ramfs $(SERVER_BINARIES)
+	$(MKRAMFS_BIN) system.ramfs $(SERVER_BINARIES)
 
 # system/Makefile - RAMFS linking
 system_ramfs_linkable.o: ../servers/system.ramfs
-    $(OBJCOPY) -I binary -O elf64-x86-64 -B i386:x86-64 \
-               --rename-section .data=.ramfs \
-               ../servers/system.ramfs system_ramfs_linkable.o
+	$(OBJCOPY) -I binary -O elf64-x86-64 -B i386:x86-64					\
+				--rename-section .data=.ramfs							\
+				../servers/system.ramfs system_ramfs_linkable.o
 ```
 
 **Embedded Symbols**:
@@ -751,10 +751,10 @@ SYSTEM (Capability Authority)
 
 ### Capability Reception
 
-SYSTEM receives nearly all kernel capabilities during initialization:
+SYSTEM receives all kernel syscall capabilities during initialization:
 
 ```c
-// system/main.c:378-429 - SYSTEM capability acquisition
+// system/main.c - SYSTEM capability acquisition
 extern uint64_t __syscall_capabilities[];
 
 // Capabilities acquired by SYSTEM:
@@ -784,7 +784,7 @@ __syscall_capabilities[SYSCALL_ID_GET_MEM_INFO]       // Memory information
 #### Hardware Access Delegation
 
 ```c
-// devman/main.c:210-256 - DEVMAN capability set
+// devman/main.c - DEVMAN capability set
 const InitCapability devman_caps[] = {
     // Debug and basic operations
     {SYSCALL_ID_DEBUG_PRINT, __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT]},
@@ -839,6 +839,13 @@ const InitCapability driver_caps[] = {
 **Revocation**: Process termination automatically revokes all delegated capabilities (handled by kernel).
 
 ## Performance Characteristics
+
+> [!WARNING]
+> Numbers in this section are aspirational, and do not represent tested values on
+> any platform.
+>
+> They should not be taken and correct, complete, comprehensive or concrete until
+> this warning is removed.
 
 ### Service Thread Performance
 
