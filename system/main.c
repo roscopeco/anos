@@ -35,6 +35,8 @@
 #define PROCESS_SPAWN ((1))
 
 #define VM_PAGE_SIZE ((0x1000))
+#define DRIVER_THREAD_STACK_PAGES ((0x40))
+#define DRIVER_THREAD_STACK_SIZE ((VM_PAGE_SIZE * DRIVER_THREAD_STACK_PAGES))
 
 typedef struct {
     uint64_t start_byte_ofs;
@@ -52,10 +54,10 @@ extern AnosRAMFSHeader _system_ramfs_start;
 
 extern uint64_t __syscall_capabilities[];
 
-static char __attribute__((
-        aligned(VM_PAGE_SIZE))) ramfs_driver_thread_stack[VM_PAGE_SIZE];
-static char __attribute__((
-        aligned(VM_PAGE_SIZE))) process_manager_thread_stack[VM_PAGE_SIZE];
+static char __attribute__((aligned(
+        VM_PAGE_SIZE))) ramfs_driver_thread_stack[DRIVER_THREAD_STACK_PAGES];
+static char __attribute__((aligned(
+        VM_PAGE_SIZE))) process_manager_thread_stack[DRIVER_THREAD_STACK_PAGES];
 
 #ifdef TEST_THREAD_KILL
 static char __attribute__((
