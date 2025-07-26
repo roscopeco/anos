@@ -694,6 +694,7 @@ SYSCALL_HANDLER(map_firmware_tables) {
                                 (uintptr_t)*entry);
                     return SYSCALL_FAILURE;
                 }
+                acpi_vdebugf("--> Remapped to 0x%016lx\n", phys_addr);
                 *entry = phys_addr;
             } else {
                 acpi_debugf("--> WARN: NULL entry %d in XSDT\n", i);

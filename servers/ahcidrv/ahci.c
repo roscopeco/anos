@@ -325,7 +325,7 @@ bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
     if (result != SYSCALL_OK) {
-        debugf("FAILED to map AHCI registers! Error code: %ld\n", result);
+        debugf("FAILED to map AHCI registers! Error code: %d\n", result);
         vdebugf("  Attempted mapping: phys=0x%016lx -> virt=0x%016llx "
                 "(size=0x%lx)\n",
                 pci_base, 0xB000000000ULL, ctrl->mapped_size);

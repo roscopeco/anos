@@ -18,9 +18,12 @@ for x86_64 PCs and RISC-V machines.
 
 Anos currently comprises the `STAGE3` microkernel, `SYSTEM` 
 user-mode supervisor, and a base set of servers implementing
-the base of the operating system.
+the base of the operating system. There is a (_WIP_) 
+[toolchain](https://github.com/roscopeco/anos-toolchain)
+for Anos based on Binutils, GCC (`16-experimental`) and Newlib
+(with a custom `libgloss`).
 
-It is free software licensed under the GPLv2, with similar
+Anos is free software licensed under the GPLv2, with similar
 linkage exceptions as other major free operating systems.
 
 #### TL;DR / Headline features
@@ -388,27 +391,28 @@ supports UEFI boot (with the Limine bootloader).
 Here, it's running on an old i5 4th-gen (Haswell) with 16GiB RAM. Haswell
 is the oldest architecture that Anos "officially" supports.
 
-It's running two processes (The SYSTEM user-mode supervisor, and a simple
-test server loaded from RAM disk via IPC messaging with SYSTEM) with multiple
+There are several user-mode processes running (The SYSTEM user-mode supervisor,
+the DEVMAN device manager, and drivers for the PCI bus and AHCI controllers)
+loaded from RAM disk via IPC messaging with SYSTEM) with multiple
 threads on the different cores.
 
 All the basics of running programs is tested here - new process setup, 
 loading ELF binaries from the VFS via the SYSTEM IPC interface,
-capability delegation (Kernel -> SYSTEM -> test server), environment
-setup and argument passing etc. You can read more about that whole
-thing in the [docs](docs/Processes.md).
+capability delegation (Kernel -> SYSTEM -> test server), initial hardware
+driver interfacing (from usermode), environment setup and argument passing
+etc. You can read more about that whole thing in the [docs](docs/Userspace-Boot-Process.md).
 
 All code is built with the new
 [Anos newlib toolchain](https://github.com/roscopeco/anos-toolchain), with SYSTEM and server code compiled
 in hosted mode (i.e. without `-ffreestanding` etc).
 
-<img src="images/IMG_2640.jpg" alt="UEFI-booted ANOS running on a real-life computer">
+<img src="images/IMG_2758.jpg" alt="UEFI-booted ANOS running on a real-life computer">
 
 It also runs in emulators, of course - here's Qemu booted via UEFI, using the
-graphical debug terminal at 1280x800 resolution and again showing the 
-experimental IPC features:
+graphical debug terminal at 1280x800 resolution and again showing the IPC features,
+user-mode hardware driver capabilities and other features:
 
-<img src="images/Screenshot 2025-07-15 at 22.03.35.png" alt="UEFI-booted ANOS running in Qemu">
+<img src="images/Screenshot 2025-07-26 at 14.26.13.png" alt="UEFI-booted ANOS running in Qemu">
 
 Broadly, this is happening here:
 
@@ -438,7 +442,12 @@ Broadly, this is happening here:
 * PCI bus driver also receives enhanced capabilities, and then:
   * Initializes itself in the same way as the device manager did
   * Maps each PCI bus configuration space into its user-mode address space
-  * Enumerates devices on the PCI bus
+  * Enumerates devices on the PCI bus, starting new driver processes where available (again via IPC with `SYSTEM`)
+* AHCI controller driver is started, with appropriate capabilities and arguments indicating MMIO address
+  * There is one driver process for each controller (so in qemu for example, there are two)
+  * The driver maps and initializes the AHCI controller
+  * Allocates memory for queues and buffers, and hooks them up to the hardware
+  * Scans the bus, issuing an `IDENTIFY` for each found device and outputs basic information 
 
 #### On RISC-V
 
