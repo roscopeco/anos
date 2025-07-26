@@ -10,9 +10,9 @@ AHCIDRV_TEST_CFLAGS=-g 																		\
 	-Iservers/ahcidrv/tests/include 															\
 	-O$(OPTIMIZE) -DCONSERVATIVE_BUILD $(UBSAN_CFLAGS)
 
-ANOS_INCLUDES=$(shell servers/extract-includes.sh x86_64-elf-anos-gcc c)
-
 HOST_ARCH=$(shell uname -p)
+
+TEST_STUB_INCLUDES=-Iservers/ahcidrv/tests
 
 ifeq ($(HOST_ARCH),arm)
 AHCIDRV_TEST_CFLAGS+=-arch x86_64
@@ -30,7 +30,7 @@ servers/ahcidrv/tests/build:
 	mkdir -p servers/ahcidrv/tests/build
 
 servers/ahcidrv/tests/build/%.o: servers/ahcidrv/%.c $(TEST_BUILD_DIRS)
-	$(CC) -DUNIT_TESTS $(ANOS_INCLUDES) $(AHCIDRV_TEST_CFLAGS) -c -o $@ $<
+	$(CC) -DUNIT_TESTS $(TEST_STUB_INCLUDES) $(AHCIDRV_TEST_CFLAGS) -c -o $@ $<
 
 servers/ahcidrv/tests/build/%.o: servers/ahcidrv/%.asm $(TEST_BUILD_DIRS)
 	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<

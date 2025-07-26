@@ -83,9 +83,8 @@ bool mock_should_alloc_fail(void) {
 }
 
 // Mock syscall implementations
-SyscallResult anos_map_physical_syscall(uint64_t physical_addr,
-                                        void *virtual_addr, size_t size,
-                                        uint32_t flags) {
+SyscallResult anos_map_physical(uint64_t physical_addr, void *virtual_addr,
+                                size_t size, uint32_t flags) {
     mock_state.last_physical_addr = physical_addr;
     mock_state.last_virtual_addr = (uint64_t)virtual_addr;
     mock_state.last_size = size;
@@ -102,8 +101,8 @@ SyscallResult anos_map_physical_syscall(uint64_t physical_addr,
     return SYSCALL_RESULT_OK;
 }
 
-SyscallResult anos_map_virtual_syscall(void *virtual_addr, size_t size,
-                                       uint32_t flags) {
+SyscallResult anos_map_virtual(void *virtual_addr, size_t size,
+                               uint32_t flags) {
     mock_state.last_virtual_addr = (uint64_t)virtual_addr;
     mock_state.last_size = size;
     mock_state.last_flags = flags;
@@ -118,7 +117,7 @@ SyscallResult anos_map_virtual_syscall(void *virtual_addr, size_t size,
     return allocated_addr;
 }
 
-SyscallResult anos_alloc_physical_pages_syscall(size_t size) {
+SyscallResult anos_alloc_physical_pages(size_t size) {
     mock_state.last_size = size;
 
     if (mock_state.alloc_physical_should_fail) {
@@ -131,40 +130,37 @@ SyscallResult anos_alloc_physical_pages_syscall(size_t size) {
     return allocated_addr;
 }
 
-SyscallResult anos_unmap_virtual_syscall(uint64_t virtual_addr, size_t size) {
+SyscallResult anos_unmap_virtual(uint64_t virtual_addr, size_t size) {
     mock_state.last_virtual_addr = virtual_addr;
     mock_state.last_size = size;
     return SYSCALL_RESULT_OK;
 }
 
 // Basic channel syscalls for completeness
-SyscallResult anos_send_message_syscall(uint64_t channel_id,
-                                        const void *message, size_t size) {
+SyscallResult anos_send_message(uint64_t channel_id, const void *message,
+                                size_t size) {
     return SYSCALL_RESULT_OK;
 }
 
-SyscallResult anos_recv_message_syscall(uint64_t channel_id, void *buffer,
-                                        size_t buffer_size,
-                                        size_t *actual_size) {
+SyscallResult anos_recv_message(uint64_t channel_id, void *buffer,
+                                size_t buffer_size, size_t *actual_size) {
     if (actual_size)
         *actual_size = 0;
     return SYSCALL_RESULT_OK;
 }
 
-SyscallResult anos_create_channel_syscall(void) {
+SyscallResult anos_create_channel(void) {
     return 123; // Mock channel ID
 }
 
-SyscallResult anos_task_sleep_current_syscall(uint32_t ms) {
-    return SYSCALL_RESULT_OK;
-}
+SyscallResult anos_task_sleep_current(uint32_t ms) { return SYSCALL_RESULT_OK; }
 
-SyscallResult anos_kprint_syscall(const char *message) {
+SyscallResult anos_kprint(const char *message) {
     printf("[MOCK KPRINT] %s", message);
     return SYSCALL_RESULT_OK;
 }
 
-SyscallResult anos_kputchar_syscall(char c) {
+SyscallResult anos_kputchar(char c) {
     printf("%c", c);
     return SYSCALL_RESULT_OK;
 }
