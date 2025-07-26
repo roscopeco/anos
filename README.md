@@ -18,9 +18,12 @@ for x86_64 PCs and RISC-V machines.
 
 Anos currently comprises the `STAGE3` microkernel, `SYSTEM` 
 user-mode supervisor, and a base set of servers implementing
-the base of the operating system.
+the base of the operating system. There is a (_WIP_) 
+[toolchain](https://github.com/roscopeco/anos-toolchain)
+for Anos based on Binutils, GCC (`16-experimental`) and Newlib
+(with a custom `libgloss`).
 
-It is free software licensed under the GPLv2, with similar
+Anos is free software licensed under the GPLv2, with similar
 linkage exceptions as other major free operating systems.
 
 #### TL;DR / Headline features
@@ -388,8 +391,9 @@ supports UEFI boot (with the Limine bootloader).
 Here, it's running on an old i5 4th-gen (Haswell) with 16GiB RAM. Haswell
 is the oldest architecture that Anos "officially" supports.
 
-It's running two processes (The SYSTEM user-mode supervisor, and a simple
-test server loaded from RAM disk via IPC messaging with SYSTEM) with multiple
+There are several user-mode processes running (The SYSTEM user-mode supervisor,
+the DEVMAN device manager, and drivers for the PCI bus and AHCI controllers)
+loaded from RAM disk via IPC messaging with SYSTEM) with multiple
 threads on the different cores.
 
 All the basics of running programs is tested here - new process setup, 
