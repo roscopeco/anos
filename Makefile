@@ -138,8 +138,24 @@ endif
 CDEFS+=-DDEBUG_CPU -DEXPERIMENTAL_SCHED_LOCK -DTARGET_CPU_USE_SLEEPERS
 
 ifeq ($(ARCH),x86_64)
-QEMU_BASEOPTS=-smp cpus=4 -cpu Haswell-v4 -m 256M -M q35 -device ioh3420,bus=pcie.0,id=pcie.1,addr=1e -device qemu-xhci,bus=pcie.1 -d int,mmu,cpu_reset,guest_errors,unimp -D qemu.log --no-reboot -monitor stdio
-QEMU_UEFI_OPTS=-drive file=$(UEFI_IMG),if=ide,format=raw -drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd -drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
+QEMU_BASEOPTS=																										\
+	-nodefaults																										\
+	-smp cpus=4																										\
+	-cpu Haswell-v4																									\
+	-m 256M																											\
+	-M q35																											\
+	-device ioh3420,bus=pcie.0,id=pcie.1,addr=1e																	\
+	-device qemu-xhci,bus=pcie.1																					\
+	-device ahci,id=ahci																							\
+	-device ide-hd,drive=drive0,bus=ahci.0																			\
+	-device VGA																										\
+	-d int,mmu,cpu_reset,guest_errors,unimp -D qemu.log																\
+	-monitor stdio
+
+QEMU_UEFI_OPTS=																										\
+	-drive file=$(UEFI_IMG),if=none,format=raw,id=drive0															\
+	-drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd									\
+	-drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
 else
 ifeq ($(ARCH),riscv64)
 QEMU_BASEOPTS=-M virt,pflash0=pflash0,pflash1=pflash1,acpi=off -m 8G -cpu rv64,sv57=on								\
@@ -387,9 +403,10 @@ clean:
 include kernel/tests/include.mk
 include system/tests/include.mk
 include servers/pcidrv/tests/include.mk
+include servers/ahcidrv/tests/include.mk
 
-test: test-kernel test-system test-pcidrv
-coverage: coverage-kernel coverage-system
+test: test-kernel test-system test-pcidrv test-ahcidrv
+coverage: coverage-kernel coverage-system coverage-ahcidrv
 
 ifeq ($(ARCH),x86_64)
 %.o: %.asm

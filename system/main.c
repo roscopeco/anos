@@ -35,6 +35,8 @@
 #define PROCESS_SPAWN ((1))
 
 #define VM_PAGE_SIZE ((0x1000))
+#define DRIVER_THREAD_STACK_PAGES ((0x40))
+#define DRIVER_THREAD_STACK_SIZE ((VM_PAGE_SIZE * DRIVER_THREAD_STACK_PAGES))
 
 typedef struct {
     uint64_t start_byte_ofs;
@@ -52,10 +54,10 @@ extern AnosRAMFSHeader _system_ramfs_start;
 
 extern uint64_t __syscall_capabilities[];
 
-static char __attribute__((
-        aligned(VM_PAGE_SIZE))) ramfs_driver_thread_stack[VM_PAGE_SIZE];
-static char __attribute__((
-        aligned(VM_PAGE_SIZE))) process_manager_thread_stack[VM_PAGE_SIZE];
+static char __attribute__((aligned(
+        VM_PAGE_SIZE))) ramfs_driver_thread_stack[DRIVER_THREAD_STACK_PAGES];
+static char __attribute__((aligned(
+        VM_PAGE_SIZE))) process_manager_thread_stack[DRIVER_THREAD_STACK_PAGES];
 
 #ifdef TEST_THREAD_KILL
 static char __attribute__((
@@ -403,6 +405,16 @@ int main(int argc, char **argv) {
             },
             {
                     .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL],
+                    .capability_id = SYSCALL_ID_MAP_VIRTUAL,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities
+                            [SYSCALL_ID_ALLOC_PHYSICAL_PAGES],
+                    .capability_id = SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
+            },
+            {
+                    .capability_cookie =
                             __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
                     .capability_id = SYSCALL_ID_SEND_MESSAGE,
             },
@@ -455,7 +467,7 @@ int main(int argc, char **argv) {
             const char *devman_argv[] = {"boot:/devman.elf"};
 
             const int64_t devman_pid = create_server_process(
-                    0x100000, 8, new_process_caps, 1, devman_argv);
+                    0x100000, 10, new_process_caps, 1, devman_argv);
             if (devman_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/devman.elf");

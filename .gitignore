@@ -11,6 +11,8 @@ native_tests/printhex
 **/*.dis
 kernel/tests/build
 system/tests/build
+servers/pcidrv/tests/build
+servers/ahcidrv/tests/build
 .vscode
 native_tests/pt
 system/system.bin

@@ -779,6 +779,7 @@ SYSCALL_HANDLER(map_physical) {
     const uintptr_t phys_addr = (uintptr_t)arg0;
     const uintptr_t user_vaddr = (uintptr_t)arg1;
     const size_t size = (size_t)arg2;
+    const uint64_t flags = (uint64_t)arg3;
 
     // Validate user address
     if (!IS_USER_ADDRESS(user_vaddr)) {
@@ -800,9 +801,24 @@ SYSCALL_HANDLER(map_physical) {
         const uintptr_t target_phys_addr = phys_addr + offset;
         const uintptr_t target_user_vaddr = user_vaddr + offset;
 
-        // Map the physical page into userspace as read-only
-        if (!vmm_map_page(target_user_vaddr, target_phys_addr,
-                          PG_PRESENT | PG_USER | PG_READ)) {
+        // Build page flags from the provided permission flags
+        uint64_t page_flags = PG_PRESENT | PG_USER;
+
+        // Default to read-only if no flags specified, otherwise use provided flags
+        if (flags == 0) {
+            page_flags |= PG_READ;
+        } else {
+            if (flags & ANOS_MAP_VIRTUAL_FLAG_READ) {
+                page_flags |= PG_READ;
+            }
+            if (flags & ANOS_MAP_VIRTUAL_FLAG_WRITE) {
+                page_flags |= PG_WRITE;
+            }
+            // Note: PG_EXEC flag would be needed for ANOS_MAP_VIRTUAL_FLAG_EXEC
+        }
+
+        // Map the physical page into userspace with specified permissions
+        if (!vmm_map_page(target_user_vaddr, target_phys_addr, page_flags)) {
             // If mapping fails, unmap what we've already done
             for (uintptr_t unmap_offset = 0; unmap_offset < offset;
                  unmap_offset += VM_PAGE_SIZE) {
@@ -814,6 +830,30 @@ SYSCALL_HANDLER(map_physical) {
     }
 
     return SYSCALL_OK;
+}
+
+SYSCALL_HANDLER(alloc_physical_pages) {
+    const size_t size = (size_t)arg0;
+
+    // Ensure size is page-aligned
+    if (size & 0xFFF) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Calculate number of pages needed
+    const size_t num_pages = size / VM_PAGE_SIZE;
+    if (num_pages == 0) {
+        return SYSCALL_BADARGS;
+    }
+
+    // Allocate contiguous physical pages
+    const uintptr_t phys_addr = page_alloc_m(physical_region, num_pages);
+    if (phys_addr == 0) {
+        return SYSCALL_FAILURE; // Out of memory
+    }
+
+    // Return the physical address
+    return (SyscallResult)phys_addr;
 }
 
 static uint64_t init_syscall_capability(CapabilityMap *map,
@@ -915,6 +955,8 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
                                     SYSCALL_NAME(map_firmware_tables));
     stack_syscall_capability_cookie(SYSCALL_ID_MAP_PHYSICAL,
                                     SYSCALL_NAME(map_physical));
+    stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
+                                    SYSCALL_NAME(alloc_physical_pages));
 
     // Stack dummy argc/argv for now
     // TODO this needs refactoring, syscall init shouldn't be responsible
