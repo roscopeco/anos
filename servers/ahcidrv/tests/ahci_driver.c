@@ -141,6 +141,7 @@ test_ahci_port_init_invalid_args(const MunitParameter params[], void *data) {
 
     AHCIController ctrl;
     AHCIPort port;
+    memset(&ctrl, 0, sizeof(ctrl));
 
     // Test NULL port
     bool result = ahci_port_init(NULL, &ctrl, 0);
