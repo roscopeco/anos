@@ -108,15 +108,20 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
     return (int64_t)response;
 }
 
-void spawn_ahci_driver(const uint64_t ahci_base) {
+void spawn_ahci_driver(const uint64_t ahci_base,
+                       const uint64_t pci_config_base) {
 #ifdef DEBUG_BUS_DRIVER_INIT
-    printf("\nSpawning AHCI driver for controller at 0x%016lx...\n", ahci_base);
+    printf("\nSpawning AHCI driver for controller at 0x%016lx (PCI config at "
+           "0x%016lx)...\n",
+           ahci_base, pci_config_base);
 #endif
 
     char ahci_base_str[32];
+    char pci_config_str[32];
     snprintf(ahci_base_str, sizeof(ahci_base_str), "%lx", ahci_base);
+    snprintf(pci_config_str, sizeof(pci_config_str), "%lx", pci_config_base);
 
-    const char *argv[] = {"boot:/ahcidrv.elf", ahci_base_str};
+    const char *argv[] = {"boot:/ahcidrv.elf", ahci_base_str, pci_config_str};
 
     InitCapability ahci_caps[] = {
             {.capability_id = SYSCALL_ID_DEBUG_PRINT,
@@ -139,13 +144,19 @@ void spawn_ahci_driver(const uint64_t ahci_base) {
             {.capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
              .capability_cookie =
                      __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK]},
+            {.capability_id = SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_ALLOC_INTERRUPT_VECTOR]},
+            {.capability_id = SYSCALL_ID_WAIT_INTERRUPT,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT]},
     };
 
 #ifdef DEBUG_BUS_DRIVER_INIT
     printf("  --> spawn: %s %s\n", argv[0], argv[1]);
 #endif
 
-    int64_t pid = spawn_process_via_system(0x100000, 7, ahci_caps, 2, argv);
+    int64_t pid = spawn_process_via_system(0x100000, 9, ahci_caps, 3, argv);
     if (pid > 0) {
 #ifdef DEBUG_BUS_DRIVER_INIT
         printf("  --> AHCI driver spawned with PID %ld\n", pid);

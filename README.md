@@ -6,7 +6,8 @@
 > [!NOTE]
 > This is not yet an operating system, but _definitely has_  reached 
 > "toy kernel" status, since it now supports user mode preemptive 
-> multitasking on up to 16 CPUs & runs on real hardware 🥳.
+> multitasking on up to 16 CPUs, provides enough kernel support to 
+> run PCI device drivers in userspace, and runs on real hardware 🥳.
 
 ### High-level overview
 
@@ -448,6 +449,16 @@ Broadly, this is happening here:
   * The driver maps and initializes the AHCI controller
   * Allocates memory for queues and buffers, and hooks them up to the hardware
   * Scans the bus, issuing an `IDENTIFY` for each found device and outputs basic information 
+
+Here's another picture (from the same PC as the image above) showing the AHCI driver initialisation process
+with debugging output enabled. This shows detail of the userspace mapping of config space 
+and BARs for the device, plus how the device's interrupts are set up (using modern
+[Message Signaled Interrupts](https://en.wikipedia.org/wiki/Message_Signaled_Interrupts))
+rather than legacy interrupt line or IOAPIC config). This allows the SATA drive
+in the computer to respond correctly to an `IDENTIFY` command. The SATAPI DVD-ROM drive
+also present is not successfully initialized as it does not yet have driver support. 
+
+<img src="images/IMG_2762.jpg" alt="Anos AHCI driver init with debug output">
 
 #### On RISC-V
 

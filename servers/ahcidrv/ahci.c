@@ -5,6 +5,8 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+// TODO there's a ridiculous amount of unit test mocking going on in here...
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -13,33 +15,7 @@
 #include <anos/syscalls.h>
 
 #include "ahci.h"
-
-#ifdef UNIT_TESTS
-// Mock AHCI registers for unit testing
-static AHCIRegs mock_ahci_registers;
-// Mock DMA memory pool for unit testing
-static uint8_t mock_dma_memory[0x100000]; // 1MB pool
-static size_t mock_dma_offset = 0;
-
-// Reset mock state for unit tests
-void ahci_reset_test_state(void) {
-    memset(&mock_ahci_registers, 0, sizeof(mock_ahci_registers));
-    memset(mock_dma_memory, 0, sizeof(mock_dma_memory));
-    mock_dma_offset = 0;
-
-    // Set up mock AHCI controller with reasonable defaults
-    // Capability register: support 4 ports (bits 0-4 = 3), 64-bit DMA
-    mock_ahci_registers.host.cap =
-            0x3 | (1U << 31); // 4 ports + 64-bit addressing
-
-    // Port implemented register: port 0 is available
-    mock_ahci_registers.host.pi = 0x1;
-
-    // Set up port 0 with device present
-    mock_ahci_registers.ports[0].ssts = 0x3;       // AHCI_PORT_SSTS_DET_PRESENT
-    mock_ahci_registers.ports[0].sig = 0x00000101; // AHCI_SIG_ATA (SATA drive)
-}
-#endif
+#include "pci.h"
 
 #if (__STDC_VERSION__ < 202000)
 // TODO Apple clang doesn't support nullptr or constexpr yet - Jul 2025
@@ -92,7 +68,77 @@ void ahci_reset_test_state(void) {
 #define vdebugf(...)
 #endif
 
+#define PCI_CONFIG_BASE_ADDRESS ((0xC000000000ULL))
+#define AHCI_CONFIG_BASE_ADDRESS ((0xB000000000ULL))
+
 static uint64_t memory_offset = 0;
+
+#ifdef UNIT_TESTS
+// Mock AHCI registers for unit testing
+static AHCIRegs mock_ahci_registers;
+// Mock DMA memory pool for unit testing
+static uint8_t mock_dma_memory[0x100000]; // 1MB pool
+static size_t mock_dma_offset = 0;
+
+// Mock command completion state
+static void *mock_identify_buffer = NULL;
+
+// Mock IDENTIFY command data (ATA IDENTIFY response)
+static void setup_mock_identify_data(void *buffer) {
+    uint16_t *data = (uint16_t *)buffer;
+    memset(data, 0, 512);
+
+    // Sector count (48-bit LBA at words 100-103)
+    data[100] = 0x1000; // Low 16 bits
+    data[101] = 0x0000; //
+    data[102] = 0x0000; //
+    data[103] = 0x0000; // High 16 bits (1000 sectors = ~512KB test drive)
+
+    const char model[] = "TEST MOCK DEVICE v1.0                   ";
+    for (int i = 0; i < 20; i++) {
+        data[27 + i] = (model[i * 2] << 8) | model[i * 2 + 1];
+    }
+}
+
+// Mock command completion - called when CI register is written
+static void mock_command_completion(uint32_t port_num, uint32_t command_slot) {
+    if (port_num >= 32 || command_slot >= 32)
+        return;
+
+    // If there's a pending IDENTIFY command, simulate completion
+    if (mock_identify_buffer) {
+        setup_mock_identify_data(mock_identify_buffer);
+        mock_identify_buffer = NULL;
+    }
+
+    // Clear the command issue bit to indicate completion
+    mock_ahci_registers.ports[port_num].ci &= ~(1U << command_slot);
+
+    // Set interrupt status to indicate command completion
+    mock_ahci_registers.ports[port_num].is |=
+            (1U << 0); // Device to Host FIS interrupt
+}
+
+// Reset mock state for unit tests
+void ahci_reset_test_state(void) {
+    memset(&mock_ahci_registers, 0, sizeof(mock_ahci_registers));
+    memset(mock_dma_memory, 0, sizeof(mock_dma_memory));
+    mock_dma_offset = 0;
+    mock_identify_buffer = NULL;
+
+    // Set up mock AHCI controller with reasonable defaults
+    // Capability register: support 4 ports (bits 0-4 = 3), 64-bit DMA
+    mock_ahci_registers.host.cap =
+            0x3 | (1U << 31); // 4 ports + 64-bit addressing
+
+    // Port implemented register: port 0 is available
+    mock_ahci_registers.host.pi = 0x1;
+
+    // Set up port 0 with device present
+    mock_ahci_registers.ports[0].ssts = 0x3;       // AHCI_PORT_SSTS_DET_PRESENT
+    mock_ahci_registers.ports[0].sig = 0x00000101; // AHCI_SIG_ATA (SATA drive)
+}
+#endif
 
 static void *allocate_aligned_memory(const size_t size, const size_t alignment,
                                      uint64_t *phys_addr_out) {
@@ -305,30 +351,48 @@ static void ahci_port_start(AHCIPortRegs *port) {
     port->cmd |= AHCI_PORT_CMD_START;
 }
 
-bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
+bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
+                          uint64_t pci_config_base) {
 
-    if (!ctrl || pci_base == 0) {
+    if (!ctrl || ahci_base == 0 || pci_config_base == 0) {
         return false;
     }
 
     memset(ctrl, 0, sizeof(AHCIController));
-    ctrl->pci_base = pci_base;
+    ctrl->pci_base = pci_config_base;
 
     ctrl->mapped_size = 0x1000;
 
+    // Map PCI configuration space
+    debugf("Mapping PCI config space: phys=0x%016lx -> virt=0x%016llx "
+           "(size=0x1000)\n",
+           pci_config_base, PCI_CONFIG_BASE_ADDRESS);
+
+    const SyscallResult pci_result = anos_map_physical(
+            pci_config_base, (void *)PCI_CONFIG_BASE_ADDRESS, 0x1000,
+            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+
+    if (pci_result != SYSCALL_OK) {
+        debugf("FAILED to map PCI config space! Error code: %d\n", pci_result);
+        return false;
+    }
+
+    // Update pci_base to point to mapped virtual address
+    ctrl->pci_base = PCI_CONFIG_BASE_ADDRESS;
+
     debugf("Mapping AHCI registers: phys=0x%016lx -> virt=0x%016llx "
            "(size=0x%lx)\n",
-           pci_base, 0xB000000000ULL, ctrl->mapped_size);
+           ahci_base, AHCI_CONFIG_BASE_ADDRESS, ctrl->mapped_size);
 
     const SyscallResult result = anos_map_physical(
-            pci_base, (void *)0xB000000000ULL, ctrl->mapped_size,
+            ahci_base, (void *)AHCI_CONFIG_BASE_ADDRESS, ctrl->mapped_size,
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
     if (result != SYSCALL_OK) {
         debugf("FAILED to map AHCI registers! Error code: %d\n", result);
         vdebugf("  Attempted mapping: phys=0x%016lx -> virt=0x%016llx "
                 "(size=0x%lx)\n",
-                pci_base, 0xB000000000ULL, ctrl->mapped_size);
+                ahci_base, AHCI_CONFIG_BASE_ADDRESS, ctrl->mapped_size);
 
         return false;
     }
@@ -338,7 +402,7 @@ bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
     ctrl->mapped_regs = &mock_ahci_registers;
     ctrl->regs = &mock_ahci_registers;
 #else
-    ctrl->mapped_regs = (void *)0xB000000000ULL;
+    ctrl->mapped_regs = (void *)AHCI_CONFIG_BASE_ADDRESS;
     ctrl->regs = (AHCIRegs *)ctrl->mapped_regs;
 #endif
 
@@ -385,10 +449,28 @@ bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
         ctrl->port_count = 32;
     }
 
+    // Find MSI capability for later use
+#ifdef UNIT_TESTS
+    // In unit tests, mock finding MSI capability
+    ctrl->msi_cap_offset = 0x50; // Mock MSI capability offset
+#else
+    ctrl->msi_cap_offset = pci_find_msi_capability(PCI_CONFIG_BASE_ADDRESS);
+#endif
+
 #ifdef DEBUG_AHCI_INIT
     debugf("Controller supports %u ports, active mask: 0x%08x\n",
            ctrl->port_count, ctrl->active_ports);
+    if (ctrl->msi_cap_offset) {
+        debugf("MSI capability found at offset 0x%02x\n", ctrl->msi_cap_offset);
+    } else {
+        debugf("No MSI capability found - interrupts will not work\n");
+    }
 #endif
+
+    // Enable global AHCI interrupts
+    ctrl->regs->host.ghc |= (1U << 1); // Set IE (Interrupt Enable) bit
+    debugf("AHCI global interrupts enabled (GHC=0x%08x)\n",
+           ctrl->regs->host.ghc);
 
     ctrl->initialized = true;
     return true;
@@ -412,6 +494,25 @@ void ahci_controller_cleanup(AHCIController *ctrl) {
     ctrl->regs = NULL;
     ctrl->port_count = 0;
     ctrl->active_ports = 0;
+}
+
+void ahci_port_cleanup(AHCIPort *port) {
+    if (!port || !port->initialized) {
+        return;
+    }
+
+    // Deallocate MSI vector if we allocated one
+    if (port->msi_enabled && port->msi_vector != 0) {
+        // Note: MSI cleanup is automatic when the process exits,
+        // but we could explicitly deallocate here if needed
+        debugf("Port %u: MSI vector 0x%02x will be cleaned up automatically\n",
+               port->port_num, port->msi_vector);
+        port->msi_enabled = false;
+        port->msi_vector = 0;
+    }
+
+    port->initialized = false;
+    port->connected = false;
 }
 
 bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
@@ -506,10 +607,56 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
 
     ahci_port_start(port_regs);
 
+    // Initialize MSI interrupt for this port
+    port->msi_enabled = false;
+    port->msi_vector = 0;
+
+    // Try to allocate MSI vector for this port
+    // Use PCI bus/device/function from controller's base address
+    // For simplicity, we'll derive a mock bus/device/function from the port number
+    const uint32_t bus_device_func =
+            0x010000 | (port_num << 3); // Mock PCI address
+
+    uint64_t msi_address;
+    uint32_t msi_data;
+
+    const uint8_t vector = anos_allocate_interrupt_vector(
+            bus_device_func, &msi_address, &msi_data);
+
+    if (vector != 0 && ctrl->msi_cap_offset != 0) {
+        // Configure the PCI MSI capability registers
+#ifdef UNIT_TESTS
+        // In unit tests, mock successful MSI configuration
+        port->msi_vector = vector;
+        port->msi_enabled = true;
+        debugf("Port %u: MSI vector 0x%02x configured and enabled (mock)\n",
+               port_num, vector);
+#else
+        if (pci_configure_msi(ctrl->pci_base, ctrl->msi_cap_offset, msi_address,
+                              msi_data)) {
+            port->msi_vector = vector;
+            port->msi_enabled = true;
+            debugf("Port %u: MSI vector 0x%02x configured and enabled\n",
+                   port_num, vector);
+        } else {
+            debugf("Port %u: Failed to configure MSI hardware, using polling\n",
+                   port_num);
+        }
+#endif
+    } else {
+        if (vector == 0) {
+            debugf("Port %u: Failed to allocate MSI vector, using polling\n",
+                   port_num);
+        } else {
+            debugf("Port %u: No MSI capability, using polling\n", port_num);
+        }
+    }
+
     port->connected = true;
     port->initialized = true;
 
-    debugf("Port %u initialized successfully\n", port_num);
+    debugf("Port %u initialized successfully%s\n", port_num,
+           port->msi_enabled ? " with MSI interrupts" : " with polling");
 
     return true;
 }
@@ -518,6 +665,36 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
     const AHCIPortRegs *port_regs =
             &port->controller->regs->ports[port->port_num];
 
+    if (port->msi_enabled) {
+        // Use MSI interrupt-driven completion
+        debugf("Port %u: Waiting for MSI interrupt on vector 0x%02x\n",
+               port->port_num, port->msi_vector);
+
+        uint32_t event_data;
+        const SyscallResult result =
+                anos_wait_interrupt(port->msi_vector, &event_data);
+
+        if (result == SYSCALL_OK) {
+            debugf("Port %u: Received MSI interrupt (data=0x%08x)\n",
+                   port->port_num, event_data);
+
+            // Check if command completed
+            if ((port_regs->ci & (1 << slot)) == 0) {
+                return true;
+            }
+
+            debugf("Port %u: Interrupt received but command still pending\n",
+                   port->port_num);
+        } else {
+            debugf("Port %u: MSI wait failed with result %d\n", port->port_num,
+                   result);
+        }
+
+        // Fall back to polling if MSI fails
+        debugf("Port %u: Falling back to polling\n", port->port_num);
+    }
+
+    // Original polling-based completion
     int timeout = AHCI_COMMAND_TIMEOUT_MS * 10; // Convert ms to 100μs units
     while (timeout > 0) {
         if ((port_regs->ci & (1 << slot)) == 0) {
@@ -526,7 +703,6 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
 
         if (port_regs->is & (1 << 30)) {
             debugf("Port %u: Task file error\n", port->port_num);
-
             return false;
         }
 
@@ -673,6 +849,12 @@ bool ahci_port_identify(AHCIPort *port) {
     vdebug_dump_pre_command_state(cmd_table, port_regs, identify_buffer_phys);
 
     port_regs->ci = 1;
+
+#ifdef UNIT_TESTS
+    // In unit tests, set up mock IDENTIFY completion
+    mock_identify_buffer = identify_buffer;
+    mock_command_completion(port->port_num, 0);
+#endif
 
     vdebugf("Port %u post-command issue:\n", port->port_num);
     vdebugf("  CI: 0x%08x\n", port_regs->ci);

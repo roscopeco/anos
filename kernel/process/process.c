@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include "cpu.h"
+#include "platform.h"
 #include "process.h"
 #include "process/memory.h"
 #include "slab/alloc.h"
@@ -118,6 +119,7 @@ static inline void destroy_process_tasks(Process *process) {
 
 void process_destroy(Process *process) {
     destroy_process_tasks(process);
+    platform_cleanup_process(process->pid);
     managed_resources_free_all(process->meminfo->res_head);
     process_release_owned_pages(process);
     region_tree_free_all(&process->meminfo->regions);

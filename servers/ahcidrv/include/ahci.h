@@ -152,6 +152,7 @@ typedef struct {
     uint32_t port_count;
     uint32_t active_ports;
     bool initialized;
+    uint8_t msi_cap_offset; // PCI MSI capability offset
 } AHCIController;
 
 typedef struct {
@@ -164,11 +165,15 @@ typedef struct {
     void *cmd_list;
     void *fis_base;
     void *cmd_tables;
+    uint8_t msi_vector;
+    bool msi_enabled;
 } AHCIPort;
 
-bool ahci_controller_init(AHCIController *ctrl, uint64_t pci_base);
+bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
+                          uint64_t pci_config_base);
 void ahci_controller_cleanup(AHCIController *ctrl);
 bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num);
+void ahci_port_cleanup(AHCIPort *port);
 bool ahci_port_identify(AHCIPort *port);
 bool ahci_port_read(AHCIPort *port, uint64_t lba, uint16_t count, void *buffer);
 bool ahci_port_write(AHCIPort *port, uint64_t lba, uint16_t count,

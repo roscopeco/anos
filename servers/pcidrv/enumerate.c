@@ -11,7 +11,7 @@
 
 #include "pci.h"
 
-void spawn_ahci_driver(uint64_t ahci_base);
+void spawn_ahci_driver(uint64_t ahci_base, uint64_t pci_config_base);
 
 bool pci_device_exists(const PCIBusDriver *bus_driver, const uint8_t bus,
                        const uint8_t device, const uint8_t function) {
@@ -90,7 +90,12 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
                    ahci_base);
 #endif
 
-            spawn_ahci_driver(ahci_base);
+            // Calculate PCI configuration space base for this device
+            const uint64_t pci_config_base =
+                    bus_driver->ecam_base + ((uint64_t)bus << 20) +
+                    ((uint64_t)device << 15) + ((uint64_t)function << 12);
+
+            spawn_ahci_driver(ahci_base, pci_config_base);
         }
     }
 

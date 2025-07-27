@@ -20,7 +20,7 @@ void mock_fba_reset(void) {
     fba_free_count = 0;
 }
 
-void mock_fba_set_should_fail(bool should_fail) {
+void mock_fba_set_should_fail(const bool should_fail) {
     should_fba_alloc_fail = should_fail;
 }
 
@@ -31,29 +31,34 @@ uint64_t mock_fba_get_alloc_count(void) { return fba_alloc_count; }
 uint64_t mock_fba_get_free_count(void) { return fba_free_count; }
 
 void *fba_alloc_block(void) {
-    if (should_fba_alloc_fail)
+    if (should_fba_alloc_fail) {
         return NULL;
+    }
+
     fba_alloc_count++;
 
     // Allocate 4096 bytes and ensure it's page-aligned
     void *ptr = aligned_alloc(4096, 4096);
     if (ptr) {
-        memset(ptr, 0, 4096); // Zero the memory like a real allocator would
+        memset(ptr, 0, 4096);
     }
     return ptr;
 }
 
-void *fba_alloc_blocks(uint64_t count) {
-    if (should_fba_alloc_fail)
+void *fba_alloc_blocks(const uint64_t count) {
+    if (should_fba_alloc_fail) {
         return NULL;
+    }
+
     fba_alloc_count += count;
 
     // Allocate 4096 bytes and ensure it's page-aligned
     void *ptr = aligned_alloc(4096, 4096 * count);
+
     if (ptr) {
-        memset(ptr, 0,
-               4096 * count); // Zero the memory like a real allocator would
+        memset(ptr, 0, 4096 * count);
     }
+
     return ptr;
 }
 

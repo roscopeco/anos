@@ -164,3 +164,22 @@ SyscallResult anos_kputchar(char c) {
     printf("%c", c);
     return SYSCALL_RESULT_OK;
 }
+
+// Mock MSI interrupt syscalls
+uint8_t anos_allocate_interrupt_vector(uint32_t bus_device_func,
+                                       uint64_t *msi_address,
+                                       uint32_t *msi_data) {
+    // Return mock MSI configuration
+    if (msi_address)
+        *msi_address = 0xFEE00000ULL; // Standard MSI address
+    if (msi_data)
+        *msi_data = 0x4000; // Mock MSI data
+    return 0x40;            // Mock vector number
+}
+
+SyscallResult anos_wait_interrupt(uint8_t vector, uint32_t *event_data) {
+    // Mock interrupt wait - always succeeds immediately for tests
+    if (event_data)
+        *event_data = 0x12345678; // Mock event data
+    return SYSCALL_RESULT_OK;
+}

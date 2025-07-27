@@ -26,13 +26,15 @@
 static AHCIController controller = {0};
 static AHCIPort ports[32] = {0};
 
-static int ahci_initialize_driver(uint64_t pci_base) {
+static int ahci_initialize_driver(uint64_t ahci_base,
+                                  uint64_t pci_config_base) {
 #ifdef DEBUG_AHCI_INIT
     printf("Initializing AHCI driver:\n");
-    printf("  PCI Base: 0x%016lx\n", pci_base);
+    printf("  AHCI Base: 0x%016lx\n", ahci_base);
+    printf("  PCI Config Base: 0x%016lx\n", pci_config_base);
 #endif
 
-    if (!ahci_controller_init(&controller, pci_base)) {
+    if (!ahci_controller_init(&controller, ahci_base, pci_config_base)) {
         printf("Failed to initialize AHCI controller\n");
         return -1;
     }
@@ -75,8 +77,8 @@ static int ahci_initialize_driver(uint64_t pci_base) {
 int main(const int argc, char **argv) {
     printf("\nAHCI Driver #%s [libanos #%s]", VERSION, libanos_version());
 
-    if (argc < 2) {
-        printf("\n\nUsage: %s <pci_base>\n", argv[0]);
+    if (argc < 3) {
+        printf("\n\nUsage: %s <ahci_base> <pci_config_base>\n", argv[0]);
         printf("Arguments provided: %d\n", argc);
         for (int i = 0; i < argc; i++) {
             printf("  argv[%d]: %s\n", i, argv[i]);
@@ -84,11 +86,12 @@ int main(const int argc, char **argv) {
         return 1;
     }
 
-    printf(" @ 0x%s\n", argv[1]);
+    printf(" @ AHCI:0x%s PCI:0x%s\n", argv[1], argv[2]);
 
-    const uint64_t pci_base = strtoull(argv[1], nullptr, 16);
+    const uint64_t ahci_base = strtoull(argv[1], nullptr, 16);
+    const uint64_t pci_config_base = strtoull(argv[2], nullptr, 16);
 
-    if (ahci_initialize_driver(pci_base) != 0) {
+    if (ahci_initialize_driver(ahci_base, pci_config_base) != 0) {
         printf("Failed to initialize AHCI driver\n");
         return 1;
     }

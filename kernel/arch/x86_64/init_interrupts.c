@@ -12,6 +12,7 @@
 
 #include "x86_64/interrupts.h"
 #include "x86_64/kdrivers/local_apic.h"
+#include "x86_64/kdrivers/msi.h"
 
 // This is a bit messy, but it works and is "good enough" for now 😅
 #define install_trap(N)                                                        \
@@ -86,10 +87,19 @@ void idt_install(uint16_t kernel_cs) {
                   idt_attr(1, 0, IDT_TYPE_IRQ));
     }
 
-    // Just fill the rest of the table with generic / unknown handlers for now,
-    // Use IRQ type since these don't return and that'll disable interrupts for
-    // us...
-    for (int i = 0x30; i < 0x100; i++) {
+    // Install MSI handlers for vector range 0x40-0xDF
+    for (int i = MSI_VECTOR_BASE; i <= MSI_VECTOR_TOP; i++) {
+        extern void (*msi_handler_table[])(void);
+        idt_entry(idt + i, msi_handler_table[i - MSI_VECTOR_BASE], kernel_cs, 0,
+                  idt_attr(1, 0, IDT_TYPE_IRQ));
+    }
+
+    // Fill remaining vectors with generic / unknown handlers
+    for (int i = 0x30; i < MSI_VECTOR_BASE; i++) {
+        idt_entry(idt + i, unknown_interrupt_handler, kernel_cs, 0,
+                  idt_attr(1, 0, IDT_TYPE_IRQ));
+    }
+    for (int i = MSI_VECTOR_TOP + 1; i < 0x100; i++) {
         idt_entry(idt + i, unknown_interrupt_handler, kernel_cs, 0,
                   idt_attr(1, 0, IDT_TYPE_IRQ));
     }

@@ -95,6 +95,7 @@ endif
 #	DEBUG_PAGEFAULT			Enable debugging of pagefault handling
 #	VERY_NOISY_PAGEFAULT	Enable **lots** of debugging of pagefault handling
 #	DEBUG_SYSCALL_CAPS		Enable debugging of system call capability assignments (insecure!)
+#	DEBUG_MSI				Enable debugging of the MSI management subsystem
 #
 # These ones enable some specific features
 #
@@ -217,6 +218,9 @@ STAGE3_OBJS_X86_64= $(STAGE3_DIR)/platform/acpi/acpitables.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/debugmadt.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/capabilities/cookies.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/vmm/vmmapper_init.o				\
+					$(STAGE3_ARCH_X86_64_DIR)/msi.o								\
+					$(STAGE3_ARCH_X86_64_DIR)/msi_handler_table.o				\
+					$(STAGE3_ARCH_X86_64_DIR)/msi_isr.o							\
 					$(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE)_linkable.o
 
 STAGE3_ARCH_RISCV64_DIR=$(STAGE3_DIR)/arch/riscv64

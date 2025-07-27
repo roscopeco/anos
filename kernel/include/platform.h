@@ -35,6 +35,8 @@ bool platform_await_init_complete(void);
 
 bool platform_task_init(void);
 
+void platform_cleanup_process(uint64_t pid);
+
 #ifdef ARCH_X86_64
 /*
  * Get the RSDP pointer that was saved during platform initialization.
