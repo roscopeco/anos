@@ -42,7 +42,7 @@ void pci_write_config16(const uint64_t pci_base, const uint16_t offset,
                         const uint16_t value) {
     uint32_t dword = pci_read_config32(pci_base, offset & ~3);
     const uint32_t shift = (offset & 3) * 8;
-    dword = (dword & ~(0xFFFF << shift)) | ((uint32_t)value << shift);
+    dword = (dword & ~(0xFFFFU << shift)) | ((uint32_t)value << shift);
     pci_write_config32(pci_base, offset & ~3, dword);
 }
 

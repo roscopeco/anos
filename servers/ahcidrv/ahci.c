@@ -5,6 +5,8 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
+// TODO there's a ridiculous amount of unit test mocking going on in here...
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -78,11 +80,51 @@ static AHCIRegs mock_ahci_registers;
 static uint8_t mock_dma_memory[0x100000]; // 1MB pool
 static size_t mock_dma_offset = 0;
 
+// Mock command completion state
+static void *mock_identify_buffer = NULL;
+
+// Mock IDENTIFY command data (ATA IDENTIFY response)
+static void setup_mock_identify_data(void *buffer) {
+    uint16_t *data = (uint16_t *)buffer;
+    memset(data, 0, 512);
+
+    // Sector count (48-bit LBA at words 100-103)
+    data[100] = 0x1000; // Low 16 bits
+    data[101] = 0x0000; //
+    data[102] = 0x0000; //
+    data[103] = 0x0000; // High 16 bits (1000 sectors = ~512KB test drive)
+
+    const char model[] = "TEST MOCK DEVICE v1.0                   ";
+    for (int i = 0; i < 20; i++) {
+        data[27 + i] = (model[i * 2] << 8) | model[i * 2 + 1];
+    }
+}
+
+// Mock command completion - called when CI register is written
+static void mock_command_completion(uint32_t port_num, uint32_t command_slot) {
+    if (port_num >= 32 || command_slot >= 32)
+        return;
+
+    // If there's a pending IDENTIFY command, simulate completion
+    if (mock_identify_buffer) {
+        setup_mock_identify_data(mock_identify_buffer);
+        mock_identify_buffer = NULL;
+    }
+
+    // Clear the command issue bit to indicate completion
+    mock_ahci_registers.ports[port_num].ci &= ~(1U << command_slot);
+
+    // Set interrupt status to indicate command completion
+    mock_ahci_registers.ports[port_num].is |=
+            (1U << 0); // Device to Host FIS interrupt
+}
+
 // Reset mock state for unit tests
 void ahci_reset_test_state(void) {
     memset(&mock_ahci_registers, 0, sizeof(mock_ahci_registers));
     memset(mock_dma_memory, 0, sizeof(mock_dma_memory));
     mock_dma_offset = 0;
+    mock_identify_buffer = NULL;
 
     // Set up mock AHCI controller with reasonable defaults
     // Capability register: support 4 ports (bits 0-4 = 3), 64-bit DMA
@@ -807,6 +849,12 @@ bool ahci_port_identify(AHCIPort *port) {
     vdebug_dump_pre_command_state(cmd_table, port_regs, identify_buffer_phys);
 
     port_regs->ci = 1;
+
+#ifdef UNIT_TESTS
+    // In unit tests, set up mock IDENTIFY completion
+    mock_identify_buffer = identify_buffer;
+    mock_command_completion(port->port_num, 0);
+#endif
 
     vdebugf("Port %u post-command issue:\n", port->port_num);
     vdebugf("  CI: 0x%08x\n", port_regs->ci);

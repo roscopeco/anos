@@ -41,7 +41,10 @@ servers/ahcidrv/tests/%.o: servers/ahcidrv/tests/%.c servers/ahcidrv/tests/munit
 servers/ahcidrv/tests/build/ahci_driver: servers/ahcidrv/tests/munit.o servers/ahcidrv/tests/mock_syscalls.o servers/ahcidrv/tests/ahci_driver.o servers/ahcidrv/tests/build/ahci.o
 	$(CC) $(AHCIDRV_TEST_CFLAGS) -o $@ $^
 
-ALL_TESTS=servers/ahcidrv/tests/build/ahci_driver
+servers/ahcidrv/tests/build/pci: servers/ahcidrv/tests/munit.o servers/ahcidrv/tests/pci.o servers/ahcidrv/tests/build/pci.o
+	$(CC) $(AHCIDRV_TEST_CFLAGS) -o $@ $^
+
+ALL_TESTS=servers/ahcidrv/tests/build/ahci_driver servers/ahcidrv/tests/build/pci
 
 .PHONY: test-ahcidrv
 test-ahcidrv: $(ALL_TESTS)

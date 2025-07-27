@@ -1,5 +1,5 @@
 /*
- * AHCI driver implementation tests - ACTUAL testing of real driver functions
+ * AHCI driver implementation tests - testing of real driver functions
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
@@ -34,7 +34,7 @@ static void *setup(const MunitParameter params[], void *user_data) {
 }
 
 // ============================================================================
-// ACTUAL AHCI CONTROLLER TESTS
+// AHCI CONTROLLER TESTS
 // ============================================================================
 
 static MunitResult
@@ -135,7 +135,7 @@ static MunitResult test_ahci_controller_cleanup(const MunitParameter params[],
 }
 
 // ============================================================================
-// ACTUAL AHCI PORT TESTS
+// AHCI PORT TESTS
 // ============================================================================
 
 static MunitResult
@@ -236,14 +236,13 @@ static MunitResult test_ahci_port_init_success(const MunitParameter params[],
     munit_assert_ptr_not_null(port.fis_base);
     munit_assert_ptr_not_null(port.cmd_tables);
 
-    // Clean up
     ahci_controller_cleanup(&ctrl);
 
     return MUNIT_OK;
 }
 
 // ============================================================================
-// ACTUAL AHCI DEVICE IDENTIFICATION TESTS
+// AHCI DEVICE IDENTIFICATION TESTS
 // ============================================================================
 
 static MunitResult
@@ -265,10 +264,9 @@ test_ahci_port_identify_uninitialized(const MunitParameter params[],
     (void)params;
     (void)data;
 
-    AHCIPort port;
-    memset(&port, 0, sizeof(port)); // Not initialized
+    AHCIPort port = {0};
 
-    bool result = ahci_port_identify(&port);
+    const bool result = ahci_port_identify(&port);
     munit_assert_false(result);
 
     return MUNIT_OK;
@@ -284,37 +282,32 @@ test_ahci_port_identify_success(const MunitParameter params[], void *data) {
 
     // Set up full controller and port
     memset(&ctrl, 0, sizeof(ctrl));
+    memset(&port, 0, sizeof(port));
     mock_map_physical_set_fail(false);
     mock_map_virtual_set_fail(false);
     mock_alloc_physical_set_fail(false);
 
-    // This test will segfault when trying to access 0xB000000000ULL because
-    // our mock syscalls can't actually map memory at arbitrary virtual addresses
-    // This is EXPECTED behavior - the test validates that:
-    // 1. The driver calls the syscalls with correct parameters
-    // 2. The driver handles the mapping correctly up to the point of hardware access
-    // 3. AddressSanitizer catches the invalid memory access
-
-    // We expect this to fail with a segfault, which demonstrates the test is working
+    // Initialize controller
     bool result = ahci_controller_init(&ctrl, 0xFEBF0000ULL, 0xC0000000ULL);
+    munit_assert_true(result);
 
-    // If we get here without crashing, the driver unexpectedly succeeded
-    // This could happen if the driver changes to not access hardware immediately
-    if (result) {
-        // Verify the controller was set up with correct parameters
-        munit_assert_uint64(0xC000000000ULL, ==, ctrl.pci_base);
-        munit_assert_ptr_not_null(ctrl.mapped_regs);
+    // Initialize port
+    result = ahci_port_init(&port, &ctrl, 0);
+    munit_assert_true(result);
 
-        // Clean up if we somehow got this far
-        ahci_controller_cleanup(&ctrl);
-    }
+    // Test the actual identify function
+    result = ahci_port_identify(&port);
 
-    // Either way (crash or success), we've tested the driver's initialization logic
+    munit_assert_true(result);
+
+    // Clean up
+    ahci_controller_cleanup(&ctrl);
+
     return MUNIT_OK;
 }
 
 // ============================================================================
-// ACTUAL AHCI I/O OPERATION TESTS
+// AHCI I/O OPERATION TESTS
 // ============================================================================
 
 static MunitResult

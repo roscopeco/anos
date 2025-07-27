@@ -8,6 +8,6 @@ BINARY_OBJS=main.o ahci.o pci.o
 #	VERY_NOISY_AHCI_INIT	Dump **lots** of extra debug info about AHCI init
 #	DEBUG_AHCI_PCI			Dump debug info from the driver's PCI interface
 #
-CDEFS=-DDEBUG_AHCI_PCI
+CDEFS=
 
 include ../server_common.mk
