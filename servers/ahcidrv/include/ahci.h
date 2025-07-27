@@ -19,6 +19,21 @@
 #define AHCI_SUBCLASS 0x06
 #define AHCI_PROG_IF 0x01
 
+// PCI Configuration Space offsets
+#define PCI_CAPABILITY_LIST 0x34
+#define PCI_CAP_ID_MSI 0x05
+
+// MSI Capability structure offsets (from capability base)
+#define MSI_CAP_CONTROL 0x02
+#define MSI_CAP_ADDRESS_LO 0x04
+#define MSI_CAP_ADDRESS_HI 0x08
+#define MSI_CAP_DATA_32 0x08 // For 32-bit addressing
+#define MSI_CAP_DATA_64 0x0C // For 64-bit addressing
+
+// MSI Control register bits
+#define MSI_CTRL_ENABLE (1 << 0)
+#define MSI_CTRL_64BIT_CAPABLE (1 << 7)
+
 typedef struct {
     uint32_t cap;
     uint32_t ghc;
@@ -152,6 +167,7 @@ typedef struct {
     uint32_t port_count;
     uint32_t active_ports;
     bool initialized;
+    uint8_t msi_cap_offset; // PCI MSI capability offset
 } AHCIController;
 
 typedef struct {
@@ -164,11 +180,15 @@ typedef struct {
     void *cmd_list;
     void *fis_base;
     void *cmd_tables;
+    uint8_t msi_vector;
+    bool msi_enabled;
 } AHCIPort;
 
-bool ahci_controller_init(AHCIController *ctrl, uint64_t pci_base);
+bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
+                          uint64_t pci_config_base);
 void ahci_controller_cleanup(AHCIController *ctrl);
 bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num);
+void ahci_port_cleanup(AHCIPort *port);
 bool ahci_port_identify(AHCIPort *port);
 bool ahci_port_read(AHCIPort *port, uint64_t lba, uint16_t count, void *buffer);
 bool ahci_port_write(AHCIPort *port, uint64_t lba, uint16_t count,

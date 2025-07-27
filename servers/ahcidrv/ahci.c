@@ -92,7 +92,108 @@ void ahci_reset_test_state(void) {
 #define vdebugf(...)
 #endif
 
+#define PCI_CONFIG_BASE_ADDRESS ((0xC000000000ULL))
+#define AHCI_CONFIG_BASE_ADDRESS ((0xB000000000ULL))
+
+// PCI configuration space access
+static uint32_t pci_read_config32(const uint64_t pci_base,
+                                  const uint16_t offset) {
+    volatile uint32_t *config_space = (volatile uint32_t *)pci_base;
+    return config_space[offset / 4];
+}
+
+static uint16_t pci_read_config16(const uint64_t pci_base,
+                                  const uint16_t offset) {
+    const uint32_t dword = pci_read_config32(pci_base, offset & ~3);
+    return (dword >> ((offset & 3) * 8)) & 0xFFFF;
+}
+
+static uint8_t pci_read_config8(const uint64_t pci_base,
+                                const uint16_t offset) {
+    const uint32_t dword = pci_read_config32(pci_base, offset & ~3);
+    return (dword >> ((offset & 3) * 8)) & 0xFF;
+}
+
+static void pci_write_config32(const uint64_t pci_base, const uint16_t offset,
+                               const uint32_t value) {
+    volatile uint32_t *config_space = (volatile uint32_t *)pci_base;
+    config_space[offset / 4] = value;
+}
+
+static void pci_write_config16(const uint64_t pci_base, const uint16_t offset,
+                               const uint16_t value) {
+    uint32_t dword = pci_read_config32(pci_base, offset & ~3);
+    const uint32_t shift = (offset & 3) * 8;
+    dword = (dword & ~(0xFFFF << shift)) | ((uint32_t)value << shift);
+    pci_write_config32(pci_base, offset & ~3, dword);
+}
+
 static uint64_t memory_offset = 0;
+
+// Find MSI capability in PCI configuration space
+static uint8_t pci_find_msi_capability(const uint64_t pci_base) {
+    // Check if capabilities are supported
+    const volatile uint16_t status = pci_read_config16(pci_base, 0x06);
+    if (!(status & (1 << 4))) {
+        debugf("PCI device does not support capabilities\n");
+        return 0;
+    }
+
+    uint8_t cap_ptr = pci_read_config8(pci_base, PCI_CAPABILITY_LIST) & 0xFC;
+
+    while (cap_ptr != 0) {
+        const uint8_t cap_id = pci_read_config8(pci_base, cap_ptr);
+        if (cap_id == PCI_CAP_ID_MSI) {
+            debugf("Found MSI capability at offset 0x%02x\n", cap_ptr);
+            return cap_ptr;
+        }
+        cap_ptr = pci_read_config8(pci_base, cap_ptr + 1) & 0xFC;
+    }
+
+    debugf("MSI capability not found\n");
+    return 0;
+}
+
+// Configure MSI capability with provided address and data
+static bool pci_configure_msi(uint64_t pci_base, uint8_t msi_offset,
+                              uint64_t msi_address, uint32_t msi_data) {
+    if (msi_offset == 0) {
+        return false;
+    }
+
+    debugf("Configuring MSI at offset 0x%02x: addr=0x%016lx, data=0x%08x\n",
+           msi_offset, msi_address, msi_data);
+
+    // Read MSI control register
+    uint16_t msi_control =
+            pci_read_config16(pci_base, msi_offset + MSI_CAP_CONTROL);
+    const bool is_64bit = (msi_control & MSI_CTRL_64BIT_CAPABLE) != 0;
+
+    debugf("MSI capability: %s addressing\n", is_64bit ? "64-bit" : "32-bit");
+
+    // Disable MSI first
+    msi_control &= ~MSI_CTRL_ENABLE;
+    pci_write_config16(pci_base, msi_offset + MSI_CAP_CONTROL, msi_control);
+
+    // Write MSI address
+    pci_write_config32(pci_base, msi_offset + MSI_CAP_ADDRESS_LO,
+                       (uint32_t)(msi_address & 0xFFFFFFFF));
+
+    if (is_64bit) {
+        pci_write_config32(pci_base, msi_offset + MSI_CAP_ADDRESS_HI,
+                           (uint32_t)(msi_address >> 32));
+        pci_write_config32(pci_base, msi_offset + MSI_CAP_DATA_64, msi_data);
+    } else {
+        pci_write_config32(pci_base, msi_offset + MSI_CAP_DATA_32, msi_data);
+    }
+
+    // Enable MSI
+    msi_control |= MSI_CTRL_ENABLE;
+    pci_write_config16(pci_base, msi_offset + MSI_CAP_CONTROL, msi_control);
+
+    debugf("MSI enabled successfully\n");
+    return true;
+}
 
 static void *allocate_aligned_memory(const size_t size, const size_t alignment,
                                      uint64_t *phys_addr_out) {
@@ -305,30 +406,48 @@ static void ahci_port_start(AHCIPortRegs *port) {
     port->cmd |= AHCI_PORT_CMD_START;
 }
 
-bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
+bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
+                          uint64_t pci_config_base) {
 
-    if (!ctrl || pci_base == 0) {
+    if (!ctrl || ahci_base == 0 || pci_config_base == 0) {
         return false;
     }
 
     memset(ctrl, 0, sizeof(AHCIController));
-    ctrl->pci_base = pci_base;
+    ctrl->pci_base = pci_config_base;
 
     ctrl->mapped_size = 0x1000;
 
+    // Map PCI configuration space
+    debugf("Mapping PCI config space: phys=0x%016lx -> virt=0x%016llx "
+           "(size=0x1000)\n",
+           pci_config_base, PCI_CONFIG_BASE_ADDRESS);
+
+    const SyscallResult pci_result = anos_map_physical(
+            pci_config_base, (void *)PCI_CONFIG_BASE_ADDRESS, 0x1000,
+            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+
+    if (pci_result != SYSCALL_OK) {
+        debugf("FAILED to map PCI config space! Error code: %d\n", pci_result);
+        return false;
+    }
+
+    // Update pci_base to point to mapped virtual address
+    ctrl->pci_base = PCI_CONFIG_BASE_ADDRESS;
+
     debugf("Mapping AHCI registers: phys=0x%016lx -> virt=0x%016llx "
            "(size=0x%lx)\n",
-           pci_base, 0xB000000000ULL, ctrl->mapped_size);
+           ahci_base, AHCI_CONFIG_BASE_ADDRESS, ctrl->mapped_size);
 
     const SyscallResult result = anos_map_physical(
-            pci_base, (void *)0xB000000000ULL, ctrl->mapped_size,
+            ahci_base, (void *)AHCI_CONFIG_BASE_ADDRESS, ctrl->mapped_size,
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
     if (result != SYSCALL_OK) {
         debugf("FAILED to map AHCI registers! Error code: %d\n", result);
         vdebugf("  Attempted mapping: phys=0x%016lx -> virt=0x%016llx "
                 "(size=0x%lx)\n",
-                pci_base, 0xB000000000ULL, ctrl->mapped_size);
+                ahci_base, AHCI_CONFIG_BASE_ADDRESS, ctrl->mapped_size);
 
         return false;
     }
@@ -338,7 +457,7 @@ bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
     ctrl->mapped_regs = &mock_ahci_registers;
     ctrl->regs = &mock_ahci_registers;
 #else
-    ctrl->mapped_regs = (void *)0xB000000000ULL;
+    ctrl->mapped_regs = (void *)AHCI_CONFIG_BASE_ADDRESS;
     ctrl->regs = (AHCIRegs *)ctrl->mapped_regs;
 #endif
 
@@ -385,10 +504,23 @@ bool ahci_controller_init(AHCIController *ctrl, const uint64_t pci_base) {
         ctrl->port_count = 32;
     }
 
+    // Find MSI capability for later use
+    ctrl->msi_cap_offset = pci_find_msi_capability(PCI_CONFIG_BASE_ADDRESS);
+
 #ifdef DEBUG_AHCI_INIT
     debugf("Controller supports %u ports, active mask: 0x%08x\n",
            ctrl->port_count, ctrl->active_ports);
+    if (ctrl->msi_cap_offset) {
+        debugf("MSI capability found at offset 0x%02x\n", ctrl->msi_cap_offset);
+    } else {
+        debugf("No MSI capability found - interrupts will not work\n");
+    }
 #endif
+
+    // Enable global AHCI interrupts
+    ctrl->regs->host.ghc |= (1U << 1); // Set IE (Interrupt Enable) bit
+    debugf("AHCI global interrupts enabled (GHC=0x%08x)\n",
+           ctrl->regs->host.ghc);
 
     ctrl->initialized = true;
     return true;
@@ -412,6 +544,25 @@ void ahci_controller_cleanup(AHCIController *ctrl) {
     ctrl->regs = NULL;
     ctrl->port_count = 0;
     ctrl->active_ports = 0;
+}
+
+void ahci_port_cleanup(AHCIPort *port) {
+    if (!port || !port->initialized) {
+        return;
+    }
+
+    // Deallocate MSI vector if we allocated one
+    if (port->msi_enabled && port->msi_vector != 0) {
+        // Note: MSI cleanup is automatic when the process exits,
+        // but we could explicitly deallocate here if needed
+        debugf("Port %u: MSI vector 0x%02x will be cleaned up automatically\n",
+               port->port_num, port->msi_vector);
+        port->msi_enabled = false;
+        port->msi_vector = 0;
+    }
+
+    port->initialized = false;
+    port->connected = false;
 }
 
 bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
@@ -506,10 +657,48 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
 
     ahci_port_start(port_regs);
 
+    // Initialize MSI interrupt for this port
+    port->msi_enabled = false;
+    port->msi_vector = 0;
+
+    // Try to allocate MSI vector for this port
+    // Use PCI bus/device/function from controller's base address
+    // For simplicity, we'll derive a mock bus/device/function from the port number
+    const uint32_t bus_device_func =
+            0x010000 | (port_num << 3); // Mock PCI address
+
+    uint64_t msi_address;
+    uint32_t msi_data;
+
+    const uint8_t vector = anos_allocate_interrupt_vector(
+            bus_device_func, &msi_address, &msi_data);
+
+    if (vector != 0 && ctrl->msi_cap_offset != 0) {
+        // Configure the PCI MSI capability registers
+        if (pci_configure_msi(ctrl->pci_base, ctrl->msi_cap_offset, msi_address,
+                              msi_data)) {
+            port->msi_vector = vector;
+            port->msi_enabled = true;
+            debugf("Port %u: MSI vector 0x%02x configured and enabled\n",
+                   port_num, vector);
+        } else {
+            debugf("Port %u: Failed to configure MSI hardware, using polling\n",
+                   port_num);
+        }
+    } else {
+        if (vector == 0) {
+            debugf("Port %u: Failed to allocate MSI vector, using polling\n",
+                   port_num);
+        } else {
+            debugf("Port %u: No MSI capability, using polling\n", port_num);
+        }
+    }
+
     port->connected = true;
     port->initialized = true;
 
-    debugf("Port %u initialized successfully\n", port_num);
+    debugf("Port %u initialized successfully%s\n", port_num,
+           port->msi_enabled ? " with MSI interrupts" : " with polling");
 
     return true;
 }
@@ -518,6 +707,36 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
     const AHCIPortRegs *port_regs =
             &port->controller->regs->ports[port->port_num];
 
+    if (port->msi_enabled) {
+        // Use MSI interrupt-driven completion
+        debugf("Port %u: Waiting for MSI interrupt on vector 0x%02x\n",
+               port->port_num, port->msi_vector);
+
+        uint32_t event_data;
+        const SyscallResult result =
+                anos_wait_interrupt(port->msi_vector, &event_data);
+
+        if (result == SYSCALL_OK) {
+            debugf("Port %u: Received MSI interrupt (data=0x%08x)\n",
+                   port->port_num, event_data);
+
+            // Check if command completed
+            if ((port_regs->ci & (1 << slot)) == 0) {
+                return true;
+            }
+
+            debugf("Port %u: Interrupt received but command still pending\n",
+                   port->port_num);
+        } else {
+            debugf("Port %u: MSI wait failed with result %d\n", port->port_num,
+                   result);
+        }
+
+        // Fall back to polling if MSI fails
+        debugf("Port %u: Falling back to polling\n", port->port_num);
+    }
+
+    // Original polling-based completion
     int timeout = AHCI_COMMAND_TIMEOUT_MS * 10; // Convert ms to 100μs units
     while (timeout > 0) {
         if ((port_regs->ci & (1 << slot)) == 0) {
@@ -526,7 +745,6 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
 
         if (port_regs->is & (1 << 30)) {
             debugf("Port %u: Task file error\n", port->port_num);
-
             return false;
         }
 
