@@ -13,33 +13,7 @@
 #include <anos/syscalls.h>
 
 #include "ahci.h"
-
-#ifdef UNIT_TESTS
-// Mock AHCI registers for unit testing
-static AHCIRegs mock_ahci_registers;
-// Mock DMA memory pool for unit testing
-static uint8_t mock_dma_memory[0x100000]; // 1MB pool
-static size_t mock_dma_offset = 0;
-
-// Reset mock state for unit tests
-void ahci_reset_test_state(void) {
-    memset(&mock_ahci_registers, 0, sizeof(mock_ahci_registers));
-    memset(mock_dma_memory, 0, sizeof(mock_dma_memory));
-    mock_dma_offset = 0;
-
-    // Set up mock AHCI controller with reasonable defaults
-    // Capability register: support 4 ports (bits 0-4 = 3), 64-bit DMA
-    mock_ahci_registers.host.cap =
-            0x3 | (1U << 31); // 4 ports + 64-bit addressing
-
-    // Port implemented register: port 0 is available
-    mock_ahci_registers.host.pi = 0x1;
-
-    // Set up port 0 with device present
-    mock_ahci_registers.ports[0].ssts = 0x3;       // AHCI_PORT_SSTS_DET_PRESENT
-    mock_ahci_registers.ports[0].sig = 0x00000101; // AHCI_SIG_ATA (SATA drive)
-}
-#endif
+#include "pci.h"
 
 #if (__STDC_VERSION__ < 202000)
 // TODO Apple clang doesn't support nullptr or constexpr yet - Jul 2025
@@ -95,105 +69,34 @@ void ahci_reset_test_state(void) {
 #define PCI_CONFIG_BASE_ADDRESS ((0xC000000000ULL))
 #define AHCI_CONFIG_BASE_ADDRESS ((0xB000000000ULL))
 
-// PCI configuration space access
-static uint32_t pci_read_config32(const uint64_t pci_base,
-                                  const uint16_t offset) {
-    volatile uint32_t *config_space = (volatile uint32_t *)pci_base;
-    return config_space[offset / 4];
-}
-
-static uint16_t pci_read_config16(const uint64_t pci_base,
-                                  const uint16_t offset) {
-    const uint32_t dword = pci_read_config32(pci_base, offset & ~3);
-    return (dword >> ((offset & 3) * 8)) & 0xFFFF;
-}
-
-static uint8_t pci_read_config8(const uint64_t pci_base,
-                                const uint16_t offset) {
-    const uint32_t dword = pci_read_config32(pci_base, offset & ~3);
-    return (dword >> ((offset & 3) * 8)) & 0xFF;
-}
-
-static void pci_write_config32(const uint64_t pci_base, const uint16_t offset,
-                               const uint32_t value) {
-    volatile uint32_t *config_space = (volatile uint32_t *)pci_base;
-    config_space[offset / 4] = value;
-}
-
-static void pci_write_config16(const uint64_t pci_base, const uint16_t offset,
-                               const uint16_t value) {
-    uint32_t dword = pci_read_config32(pci_base, offset & ~3);
-    const uint32_t shift = (offset & 3) * 8;
-    dword = (dword & ~(0xFFFF << shift)) | ((uint32_t)value << shift);
-    pci_write_config32(pci_base, offset & ~3, dword);
-}
-
 static uint64_t memory_offset = 0;
 
-// Find MSI capability in PCI configuration space
-static uint8_t pci_find_msi_capability(const uint64_t pci_base) {
-    // Check if capabilities are supported
-    const volatile uint16_t status = pci_read_config16(pci_base, 0x06);
-    if (!(status & (1 << 4))) {
-        debugf("PCI device does not support capabilities\n");
-        return 0;
-    }
+#ifdef UNIT_TESTS
+// Mock AHCI registers for unit testing
+static AHCIRegs mock_ahci_registers;
+// Mock DMA memory pool for unit testing
+static uint8_t mock_dma_memory[0x100000]; // 1MB pool
+static size_t mock_dma_offset = 0;
 
-    uint8_t cap_ptr = pci_read_config8(pci_base, PCI_CAPABILITY_LIST) & 0xFC;
+// Reset mock state for unit tests
+void ahci_reset_test_state(void) {
+    memset(&mock_ahci_registers, 0, sizeof(mock_ahci_registers));
+    memset(mock_dma_memory, 0, sizeof(mock_dma_memory));
+    mock_dma_offset = 0;
 
-    while (cap_ptr != 0) {
-        const uint8_t cap_id = pci_read_config8(pci_base, cap_ptr);
-        if (cap_id == PCI_CAP_ID_MSI) {
-            debugf("Found MSI capability at offset 0x%02x\n", cap_ptr);
-            return cap_ptr;
-        }
-        cap_ptr = pci_read_config8(pci_base, cap_ptr + 1) & 0xFC;
-    }
+    // Set up mock AHCI controller with reasonable defaults
+    // Capability register: support 4 ports (bits 0-4 = 3), 64-bit DMA
+    mock_ahci_registers.host.cap =
+            0x3 | (1U << 31); // 4 ports + 64-bit addressing
 
-    debugf("MSI capability not found\n");
-    return 0;
+    // Port implemented register: port 0 is available
+    mock_ahci_registers.host.pi = 0x1;
+
+    // Set up port 0 with device present
+    mock_ahci_registers.ports[0].ssts = 0x3;       // AHCI_PORT_SSTS_DET_PRESENT
+    mock_ahci_registers.ports[0].sig = 0x00000101; // AHCI_SIG_ATA (SATA drive)
 }
-
-// Configure MSI capability with provided address and data
-static bool pci_configure_msi(uint64_t pci_base, uint8_t msi_offset,
-                              uint64_t msi_address, uint32_t msi_data) {
-    if (msi_offset == 0) {
-        return false;
-    }
-
-    debugf("Configuring MSI at offset 0x%02x: addr=0x%016lx, data=0x%08x\n",
-           msi_offset, msi_address, msi_data);
-
-    // Read MSI control register
-    uint16_t msi_control =
-            pci_read_config16(pci_base, msi_offset + MSI_CAP_CONTROL);
-    const bool is_64bit = (msi_control & MSI_CTRL_64BIT_CAPABLE) != 0;
-
-    debugf("MSI capability: %s addressing\n", is_64bit ? "64-bit" : "32-bit");
-
-    // Disable MSI first
-    msi_control &= ~MSI_CTRL_ENABLE;
-    pci_write_config16(pci_base, msi_offset + MSI_CAP_CONTROL, msi_control);
-
-    // Write MSI address
-    pci_write_config32(pci_base, msi_offset + MSI_CAP_ADDRESS_LO,
-                       (uint32_t)(msi_address & 0xFFFFFFFF));
-
-    if (is_64bit) {
-        pci_write_config32(pci_base, msi_offset + MSI_CAP_ADDRESS_HI,
-                           (uint32_t)(msi_address >> 32));
-        pci_write_config32(pci_base, msi_offset + MSI_CAP_DATA_64, msi_data);
-    } else {
-        pci_write_config32(pci_base, msi_offset + MSI_CAP_DATA_32, msi_data);
-    }
-
-    // Enable MSI
-    msi_control |= MSI_CTRL_ENABLE;
-    pci_write_config16(pci_base, msi_offset + MSI_CAP_CONTROL, msi_control);
-
-    debugf("MSI enabled successfully\n");
-    return true;
-}
+#endif
 
 static void *allocate_aligned_memory(const size_t size, const size_t alignment,
                                      uint64_t *phys_addr_out) {

@@ -16,7 +16,6 @@
 
 #include <stdint.h>
 
-#include "arch/x86_64/include/x86_64/kdrivers/msi.h"
 #include "capabilities/cookies.h"
 #include "capabilities/map.h"
 #include "debugprint.h"
@@ -56,6 +55,7 @@
 
 #ifdef ARCH_X86_64
 #include "platform/acpi/acpitables.h"
+#include "x86_64/kdrivers/msi.h"
 
 // ACPI utility functions for firmware table handover
 static inline bool has_sig(const char *expect, ACPI_SDTHeader *sdt) {

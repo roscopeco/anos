@@ -13,40 +13,9 @@
 #include "munit.h"
 #include "process.h"
 #include "smp/state.h"
-#include "spinlock.h"
 #include "task.h"
 
 #include "x86_64/kdrivers/msi.h"
-
-// static PerCPUState __test_cpu_states[4];
-// static uint32_t __test_cpu_count = 4;
-//
-// uint8_t state_get_cpu_count(void) {
-//     printf("state_get_cpu_count called, returning %u\n", __test_cpu_count);
-//     return (uint8_t)__test_cpu_count;
-// }
-//
-// PerCPUState *state_get_for_any_cpu(const uint8_t cpu_id) {
-//     printf("state_get_for_any_cpu called with cpu_id=%u, __test_cpu_count=%u\n", cpu_id, __test_cpu_count);
-//     if (cpu_id < __test_cpu_count) {
-//         // Ensure CPU state is properly initialized each time
-//         __test_cpu_states[cpu_id].cpu_id = cpu_id;
-//         __test_cpu_states[cpu_id].lapic_id = cpu_id + 1;
-//         printf("Returning CPU state for CPU %u with LAPIC ID %llu\n", cpu_id, __test_cpu_states[cpu_id].lapic_id);
-//         return &__test_cpu_states[cpu_id];
-//     }
-//     printf("Returning NULL for CPU %u\n", cpu_id);
-//     return NULL;
-// }
-//
-// PerCPUState *state_get_for_this_cpu(void) {
-//     printf("state_get_for_this_cpu called\n");
-//     // Return CPU 0 with proper LAPIC ID
-//     __test_cpu_states[0].cpu_id = 0;
-//     __test_cpu_states[0].lapic_id = 1; // LAPIC ID 1 for CPU 0
-//     printf("Returning this CPU with LAPIC ID %llu\n", __test_cpu_states[0].lapic_id);
-//     return &__test_cpu_states[0];
-// }
 
 static int eoe_call_count = 0;
 

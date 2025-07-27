@@ -220,10 +220,9 @@ bool platform_init(const uintptr_t platform_data) {
     debug_madt(acpi_root_table);
     kernel_drivers_init(acpi_root_table);
 
-    // Initialize MSI interrupt management after ACPI and kernel drivers are ready
-    msi_init();
-
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table, 0);
+
+    msi_init();
 
 #if MAX_CPU_COUNT > 1
     ap_startup_wait = true;
