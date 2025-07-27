@@ -70,9 +70,10 @@ jobs:
           sed -i.tmp "s;$PWD/;;g" gcov/system/coverage*.info
         shell: bash
 
-      - name: Make merged coverage file
+      - name: Make merged coverage files
         run: |
           lcov --add-tracefile gcov/kernel/coverage.info --add-tracefile gcov/system/coverage.info --add-tracefile gcov/pcidrv/coverage.info --add-tracefile gcov/ahcidrv/coverage.info -o gcov/all.info
+          lcov --add-tracefile gcov/system/coverage.info --add-tracefile gcov/pcidrv/coverage.info --add-tracefile gcov/ahcidrv/coverage.info -o gcov/userspace.info
 
       - name: Kernel Coverage Badge
         uses: ImBIOS/lcov-coverage-badge@v1
@@ -80,6 +81,14 @@ jobs:
           label: "Overall Coverage"
           file: ./gcov/all.info
           access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report overall code coverage
+        uses: zgosalvez/github-actions-report-lcov@v4
+        with:
+          title-prefix: "Overall"
+          coverage-files: ./gcov/all.info
+          artifact-name: overall-code-coverage-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Report kernel code coverage
         uses: zgosalvez/github-actions-report-lcov@v4
@@ -92,8 +101,8 @@ jobs:
       - name: Report system code coverage
         uses: zgosalvez/github-actions-report-lcov@v4
         with:
-          title-prefix: "System"
-          coverage-files: ./gcov/system/coverage.info
-          artifact-name: system-code-coverage-report
+          title-prefix: "Userspace"
+          coverage-files: ./gcov/userspace.info
+          artifact-name: userspace-code-coverage-report
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
