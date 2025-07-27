@@ -39,6 +39,10 @@ noreturn void task_current_exitpoint(void) {
         ;
 }
 
+void msi_cleanup_process(uint64_t pid) {
+    // nothing
+}
+
 static char *mock_tss[256];
 
 void panic_sloc(char *msg) { /* nothing */ }

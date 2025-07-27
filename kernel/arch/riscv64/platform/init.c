@@ -68,3 +68,7 @@ bool platform_init(const uintptr_t platform_data) {
     ap_startup_wait = true;
     return init_this_cpu(0);
 }
+
+void platform_cleanup_process(const uint64_t pid) {
+    // nothing yet
+}

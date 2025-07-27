@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 
+#include "arch/x86_64/include/x86_64/kdrivers/msi.h"
 #include "capabilities/cookies.h"
 #include "capabilities/map.h"
 #include "debugprint.h"
@@ -857,6 +858,72 @@ SYSCALL_HANDLER(alloc_physical_pages) {
     return (SyscallResult)phys_addr;
 }
 
+SYSCALL_HANDLER(allocate_interrupt_vector) {
+#ifdef ARCH_X86_64
+    const uint32_t bus_device_func = (uint32_t)arg0;
+    uint64_t *msi_address_ptr = (uint64_t *)arg1;
+    uint32_t *msi_data_ptr = (uint32_t *)arg2;
+
+    Task *current_task = task_current();
+    const Process *proc = current_task->owner;
+
+    // Validate userspace pointers
+    if (!IS_USER_ADDRESS(msi_address_ptr) || !IS_USER_ADDRESS(msi_data_ptr)) {
+        return SYSCALL_BADARGS;
+    }
+
+    uint64_t msi_address;
+    uint32_t msi_data;
+    const uint8_t allocated_vector = msi_allocate_vector(
+            bus_device_func, proc->pid, &msi_address, &msi_data);
+    if (allocated_vector == 0) {
+        return SYSCALL_FAILURE;
+    }
+
+    if (!msi_register_handler(allocated_vector, current_task)) {
+        msi_deallocate_vector(allocated_vector, proc->pid);
+        return SYSCALL_FAILURE;
+    }
+
+    // Return MSI parameters to userspace
+    *msi_address_ptr = msi_address;
+    *msi_data_ptr = msi_data;
+
+    return (SyscallResult)allocated_vector;
+#else
+    // On non-x86_64 architectures, vector allocation is not yet supported
+    return SYSCALL_NOT_IMPL;
+#endif
+}
+
+SYSCALL_HANDLER(wait_interrupt) {
+#ifdef ARCH_X86_64
+    const uint8_t vector = (uint8_t)arg0;
+    uint32_t *event_data_ptr = (uint32_t *)arg1;
+
+    Task *current_task = task_current();
+    uint32_t event_data = 0;
+
+    if (!IS_USER_ADDRESS(event_data_ptr)) {
+        return SYSCALL_BADARGS;
+    }
+
+    if (msi_is_slow_consumer(vector)) {
+        return SYSCALL_FAILURE;
+    }
+
+    if (!msi_wait_interrupt(vector, current_task, &event_data)) {
+        return SYSCALL_FAILURE;
+    }
+
+    *event_data_ptr = event_data;
+    return SYSCALL_OK;
+#else
+    // On non-x86_64 architectures, wait for interrupt is not yet supported
+    return SYSCALL_NOT_IMPL;
+#endif
+}
+
 static uint64_t init_syscall_capability(CapabilityMap *map,
                                         const SyscallId syscall_id,
                                         const SyscallHandler handler) {
@@ -958,6 +1025,10 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
                                     SYSCALL_NAME(map_physical));
     stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
                                     SYSCALL_NAME(alloc_physical_pages));
+    stack_syscall_capability_cookie(SYSCALL_ID_ALLOCATE_INTERRUPT_VECTOR,
+                                    SYSCALL_NAME(allocate_interrupt_vector));
+    stack_syscall_capability_cookie(SYSCALL_ID_WAIT_INTERRUPT,
+                                    SYSCALL_NAME(wait_interrupt));
 
     // Stack dummy argc/argv for now
     // TODO this needs refactoring, syscall init shouldn't be responsible

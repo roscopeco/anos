@@ -344,6 +344,9 @@ kernel/tests/build/arch/x86_64/std_routines: kernel/tests/munit.o kernel/tests/a
 kernel/tests/build/arch/x86_64/kdrivers/cpu: kernel/tests/munit.o kernel/tests/arch/x86_64/kdrivers/cpu.o kernel/tests/build/arch/x86_64/kdrivers/cpu.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
+kernel/tests/build/arch/x86_64/kdrivers/msi: kernel/tests/munit.o kernel/tests/arch/x86_64/msi.o kernel/tests/build/arch/x86_64/msi.o kernel/tests/mock_spinlock.o kernel/tests/mock_fba_malloc.o
+	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
+
 kernel/tests/build/arch/riscv64/spinlock: kernel/tests/munit.o kernel/tests/arch/riscv64/spinlock.o kernel/tests/build/arch/riscv64/spinlock.o
 	$(CC) $(KERNEL_TEST_CFLAGS) -o $@ $^
 
@@ -397,6 +400,7 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines							\
 			kernel/tests/build/arch/x86_64/kdrivers/cpu							\
+			kernel/tests/build/arch/x86_64/kdrivers/msi							\
 			kernel/tests/build/capabilities/cookies
 else
 ifeq ($(HOST_ARCH),x86_64)	# Linux
@@ -408,6 +412,7 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines							\
 			kernel/tests/build/arch/x86_64/kdrivers/cpu							\
+			kernel/tests/build/arch/x86_64/kdrivers/msi							\
 			kernel/tests/build/capabilities/cookies
 else
 ifeq ($(HOST_ARCH),arm64)
@@ -418,7 +423,8 @@ ALL_TESTS+=	kernel/tests/build/arch/x86_64/spinlock								\
 			kernel/tests/build/process/address_space_init			\
 			kernel/tests/build/process/address_space_create			\
 			kernel/tests/build/arch/x86_64/std_routines							\
-			kernel/tests/build/arch/x86_64/kdrivers/cpu
+			kernel/tests/build/arch/x86_64/kdrivers/cpu							\
+			kernel/tests/build/arch/x86_64/kdrivers/msi
 # capabilities test can't run here, rosetta apparently doesn't support RDSEED etc...
 else
 ifeq ($(HOST_ARCH),riscv64)

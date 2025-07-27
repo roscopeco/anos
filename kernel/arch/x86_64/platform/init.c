@@ -27,6 +27,7 @@
 #include "x86_64/kdrivers/cpu.h"
 #include "x86_64/kdrivers/hpet.h"
 #include "x86_64/kdrivers/local_apic.h"
+#include "x86_64/kdrivers/msi.h"
 
 #ifdef DEBUG_ACPI
 #include "debugprint.h"
@@ -219,6 +220,9 @@ bool platform_init(const uintptr_t platform_data) {
     debug_madt(acpi_root_table);
     kernel_drivers_init(acpi_root_table);
 
+    // Initialize MSI interrupt management after ACPI and kernel drivers are ready
+    msi_init();
+
     uint32_t volatile *lapic = init_this_cpu(acpi_root_table, 0);
 
 #if MAX_CPU_COUNT > 1
@@ -234,3 +238,5 @@ bool platform_init(const uintptr_t platform_data) {
 ACPI_RSDP *platform_get_root_firmware_table(void) { return acpi_rsdp_pointer; }
 
 ACPI_RSDT *platform_get_acpi_root_table(void) { return acpi_root_table; }
+
+void platform_cleanup_process(const uint64_t pid) { msi_cleanup_process(pid); }
