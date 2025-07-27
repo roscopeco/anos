@@ -1025,7 +1025,7 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
                                     SYSCALL_NAME(map_physical));
     stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
                                     SYSCALL_NAME(alloc_physical_pages));
-    stack_syscall_capability_cookie(SYSCALL_ID_ALLOCATE_INTERRUPT_VECTOR,
+    stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
                                     SYSCALL_NAME(allocate_interrupt_vector));
     stack_syscall_capability_cookie(SYSCALL_ID_WAIT_INTERRUPT,
                                     SYSCALL_NAME(wait_interrupt));
