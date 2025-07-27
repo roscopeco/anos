@@ -68,6 +68,8 @@ jobs:
         run: |
           sed -i.tmp "s;$PWD/;;g" gcov/kernel/coverage*.info
           sed -i.tmp "s;$PWD/;;g" gcov/system/coverage*.info
+          sed -i.tmp "s;$PWD/;;g" gcov/pcidrv/coverage*.info
+          sed -i.tmp "s;$PWD/;;g" gcov/ahcidrv/coverage*.info
         shell: bash
 
       - name: Make merged coverage files
