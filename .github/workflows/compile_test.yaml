@@ -72,7 +72,7 @@ jobs:
 
       - name: Make merged coverage file
         run: |
-          lcov --add-tracefile gcov/kernel/coverage.info --add-tracefile gcov/system/coverage.info -o gcov/all.info
+          lcov --add-tracefile gcov/kernel/coverage.info --add-tracefile gcov/system/coverage.info --add-tracefile gcov/pcidrv/coverage.info --add-tracefile gcov/ahcidrv/coverage.info -o gcov/all.info
 
       - name: Kernel Coverage Badge
         uses: ImBIOS/lcov-coverage-badge@v1

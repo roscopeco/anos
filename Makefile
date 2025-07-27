@@ -410,7 +410,7 @@ include servers/pcidrv/tests/include.mk
 include servers/ahcidrv/tests/include.mk
 
 test: test-kernel test-system test-pcidrv test-ahcidrv
-coverage: coverage-kernel coverage-system coverage-ahcidrv
+coverage: coverage-kernel coverage-system coverage-pcidrv coverage-ahcidrv
 
 ifeq ($(ARCH),x86_64)
 %.o: %.asm
