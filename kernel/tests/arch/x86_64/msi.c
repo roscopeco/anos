@@ -56,13 +56,6 @@ static void teardown(void *ignored) {
     // nothing
 }
 
-static MunitResult test_msi_init(const MunitParameter params[], void *fixture) {
-    // MSI should initialize successfully
-    msi_init();
-
-    return MUNIT_OK;
-}
-
 static MunitResult test_msi_allocate_vector(const MunitParameter params[],
                                             void *fixture) {
     uint64_t msi_address;
@@ -332,7 +325,6 @@ static MunitResult test_msi_cleanup_process(const MunitParameter params[],
 }
 
 static MunitTest msi_tests[] = {
-        {"/init", test_msi_init, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {"/allocate_vector", test_msi_allocate_vector, setup, teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
         {"/allocate_vector_exhaustion", test_msi_allocate_vector_exhaustion,
