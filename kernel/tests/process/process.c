@@ -38,7 +38,7 @@ void managed_resources_free_all(ManagedResource *head) {
     freed_resources_head = head;
 }
 
-void msi_cleanup_process(uint64_t pid) {
+void platform_cleanup_process(uint64_t pid) {
     // nothing
 }
 

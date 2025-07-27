@@ -50,4 +50,10 @@ SyscallResult anos_task_sleep_current(uint32_t ms);
 SyscallResult anos_kprint(const char *message);
 SyscallResult anos_kputchar(char c);
 
+// MSI interrupt syscalls
+uint8_t anos_allocate_interrupt_vector(uint32_t bus_device_func,
+                                       uint64_t *msi_address,
+                                       uint32_t *msi_data);
+SyscallResult anos_wait_interrupt(uint8_t vector, uint32_t *event_data);
+
 #endif /* __ANOS_SYSCALLS_H */

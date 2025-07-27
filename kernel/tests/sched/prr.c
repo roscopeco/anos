@@ -39,7 +39,7 @@ noreturn void task_current_exitpoint(void) {
         ;
 }
 
-void msi_cleanup_process(uint64_t pid) {
+void platform_cleanup_process(uint64_t pid) {
     // nothing
 }
 
