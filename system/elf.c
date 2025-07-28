@@ -33,10 +33,12 @@ ssize_t load_page(ElfPagedReader *r, const off_t offset) {
 
         strcpy(r->page + sizeof(uint64_t), r->filename);
 
-        const int loaded_bytes = anos_send_message(
+        const SyscallResult result = anos_send_message(
                 r->fs_cookie, SYS_VFS_TAG_LOAD_PAGE, 26, r->page);
 
-        if (!loaded_bytes) {
+        const uint64_t loaded_bytes = result.value;
+
+        if (result.result != SYSCALL_OK || !loaded_bytes) {
             anos_kprint("FAILED TO LOAD: 0 bytes\n");
             return 0;
         }

@@ -12,9 +12,13 @@
 #include <string.h>
 
 // Define syscall results and types directly to avoid header conflicts
-typedef int64_t SyscallResult;
-#define SYSCALL_RESULT_OK 0
-#define SYSCALL_RESULT_ERROR -1
+typedef struct {
+    uint64_t result;
+    uint64_t value;
+} SyscallResult;
+
+#define SYSCALL_RESULT_OK ((0))
+#define SYSCALL_RESULT_ERROR ((-1))
 
 // Mock memory for hardware registers
 static uint8_t mock_ahci_registers[0x8000]; // 32KB AHCI register space
@@ -82,87 +86,96 @@ bool mock_should_alloc_fail(void) {
            mock_state.alloc_physical_should_fail;
 }
 
+static inline SyscallResult RESULT(uint64_t type, uint64_t val) {
+    const SyscallResult result = {.result = type, .value = val};
+    return result;
+}
+
 // Mock syscall implementations
-SyscallResult anos_map_physical(uint64_t physical_addr, void *virtual_addr,
-                                size_t size, uint32_t flags) {
+SyscallResult anos_map_physical(const uint64_t physical_addr,
+                                void *virtual_addr, const size_t size,
+                                const uint32_t flags) {
     mock_state.last_physical_addr = physical_addr;
     mock_state.last_virtual_addr = (uint64_t)virtual_addr;
     mock_state.last_size = size;
     mock_state.last_flags = flags;
 
     if (mock_state.map_physical_should_fail) {
-        return SYSCALL_RESULT_ERROR;
+        return RESULT(SYSCALL_RESULT_ERROR, 0);
     }
 
     // In a real OS, this would set up page tables to map physical_addr to virtual_addr
     // For testing, we just track the request - the actual memory access will fail
     // but that's expected behavior for this mock environment
 
-    return SYSCALL_RESULT_OK;
+    return RESULT(SYSCALL_RESULT_OK, 0);
 }
 
-SyscallResult anos_map_virtual(void *virtual_addr, size_t size,
-                               uint32_t flags) {
+SyscallResult anos_map_virtual(void *virtual_addr, const size_t size,
+                               const uint32_t flags) {
     mock_state.last_virtual_addr = (uint64_t)virtual_addr;
     mock_state.last_size = size;
     mock_state.last_flags = flags;
 
     if (mock_state.map_virtual_should_fail) {
-        return SYSCALL_RESULT_ERROR;
+        return RESULT(SYSCALL_RESULT_ERROR, 0);
     }
 
     // Return the next available virtual address
-    uint64_t allocated_addr = mock_state.next_virtual_addr;
+    const uint64_t allocated_addr = mock_state.next_virtual_addr;
     mock_state.next_virtual_addr += size;
-    return allocated_addr;
+
+    return RESULT(SYSCALL_RESULT_OK, allocated_addr);
 }
 
-SyscallResult anos_alloc_physical_pages(size_t size) {
+SyscallResult anos_alloc_physical_pages(const size_t size) {
     mock_state.last_size = size;
 
     if (mock_state.alloc_physical_should_fail) {
-        return 0; // Return 0 for failure to match AHCI driver expectations
+        return RESULT(SYSCALL_RESULT_ERROR, 0);
     }
 
     // Return the next available physical page
     uint64_t allocated_addr = mock_state.next_physical_page;
     mock_state.next_physical_page += size;
-    return allocated_addr;
+    return RESULT(SYSCALL_RESULT_OK, allocated_addr);
 }
 
 SyscallResult anos_unmap_virtual(uint64_t virtual_addr, size_t size) {
     mock_state.last_virtual_addr = virtual_addr;
     mock_state.last_size = size;
-    return SYSCALL_RESULT_OK;
+    return RESULT(SYSCALL_RESULT_OK, 0);
 }
 
 // Basic channel syscalls for completeness
 SyscallResult anos_send_message(uint64_t channel_id, const void *message,
                                 size_t size) {
-    return SYSCALL_RESULT_OK;
+    return RESULT(SYSCALL_RESULT_OK, 0);
 }
 
 SyscallResult anos_recv_message(uint64_t channel_id, void *buffer,
                                 size_t buffer_size, size_t *actual_size) {
     if (actual_size)
         *actual_size = 0;
-    return SYSCALL_RESULT_OK;
+    return RESULT(SYSCALL_RESULT_OK, 0);
 }
 
 SyscallResult anos_create_channel(void) {
-    return 123; // Mock channel ID
+    return RESULT(SYSCALL_RESULT_OK, 123);
 }
 
-SyscallResult anos_task_sleep_current(uint32_t ms) { return SYSCALL_RESULT_OK; }
+SyscallResult anos_task_sleep_current(uint32_t ms) {
+    return RESULT(SYSCALL_RESULT_OK, 0);
+}
 
 SyscallResult anos_kprint(const char *message) {
     printf("[MOCK KPRINT] %s", message);
-    return SYSCALL_RESULT_OK;
+    return RESULT(SYSCALL_RESULT_OK, 0);
 }
 
 SyscallResult anos_kputchar(char c) {
     printf("%c", c);
-    return SYSCALL_RESULT_OK;
+    return RESULT(SYSCALL_RESULT_OK, 0);
 }
 
 // Mock MSI interrupt syscalls
@@ -181,5 +194,5 @@ SyscallResult anos_wait_interrupt(uint8_t vector, uint32_t *event_data) {
     // Mock interrupt wait - always succeeds immediately for tests
     if (event_data)
         *event_data = 0x12345678; // Mock event data
-    return SYSCALL_RESULT_OK;
+    return RESULT(SYSCALL_RESULT_OK, 0);
 }

@@ -38,6 +38,8 @@ typedef struct {
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
+#define ECAM_BASE_ADDRESS ((0x9000000000))
+
 static PCIBusDriver bus_driver = {0};
 
 extern uint64_t __syscall_capabilities[];
@@ -47,9 +49,12 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
                                         const InitCapability *capabilities,
                                         const uint16_t argc,
                                         const char *argv[]) {
-    uint64_t system_process_channel =
+    const SyscallResult find_channel_result =
             anos_find_named_channel("SYSTEM::PROCESS");
-    if (!system_process_channel) {
+
+    const uint64_t system_process_channel = find_channel_result.value;
+
+    if (find_channel_result.result != SYSCALL_OK || !system_process_channel) {
         printf("ERROR: Could not find SYSTEM::PROCESS channel\n");
         return -1;
     }
@@ -102,10 +107,14 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
     printf("Sending process spawn request (total_size=%ld)\n", total_size);
 #endif
 
-    const uint64_t response = anos_send_message(
+    const SyscallResult spawn_result = anos_send_message(
             system_process_channel, PROCESS_SPAWN, total_size, buffer);
 
-    return (int64_t)response;
+    if (spawn_result.result != SYSCALL_OK) {
+        return spawn_result.result;
+    }
+
+    return (int64_t)spawn_result.value;
 }
 
 void spawn_ahci_driver(const uint64_t ahci_base,
@@ -193,14 +202,15 @@ static int pci_initialize_driver(const uint64_t ecam_base,
 
     // Map the ECAM space
     const SyscallResult result = anos_map_physical(
-            ecam_base, (void *)0x9000000000, bus_driver.mapped_size,
+            ecam_base, (void *)ECAM_BASE_ADDRESS, bus_driver.mapped_size,
             ANOS_MAP_VIRTUAL_FLAG_READ);
-    if (result != SYSCALL_OK) {
-        printf("Failed to map ECAM space! Error: %d\n", result);
+
+    if (result.result != SYSCALL_OK) {
+        printf("Failed to map ECAM space! Error: %ld\n", result.result);
         return -1;
     }
 
-    bus_driver.mapped_ecam = (void *)0x9000000000;
+    bus_driver.mapped_ecam = (void *)ECAM_BASE_ADDRESS;
 
 #ifdef DEBUG_BUS_DRIVER_INIT
     printf("ECAM mapping successful at virtual address 0x%lx\n",

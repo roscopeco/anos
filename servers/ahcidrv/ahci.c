@@ -148,8 +148,11 @@ static void *allocate_aligned_memory(const size_t size, const size_t alignment,
     const size_t page_aligned_size = (aligned_size + 0xFFF) & ~0xFFF;
 
     // Allocate physical pages
-    const uint64_t phys_addr = anos_alloc_physical_pages(page_aligned_size);
-    if (phys_addr == 0) {
+    const SyscallResultA alloc_result =
+            anos_alloc_physical_pages(page_aligned_size);
+    const uint64_t phys_addr = alloc_result.value;
+
+    if (alloc_result.result != SYSCALL_OK || phys_addr == 0) {
         return nullptr;
     }
 
@@ -181,7 +184,7 @@ static void *allocate_aligned_memory(const size_t size, const size_t alignment,
             phys_addr, virt_addr, page_aligned_size,
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
-    if (result != SYSCALL_OK) {
+    if (result.result != SYSCALL_OK) {
         // TODO: Free the physical pages on error
         return nullptr;
     }
@@ -231,10 +234,10 @@ static bool try_map_firmware_dma(AHCIPort *port, const uint8_t port_num,
             cmd_list_phys, cmd_list_virt, cmd_list_map_size,
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
-    if (result != SYSCALL_OK) {
-        debugf("  -> Failed to map firmware command list (syscall error %d), "
+    if (result.result != SYSCALL_OK) {
+        debugf("  -> Failed to map firmware command list (syscall error %ld), "
                "falling back to our allocation\n",
-               result);
+               result.result);
         memory_offset -= cmd_list_map_size;
         return false;
     }
@@ -250,7 +253,7 @@ static bool try_map_firmware_dma(AHCIPort *port, const uint8_t port_num,
                                ANOS_MAP_VIRTUAL_FLAG_READ |
                                        ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
-    if (result != SYSCALL_OK) {
+    if (result.result != SYSCALL_OK) {
         debugf("Failed to map firmware FIS base for port %u\n", port_num);
         return false;
     }
@@ -372,8 +375,9 @@ bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
             pci_config_base, (void *)PCI_CONFIG_BASE_ADDRESS, 0x1000,
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
-    if (pci_result != SYSCALL_OK) {
-        debugf("FAILED to map PCI config space! Error code: %d\n", pci_result);
+    if (pci_result.result != SYSCALL_OK) {
+        debugf("FAILED to map PCI config space! Error code: %ld\n",
+               pci_result.result);
         return false;
     }
 
@@ -388,8 +392,9 @@ bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
             ahci_base, (void *)AHCI_CONFIG_BASE_ADDRESS, ctrl->mapped_size,
             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
-    if (result != SYSCALL_OK) {
-        debugf("FAILED to map AHCI registers! Error code: %d\n", result);
+    if (result.result != SYSCALL_OK) {
+        debugf("FAILED to map AHCI registers! Error code: %ld\n",
+               result.result);
         vdebugf("  Attempted mapping: phys=0x%016lx -> virt=0x%016llx "
                 "(size=0x%lx)\n",
                 ahci_base, AHCI_CONFIG_BASE_ADDRESS, ctrl->mapped_size);
@@ -620,10 +625,13 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
     uint64_t msi_address;
     uint32_t msi_data;
 
-    const uint8_t vector = anos_allocate_interrupt_vector(
+    const SyscallResultU8 alloc_result = anos_allocate_interrupt_vector(
             bus_device_func, &msi_address, &msi_data);
 
-    if (vector != 0 && ctrl->msi_cap_offset != 0) {
+    const uint8_t vector = alloc_result.value;
+
+    if (alloc_result.result == SYSCALL_OK && vector != 0 &&
+        ctrl->msi_cap_offset != 0) {
         // Configure the PCI MSI capability registers
 #ifdef UNIT_TESTS
         // In unit tests, mock successful MSI configuration
@@ -674,7 +682,7 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
         const SyscallResult result =
                 anos_wait_interrupt(port->msi_vector, &event_data);
 
-        if (result == SYSCALL_OK) {
+        if (result.result == SYSCALL_OK) {
             debugf("Port %u: Received MSI interrupt (data=0x%08x)\n",
                    port->port_num, event_data);
 
@@ -686,8 +694,8 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
             debugf("Port %u: Interrupt received but command still pending\n",
                    port->port_num);
         } else {
-            debugf("Port %u: MSI wait failed with result %d\n", port->port_num,
-                   result);
+            debugf("Port %u: MSI wait failed with result %ld\n", port->port_num,
+                   result.result);
         }
 
         // Fall back to polling if MSI fails
@@ -732,47 +740,13 @@ static void vdebug_dump_h2d_fis(const uint8_t *fis_bytes) {
             fis_bytes[0], fis_bytes[1], fis_bytes[2], fis_bytes[3],
             fis_bytes[4], fis_bytes[5], fis_bytes[6], fis_bytes[7]);
 }
-
-static void vdebug_dump_pre_command_state(AHCICommandTable *cmd_table,
-                                          AHCIPortRegs *port_regs,
-                                          uint64_t identify_buffer_phys) {
-    vdebugf("PRDT[0]: DBA=0x%08x DBAU=0x%08x DBC=%u (phys=0x%016lx)\n",
-            cmd_table->prdt[0].dba, cmd_table->prdt[0].dbau,
-            cmd_table->prdt[0].dbc, identify_buffer_phys);
-
-    vdebugf("Port %u pre-command status:\n", port->port_num);
-    vdebugf("  TFD: 0x%08x\n", port_regs->tfd);
-    vdebugf("  SSTS: 0x%08x\n", port_regs->ssts);
-    vdebugf("  SERR: 0x%08x\n", port_regs->serr);
-    vdebugf("  IS: 0x%08x\n", port_regs->is);
-    vdebugf("  CI: 0x%08x\n", port_regs->ci);
-    vdebugf("  CMD: 0x%08x\n", port_regs->cmd);
-
-    vdebugf("  Command header slot 0: CTBA=0x%08x CTBAU=0x%08x CFL=%u "
-            "PRDTL=%u\n",
-            cmd_header->ctba, cmd_header->ctbau, cmd_header->cfl,
-            cmd_header->prdtl);
-
-    const uint64_t cmd_table_phys =
-            ((uint64_t)cmd_header->ctbau << 32) | cmd_header->ctba;
-    vdebugf("  Command table should be at phys=0x%016lx, our virtual=%p\n",
-            cmd_table_phys, (void *)cmd_table);
-
-    // Verify FIS content in the command table
-    vdebugf("  FIS in command table: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-            cmd_table->cfis[0], cmd_table->cfis[1], cmd_table->cfis[2],
-            cmd_table->cfis[3], cmd_table->cfis[4], cmd_table->cfis[5],
-            cmd_table->cfis[6], cmd_table->cfis[7]);
-}
 #else
 #define vdebug_dump_d2h_fis(...)
 #define vdebug_dump_h2d_fis(...)
-#define vdebug_dump_pre_command_state(...)
 #endif
 #else
 #define vdebug_dump_d2h_fis(...)
 #define vdebug_dump_h2d_fis(...)
-#define vdebug_dump_pre_command_state(...)
 #endif
 
 bool ahci_port_identify(AHCIPort *port) {
@@ -838,15 +812,12 @@ bool ahci_port_identify(AHCIPort *port) {
     vdebugf("H2D FIS setup: type=0x%02x flags=0x%02x cmd=0x%02x dev=0x%02x\n",
             fis->fis_type, fis->flags, fis->command, fis->device);
 
-    vdebug_dump_h2d_fis((uint8_t *)fis)
+    vdebug_dump_h2d_fis((uint8_t *)fis);
 
-            cmd_table->prdt[0]
-                    .dba = (uint32_t)(identify_buffer_phys & 0xFFFFFFFF);
+    cmd_table->prdt[0].dba = (uint32_t)(identify_buffer_phys & 0xFFFFFFFF);
     cmd_table->prdt[0].dbau = (uint32_t)(identify_buffer_phys >> 32);
     cmd_table->prdt[0].dbc = 511; // 512 bytes - 1 (0-based count)
     cmd_table->prdt[0].i = 1;
-
-    vdebug_dump_pre_command_state(cmd_table, port_regs, identify_buffer_phys);
 
     port_regs->ci = 1;
 

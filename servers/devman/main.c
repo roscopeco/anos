@@ -105,7 +105,7 @@ static ACPI_SDTHeader *find_acpi_table(const char *signature,
                 anos_map_physical(table_phys_page, (void *)temp_base, 4096,
                                   ANOS_MAP_VIRTUAL_FLAG_READ);
 
-        if (result == SYSCALL_OK) {
+        if (result.result == SYSCALL_OK) {
             ACPI_SDTHeader *table =
                     (ACPI_SDTHeader *)((uint8_t *)temp_base + table_offset);
 
@@ -123,9 +123,11 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
                                         const InitCapability *capabilities,
                                         const uint16_t argc,
                                         const char *argv[]) {
-    uint64_t system_process_channel =
-            anos_find_named_channel("SYSTEM::PROCESS");
-    if (!system_process_channel) {
+    const SyscallResult result = anos_find_named_channel("SYSTEM::PROCESS");
+
+    const uint64_t system_process_channel = result.value;
+
+    if (result.result != SYSCALL_OK || !system_process_channel) {
         printf("ERROR: Could not find SYSTEM::PROCESS channel\n");
         return -1;
     }
@@ -179,10 +181,14 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
     printf("Sending process spawn request (total_size=%ld)\n", total_size);
 #endif
 
-    const uint64_t response = anos_send_message(
+    SyscallResult response = anos_send_message(
             system_process_channel, PROCESS_SPAWN, total_size, buffer);
 
-    return (int64_t)response;
+    if (response.result == SYSCALL_OK) {
+        return (int64_t)response.value;
+    }
+
+    return (int64_t)response.result;
 }
 
 static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
@@ -394,8 +400,8 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
     const SyscallResult result =
             anos_map_physical(table_phys_page, (void *)USER_ACPI_BASE, 4096,
                               ANOS_MAP_VIRTUAL_FLAG_READ);
-    if (result != SYSCALL_OK) {
-        printf("Failed to map ACPI table! Error code: %d\n", result);
+    if (result.result != SYSCALL_OK) {
+        printf("Failed to map ACPI table! Error code: %ld\n", result.result);
         return;
     }
 
@@ -454,9 +460,9 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
             const SyscallResult table_result = anos_map_physical(
                     first_table_phys_page, (void *)first_table_base, 4096,
                     ANOS_MAP_VIRTUAL_FLAG_READ);
-            if (table_result != SYSCALL_OK) {
-                printf("Failed to map first table! Error code: %d\n",
-                       table_result);
+            if (table_result.result != SYSCALL_OK) {
+                printf("Failed to map first table! Error code: %ld\n",
+                       table_result.result);
             } else {
                 ACPI_SDTHeader *first_table =
                         (ACPI_SDTHeader *)((uint8_t *)first_table_base +
@@ -511,7 +517,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
             const SyscallResult sig_result = anos_map_physical(
                     sig_table_phys_page, (void *)sig_table_base, 4096,
                     ANOS_MAP_VIRTUAL_FLAG_READ);
-            if (sig_result == SYSCALL_OK) {
+            if (sig_result.result == SYSCALL_OK) {
                 ACPI_SDTHeader *sig_table =
                         (ACPI_SDTHeader *)((uint8_t *)sig_table_base +
                                            sig_table_offset);
@@ -575,8 +581,8 @@ static int map_and_init_acpi(void) {
     // Call the syscall to copy RSDP data from kernel to userspace
     const SyscallResult result = anos_map_firmware_tables((uintptr_t)&rsdp);
 
-    if (result != SYSCALL_OK) {
-        printf("Failed to get ACPI RSDP! Error code: %d\n", result);
+    if (result.result != SYSCALL_OK) {
+        printf("Failed to get ACPI RSDP! Error code: %ld\n", result.result);
         return -1;
     }
 

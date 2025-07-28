@@ -91,10 +91,16 @@ static bool on_program_header(const ElfPagedReader *reader,
            phdr->p_memsz);
 
     // TODO support flags in syscall for RO / RW / NX etc...
-    char *buffer = anos_map_virtual(phdr->p_memsz, phdr->p_vaddr,
-                                    ANOS_MAP_VIRTUAL_FLAG_READ |
-                                            ANOS_MAP_VIRTUAL_FLAG_WRITE |
-                                            ANOS_MAP_VIRTUAL_FLAG_EXEC);
+    const SyscallResultP result = anos_map_virtual(
+            phdr->p_memsz, phdr->p_vaddr,
+            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE |
+                    ANOS_MAP_VIRTUAL_FLAG_EXEC);
+
+    if (result.result != SYSCALL_OK) {
+        return false;
+    }
+
+    char *buffer = result.value;
 
     if (!buffer) {
         return false;
@@ -110,10 +116,12 @@ static bool on_program_header(const ElfPagedReader *reader,
 
             strncpy(msg_buffer + sizeof(uint64_t), reader->filename, 1024);
 
-            const int loaded_bytes = anos_send_message(
+            const SyscallResult load_result = anos_send_message(
                     ramfs_cookie, SYS_VFS_TAG_LOAD_PAGE, 26, msg_buffer);
 
-            if (!loaded_bytes) {
+            const uint64_t loaded_bytes = load_result.value;
+
+            if (result.result != SYSCALL_OK || !loaded_bytes) {
                 anos_kprint("FAILED TO LOAD: 0 bytes\n");
                 return false;
             }
@@ -145,31 +153,41 @@ static void unmap_system_memory() {
 noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
     debugf("\nLoading '%s'...\n", filename);
 
-    const uint64_t sys_vfs_cookie = anos_find_named_channel("SYSTEM::VFS");
+    SyscallResult result = anos_find_named_channel("SYSTEM::VFS");
+    const uint64_t sys_vfs_cookie = result.value;
 
-    if (!sys_vfs_cookie) {
+    if (result.result != SYSCALL_OK || !sys_vfs_cookie) {
         printf("Failed to find named VFS channel\n");
         anos_kill_current_task();
     }
 
-    char *msg_buffer = anos_map_virtual(0x1000, 0x1fff000,
-                                        ANOS_MAP_VIRTUAL_FLAG_READ |
-                                                ANOS_MAP_VIRTUAL_FLAG_WRITE);
+    const SyscallResultP map_result = anos_map_virtual(
+            0x1000, 0x1fff000,
+            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+
+    char *msg_buffer = map_result.value;
+
+    if (result.result != SYSCALL_OK || msg_buffer == NULL) {
+        printf("Failed to map message buffer\n");
+        anos_kill_current_task();
+    }
 
     strncpy(msg_buffer, filename, 1024);
 
-    const uint64_t sys_ramfs_cookie =
-            anos_send_message(sys_vfs_cookie, 1, 22, msg_buffer);
+    result = anos_send_message(sys_vfs_cookie, 1, 22, msg_buffer);
+    const uint64_t sys_ramfs_cookie = result.value;
 
-    if (!sys_ramfs_cookie) {
+    if (result.result != SYSCALL_OK || !sys_ramfs_cookie) {
         anos_kprint("Failed to find RAMFS driver. Dying.\n");
         anos_kill_current_task();
     }
 
-    const uint64_t exec_size = anos_send_message(
-            sys_ramfs_cookie, SYS_VFS_TAG_GET_SIZE, 22, msg_buffer);
+    result = anos_send_message(sys_ramfs_cookie, SYS_VFS_TAG_GET_SIZE, 22,
+                               msg_buffer);
 
-    if (exec_size) {
+    const uint64_t exec_size = result.value;
+
+    if (result.result == SYSCALL_OK && exec_size) {
         ElfPagedReader reader = {.current_page_offset = -1,
                                  .fs_cookie = sys_ramfs_cookie,
                                  .page = msg_buffer,
