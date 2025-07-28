@@ -686,6 +686,8 @@ SYSCALL_HANDLER(destroy_region) {
     return RESULT_OK();
 }
 
+__attribute__((
+        no_sanitize("alignment"))) // ACPI table entry pointers aren't aligned
 SYSCALL_HANDLER(map_firmware_tables) {
 #ifdef ARCH_X86_64
     static bool acpi_tables_handed_over = false;
