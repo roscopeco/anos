@@ -72,7 +72,7 @@ Writes a null-terminated string to the kernel debug output.
   `msg` – Pointer to a null-terminated UTF-8 string.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -84,7 +84,7 @@ Writes a single character to the kernel debug output.
   `chr` – The character to output.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -97,7 +97,7 @@ Creates a new thread in the calling process.
   `stack_pointer` – Initial stack pointer for the new thread.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the thread ID (TID) on success.
 
 ---
 
@@ -109,7 +109,7 @@ Retrieves basic memory usage statistics for the calling process.
   `meminfo` – Pointer to a `AnosMemInfo` structure to populate.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -121,11 +121,11 @@ Suspends the current thread for a number of scheduler ticks.
   `ticks` – Number of ticks to sleep.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
-#### Call ID 6: `int64_t anos_create_process(ProcessCreateParams *params)`
+#### Call ID 6: `SyscallResult anos_create_process(ProcessCreateParams *params)`
 
 Creates a new process.
 
@@ -133,11 +133,11 @@ Creates a new process.
   `params` – Pointer to a populated `ProcessCreateParams` structure.
 
 * **Returns:**
-  Process ID (`pid`) of the new process on success; negative `SyscallResult` value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the process ID (PID) on success.
 
 ---
 
-#### Call ID 7: `void *anos_map_virtual(uint64_t size, uintptr_t base_address, uint64_t flags)`
+#### Call ID 7: `SyscallResult anos_map_virtual(uint64_t size, uintptr_t base_address, uint64_t flags)`
 
 Requests allocation and virtual memory mapping in the process's 
 address space.
@@ -155,11 +155,11 @@ use according to the flags given.
   `flags` – Mapping flags (e.g., read/write/exec - see `anos/syscalls.h`).
 
 * **Returns:**
-  Address of mapped region on success; `NULL` on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the address of the mapped region on success.
 
 ---
 
-#### Call ID 8: `uint64_t anos_send_message(uint64_t channel_cookie, uint64_t tag, size_t buffer_size, void *buffer)`
+#### Call ID 8: `SyscallResult anos_send_message(uint64_t channel_cookie, uint64_t tag, size_t buffer_size, void *buffer)`
 
 Sends a message to the specified IPC channel.
 
@@ -170,11 +170,11 @@ Sends a message to the specified IPC channel.
   `buffer` – Pointer to message buffer.
 
 * **Returns:**
-  Message cookie on success; `0` on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the message cookie on success.
 
 ---
 
-#### Call ID 9: `uint64_t anos_recv_message(uint64_t channel_cookie, uint64_t *tag, size_t *buffer_size, void *buffer)`
+#### Call ID 9: `SyscallResult anos_recv_message(uint64_t channel_cookie, uint64_t *tag, size_t *buffer_size, void *buffer)`
 
 Receives a message from the specified IPC channel. Blocks until a message is available.
 
@@ -185,11 +185,11 @@ Receives a message from the specified IPC channel. Blocks until a message is ava
   `buffer` – Pointer to receive buffer.
 
 * **Returns:**
-  Message cookie on success; `0` on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the message cookie on success.
 
 ---
 
-#### Call ID 10: `uint64_t anos_reply_message(uint64_t message_cookie, uint64_t reply)`
+#### Call ID 10: `SyscallResult anos_reply_message(uint64_t message_cookie, uint64_t reply)`
 
 Sends a reply to a received message.
 
@@ -198,16 +198,16 @@ Sends a reply to a received message.
   `reply` – Reply value.
 
 * **Returns:**
-  `message_cookie` on success; `0` on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the message cookie on success.
 
 ---
 
-#### Call ID 11: `uint64_t anos_create_channel(void)`
+#### Call ID 11: `SyscallResult anos_create_channel(void)`
 
 Creates a new IPC channel.
 
 * **Returns:**
-  A capability cookie for the new channel on success; `0` on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the capability cookie for the new channel on success.
 
 ---
 
@@ -219,7 +219,7 @@ Destroys an IPC channel.
   `cookie` – Capability identifying the channel.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -232,7 +232,7 @@ Registers a human-readable name for an IPC channel.
   `name` – Null-terminated UTF-8 name.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -244,11 +244,11 @@ Unregisters a channel name.
   `name` – Null-terminated UTF-8 string.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
-#### Call ID 15: `uint64_t anos_find_named_channel(char *name)`
+#### Call ID 15: `SyscallResult anos_find_named_channel(char *name)`
 
 Resolves a registered channel name to a capability.
 
@@ -256,7 +256,7 @@ Resolves a registered channel name to a capability.
   `name` – Null-terminated UTF-8 name.
 
 * **Returns:**
-  Channel capability cookie on success; `0` on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the channel capability cookie on success.
 
 ---
 
@@ -278,7 +278,7 @@ Unmaps a previously mapped virtual memory region.
   `base_address` – Start address of the region.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -292,7 +292,7 @@ Declares a virtual memory region with specified access semantics.
   `flags` – Access flags.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -304,39 +304,121 @@ Destroys a previously created virtual region.
   `start` – Start address of the region to destroy.
 
 * **Returns:**
-  `0` on success; negative value on failure.
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+
+---
+
+#### Call ID 20: `SyscallResult anos_map_firmware_tables(ACPI_RSDP *user_rsdp)`
+
+Maps firmware tables (ACPI) from kernel space to user space and hands over control.
+
+> [!NOTE]
+> This syscall is only available on x86_64 architecture. On other architectures,
+> it returns `SYSCALL_NOT_IMPL`.
+
+* **Parameters:**
+  `user_rsdp` – Pointer to user space buffer to receive the RSDP structure.
+
+* **Returns:**
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+
+---
+
+#### Call ID 21: `SyscallResult anos_map_physical(uintptr_t phys_addr, uintptr_t user_vaddr, size_t size, uint64_t flags)`
+
+Maps physical memory pages into user virtual address space.
+
+* **Parameters:**
+  `phys_addr` – Physical address to map (must be page-aligned).
+  `user_vaddr` – User virtual address to map to (must be page-aligned).
+  `size` – Size in bytes to map (must be page-aligned).
+  `flags` – Mapping flags (see `ANOS_MAP_PHYSICAL_FLAG_*` constants).
+
+* **Returns:**
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+
+---
+
+#### Call ID 22: `SyscallResult anos_alloc_physical_pages(size_t size)`
+
+Allocates contiguous physical memory pages.
+
+* **Parameters:**
+  `size` – Size in bytes to allocate (must be page-aligned).
+
+* **Returns:**
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the physical address of the allocated pages on success.
+
+---
+
+#### Call ID 23: `SyscallResult anos_alloc_interrupt_vector(uint32_t bus_device_func, uint64_t *msi_address, uint32_t *msi_data)`
+
+Allocates an interrupt vector for MSI/MSI-X interrupts.
+
+> [!NOTE]
+> This syscall is only available on x86_64 architecture. On other architectures,
+> it returns `SYSCALL_NOT_IMPL`.
+
+* **Parameters:**
+  `bus_device_func` – PCI bus/device/function identifier.
+  `msi_address` – Pointer to receive MSI address for device configuration.
+  `msi_data` – Pointer to receive MSI data for device configuration.
+
+* **Returns:**
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the allocated interrupt vector number on success.
+
+---
+
+#### Call ID 24: `SyscallResult anos_wait_interrupt(uint8_t vector, uint32_t *event_data)`
+
+Waits for an interrupt on the specified vector.
+
+> [!NOTE]
+> This syscall is only available on x86_64 architecture. On other architectures,
+> it returns `SYSCALL_NOT_IMPL`.
+
+* **Parameters:**
+  `vector` – Interrupt vector number to wait for.
+  `event_data` – Pointer to receive interrupt event data.
+
+* **Returns:**
+  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
 ### Return Values
 
-#### System Call Result Codes
+#### System Call Result Structure
 
-System calls in Anos return a `SyscallResult`, which is a 64-bit signed integer.
-While the specific interpretation may vary depending on the call, standard values 
-are used to indicate success or various failure conditions for most calls.
+System calls in Anos return a `SyscallResult` struct, which contains two 64-bit fields:
+a `type` field indicating success or failure, and a `value` field for return data.
 
-#### Enumeration: `SyscallResult`
+#### Structure: `SyscallResult`
 
 > [!NOTE]
 > This can be found in `anos/syscalls.h`
 
 
 ```c
+typedef struct {
+    SyscallResultType type;
+    uint64_t value;
+} SyscallResult;
+
 typedef enum {
-    SYSCALL_OK = 0LL,
-    SYSCALL_FAILURE = -1LL,
-    SYSCALL_BAD_NUMBER = -2LL,
-    SYSCALL_NOT_IMPL = -3LL,
-    SYSCALL_BADARGS = -4LL,
-    SYSCALL_BAD_NAME = -5LL,
+    SYSCALL_OK = 0ULL,
+    SYSCALL_FAILURE = -1ULL,
+    SYSCALL_BAD_NUMBER = -2ULL,
+    SYSCALL_NOT_IMPL = -3ULL,
+    SYSCALL_BADARGS = -4ULL,
+    SYSCALL_BAD_NAME = -5ULL,
 
     /* ... reserved ... */
-    SYSCALL_INCAPABLE = -254LL
-} SyscallResult;
+    SYSCALL_INCAPABLE = -254ULL
+} SyscallResultType;
 ```
 
-##### Meaning of Values
+##### Meaning of Type Values
 
 | Name                 | Value  | Meaning                                                               |
 | -------------------- | ------ | --------------------------------------------------------------------- |
@@ -350,10 +432,10 @@ typedef enum {
 
 #### Notes
 
-* `SyscallResult` return codes are 64-bit signed integers.
-* These values are consistent across architectures and syscall interfaces.
-* Where a function returns a `SyscallResult`, a return value of `SYSCALL_OK` (`0`) universally indicates success.
-  * (Note that some calls, e.g. `map_virtual` do **not** return a SyscallResult and have their own semantics)
+* `SyscallResult` is a 16-byte struct containing two 64-bit fields.
+* The `type` field uses `SyscallResultType` enum values and is consistent across architectures.
+* A `type` value of `SYSCALL_OK` (`0`) universally indicates success.
+* The `value` field contains syscall-specific return data (e.g., process IDs, addresses, cookies) when successful, or is typically `0` for simple success/failure calls.
 * Additional error codes may be added in future; values `-6` through `-253` are currently unassigned.
 
 ## User-mode Interface Specification
