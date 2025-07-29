@@ -41,10 +41,12 @@ typedef struct {
 #define ANOS_MAP_PHYSICAL_FLAG_READ 0x1
 #define ANOS_MAP_PHYSICAL_FLAG_WRITE 0x2
 #define ANOS_MAP_PHYSICAL_FLAG_EXEC 0x4
+#define ANOS_MAP_PHYSICAL_FLAG_NOCACHE 0x8
 
 #define ANOS_MAP_VIRTUAL_FLAG_READ 0x1
 #define ANOS_MAP_VIRTUAL_FLAG_WRITE 0x2
 #define ANOS_MAP_VIRTUAL_FLAG_EXEC 0x4
+#define ANOS_MAP_VIRTUAL_FLAG_NOCACHE 0x8
 
 // Mock syscall function declarations (implemented in mock_syscalls.c)
 SyscallResult anos_map_physical(uint64_t physical_addr, void *virtual_addr,
