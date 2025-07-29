@@ -156,12 +156,19 @@ Anos implements a **global namespace** for service discovery:
 
 ```c
 // Service registration (typically done by SYSTEM)
-uint64_t vfs_channel = anos_create_channel();
-anos_register_named_channel(vfs_channel, "SYSTEM::VFS");
+SyscallResult create_result = anos_create_channel();
+if (create_result.type == SYSCALL_OK) {
+    uint64_t vfs_channel = create_result.value;
+    SyscallResult register_result = anos_register_named_channel(vfs_channel, "SYSTEM::VFS");
+    if (register_result.type != SYSCALL_OK) {
+        // Handle registration error
+    }
+}
 
 // Service discovery (used by all other processes)
-uint64_t found_channel = anos_find_named_channel("SYSTEM::VFS");
-if (found_channel) {
+SyscallResult find_result = anos_find_named_channel("SYSTEM::VFS");
+if (find_result.type == SYSCALL_OK) {
+    uint64_t found_channel = find_result.value;
     // Use channel for communication
 }
 ```
@@ -236,7 +243,8 @@ be used by other processes to obtain the relevant capability cookie.
 >   * `rdi` - cookie
 >
 > * Modifies (x86_64):
->   * `rax` - 16-byte `SyscallResult` struct (**C Return Value**)
+>   * `rax` - `SyscallResult.type` field (**C Return Value**)
+>   * `rdx` - `SyscallResult.value` field (**C Return Value**)
 >   * `r11` - trashed
 >   * `rcx` - trashed
 >
@@ -278,7 +286,8 @@ their message cookie.
 >   * `r10` - buffer pointer
 >
 > * Modifies (x86_64):
->   * `rax` - 16-byte `SyscallResult` struct (**C Return Value**)
+>   * `rax` - `SyscallResult.type` field (**C Return Value**)
+>   * `rdx` - `SyscallResult.value` field (**C Return Value**)
 >   * `r11` - trashed
 >   * `rcx` - trashed
 >
@@ -307,7 +316,8 @@ receiving process where necessary at the time the message is received.
 >   * `r10` - buffer pointer
 >
 > * Modifies (x86_64):
->   * `rax` - 16-byte `SyscallResult` struct (**C Return Value**)
+>   * `rax` - `SyscallResult.type` field (**C Return Value**)
+>   * `rdx` - `SyscallResult.value` field (**C Return Value**)
 >   * `r11` - trashed
 >   * `rcx` - trashed
 >
@@ -348,7 +358,8 @@ and `value` set to the message cookie being handled, with values passed to
 >   * `rsi` - Reply
 >
 > * Modifies (x86_64):
->   * `rax` - 16-byte `SyscallResult` struct (**C Return Value**)
+>   * `rax` - `SyscallResult.type` field (**C Return Value**)
+>   * `rdx` - `SyscallResult.value` field (**C Return Value**)
 >   * `r11` - trashed
 >   * `rcx` - trashed
 >

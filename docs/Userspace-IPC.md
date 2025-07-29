@@ -71,13 +71,14 @@ ServiceRequest request = {
 };
 
 // Send request and get reply  
-uint64_t result = anos_send_message(service_channel, SERVICE_OP_QUERY,
-                                   sizeof(request), &request);
+SyscallResult result = anos_send_message(service_channel, SERVICE_OP_QUERY,
+                                        sizeof(request), &request);
 
-if (result > 0) {
-    // Success - result contains service response
+if (result.type == SYSCALL_OK) {
+    // Success - result.value contains service response
+    uint64_t response = result.value;
 } else {
-    // Error - result contains error code
+    // Error - result.type contains error code
 }
 ```
 
@@ -89,23 +90,27 @@ while (1) {
     uint64_t tag, size;
     
     // Receive request (blocks until client sends)
-    uint64_t msg_cookie = anos_recv_message(service_channel, &tag, &size, &request);
+    SyscallResult recv_result = anos_recv_message(service_channel, &tag, &size, &request);
     
-    // Process request based on opcode
-    uint64_t result;
-    switch (tag) {
-    case SERVICE_OP_QUERY:
-        result = process_query_operation(&request);
-        break;
-    case SERVICE_OP_UPDATE:
-        result = process_update_operation(&request);
-        break;
-    default:
-        result = ERROR_UNKNOWN_OPERATION;
+    if (recv_result.type == SYSCALL_OK) {
+        uint64_t msg_cookie = recv_result.value;
+        
+        // Process request based on opcode
+        uint64_t result;
+        switch (tag) {
+        case SERVICE_OP_QUERY:
+            result = process_query_operation(&request);
+            break;
+        case SERVICE_OP_UPDATE:
+            result = process_update_operation(&request);
+            break;
+        default:
+            result = ERROR_UNKNOWN_OPERATION;
+        }
+        
+        // Send reply (unblocks client)
+        anos_reply_message(msg_cookie, result);
     }
-    
-    // Send reply (unblocks client)
-    anos_reply_message(msg_cookie, result);
 }
 ```
 
@@ -160,13 +165,14 @@ ProcessSpawnRequest *request = build_spawn_request(
 );
 
 // Send spawn request
-int64_t pid = anos_send_message(process_channel, PROCESS_SPAWN,
-                               request_size, request);
+SyscallResult spawn_result = anos_send_message(process_channel, PROCESS_SPAWN,
+                                              request_size, request);
 
-if (pid > 0) {
+if (spawn_result.type == SYSCALL_OK) {
+    int64_t pid = spawn_result.value;
     printf("Process spawned with PID %ld\n", pid);
 } else {
-    printf("Process spawn failed: %ld\n", pid);
+    printf("Process spawn failed: %ld\n", spawn_result.type);
 }
 ```
 
@@ -178,21 +184,29 @@ if (pid > 0) {
 ```c
 // Client requests filesystem driver for path
 char path[] = "boot:/filename.ext";
-uint64_t fs_channel = anos_send_message(vfs_channel, VFS_FIND_FS_DRIVER,
-                                        strlen(path) + 1, path);
+SyscallResult vfs_result = anos_send_message(vfs_channel, VFS_FIND_FS_DRIVER,
+                                            strlen(path) + 1, path);
 
-if (fs_channel == 0) {
+if (vfs_result.type != SYSCALL_OK || vfs_result.value == 0) {
     // Filesystem not found or not mounted
     return ERROR_FILE_NOT_FOUND;
 }
+
+uint64_t fs_channel = vfs_result.value;
 ```
 
 **Step 2: File Operations**
 ```c  
 // Query file size
 char filename[] = "/filename.ext";
-uint64_t file_size = anos_send_message(fs_channel, FS_QUERY_OBJECT_SIZE,
-                                      strlen(filename) + 1, filename);
+SyscallResult size_result = anos_send_message(fs_channel, FS_QUERY_OBJECT_SIZE,
+                                             strlen(filename) + 1, filename);
+
+if (size_result.type != SYSCALL_OK) {
+    return ERROR_FILE_ACCESS;
+}
+
+uint64_t file_size = size_result.value;
 
 // Load file data (page-aligned buffer required)
 static char __attribute__((aligned(4096))) file_buffer[4096];
@@ -202,9 +216,13 @@ FileLoadPageQuery query = {
 };
 strcpy(query.name, filename);
 
-uint64_t bytes_read = anos_send_message(fs_channel, FS_LOAD_OBJECT_PAGE,
-                                       sizeof(query) + strlen(filename) + 1,
-                                       &query);
+SyscallResult load_result = anos_send_message(fs_channel, FS_LOAD_OBJECT_PAGE,
+                                             sizeof(query) + strlen(filename) + 1,
+                                             &query);
+
+if (load_result.type == SYSCALL_OK) {
+    uint64_t bytes_read = load_result.value;
+}
 ```
 
 ### 4. Hardware Driver Communication Pattern
@@ -256,21 +274,24 @@ static void spawn_ahci_driver(uint64_t ahci_base) {
 static void *vfs_thread(void *arg) {
     while (1) {
         uint64_t tag, size;
-        uint64_t message_cookie = anos_recv_message(vfs_channel, &tag, &size,
-                                                   (void*)0xa0000000);
+        SyscallResult recv_result = anos_recv_message(vfs_channel, &tag, &size,
+                                                     (void*)0xa0000000);
         
-        uint64_t result = 0;
-        switch (tag) {
-        case VFS_FIND_FS_DRIVER:
-            char *path = (char*)0xa0000000;
-            if (strncmp(path, "boot:", 5) == 0) {
-                result = ramfs_channel; // Return RAMFS driver channel
+        if (recv_result.type == SYSCALL_OK) {
+            uint64_t message_cookie = recv_result.value;
+            uint64_t result = 0;
+            switch (tag) {
+            case VFS_FIND_FS_DRIVER:
+                char *path = (char*)0xa0000000;
+                if (strncmp(path, "boot:", 5) == 0) {
+                    result = ramfs_channel; // Return RAMFS driver channel
+                }
+                // Future: Add support for other mount points
+                break;
             }
-            // Future: Add support for other mount points
-            break;
+            
+            anos_reply_message(message_cookie, result);
         }
-        
-        anos_reply_message(message_cookie, result);
     }
 }
 ```
@@ -294,28 +315,31 @@ typedef struct {
 static void *process_manager_thread(void *arg) {
     while (1) {
         uint64_t tag, size;
-        uint64_t message_cookie = anos_recv_message(process_manager_channel, &tag, &size,
-                                                   (void*)0xc0000000);
+        SyscallResult recv_result = anos_recv_message(process_manager_channel, &tag, &size,
+                                                     (void*)0xc0000000);
         
-        int64_t result = -1;
-        switch (tag) {
-        case PROCESS_SPAWN:
-            ProcessSpawnRequest *req = (ProcessSpawnRequest*)0xc0000000;
-            
-            // Validate request parameters
-            if (req->argc <= 64 && req->capc <= 32) {
-                // Extract capabilities and arguments from packed data
-                InitCapability *caps = (InitCapability*)req->data;
-                char **argv = extract_argv_from_packed_data(req);
+        if (recv_result.type == SYSCALL_OK) {
+            uint64_t message_cookie = recv_result.value;
+            int64_t result = -1;
+            switch (tag) {
+            case PROCESS_SPAWN:
+                ProcessSpawnRequest *req = (ProcessSpawnRequest*)0xc0000000;
                 
-                // Create new process
-                result = create_server_process(req->stack_size, req->capc, caps,
-                                             req->argc, argv);
+                // Validate request parameters
+                if (req->argc <= 64 && req->capc <= 32) {
+                    // Extract capabilities and arguments from packed data
+                    InitCapability *caps = (InitCapability*)req->data;
+                    char **argv = extract_argv_from_packed_data(req);
+                    
+                    // Create new process
+                    result = create_server_process(req->stack_size, req->capc, caps,
+                                                 req->argc, argv);
+                }
+                break;
             }
-            break;
+            
+            anos_reply_message(message_cookie, result);
         }
-        
-        anos_reply_message(message_cookie, result);
     }
 }
 ```
@@ -338,31 +362,34 @@ typedef struct {
 static void *ramfs_driver_thread(void *arg) {
     while (1) {
         uint64_t tag, size;
-        uint64_t message_cookie = anos_recv_message(ramfs_channel, &tag, &size,
-                                                   (void*)0xb0000000);
+        SyscallResult recv_result = anos_recv_message(ramfs_channel, &tag, &size,
+                                                     (void*)0xb0000000);
         
-        uint64_t result = 0;
-        switch (tag) {
-        case FS_QUERY_OBJECT_SIZE:
-            char *filename = (char*)0xb0000000;
-            const AnosRAMFSFileHeader *file = ramfs_find_file(filename);
-            result = file ? file->length : 0;
-            break;
-            
-        case FS_LOAD_OBJECT_PAGE:
-            FileLoadPageQuery *query = (FileLoadPageQuery*)0xb0000000;
-            const AnosRAMFSFileHeader *file = ramfs_find_file(query->name);
-            if (file) {
-                // Zero-copy return: map file data page to sender's buffer
-                void *file_data = ramfs_file_open(file);
-                memcpy((void*)0xb0000000, (char*)file_data + query->start_byte_ofs,
-                       min(4096, file->length - query->start_byte_ofs));
-                result = min(4096, file->length - query->start_byte_ofs);
+        if (recv_result.type == SYSCALL_OK) {
+            uint64_t message_cookie = recv_result.value;
+            uint64_t result = 0;
+            switch (tag) {
+            case FS_QUERY_OBJECT_SIZE:
+                char *filename = (char*)0xb0000000;
+                const AnosRAMFSFileHeader *file = ramfs_find_file(filename);
+                result = file ? file->length : 0;
+                break;
+                
+            case FS_LOAD_OBJECT_PAGE:
+                FileLoadPageQuery *query = (FileLoadPageQuery*)0xb0000000;
+                const AnosRAMFSFileHeader *file = ramfs_find_file(query->name);
+                if (file) {
+                    // Zero-copy return: map file data page to sender's buffer
+                    void *file_data = ramfs_file_open(file);
+                    memcpy((void*)0xb0000000, (char*)file_data + query->start_byte_ofs,
+                           min(4096, file->length - query->start_byte_ofs));
+                    result = min(4096, file->length - query->start_byte_ofs);
+                }
+                break;
             }
-            break;
+            
+            anos_reply_message(message_cookie, result);
         }
-        
-        anos_reply_message(message_cookie, result);
     }
 }
 ```
@@ -375,13 +402,20 @@ static void *ramfs_driver_thread(void *arg) {
 
 ```c
 // Service creates dedicated channel for client
-uint64_t client_channel = anos_create_channel();
+SyscallResult create_result = anos_create_channel();
 
-// Service provides channel capability to client via reply
-anos_reply_message(message_cookie, client_channel);
-
-// Client can now communicate directly without going through service
-uint64_t result = anos_send_message(client_channel, operation, size, data);
+if (create_result.type == SYSCALL_OK) {
+    uint64_t client_channel = create_result.value;
+    
+    // Service provides channel capability to client via reply
+    anos_reply_message(message_cookie, client_channel);
+    
+    // Client can now communicate directly without going through service
+    SyscallResult comm_result = anos_send_message(client_channel, operation, size, data);
+    if (comm_result.type == SYSCALL_OK) {
+        uint64_t result = comm_result.value;
+    }
+}
 ```
 
 ### 3. Pipeline Communication Pattern
@@ -390,14 +424,24 @@ uint64_t result = anos_send_message(client_channel, operation, size, data);
 
 ```c
 // Client → Service A → Service B → Service C → Client
-uint64_t step1_result = anos_send_message(service_a_channel, PROCESS_STEP1, 
-                                         input_size, input_data);
+SyscallResult step1 = anos_send_message(service_a_channel, PROCESS_STEP1, 
+                                       input_size, input_data);
 
-uint64_t step2_result = anos_send_message(service_b_channel, PROCESS_STEP2,
-                                         sizeof(step1_result), &step1_result);
-
-uint64_t final_result = anos_send_message(service_c_channel, PROCESS_FINAL,
-                                         sizeof(step2_result), &step2_result);
+if (step1.type == SYSCALL_OK) {
+    uint64_t step1_result = step1.value;
+    SyscallResult step2 = anos_send_message(service_b_channel, PROCESS_STEP2,
+                                           sizeof(step1_result), &step1_result);
+    
+    if (step2.type == SYSCALL_OK) {
+        uint64_t step2_result = step2.value;
+        SyscallResult final = anos_send_message(service_c_channel, PROCESS_FINAL,
+                                               sizeof(step2_result), &step2_result);
+        
+        if (final.type == SYSCALL_OK) {
+            uint64_t final_result = final.value;
+        }
+    }
+}
 ```
 
 ## Performance Characteristics
