@@ -29,37 +29,47 @@
 /*
  * Page present attribute
  */
-#define PG_PRESENT ((1 << 0))
+#define PG_PRESENT ((1ULL << 0))
 
 /*
  * Page writeable attribute
  */
-#define PG_WRITE ((1 << 1))
+#define PG_WRITE ((1ULL << 1))
 
 /*
  * Page user attribute
  */
-#define PG_USER ((1 << 2))
+#define PG_USER ((1ULL << 2))
+
+/*
+ * Page write-through attribute
+ */
+#define PG_WRITETHROUGH ((1ULL << 3))
+
+/*
+ * Page cache disable attribute
+ */
+#define PG_NOCACHE ((1ULL << 4))
 
 /*
  * Page XD (Execute-disable)
  */
-#define PG_NOEXEC ((1 << 63))
+#define PG_NOEXEC ((1ULL << 63))
 
 /*
  * Page size attribute (for large pages)
  */
-#define PG_PAGESIZE ((1 << 7))
+#define PG_PAGESIZE ((1ULL << 7))
 
 /*
  * Global page
  */
-#define PG_GLOBAL ((1 << 8))
+#define PG_GLOBAL ((1ULL << 8))
 
 /*
  * Page COW attribute (STAGE3-specific)
  */
-#define PG_COPY_ON_WRITE ((1 << 6))
+#define PG_COPY_ON_WRITE ((1ULL << 6))
 
 /*
  * x86_64 does not have a "READ" or "EXEC" bit, it's implied

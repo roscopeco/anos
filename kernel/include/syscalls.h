@@ -122,6 +122,13 @@ static_assert_sizeof(SyscallCapability, ==, 64);
 constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_READ = 0x1;
 constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_WRITE = 0x2;
 constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_EXEC = 0x4;
+constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_NOCACHE = 0x8;
+
+// Memory mapping flags
+constexpr uint64_t ANOS_MAP_PHYSICAL_FLAG_READ = 0x1;
+constexpr uint64_t ANOS_MAP_PHYSICAL_FLAG_WRITE = 0x2;
+constexpr uint64_t ANOS_MAP_PHYSICAL_FLAG_EXEC = 0x4;
+constexpr uint64_t ANOS_MAP_PHYSICAL_FLAG_NOCACHE = 0x8;
 
 // Set things up for fast syscalls (via `sysenter`)
 void syscall_init(void);

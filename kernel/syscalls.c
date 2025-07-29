@@ -857,13 +857,24 @@ SYSCALL_HANDLER(map_physical) {
         if (flags == 0) {
             page_flags |= PG_READ;
         } else {
-            if (flags & ANOS_MAP_VIRTUAL_FLAG_READ) {
+            if (flags & ANOS_MAP_PHYSICAL_FLAG_READ) {
                 page_flags |= PG_READ;
             }
-            if (flags & ANOS_MAP_VIRTUAL_FLAG_WRITE) {
+            if (flags & ANOS_MAP_PHYSICAL_FLAG_WRITE) {
                 page_flags |= PG_WRITE;
             }
-            // Note: PG_EXEC flag would be needed for ANOS_MAP_VIRTUAL_FLAG_EXEC
+#ifdef ARCH_X86_64
+            if ((flags & ANOS_MAP_PHYSICAL_FLAG_EXEC) == 0) {
+                page_flags |= PG_NOEXEC;
+            }
+#elifdef ARCH_RISCV64
+            if (flags & ANOS_MAP_PHYSICAL_FLAG_EXEC) {
+                page_flags |= PG_NOEXEC;
+            }
+#endif
+            if (flags & ANOS_MAP_PHYSICAL_FLAG_NOCACHE) {
+                page_flags |= PG_NOCACHE;
+            }
         }
 
         // Map the physical page into userspace with specified permissions
