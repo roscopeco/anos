@@ -13,6 +13,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "anos_assert.h"
+
 #include "capabilities.h"
 
 // This is the vector for slow syscalls (via `int`)
@@ -33,7 +35,14 @@ typedef enum {
 
     /* reserved */
     SYSCALL_INCAPABLE = -254ULL
+} SyscallResultType;
+
+typedef struct {
+    SyscallResultType type;
+    uint64_t value;
 } SyscallResult;
+
+static_assert(sizeof(SyscallResult) == 16, "SyscallResult must be 16 bytes");
 
 typedef struct {
     uint64_t physical_total;
@@ -91,7 +100,6 @@ typedef enum {
     SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
     SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
     SYSCALL_ID_WAIT_INTERRUPT,
-    SYSCALL_ID_CONFIGURE_INTERRUPT,
 
     // sentinel
     SYSCALL_ID_END,
@@ -113,6 +121,13 @@ static_assert_sizeof(SyscallCapability, ==, 64);
 constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_READ = 0x1;
 constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_WRITE = 0x2;
 constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_EXEC = 0x4;
+constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_NOCACHE = 0x8;
+
+// Memory mapping flags
+constexpr uint64_t ANOS_MAP_PHYSICAL_FLAG_READ = 0x1;
+constexpr uint64_t ANOS_MAP_PHYSICAL_FLAG_WRITE = 0x2;
+constexpr uint64_t ANOS_MAP_PHYSICAL_FLAG_EXEC = 0x4;
+constexpr uint64_t ANOS_MAP_PHYSICAL_FLAG_NOCACHE = 0x8;
 
 // Set things up for fast syscalls (via `sysenter`)
 void syscall_init(void);

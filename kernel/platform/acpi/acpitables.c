@@ -172,7 +172,7 @@ static uint64_t get_mapping_for(uint64_t phys) {
     }
 }
 
-static inline bool has_sig(const char *expect, ACPI_SDTHeader *sdt) {
+static inline bool has_sig(const char *expect, const ACPI_SDTHeader *sdt) {
     for (int i = 0; i < 4; i++) {
         if (expect[i] != sdt->signature[i]) {
             return false;

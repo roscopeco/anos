@@ -53,12 +53,29 @@
 #define acpi_vdebugf(...)
 #endif
 
+static inline SyscallResult RESULT_TYPE_VALUE(const SyscallResultType type,
+                                              const uint64_t val) {
+    const SyscallResult result = {.type = type, .value = val};
+    return result;
+}
+
+static inline SyscallResult RESULT_TYPE(const SyscallResultType type) {
+    const SyscallResult result = {.type = type, .value = 0};
+    return result;
+}
+
+#define RESULT_OK() RESULT_TYPE(SYSCALL_OK)
+#define RESULT_OK_VAL(val) RESULT_TYPE_VALUE(SYSCALL_OK, val)
+
+#define RESULT_FAILURE() RESULT_TYPE(SYSCALL_FAILURE)
+#define RESULT_BADARGS() RESULT_TYPE(SYSCALL_BADARGS)
+
 #ifdef ARCH_X86_64
 #include "platform/acpi/acpitables.h"
 #include "x86_64/kdrivers/msi.h"
 
 // ACPI utility functions for firmware table handover
-static inline bool has_sig(const char *expect, ACPI_SDTHeader *sdt) {
+static inline bool has_sig(const char *expect, const ACPI_SDTHeader *sdt) {
     for (int i = 0; i < 4; i++) {
         if (expect[i] != sdt->signature[i]) {
             return false;
@@ -108,7 +125,7 @@ SYSCALL_HANDLER(debugprint) {
         kprintf("%s", message);
     }
 
-    return SYSCALL_OK;
+    return RESULT_OK();
 }
 
 SYSCALL_HANDLER(debugchar) {
@@ -116,7 +133,7 @@ SYSCALL_HANDLER(debugchar) {
 
     debugchar(chr);
 
-    return SYSCALL_OK;
+    return RESULT_OK();
 }
 
 SYSCALL_HANDLER(create_thread) {
@@ -137,7 +154,7 @@ SYSCALL_HANDLER(create_thread) {
     sched_unlock_any_cpu(target_cpu, lock_flags);
 #endif
 
-    return task->sched->tid;
+    return RESULT_OK_VAL(task->sched->tid);
 }
 
 SYSCALL_HANDLER(memstats) {
@@ -148,7 +165,7 @@ SYSCALL_HANDLER(memstats) {
         mem_info->physical_avail = physical_region->free;
     }
 
-    return SYSCALL_OK;
+    return RESULT_OK();
 }
 
 SYSCALL_HANDLER(sleep) {
@@ -158,7 +175,7 @@ SYSCALL_HANDLER(sleep) {
     sleep_task(task_current(), nanos);
     sched_unlock_this_cpu(lock_flags);
 
-    return SYSCALL_OK;
+    return RESULT_OK();
 }
 
 SYSCALL_HANDLER(create_process) {
@@ -167,30 +184,30 @@ SYSCALL_HANDLER(create_process) {
     // Validate process create is in userspace
     if (!IS_USER_ADDRESS(process_create_params) ||
         !(IS_USER_ADDRESS(process_create_params + 1))) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     // Validate stack arguments
     if (process_create_params->stack_base >= VM_KERNEL_SPACE_START ||
         (process_create_params->stack_base +
          process_create_params->stack_size) >= VM_KERNEL_SPACE_START) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     // Ensure number of requested stack values is valid
     if (process_create_params->stack_value_count > MAX_STACK_VALUE_COUNT) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     // Ensure enough space on stack for the requested values + minimum headroom
     if ((process_create_params->stack_value_count * STACK_VALUE_SIZE) >
         (process_create_params->stack_size - MIN_PROCESS_STACK_HEADROOM)) {
-        return (int64_t)SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     // Validate regions arguments
     if (process_create_params->region_count > MAX_PROCESS_REGIONS) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     AddressSpaceRegion ad_regions[process_create_params->region_count];
@@ -200,21 +217,21 @@ SYSCALL_HANDLER(create_process) {
         AddressSpaceRegion *dst_ptr = &ad_regions[i];
 
         if (((uintptr_t)src_ptr) > VM_KERNEL_SPACE_START) {
-            return SYSCALL_BADARGS;
+            return RESULT_BADARGS();
         }
 
         if (((uintptr_t)src_ptr) + sizeof(AddressSpaceRegion) >
             VM_KERNEL_SPACE_START) {
-            return SYSCALL_BADARGS;
+            return RESULT_BADARGS();
         }
 
         // Region start and length must be page aligned
         if (src_ptr->start & 0xfff) {
-            return SYSCALL_BADARGS;
+            return RESULT_BADARGS();
         }
 
         if (src_ptr->len_bytes & 0xfff) {
-            return SYSCALL_BADARGS;
+            return RESULT_BADARGS();
         }
 
         dst_ptr->start = src_ptr->start;
@@ -230,7 +247,7 @@ SYSCALL_HANDLER(create_process) {
 
     if (!new_pml4) {
         debugstr("Failed to create address space\n");
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
     Process *new_process = process_create(new_pml4);
@@ -238,7 +255,7 @@ SYSCALL_HANDLER(create_process) {
     if (!new_process) {
         // TODO LEAK address_space_destroy!
         debugstr("Failed to create new process\n");
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
     Task *new_task =
@@ -254,7 +271,7 @@ SYSCALL_HANDLER(create_process) {
         // TODO LEAK address_space_destroy!
         debugstr("Failed to create new task\n");
         process_destroy(new_process);
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
 #ifdef DEBUG_PROCESS_SYSCALLS
@@ -278,7 +295,7 @@ SYSCALL_HANDLER(create_process) {
     sched_unlock_any_cpu(target_cpu, lock_flags);
 #endif
 
-    return new_process->pid;
+    return RESULT_OK_VAL(new_process->pid);
 }
 
 static inline uintptr_t page_align(const uintptr_t addr) {
@@ -322,7 +339,7 @@ SYSCALL_HANDLER(map_virtual) {
 
     if (size == 0) {
         // we don't map empty regions...
-        return 0;
+        return RESULT_BADARGS();
     }
 
     virtual_base = page_align(virtual_base);
@@ -330,12 +347,12 @@ SYSCALL_HANDLER(map_virtual) {
 
     if (!IS_USER_ADDRESS(virtual_base)) {
         // nice try...
-        return 0;
+        return RESULT_BADARGS();
     }
 
     if (!IS_USER_ADDRESS(virtual_base + size)) {
         // also nope...
-        return 0;
+        return RESULT_BADARGS();
     }
 
     // Let's try to map it in, just using small pages for now...
@@ -386,7 +403,7 @@ SYSCALL_HANDLER(map_virtual) {
                 vmm_unmap_page(addr);
             }
 #endif
-            return 0;
+            return RESULT_TYPE(SYSCALL_FAILURE);
         }
     }
 
@@ -394,7 +411,7 @@ SYSCALL_HANDLER(map_virtual) {
     memclr((void *)virtual_base, size);
 #endif
 
-    return virtual_base;
+    return RESULT_OK_VAL(virtual_base);
 }
 
 SYSCALL_HANDLER(unmap_virtual) {
@@ -405,11 +422,11 @@ SYSCALL_HANDLER(unmap_virtual) {
     size = page_align(size);
 
     if (!IS_USER_ADDRESS(virtual_base)) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     if (!IS_USER_ADDRESS(virtual_base + size)) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     while (size > 0) {
@@ -419,7 +436,7 @@ SYSCALL_HANDLER(unmap_virtual) {
         size -= VM_PAGE_SIZE;
     }
 
-    return SYSCALL_OK;
+    return RESULT_OK();
 }
 
 // TODO we need a nicer scheme for return values in all of the below...
@@ -433,10 +450,17 @@ SYSCALL_HANDLER(send_message) {
     void *buffer = (void *)arg3;
 
     if (IS_USER_ADDRESS(buffer)) {
-        return ipc_channel_send(channel_cookie, tag, size, buffer);
+        const uint64_t result =
+                ipc_channel_send(channel_cookie, tag, size, buffer);
+
+        if (result) {
+            return RESULT_OK_VAL(result);
+        }
+
+        return RESULT_FAILURE();
     }
 
-    return 0;
+    return RESULT_BADARGS();
 }
 
 SYSCALL_HANDLER(recv_message) {
@@ -447,26 +471,47 @@ SYSCALL_HANDLER(recv_message) {
 
     if (IS_USER_ADDRESS(tag) && IS_USER_ADDRESS(size) &&
         IS_USER_ADDRESS(buffer)) {
-        return ipc_channel_recv(channel_cookie, tag, size, buffer);
+        const uint64_t result =
+                ipc_channel_recv(channel_cookie, tag, size, buffer);
+
+        if (result) {
+            return RESULT_OK_VAL(result);
+        }
+
+        return RESULT_FAILURE();
     }
 
-    return 0;
+    return RESULT_BADARGS();
 }
 
 SYSCALL_HANDLER(reply_message) {
     const uint64_t message_cookie = (uint64_t)arg0;
     const uint64_t reply = (uint64_t)arg1;
 
-    return ipc_channel_reply(message_cookie, reply);
+    const uint64_t result = ipc_channel_reply(message_cookie, reply);
+
+    if (result) {
+        return RESULT_OK_VAL(result);
+    }
+
+    return RESULT_FAILURE();
 }
 
-SYSCALL_HANDLER(create_channel) { return ipc_channel_create(); }
+SYSCALL_HANDLER(create_channel) {
+    const uint64_t cookie = ipc_channel_create();
+
+    if (cookie) {
+        return RESULT_OK_VAL(cookie);
+    }
+
+    return RESULT_FAILURE();
+}
 
 SYSCALL_HANDLER(destroy_channel) {
     const uint64_t cookie = (uint64_t)arg0;
 
     ipc_channel_destroy(cookie);
-    return SYSCALL_OK;
+    return RESULT_OK();
 }
 
 SYSCALL_HANDLER(register_named_channel) {
@@ -474,38 +519,38 @@ SYSCALL_HANDLER(register_named_channel) {
     char *name = (char *)arg1;
 
     if (!IS_USER_ADDRESS(name)) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     if (named_channel_register(cookie, name)) {
-        return SYSCALL_OK;
-    } else {
-        return SYSCALL_BAD_NUMBER;
+        return RESULT_OK();
     }
+
+    return RESULT_TYPE(SYSCALL_BAD_NUMBER);
 }
 
 SYSCALL_HANDLER(deregister_named_channel) {
     char *name = (char *)arg0;
 
     if (!IS_USER_ADDRESS(name)) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     if (named_channel_deregister(name) != 0) {
-        return SYSCALL_OK;
+        return RESULT_OK();
     }
 
-    return SYSCALL_BAD_NAME;
+    return RESULT_TYPE(SYSCALL_BAD_NAME);
 }
 
 SYSCALL_HANDLER(find_named_channel) {
     char *name = (char *)arg0;
 
     if (!IS_USER_ADDRESS(name)) {
-        return 0;
+        return RESULT_TYPE(SYSCALL_BAD_NAME);
     }
 
-    return named_channel_find(name);
+    return RESULT_OK_VAL(named_channel_find(name));
 }
 
 void thread_exitpoint(void);
@@ -522,7 +567,7 @@ SYSCALL_HANDLER(kill_current_task) {
 
         __builtin_unreachable();
     } else {
-        return 0;
+        return RESULT_FAILURE();
     }
 }
 
@@ -585,7 +630,7 @@ SYSCALL_HANDLER(create_region) {
 
     if ((start & 0xFFF) || (end & 0xFFF) || end <= start ||
         start >= USERSPACE_LIMIT || end > USERSPACE_LIMIT) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     const Process *proc = task_current()->owner;
@@ -599,16 +644,16 @@ SYSCALL_HANDLER(create_region) {
         } else if (start == adj->end) {
             adj->end = end;
         }
-        return SYSCALL_OK;
+        return RESULT_OK();
     }
 
     if (region_tree_overlaps(proc->meminfo->regions, start, end)) {
-        return SYSCALL_FAILURE; // overlap not allowed
+        return RESULT_FAILURE(); // overlap not allowed
     }
 
     Region *region = slab_alloc_block();
     if (!region) {
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
     *region = (Region){
@@ -626,21 +671,23 @@ SYSCALL_HANDLER(create_region) {
     debugstr("CREATE REGION OK!\n");
 #endif
 
-    return SYSCALL_OK;
+    return RESULT_OK();
 }
 
 SYSCALL_HANDLER(destroy_region) {
     const uintptr_t start = (uintptr_t)arg0;
 
     if ((start & 0xFFF) || start >= USERSPACE_LIMIT) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     const Process *proc = task_current()->owner;
     proc->meminfo->regions = region_tree_remove(proc->meminfo->regions, start);
-    return SYSCALL_OK;
+    return RESULT_OK();
 }
 
+__attribute__((
+        no_sanitize("alignment"))) // ACPI table entry pointers aren't aligned
 SYSCALL_HANDLER(map_firmware_tables) {
 #ifdef ARCH_X86_64
     static bool acpi_tables_handed_over = false;
@@ -650,13 +697,13 @@ SYSCALL_HANDLER(map_firmware_tables) {
     // Check if tables have already been handed over
     if (acpi_tables_handed_over) {
         acpi_debugf("--> ACPI already handed over\n");
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
     // Validate user address
     if (!IS_USER_ADDRESS(user_rsdp)) {
         acpi_debugf("--> ACPI not at user address\n");
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     // Get the RSDP and root table pointers from platform initialization
@@ -665,7 +712,7 @@ SYSCALL_HANDLER(map_firmware_tables) {
     if (!kernel_rsdp || !root_table) {
         acpi_debugf("--> ACPI roots are NULL: 0x%016lx : 0x%016lx\n",
                     (uintptr_t)kernel_rsdp, (uintptr_t)root_table);
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
     // Convert kernel virtual addresses back to physical addresses in the tables
@@ -693,7 +740,7 @@ SYSCALL_HANDLER(map_firmware_tables) {
                 if (phys_addr == 0) {
                     acpi_debugf("--> Remapping XSDT failed: 0x%016lx\n",
                                 (uintptr_t)*entry);
-                    return SYSCALL_FAILURE;
+                    return RESULT_FAILURE();
                 }
                 acpi_vdebugf("--> Remapped to 0x%016lx\n", phys_addr);
                 *entry = phys_addr;
@@ -728,7 +775,7 @@ SYSCALL_HANDLER(map_firmware_tables) {
                 if (phys_addr == 0) {
                     acpi_debugf("--> Remapping RSDT failed: 0x%016lx\n",
                                 (uintptr_t)*entry);
-                    return SYSCALL_FAILURE;
+                    return RESULT_FAILURE();
                 }
                 *entry = (uint32_t)phys_addr;
             } else {
@@ -738,7 +785,7 @@ SYSCALL_HANDLER(map_firmware_tables) {
         }
     } else {
         acpi_debugf("--> Unknown root entry signature\n");
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
     // Copy the RSDP to userspace
@@ -770,10 +817,10 @@ SYSCALL_HANDLER(map_firmware_tables) {
 
     acpi_debugf("--> ACPI handover complete\n");
 
-    return SYSCALL_OK;
+    return RESULT_OK();
 #else
     // On non-x86_64 architectures, firmware tables are not yet supported
-    return SYSCALL_NOT_IMPL;
+    return RESULT_TYPE(SYSCALL_NOT_IMPL);
 #endif
 }
 
@@ -785,17 +832,17 @@ SYSCALL_HANDLER(map_physical) {
 
     // Validate user address
     if (!IS_USER_ADDRESS(user_vaddr)) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     // Ensure addresses are page-aligned
     if ((user_vaddr & 0xFFF) || (phys_addr & 0xFFF) || (size & 0xFFF)) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     // Ensure the entire region fits in userspace
     if (!IS_USER_ADDRESS(user_vaddr + size - 1)) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     // Map each page from physical to user virtual
@@ -810,13 +857,24 @@ SYSCALL_HANDLER(map_physical) {
         if (flags == 0) {
             page_flags |= PG_READ;
         } else {
-            if (flags & ANOS_MAP_VIRTUAL_FLAG_READ) {
+            if (flags & ANOS_MAP_PHYSICAL_FLAG_READ) {
                 page_flags |= PG_READ;
             }
-            if (flags & ANOS_MAP_VIRTUAL_FLAG_WRITE) {
+            if (flags & ANOS_MAP_PHYSICAL_FLAG_WRITE) {
                 page_flags |= PG_WRITE;
             }
-            // Note: PG_EXEC flag would be needed for ANOS_MAP_VIRTUAL_FLAG_EXEC
+#ifdef ARCH_X86_64
+            if ((flags & ANOS_MAP_PHYSICAL_FLAG_EXEC) == 0) {
+                page_flags |= PG_NOEXEC;
+            }
+#elifdef ARCH_RISCV64
+            if (flags & ANOS_MAP_PHYSICAL_FLAG_EXEC) {
+                page_flags |= PG_NOEXEC;
+            }
+#endif
+            if (flags & ANOS_MAP_PHYSICAL_FLAG_NOCACHE) {
+                page_flags |= PG_NOCACHE;
+            }
         }
 
         // Map the physical page into userspace with specified permissions
@@ -827,11 +885,11 @@ SYSCALL_HANDLER(map_physical) {
                 const uintptr_t unmap_user_vaddr = user_vaddr + unmap_offset;
                 vmm_unmap_page(unmap_user_vaddr);
             }
-            return SYSCALL_FAILURE;
+            return RESULT_FAILURE();
         }
     }
 
-    return SYSCALL_OK;
+    return RESULT_OK();
 }
 
 SYSCALL_HANDLER(alloc_physical_pages) {
@@ -839,23 +897,23 @@ SYSCALL_HANDLER(alloc_physical_pages) {
 
     // Ensure size is page-aligned
     if (size & 0xFFF) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     // Calculate number of pages needed
     const size_t num_pages = size / VM_PAGE_SIZE;
     if (num_pages == 0) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     // Allocate contiguous physical pages
     const uintptr_t phys_addr = page_alloc_m(physical_region, num_pages);
     if (phys_addr == 0) {
-        return SYSCALL_FAILURE; // Out of memory
+        return RESULT_FAILURE(); // Out of memory
     }
 
     // Return the physical address
-    return (SyscallResult)phys_addr;
+    return RESULT_OK_VAL(phys_addr);
 }
 
 SYSCALL_HANDLER(allocate_interrupt_vector) {
@@ -869,7 +927,7 @@ SYSCALL_HANDLER(allocate_interrupt_vector) {
 
     // Validate userspace pointers
     if (!IS_USER_ADDRESS(msi_address_ptr) || !IS_USER_ADDRESS(msi_data_ptr)) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     uint64_t msi_address;
@@ -877,22 +935,22 @@ SYSCALL_HANDLER(allocate_interrupt_vector) {
     const uint8_t allocated_vector = msi_allocate_vector(
             bus_device_func, proc->pid, &msi_address, &msi_data);
     if (allocated_vector == 0) {
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
     if (!msi_register_handler(allocated_vector, current_task)) {
         msi_deallocate_vector(allocated_vector, proc->pid);
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
     // Return MSI parameters to userspace
     *msi_address_ptr = msi_address;
     *msi_data_ptr = msi_data;
 
-    return (SyscallResult)allocated_vector;
+    return RESULT_OK_VAL(allocated_vector);
 #else
     // On non-x86_64 architectures, vector allocation is not yet supported
-    return SYSCALL_NOT_IMPL;
+    return RESULT_TYPE(SYSCALL_NOT_IMPL);
 #endif
 }
 
@@ -905,22 +963,22 @@ SYSCALL_HANDLER(wait_interrupt) {
     uint32_t event_data = 0;
 
     if (!IS_USER_ADDRESS(event_data_ptr)) {
-        return SYSCALL_BADARGS;
+        return RESULT_BADARGS();
     }
 
     if (msi_is_slow_consumer(vector)) {
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
     if (!msi_wait_interrupt(vector, current_task, &event_data)) {
-        return SYSCALL_FAILURE;
+        return RESULT_FAILURE();
     }
 
     *event_data_ptr = event_data;
-    return SYSCALL_OK;
+    return RESULT_OK();
 #else
     // On non-x86_64 architectures, wait for interrupt is not yet supported
-    return SYSCALL_NOT_IMPL;
+    return RESULT_TYPE(SYSCALL_NOT_IMPL);
 #endif
 }
 
@@ -1064,5 +1122,5 @@ SyscallResult handle_syscall_69(const SyscallArg arg0, const SyscallArg arg1,
     }
 
     throttle_abuse(proc);
-    return SYSCALL_INCAPABLE;
+    return RESULT_TYPE(SYSCALL_INCAPABLE);
 }

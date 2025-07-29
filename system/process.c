@@ -207,7 +207,13 @@ int64_t create_server_process(const uint64_t stack_size, const uint16_t capc,
     process_create_params.stack_value_count = init_stack_values.value_count;
     process_create_params.stack_values = init_stack_values.data;
 
-    return anos_create_process(&process_create_params);
+    const SyscallResultI64 result = anos_create_process(&process_create_params);
+
+    if (result.result == SYSCALL_OK) {
+        return result.value;
+    }
+
+    return result.result;
 
     // TODO free stack_values
 }

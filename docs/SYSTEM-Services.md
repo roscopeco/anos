@@ -49,8 +49,8 @@ SYSTEM implements a **multithreaded service architecture** with dedicated thread
 
 ```c
 // system/main.c - Service thread allocation
-anos_create_thread(ramfs_driver_thread, (uintptr_t)ramfs_driver_thread_stack);        // 256KiB stack
-anos_create_thread(process_manager_thread, (uintptr_t)process_manager_thread_stack);  // 256KiB stack
+SyscallResult ramfs_thread_result = anos_create_thread(ramfs_driver_thread, (uintptr_t)ramfs_driver_thread_stack);        // 256KiB stack
+SyscallResult process_thread_result = anos_create_thread(process_manager_thread, (uintptr_t)process_manager_thread_stack);  // 256KiB stack
 
 // Main thread continues as VFS service thread
 while (true) {
@@ -70,8 +70,8 @@ SYSTEM registers **two public named channels** for external access:
 
 ```c
 // system/main.c - Named service registration
-anos_register_channel_name(vfs_channel, "SYSTEM::VFS");
-anos_register_channel_name(process_manager_channel, "SYSTEM::PROCESS");
+SyscallResult vfs_reg_result = anos_register_channel_name(vfs_channel, "SYSTEM::VFS");
+SyscallResult proc_reg_result = anos_register_channel_name(process_manager_channel, "SYSTEM::PROCESS");
 ```
 
 **Service Discovery**:
@@ -109,8 +109,13 @@ The Virtual File System service provides **filesystem abstraction and driver rou
 
 // Request data: null-terminated path string
 char path[] = "boot:/path/to/file";
-uint64_t fs_channel = anos_send_message(vfs_channel, VFS_FIND_FS_DRIVER,
-                                        strlen(path) + 1, path);
+SyscallResult vfs_result = anos_send_message(vfs_channel, VFS_FIND_FS_DRIVER,
+                                            strlen(path) + 1, path);
+
+uint64_t fs_channel = 0;
+if (vfs_result.type == SYSCALL_OK) {
+    fs_channel = vfs_result.value;
+}
 ```
 
 **Response**:
@@ -123,26 +128,29 @@ uint64_t fs_channel = anos_send_message(vfs_channel, VFS_FIND_FS_DRIVER,
 static void *vfs_thread(void *arg) {
     while (1) {
         uint64_t tag, size;
-        uint64_t message_cookie = anos_recv_message(vfs_channel, &tag, &size,
-                                                   (void*)0xa0000000);
+        SyscallResult recv_result = anos_recv_message(vfs_channel, &tag, &size,
+                                                     (void*)0xa0000000);
         
-        uint64_t result = 0;
-        switch (tag) {
-        case VFS_FIND_FS_DRIVER:
-            char *path = (char*)0xa0000000;
-            
-            // Check for boot filesystem mount
-            if (strncmp(path, "boot:", 5) == 0) {
-                result = ramfs_channel;
+        if (recv_result.type == SYSCALL_OK) {
+            uint64_t message_cookie = recv_result.value;
+            uint64_t result = 0;
+            switch (tag) {
+            case VFS_FIND_FS_DRIVER:
+                char *path = (char*)0xa0000000;
+                
+                // Check for boot filesystem mount
+                if (strncmp(path, "boot:", 5) == 0) {
+                    result = ramfs_channel;
+                }
+                // Future mount points would be checked here
+                break;
+                
+            default:
+                printf("VFS: Unknown operation %lu\n", tag);
             }
-            // Future mount points would be checked here
-            break;
             
-        default:
-            printf("VFS: Unknown operation %lu\n", tag);
+            anos_reply_message(message_cookie, result);
         }
-        
-        anos_reply_message(message_cookie, result);
     }
 }
 ```
@@ -174,23 +182,38 @@ if (strncmp(path, "dev:", 4) == 0) {
 **Standard File Access Flow**:
 ```c
 // Step 1: Discover VFS service
-uint64_t vfs_channel = anos_find_named_channel("SYSTEM::VFS");
+SyscallResult find_result = anos_find_named_channel("SYSTEM::VFS");
+if (find_result.type != SYSCALL_OK) {
+    return ERROR_SERVICE_NOT_FOUND;
+}
+uint64_t vfs_channel = find_result.value;
 
 // Step 2: Get filesystem driver for path
 char filepath[] = "boot:/program.elf";
-uint64_t fs_channel = anos_send_message(vfs_channel, VFS_FIND_FS_DRIVER,
-                                        strlen(filepath) + 1, filepath);
+SyscallResult vfs_result = anos_send_message(vfs_channel, VFS_FIND_FS_DRIVER,
+                                            strlen(filepath) + 1, filepath);
+
+if (vfs_result.type != SYSCALL_OK || vfs_result.value == 0) {
+    return ERROR_FILESYSTEM_NOT_FOUND;
+}
+uint64_t fs_channel = vfs_result.value;
 
 // Step 3: Use filesystem driver directly
-if (fs_channel > 0) {
-    // Query file size
-    char filename[] = "/program.elf";
-    uint64_t file_size = anos_send_message(fs_channel, FS_QUERY_OBJECT_SIZE,
-                                          strlen(filename) + 1, filename);
+// Query file size
+char filename[] = "/program.elf";
+SyscallResult size_result = anos_send_message(fs_channel, FS_QUERY_OBJECT_SIZE,
+                                             strlen(filename) + 1, filename);
+
+if (size_result.type == SYSCALL_OK) {
+    uint64_t file_size = size_result.value;
     
     // Load file data
-    uint64_t bytes_read = anos_send_message(fs_channel, FS_LOAD_OBJECT_PAGE,
-                                           query_size, &load_query);
+    SyscallResult load_result = anos_send_message(fs_channel, FS_LOAD_OBJECT_PAGE,
+                                                 query_size, &load_query);
+    
+    if (load_result.type == SYSCALL_OK) {
+        uint64_t bytes_read = load_result.value;
+    }
 }
 ```
 
@@ -252,33 +275,36 @@ typedef struct {
 static void *process_manager_thread(void *arg) {
     while (1) {
         uint64_t tag, size;
-        uint64_t message_cookie = anos_recv_message(process_manager_channel, &tag, &size,
-                                                   (void*)0xc0000000);
+        SyscallResult recv_result = anos_recv_message(process_manager_channel, &tag, &size,
+                                                     (void*)0xc0000000);
         
-        int64_t result = -1;
-        switch (tag) {
-        case PROCESS_SPAWN:
-            ProcessSpawnRequest *request = (ProcessSpawnRequest*)0xc0000000;
-            
-            // Validate request parameters  
-            if (request->argc <= 64 && request->capc <= 32) {
-                // Extract packed capabilities and argv
-                InitCapability *capabilities = (InitCapability*)request->data;
-                char **argv = build_argv_from_packed_data(request);
+        if (recv_result.type == SYSCALL_OK) {
+            uint64_t message_cookie = recv_result.value;
+            int64_t result = -1;
+            switch (tag) {
+            case PROCESS_SPAWN:
+                ProcessSpawnRequest *request = (ProcessSpawnRequest*)0xc0000000;
                 
-                // Create new process
-                result = create_server_process(request->stack_size, request->capc,
-                                             capabilities, request->argc, argv);
+                // Validate request parameters  
+                if (request->argc <= 64 && request->capc <= 32) {
+                    // Extract packed capabilities and argv
+                    InitCapability *capabilities = (InitCapability*)request->data;
+                    char **argv = build_argv_from_packed_data(request);
+                    
+                    // Create new process
+                    result = create_server_process(request->stack_size, request->capc,
+                                                 capabilities, request->argc, argv);
+                    
+                    free(argv); // Clean up temporary argv array
+                }
+                break;
                 
-                free(argv); // Clean up temporary argv array
+            default:
+                printf("PROCESS: Unknown operation %lu\n", tag);
             }
-            break;
             
-        default:
-            printf("PROCESS: Unknown operation %lu\n", tag);
+            anos_reply_message(message_cookie, result);
         }
-        
-        anos_reply_message(message_cookie, result);
     }
 }
 ```
@@ -352,11 +378,16 @@ The stack initialization process (`system/process.c:build_new_process_init_value
 
 ```c
 // system/process.c - Create process with trampoline entry
-const int64_t process_id = anos_create_process(
+const SyscallResult create_result = anos_create_process(
     (void*)initial_server_loader,    // Trampoline entry point  
     stack_pointer,                   // Prepared stack
     stack_size                       // Stack size
 );
+
+if (create_result.type == SYSCALL_OK) {
+    const int64_t process_id = create_result.value;
+    // Process created successfully
+}
 ```
 
 **Trampoline Mechanism**:
@@ -451,7 +482,11 @@ static bool on_program_header(const Elf64_Phdr *phdr, uint64_t channel, void *ar
 
 ```c
 // devman/main.c - DEVMAN spawning PCI driver
-uint64_t process_channel = anos_find_named_channel("SYSTEM::PROCESS");
+SyscallResult find_result = anos_find_named_channel("SYSTEM::PROCESS");
+if (find_result.type != SYSCALL_OK) {
+    return ERROR_SERVICE_NOT_FOUND;
+}
+uint64_t process_channel = find_result.value;
 
 // Define capabilities to delegate
 const InitCapability pci_caps[] = {
@@ -483,13 +518,14 @@ ProcessSpawnRequest *request = build_spawn_request(
 );
 
 // Send spawn request
-int64_t pid = anos_send_message(process_channel, PROCESS_SPAWN,
-                               request_total_size, request);
+SyscallResult spawn_result = anos_send_message(process_channel, PROCESS_SPAWN,
+                                              request_total_size, request);
 
-if (pid > 0) {
+if (spawn_result.type == SYSCALL_OK) {
+    int64_t pid = spawn_result.value;
     printf("PCI driver spawned with PID %ld\n", pid);
 } else {
-    printf("Process spawn failed: %ld\n", pid);
+    printf("Process spawn failed: %ld\n", spawn_result.type);
 }
 ```
 
@@ -520,13 +556,18 @@ const InitCapability custom_caps[] = {
 };
 
 // Spawn specialized server with large stack
-int64_t server_pid = spawn_process_with_capabilities(
+SyscallResult server_result = spawn_process_with_capabilities(
     "boot:/specialized_server.elf",
     0x200000,               // 2MB stack for complex operations
     custom_caps,
     sizeof(custom_caps)/sizeof(custom_caps[0]),
     server_specific_args
 );
+
+if (server_result.type == SYSCALL_OK) {
+    int64_t server_pid = server_result.value;
+    // Process spawned successfully
+}
 ```
 
 ## RAMFS Driver Service
@@ -562,8 +603,13 @@ The RAMFS driver provides **file system operations** on the embedded boot filesy
 
 // Request data: null-terminated filename (relative to filesystem root)
 char filename[] = "/devman.elf";
-uint64_t file_size = anos_send_message(ramfs_channel, FS_QUERY_OBJECT_SIZE,
-                                      strlen(filename) + 1, filename);
+SyscallResult size_result = anos_send_message(ramfs_channel, FS_QUERY_OBJECT_SIZE,
+                                             strlen(filename) + 1, filename);
+
+uint64_t file_size = 0;
+if (size_result.type == SYSCALL_OK) {
+    file_size = size_result.value;
+}
 ```
 
 **Response**:
@@ -589,10 +635,14 @@ FileLoadPageQuery query = {
 };
 strcpy(query.name, "/program.elf");
 
-uint64_t bytes_read = anos_send_message(ramfs_channel, FS_LOAD_OBJECT_PAGE,
-                                       sizeof(query) + strlen(query.name) + 1,
-                                       &query);
-// file_buffer now contains up to 4096 bytes of file data
+SyscallResult load_result = anos_send_message(ramfs_channel, FS_LOAD_OBJECT_PAGE,
+                                             sizeof(query) + strlen(query.name) + 1,
+                                             &query);
+
+if (load_result.type == SYSCALL_OK) {
+    uint64_t bytes_read = load_result.value;
+    // file_buffer now contains up to 4096 bytes of file data
+}
 ```
 
 **Response**:
@@ -674,41 +724,44 @@ void *ramfs_file_open(const AnosRAMFSFileHeader *file) {
 static void *ramfs_driver_thread(void *arg) {
     while (1) {
         uint64_t tag, size;
-        uint64_t message_cookie = anos_recv_message(ramfs_channel, &tag, &size,
-                                                   (void*)0xb0000000);
+        SyscallResult recv_result = anos_recv_message(ramfs_channel, &tag, &size,
+                                                     (void*)0xb0000000);
         
-        uint64_t result = 0;
-        switch (tag) {
-        case FS_QUERY_OBJECT_SIZE: {
-            char *filename = (char*)0xb0000000;
-            const AnosRAMFSFileHeader *file = ramfs_find_file(filename);
-            result = file ? file->length : 0;
-            break;
-        }
-        
-        case FS_LOAD_OBJECT_PAGE: {
-            FileLoadPageQuery *query = (FileLoadPageQuery*)0xb0000000;
-            const AnosRAMFSFileHeader *file = ramfs_find_file(query->name);
-            
-            if (file && query->start_byte_ofs < file->length) {
-                void *file_data = ramfs_file_open(file);
-                size_t bytes_to_copy = min(4096, file->length - query->start_byte_ofs);
-                
-                // Copy file data to IPC buffer (zero-copy alternative possible)
-                memcpy((void*)0xb0000000, 
-                      (char*)file_data + query->start_byte_ofs,
-                      bytes_to_copy);
-                
-                result = bytes_to_copy;
+        if (recv_result.type == SYSCALL_OK) {
+            uint64_t message_cookie = recv_result.value;
+            uint64_t result = 0;
+            switch (tag) {
+            case FS_QUERY_OBJECT_SIZE: {
+                char *filename = (char*)0xb0000000;
+                const AnosRAMFSFileHeader *file = ramfs_find_file(filename);
+                result = file ? file->length : 0;
+                break;
             }
-            break;
+            
+            case FS_LOAD_OBJECT_PAGE: {
+                FileLoadPageQuery *query = (FileLoadPageQuery*)0xb0000000;
+                const AnosRAMFSFileHeader *file = ramfs_find_file(query->name);
+                
+                if (file && query->start_byte_ofs < file->length) {
+                    void *file_data = ramfs_file_open(file);
+                    size_t bytes_to_copy = min(4096, file->length - query->start_byte_ofs);
+                    
+                    // Copy file data to IPC buffer (zero-copy alternative possible)
+                    memcpy((void*)0xb0000000, 
+                          (char*)file_data + query->start_byte_ofs,
+                          bytes_to_copy);
+                    
+                    result = bytes_to_copy;
+                }
+                break;
+            }
+            
+            default:
+                printf("RAMFS: Unknown operation %lu\n", tag);
+            }
+            
+            anos_reply_message(message_cookie, result);
         }
-        
-        default:
-            printf("RAMFS: Unknown operation %lu\n", tag);
-        }
-        
-        anos_reply_message(message_cookie, result);
     }
 }
 ```

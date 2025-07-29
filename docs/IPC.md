@@ -77,15 +77,15 @@ typedef struct {
 
 The kernel exposes 7 core IPC syscalls:
 
-| Syscall                                               | Purpose                                  | Parameters                  | Returns                  |
-|-------------------------------------------------------|------------------------------------------|-----------------------------|--------------------------|
-| **`anos_create_channel()`**                           | Create new IPC channel                   | None                        | Channel capability token |
-| **`anos_destroy_channel(cookie)`**                    | Destroy channel, wake blocked tasks      | Channel token               | Success/error code       |
-| **`anos_send_message(channel, tag, size, buffer)`**   | Send message (blocks until reply)        | Channel, opcode, size, data | Reply value              |
-| **`anos_recv_message(channel, &tag, &size, buffer)`** | Receive message (blocks until available) | Channel, out params         | Message token            |
-| **`anos_reply_message(message, result)`**             | Reply to received message                | Message token, result       | Success code             |
-| **`anos_register_named_channel(cookie, name)`**       | Register channel with global name        | Channel token, name string  | Success/error            |
-| **`anos_find_named_channel(name)`**                   | Find channel by name                     | Name string                 | Channel token or 0       |
+| Syscall                                               | Purpose                                  | Parameters                  | Returns                                             |
+|-------------------------------------------------------|------------------------------------------|-----------------------------|-----------------------------------------------------|
+| **`anos_create_channel()`**                           | Create new IPC channel                   | None                        | `SyscallResult` with channel token in `value` field |
+| **`anos_destroy_channel(cookie)`**                    | Destroy channel, wake blocked tasks      | Channel token               | `SyscallResult` with success/error in `type` field  |
+| **`anos_send_message(channel, tag, size, buffer)`**   | Send message (blocks until reply)        | Channel, opcode, size, data | `SyscallResult` with reply value in `value` field   |
+| **`anos_recv_message(channel, &tag, &size, buffer)`** | Receive message (blocks until available) | Channel, out params         | `SyscallResult` with message token in `value` field |
+| **`anos_reply_message(message, result)`**             | Reply to received message                | Message token, result       | `SyscallResult` with success in `type` field        |
+| **`anos_register_named_channel(cookie, name)`**       | Register channel with global name        | Channel token, name string  | `SyscallResult` with success/error in `type` field  |
+| **`anos_find_named_channel(name)`**                   | Find channel by name                     | Name string                 | `SyscallResult` with channel token in `value` field |
 
 ### Message Flow Protocol
 
@@ -156,12 +156,19 @@ Anos implements a **global namespace** for service discovery:
 
 ```c
 // Service registration (typically done by SYSTEM)
-uint64_t vfs_channel = anos_create_channel();
-anos_register_named_channel(vfs_channel, "SYSTEM::VFS");
+SyscallResult create_result = anos_create_channel();
+if (create_result.type == SYSCALL_OK) {
+    uint64_t vfs_channel = create_result.value;
+    SyscallResult register_result = anos_register_named_channel(vfs_channel, "SYSTEM::VFS");
+    if (register_result.type != SYSCALL_OK) {
+        // Handle registration error
+    }
+}
 
 // Service discovery (used by all other processes)
-uint64_t found_channel = anos_find_named_channel("SYSTEM::VFS");
-if (found_channel) {
+SyscallResult find_result = anos_find_named_channel("SYSTEM::VFS");
+if (find_result.type == SYSCALL_OK) {
+    uint64_t found_channel = find_result.value;
     // Use channel for communication
 }
 ```
@@ -192,23 +199,23 @@ Message channels provide the following features:
 
 ##### `anos_create_channel` - Create a message channel
 
-> C (or `extern C`) call-seq: `uint64_t anos_create_channel(void)`
+> C (or `extern C`) call-seq: `SyscallResult anos_create_channel(void)`
 >
 > Arguments:
 >   none
 >
 > Modifies (x86_64):
->   `rax` - channel cookie, or `0` on failure (**C Return Value**)
+>   `rax` - 16-byte `SyscallResult` struct (**C Return Value**)
 >   `r11` - trashed
 >   `rcx` - trashed
 >
 > Blocks: Never
 
 This call will create a new message channel, owned by the calling process,
-and return a `uint64_t` capability cookie that must be used for all further
-communication with the channel.
+and return a `SyscallResult` struct. On success, the `type` field will be `SYSCALL_OK`
+and the `value` field will contain the capability cookie for the channel.
 
-Should an error be encountered, this will return `0`.
+Should an error be encountered, the `type` field will contain a negative error code.
 
 Once a channel is created, it is ready for immediate use via its
 cookie - which must be shared with other processes by a non-IPC
@@ -230,13 +237,14 @@ be used by other processes to obtain the relevant capability cookie.
 
 ##### `anos_destroy_channel` - Destroys a message channel
 
-> C (or `extern C`) call-seq: `int anos_destroy_channel(uint64_t cookie)`
+> C (or `extern C`) call-seq: `SyscallResult anos_destroy_channel(uint64_t cookie)`
 >
 > * Arguments (x86_64):
 >   * `rdi` - cookie
 >
 > * Modifies (x86_64):
->   * `rax` - `0` on success, or negative on failure (**C Return Value**)
+>   * `rax` - `SyscallResult.type` field (**C Return Value**)
+>   * `rdx` - `SyscallResult.value` field (**C Return Value**)
 >   * `r11` - trashed
 >   * `rcx` - trashed
 >
@@ -269,7 +277,7 @@ their message cookie.
 
 ##### `anos_send_message` - Send a message to a channel
 
-> C (or `extern C`) call-seq: `uint64_t anos_send_message(uint64_t channel_cookie, uint64_t tag, size_t buffer_size, void *buffer);`
+> C (or `extern C`) call-seq: `SyscallResult anos_send_message(uint64_t channel_cookie, uint64_t tag, size_t buffer_size, void *buffer);`
 >
 > * Arguments (x86_64):
 >   * `rdi` - Destination channel cookie
@@ -278,7 +286,8 @@ their message cookie.
 >   * `r10` - buffer pointer
 >
 > * Modifies (x86_64):
->   * `rax` - Reply (**C Return Value**)
+>   * `rax` - `SyscallResult.type` field (**C Return Value**)
+>   * `rdx` - `SyscallResult.value` field (**C Return Value**)
 >   * `r11` - trashed
 >   * `rcx` - trashed
 >
@@ -289,7 +298,8 @@ Sends a message to a channel.
 The caller will be blocked until the message is handled by some other
 thread and `anos_reply_message` called. 
 
-Once unblocked, this call will return the argument passed to `anos_reply_message`.
+Once unblocked, the `SyscallResult` struct will have `type` set to `SYSCALL_OK`
+and `value` set to the argument passed to `anos_reply_message`.
 
 If the `buffer` parameter is provided (and `buffer_size` is non-zero) then
 the kernel will arrange for the specified memory to be mapped into the 
@@ -297,7 +307,7 @@ receiving process where necessary at the time the message is received.
 
 ##### `anos_recv_message` - Receive a message from a channel
 
-> C (or `extern C`) call-seq: `uint64_t anos_recv_message(uint64_t channel_cookie, uint64_t *tag, size_t *buffer_size, void *buffer);`
+> C (or `extern C`) call-seq: `SyscallResult anos_recv_message(uint64_t channel_cookie, uint64_t *tag, size_t *buffer_size, void *buffer);`
 >
 > * Arguments (x86_64):
 >   * `rdi` - Source channel cookie
@@ -306,7 +316,8 @@ receiving process where necessary at the time the message is received.
 >   * `r10` - buffer pointer
 >
 > * Modifies (x86_64):
->   * `rax` - Message cookie (**C Return Value**)
+>   * `rax` - `SyscallResult.type` field (**C Return Value**)
+>   * `rdx` - `SyscallResult.value` field (**C Return Value**)
 >   * `r11` - trashed
 >   * `rcx` - trashed
 >
@@ -334,19 +345,21 @@ handled (sent from some other thread with `anos_send_message`).
 > address into which the sender's buffer will be mapped directly for the 
 > duration of handling the call.
 
-Once unblocked, this call will return the message cookie being handled, with 
-values passed to `anos_send_message` populated into the given pointers.
+Once unblocked, the `SyscallResult` struct will have `type` set to `SYSCALL_OK`
+and `value` set to the message cookie being handled, with values passed to 
+`anos_send_message` populated into the given pointers.
 
 ##### `anos_reply_message` - Reply to a message 
 
-> C (or `extern C`) call-seq: `uint64_t anos_reply_message(uint64_t message_cookie, uint64_t reply)`
+> C (or `extern C`) call-seq: `SyscallResult anos_reply_message(uint64_t message_cookie, uint64_t reply)`
 >
 > * Arguments (x86_64):
 >   * `rdi` - Message capability cookie
 >   * `rsi` - Reply
 >
 > * Modifies (x86_64):
->   * `rax` - Message cookie (_see notes_) (**C Return Value**)
+>   * `rax` - `SyscallResult.type` field (**C Return Value**)
+>   * `rdx` - `SyscallResult.value` field (**C Return Value**)
 >   * `r11` - trashed
 >   * `rcx` - trashed
 >
@@ -357,8 +370,9 @@ given `reply` value.
 
 Messages **must** be replied to in order to unblock their senders.
 
-Returns the message cookie as a convenience, strictly for local accounting
-purposes. From the point of view of the system, after this function returns
+Returns a `SyscallResult` with `type` indicating success/failure. On success,
+the `value` field contains the message cookie as a convenience for local accounting.
+From the point of view of the system, after this function returns
 the given cookie will be invalid and must not be reused.
 
 ### Call interfaces

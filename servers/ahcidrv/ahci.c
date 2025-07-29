@@ -29,6 +29,17 @@
 #define constexpr const
 #endif
 
+#ifndef memset_explicit
+// TODO memset_explicit isn't supported everywhere yet, just use naive version
+static inline void memset_explicit(volatile void *dst, const int c,
+                                   const size_t n) {
+    uint8_t *p = (uint8_t *)dst;
+    for (int i = 0; i < n; i++) {
+        *p++ = c;
+    }
+}
+#endif
+
 // Virtual memory layout
 #define AHCI_MEMORY_BASE 0xA000000000ULL
 
@@ -148,8 +159,11 @@ static void *allocate_aligned_memory(const size_t size, const size_t alignment,
     const size_t page_aligned_size = (aligned_size + 0xFFF) & ~0xFFF;
 
     // Allocate physical pages
-    const uint64_t phys_addr = anos_alloc_physical_pages(page_aligned_size);
-    if (phys_addr == 0) {
+    const SyscallResultA alloc_result =
+            anos_alloc_physical_pages(page_aligned_size);
+    const uint64_t phys_addr = alloc_result.value;
+
+    if (alloc_result.result != SYSCALL_OK || phys_addr == 0) {
         return nullptr;
     }
 
@@ -179,9 +193,10 @@ static void *allocate_aligned_memory(const size_t size, const size_t alignment,
 
     const SyscallResult result = anos_map_physical(
             phys_addr, virt_addr, page_aligned_size,
-            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+            ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
+                    ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
-    if (result != SYSCALL_OK) {
+    if (result.result != SYSCALL_OK) {
         // TODO: Free the physical pages on error
         return nullptr;
     }
@@ -195,7 +210,8 @@ static void *allocate_aligned_memory(const size_t size, const size_t alignment,
     return virt_addr;
 }
 
-static bool try_map_firmware_dma(AHCIPort *port, const uint8_t port_num,
+static bool try_map_firmware_dma(volatile AHCIPort *port,
+                                 const uint8_t port_num,
                                  const AHCIPortRegs *port_regs) {
 
     const uint64_t cmd_list_phys =
@@ -229,12 +245,13 @@ static bool try_map_firmware_dma(AHCIPort *port, const uint8_t port_num,
 
     SyscallResult result = anos_map_physical(
             cmd_list_phys, cmd_list_virt, cmd_list_map_size,
-            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+            ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
+                    ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
-    if (result != SYSCALL_OK) {
-        debugf("  -> Failed to map firmware command list (syscall error %d), "
+    if (result.result != SYSCALL_OK) {
+        debugf("  -> Failed to map firmware command list (syscall error %ld), "
                "falling back to our allocation\n",
-               result);
+               result.result);
         memory_offset -= cmd_list_map_size;
         return false;
     }
@@ -247,10 +264,11 @@ static bool try_map_firmware_dma(AHCIPort *port, const uint8_t port_num,
     memory_offset += fis_map_size;
 
     result = anos_map_physical(fis_base_phys, fis_base_virt, fis_map_size,
-                               ANOS_MAP_VIRTUAL_FLAG_READ |
-                                       ANOS_MAP_VIRTUAL_FLAG_WRITE);
+                               ANOS_MAP_PHYSICAL_FLAG_READ |
+                                       ANOS_MAP_PHYSICAL_FLAG_WRITE |
+                                       ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
-    if (result != SYSCALL_OK) {
+    if (result.result != SYSCALL_OK) {
         debugf("Failed to map firmware FIS base for port %u\n", port_num);
         return false;
     }
@@ -261,12 +279,12 @@ static bool try_map_firmware_dma(AHCIPort *port, const uint8_t port_num,
     return true;
 }
 
-static bool allocate_own_dma(AHCIPort *port, const uint8_t port_num,
-                             AHCIPortRegs *port_regs) {
+static bool allocate_own_dma(volatile AHCIPort *port, const uint8_t port_num,
+                             volatile AHCIPortRegs *port_regs) {
 
     vdebugf("  -> Allocating our own DMA structures\n");
 
-    uint64_t our_cmd_list_phys;
+    uint64_t our_cmd_list_phys = 0;
     port->cmd_list = allocate_aligned_memory(
             AHCI_CMD_LIST_SIZE, AHCI_CMD_LIST_ALIGN, &our_cmd_list_phys);
 
@@ -275,7 +293,7 @@ static bool allocate_own_dma(AHCIPort *port, const uint8_t port_num,
         return false;
     }
 
-    uint64_t our_fis_base_phys;
+    uint64_t our_fis_base_phys = 0;
     port->fis_base = allocate_aligned_memory(AHCI_FIS_SIZE, AHCI_FIS_ALIGN,
                                              &our_fis_base_phys);
 
@@ -293,8 +311,8 @@ static bool allocate_own_dma(AHCIPort *port, const uint8_t port_num,
     return true;
 }
 
-static bool setup_command_tables(AHCIPort *port, uint8_t port_num) {
-    uint64_t cmd_tables_phys;
+static bool setup_command_tables(volatile AHCIPort *port, uint8_t port_num) {
+    uint64_t cmd_tables_phys = 0;
     port->cmd_tables = allocate_aligned_memory(
             AHCI_CMD_TABLE_SIZE * AHCI_MAX_COMMAND_SLOTS, AHCI_CMD_TABLE_ALIGN,
             &cmd_tables_phys);
@@ -333,7 +351,7 @@ static bool setup_command_tables(AHCIPort *port, uint8_t port_num) {
     return true;
 }
 
-static void ahci_port_stop(AHCIPortRegs *port) {
+static void ahci_port_stop(volatile AHCIPortRegs *port) {
     port->cmd &= ~AHCI_PORT_CMD_START;
     port->cmd &= ~AHCI_PORT_CMD_FRE;
 
@@ -342,7 +360,7 @@ static void ahci_port_stop(AHCIPortRegs *port) {
     }
 }
 
-static void ahci_port_start(AHCIPortRegs *port) {
+static void ahci_port_start(volatile AHCIPortRegs *port) {
     while (port->cmd & AHCI_PORT_CMD_CR) {
         anos_task_sleep_current(1000);
     }
@@ -351,14 +369,15 @@ static void ahci_port_start(AHCIPortRegs *port) {
     port->cmd |= AHCI_PORT_CMD_START;
 }
 
-bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
-                          uint64_t pci_config_base) {
+bool ahci_controller_init(volatile AHCIController *ctrl,
+                          const uint64_t ahci_base,
+                          const uint64_t pci_config_base) {
 
     if (!ctrl || ahci_base == 0 || pci_config_base == 0) {
         return false;
     }
 
-    memset(ctrl, 0, sizeof(AHCIController));
+    memset_explicit(ctrl, 0, sizeof(AHCIController));
     ctrl->pci_base = pci_config_base;
 
     ctrl->mapped_size = 0x1000;
@@ -370,10 +389,12 @@ bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
 
     const SyscallResult pci_result = anos_map_physical(
             pci_config_base, (void *)PCI_CONFIG_BASE_ADDRESS, 0x1000,
-            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+            ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
+                    ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
-    if (pci_result != SYSCALL_OK) {
-        debugf("FAILED to map PCI config space! Error code: %d\n", pci_result);
+    if (pci_result.result != SYSCALL_OK) {
+        debugf("FAILED to map PCI config space! Error code: %ld\n",
+               pci_result.result);
         return false;
     }
 
@@ -386,10 +407,12 @@ bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
 
     const SyscallResult result = anos_map_physical(
             ahci_base, (void *)AHCI_CONFIG_BASE_ADDRESS, ctrl->mapped_size,
-            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+            ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
+                    ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
-    if (result != SYSCALL_OK) {
-        debugf("FAILED to map AHCI registers! Error code: %d\n", result);
+    if (result.result != SYSCALL_OK) {
+        debugf("FAILED to map AHCI registers! Error code: %ld\n",
+               result.result);
         vdebugf("  Attempted mapping: phys=0x%016lx -> virt=0x%016llx "
                 "(size=0x%lx)\n",
                 ahci_base, AHCI_CONFIG_BASE_ADDRESS, ctrl->mapped_size);
@@ -425,13 +448,6 @@ bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
     vdebugf("  VS: 0x%08x\n", ctrl->regs->host.vs);
 #endif
 
-    // Verify mapping by checking if we get sane values
-    if (ctrl->regs->host.cap == 0xffffffff || ctrl->regs->host.cap == 0) {
-        debugf("WARNING: CAP register looks invalid (0x%08x) - mapping may be "
-               "wrong!\n",
-               ctrl->regs->host.cap);
-    }
-
 #ifdef VERY_NOISY_AHCI_INIT
     // Test reading from different offsets to verify mapping
     volatile uint32_t *test_ptr = (volatile uint32_t *)ctrl->mapped_regs;
@@ -442,7 +458,15 @@ bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
 
     // TODO reset controller and set it up from scratch? Or not worth the hassle?
 
-    ctrl->port_count = (ctrl->regs->host.cap & 0x1F) + 1;
+    // Verify mapping by checking if we get sane values
+    volatile uint32_t cap_reg = ctrl->regs->host.cap;
+    if (cap_reg == 0xffffffff || cap_reg == 0) {
+        debugf("WARNING: CAP register looks invalid (0x%08x) - mapping may be "
+               "wrong!\n",
+               cap_reg);
+    }
+
+    ctrl->port_count = (cap_reg & 0x1F) + 1;
     ctrl->active_ports = ctrl->regs->host.pi;
 
     if (ctrl->port_count > 32) {
@@ -476,7 +500,7 @@ bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
     return true;
 }
 
-void ahci_controller_cleanup(AHCIController *ctrl) {
+void ahci_controller_cleanup(volatile AHCIController *ctrl) {
     if (!ctrl || !ctrl->initialized) {
         return;
     }
@@ -496,7 +520,7 @@ void ahci_controller_cleanup(AHCIController *ctrl) {
     ctrl->active_ports = 0;
 }
 
-void ahci_port_cleanup(AHCIPort *port) {
+void ahci_port_cleanup(volatile AHCIPort *port) {
     if (!port || !port->initialized) {
         return;
     }
@@ -515,12 +539,13 @@ void ahci_port_cleanup(AHCIPort *port) {
     port->connected = false;
 }
 
-bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
+bool ahci_port_init(volatile AHCIPort *port, volatile AHCIController *ctrl,
+                    uint8_t port_num) {
     if (!port || !ctrl || !ctrl->initialized || port_num >= ctrl->port_count) {
         return false;
     }
 
-    memset(port, 0, sizeof(AHCIPort));
+    memset_explicit(port, 0, sizeof(AHCIPort));
     port->controller = ctrl;
     port->port_num = port_num;
 
@@ -620,10 +645,13 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
     uint64_t msi_address;
     uint32_t msi_data;
 
-    const uint8_t vector = anos_allocate_interrupt_vector(
+    const SyscallResultU8 alloc_result = anos_allocate_interrupt_vector(
             bus_device_func, &msi_address, &msi_data);
 
-    if (vector != 0 && ctrl->msi_cap_offset != 0) {
+    const uint8_t vector = alloc_result.value;
+
+    if (alloc_result.result == SYSCALL_OK && vector != 0 &&
+        ctrl->msi_cap_offset != 0) {
         // Configure the PCI MSI capability registers
 #ifdef UNIT_TESTS
         // In unit tests, mock successful MSI configuration
@@ -661,8 +689,9 @@ bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num) {
     return true;
 }
 
-static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
-    const AHCIPortRegs *port_regs =
+static bool ahci_wait_for_completion(const volatile AHCIPort *port,
+                                     const uint8_t slot) {
+    volatile const AHCIPortRegs *port_regs =
             &port->controller->regs->ports[port->port_num];
 
     if (port->msi_enabled) {
@@ -674,7 +703,7 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
         const SyscallResult result =
                 anos_wait_interrupt(port->msi_vector, &event_data);
 
-        if (result == SYSCALL_OK) {
+        if (result.result == SYSCALL_OK) {
             debugf("Port %u: Received MSI interrupt (data=0x%08x)\n",
                    port->port_num, event_data);
 
@@ -686,8 +715,8 @@ static bool ahci_wait_for_completion(const AHCIPort *port, const uint8_t slot) {
             debugf("Port %u: Interrupt received but command still pending\n",
                    port->port_num);
         } else {
-            debugf("Port %u: MSI wait failed with result %d\n", port->port_num,
-                   result);
+            debugf("Port %u: MSI wait failed with result %ld\n", port->port_num,
+                   result.result);
         }
 
         // Fall back to polling if MSI fails
@@ -732,57 +761,30 @@ static void vdebug_dump_h2d_fis(const uint8_t *fis_bytes) {
             fis_bytes[0], fis_bytes[1], fis_bytes[2], fis_bytes[3],
             fis_bytes[4], fis_bytes[5], fis_bytes[6], fis_bytes[7]);
 }
-
-static void vdebug_dump_pre_command_state(AHCICommandTable *cmd_table,
-                                          AHCIPortRegs *port_regs,
-                                          uint64_t identify_buffer_phys) {
-    vdebugf("PRDT[0]: DBA=0x%08x DBAU=0x%08x DBC=%u (phys=0x%016lx)\n",
-            cmd_table->prdt[0].dba, cmd_table->prdt[0].dbau,
-            cmd_table->prdt[0].dbc, identify_buffer_phys);
-
-    vdebugf("Port %u pre-command status:\n", port->port_num);
-    vdebugf("  TFD: 0x%08x\n", port_regs->tfd);
-    vdebugf("  SSTS: 0x%08x\n", port_regs->ssts);
-    vdebugf("  SERR: 0x%08x\n", port_regs->serr);
-    vdebugf("  IS: 0x%08x\n", port_regs->is);
-    vdebugf("  CI: 0x%08x\n", port_regs->ci);
-    vdebugf("  CMD: 0x%08x\n", port_regs->cmd);
-
-    vdebugf("  Command header slot 0: CTBA=0x%08x CTBAU=0x%08x CFL=%u "
-            "PRDTL=%u\n",
-            cmd_header->ctba, cmd_header->ctbau, cmd_header->cfl,
-            cmd_header->prdtl);
-
-    const uint64_t cmd_table_phys =
-            ((uint64_t)cmd_header->ctbau << 32) | cmd_header->ctba;
-    vdebugf("  Command table should be at phys=0x%016lx, our virtual=%p\n",
-            cmd_table_phys, (void *)cmd_table);
-
-    // Verify FIS content in the command table
-    vdebugf("  FIS in command table: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-            cmd_table->cfis[0], cmd_table->cfis[1], cmd_table->cfis[2],
-            cmd_table->cfis[3], cmd_table->cfis[4], cmd_table->cfis[5],
-            cmd_table->cfis[6], cmd_table->cfis[7]);
-}
 #else
 #define vdebug_dump_d2h_fis(...)
 #define vdebug_dump_h2d_fis(...)
-#define vdebug_dump_pre_command_state(...)
 #endif
 #else
 #define vdebug_dump_d2h_fis(...)
 #define vdebug_dump_h2d_fis(...)
-#define vdebug_dump_pre_command_state(...)
 #endif
 
-bool ahci_port_identify(AHCIPort *port) {
+bool ahci_port_identify(volatile AHCIPort *port) {
     if (!port || !port->initialized) {
         return false;
     }
 
-    AHCIPortRegs *port_regs = &port->controller->regs->ports[port->port_num];
-    AHCICmdHeader *cmd_header = (AHCICmdHeader *)port->cmd_list;
-    AHCICmdTable *cmd_table = (AHCICmdTable *)port->cmd_tables;
+    volatile AHCIPortRegs *port_regs =
+            &port->controller->regs->ports[port->port_num];
+
+    if (port_regs->sig == AHCI_SIG_PM || port_regs->sig == AHCI_SIG_SEMB) {
+        // We don't support these...
+        return false;
+    }
+
+    volatile AHCICmdHeader *cmd_header = (AHCICmdHeader *)port->cmd_list;
+    volatile AHCICmdTable *cmd_table = (AHCICmdTable *)port->cmd_tables;
 
     uint64_t identify_buffer_phys;
     void *identify_buffer =
@@ -803,7 +805,7 @@ bool ahci_port_identify(AHCIPort *port) {
 
     // Don't clear the entire header - preserve CTBA/CTBAU set during port init
     // memset(cmd_header, 0, sizeof(AHCICmdHeader));
-    memset(cmd_table, 0, sizeof(AHCICmdTable));
+    memset_explicit(cmd_table, 0, sizeof(AHCICmdTable));
 
     // Clear and set only the fields we need to modify
     cmd_header->cfl = sizeof(FISRegH2D) / 4; // Should be 5 (20 bytes / 4)
@@ -820,10 +822,11 @@ bool ahci_port_identify(AHCIPort *port) {
     vdebugf("Command header: CFL=%u PRDTL=%u\n", cmd_header->cfl,
             cmd_header->prdtl);
 
-    FISRegH2D *fis = (FISRegH2D *)cmd_table->cfis;
+    volatile FISRegH2D *fis = (volatile FISRegH2D *)cmd_table->cfis;
     fis->fis_type = FIS_TYPE_REG_H2D;
     fis->flags = 0x80; // C bit (Command bit) = 1, PM Port = 0
-    fis->command = ATA_CMD_IDENTIFY;
+    fis->command = port_regs->sig == AHCI_SIG_ATA ? ATA_CMD_IDENTIFY
+                                                  : ATA_CMD_IDENTIFY_PACKET;
     fis->device = 0xa0; // Try 0xa0 since device responds with this
     fis->lba0 = 0;
     fis->lba1 = 0;
@@ -838,17 +841,20 @@ bool ahci_port_identify(AHCIPort *port) {
     vdebugf("H2D FIS setup: type=0x%02x flags=0x%02x cmd=0x%02x dev=0x%02x\n",
             fis->fis_type, fis->flags, fis->command, fis->device);
 
-    vdebug_dump_h2d_fis((uint8_t *)fis)
+    vdebug_dump_h2d_fis((uint8_t *)fis);
 
-            cmd_table->prdt[0]
-                    .dba = (uint32_t)(identify_buffer_phys & 0xFFFFFFFF);
+    cmd_table->prdt[0].dba = (uint32_t)(identify_buffer_phys & 0xFFFFFFFF);
     cmd_table->prdt[0].dbau = (uint32_t)(identify_buffer_phys >> 32);
     cmd_table->prdt[0].dbc = 511; // 512 bytes - 1 (0-based count)
     cmd_table->prdt[0].i = 1;
 
-    vdebug_dump_pre_command_state(cmd_table, port_regs, identify_buffer_phys);
+    // Soft barrier to ensure all command setup is complete before issuing
+    __asm__ __volatile__("" ::: "memory");
 
     port_regs->ci = 1;
+
+    // Hard barrier to ensure MMIO write completes before proceeding
+    __asm__ __volatile__("mfence" ::: "memory");
 
 #ifdef UNIT_TESTS
     // In unit tests, set up mock IDENTIFY completion
@@ -899,8 +905,11 @@ bool ahci_port_identify(AHCIPort *port) {
     }
 
     // Command completed successfully - parse identify data
+    // Add full memory fence to ensure DMA completion is visible to CPU
+    __asm__ __volatile__("mfence" ::: "memory");
 
-    const uint16_t *id_data = (uint16_t *)identify_buffer;
+    const volatile uint16_t *id_data =
+            (const volatile uint16_t *)identify_buffer;
 
     // Extract 48-bit LBA sector count first
     port->sector_count =
@@ -950,20 +959,21 @@ bool ahci_port_identify(AHCIPort *port) {
     return true;
 }
 
-bool ahci_port_read(AHCIPort *port, const uint64_t lba, const uint16_t count,
-                    void *buffer) {
+bool ahci_port_read(volatile AHCIPort *port, const uint64_t lba,
+                    const uint16_t count, void *buffer) {
 
     if (!port || !port->initialized || !buffer || count == 0) {
         return false;
     }
 
-    AHCIPortRegs *port_regs = &port->controller->regs->ports[port->port_num];
-    AHCICmdHeader *cmd_header = (AHCICmdHeader *)port->cmd_list;
-    AHCICmdTable *cmd_table = (AHCICmdTable *)port->cmd_tables;
+    volatile AHCIPortRegs *port_regs =
+            &port->controller->regs->ports[port->port_num];
+    volatile AHCICmdHeader *cmd_header = (AHCICmdHeader *)port->cmd_list;
+    volatile AHCICmdTable *cmd_table = (AHCICmdTable *)port->cmd_tables;
 
     // Don't clear the entire header - preserve CTBA/CTBAU set during port init
     // memset(cmd_header, 0, sizeof(AHCICmdHeader));
-    memset(cmd_table, 0, sizeof(AHCICmdTable));
+    memset_explicit(cmd_table, 0, sizeof(AHCICmdTable));
 
     cmd_header->cfl = sizeof(FISRegH2D) / 4;
     cmd_header->prdtl = 1;
@@ -976,7 +986,7 @@ bool ahci_port_read(AHCIPort *port, const uint64_t lba, const uint16_t count,
     cmd_header->prdbc = 0;
     cmd_header->pmp = 0;
 
-    FISRegH2D *fis = (FISRegH2D *)cmd_table->cfis;
+    volatile FISRegH2D *fis = (volatile FISRegH2D *)cmd_table->cfis;
     fis->fis_type = FIS_TYPE_REG_H2D;
     fis->flags = 0x80;
     fis->command = ATA_CMD_READ_DMA_EX;
@@ -995,24 +1005,28 @@ bool ahci_port_read(AHCIPort *port, const uint64_t lba, const uint16_t count,
     cmd_table->prdt[0].dbc = (count * port->sector_size) - 1;
     cmd_table->prdt[0].i = 1;
 
+    // Memory barrier to ensure all command setup is complete before issuing
+    __asm__ __volatile__("" ::: "memory");
+
     port_regs->ci = 1;
 
     return ahci_wait_for_completion(port, 0);
 }
 
-bool ahci_port_write(AHCIPort *port, const uint64_t lba, const uint16_t count,
-                     const void *buffer) {
+bool ahci_port_write(volatile AHCIPort *port, const uint64_t lba,
+                     const uint16_t count, const void *buffer) {
     if (!port || !port->initialized || !buffer || count == 0) {
         return false;
     }
 
-    AHCIPortRegs *port_regs = &port->controller->regs->ports[port->port_num];
-    AHCICmdHeader *cmd_header = (AHCICmdHeader *)port->cmd_list;
-    AHCICmdTable *cmd_table = (AHCICmdTable *)port->cmd_tables;
+    volatile AHCIPortRegs *port_regs =
+            &port->controller->regs->ports[port->port_num];
+    volatile AHCICmdHeader *cmd_header = (AHCICmdHeader *)port->cmd_list;
+    volatile AHCICmdTable *cmd_table = (AHCICmdTable *)port->cmd_tables;
 
     // Don't clear the entire header - preserve CTBA/CTBAU set during port init
     // memset(cmd_header, 0, sizeof(AHCICmdHeader));
-    memset(cmd_table, 0, sizeof(AHCICmdTable));
+    memset_explicit(cmd_table, 0, sizeof(AHCICmdTable));
 
     cmd_header->cfl = sizeof(FISRegH2D) / 4;
     cmd_header->prdtl = 1;
@@ -1025,7 +1039,7 @@ bool ahci_port_write(AHCIPort *port, const uint64_t lba, const uint16_t count,
     cmd_header->prdbc = 0;
     cmd_header->pmp = 0;
 
-    FISRegH2D *fis = (FISRegH2D *)cmd_table->cfis;
+    volatile FISRegH2D *fis = (volatile FISRegH2D *)cmd_table->cfis;
     fis->fis_type = FIS_TYPE_REG_H2D;
     fis->flags = 0x80;
     fis->command = ATA_CMD_WRITE_DMA_EX;
@@ -1043,6 +1057,9 @@ bool ahci_port_write(AHCIPort *port, const uint64_t lba, const uint16_t count,
     cmd_table->prdt[0].dbau = (uint32_t)((uint64_t)buffer >> 32);
     cmd_table->prdt[0].dbc = (count * port->sector_size) - 1;
     cmd_table->prdt[0].i = 1;
+
+    // Memory barrier to ensure all command setup is complete before issuing
+    __asm__ __volatile__("" ::: "memory");
 
     port_regs->ci = 1;
 

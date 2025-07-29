@@ -66,7 +66,7 @@ typedef struct {
     uint16_t segment;
     uint8_t bus_start;
     uint8_t bus_end;
-    void *mapped_ecam;
+    volatile void *mapped_ecam;
     size_t mapped_size;
 } PCIBusDriver;
 

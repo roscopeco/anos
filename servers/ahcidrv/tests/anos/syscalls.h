@@ -18,7 +18,20 @@
 #endif
 
 // Syscall result type
-typedef int64_t SyscallResult;
+typedef struct {
+    uint64_t result;
+    uint64_t value;
+} SyscallResult;
+
+typedef struct {
+    uint64_t result;
+    uintptr_t value;
+} SyscallResultA;
+
+typedef struct {
+    uint64_t result;
+    uint8_t value;
+} SyscallResultU8;
 
 // Syscall results
 #define SYSCALL_OK 0
@@ -28,17 +41,19 @@ typedef int64_t SyscallResult;
 #define ANOS_MAP_PHYSICAL_FLAG_READ 0x1
 #define ANOS_MAP_PHYSICAL_FLAG_WRITE 0x2
 #define ANOS_MAP_PHYSICAL_FLAG_EXEC 0x4
+#define ANOS_MAP_PHYSICAL_FLAG_NOCACHE 0x8
 
 #define ANOS_MAP_VIRTUAL_FLAG_READ 0x1
 #define ANOS_MAP_VIRTUAL_FLAG_WRITE 0x2
 #define ANOS_MAP_VIRTUAL_FLAG_EXEC 0x4
+#define ANOS_MAP_VIRTUAL_FLAG_NOCACHE 0x8
 
 // Mock syscall function declarations (implemented in mock_syscalls.c)
 SyscallResult anos_map_physical(uint64_t physical_addr, void *virtual_addr,
                                 size_t size, uint32_t flags);
 SyscallResult anos_map_virtual(void *virtual_addr, size_t size, uint32_t flags);
 SyscallResult anos_unmap_virtual(uint64_t virtual_addr, size_t size);
-SyscallResult anos_alloc_physical_pages(size_t size);
+SyscallResultA anos_alloc_physical_pages(size_t size);
 
 // Other syscalls used by AHCI driver
 SyscallResult anos_send_message(uint64_t channel_id, const void *message,
@@ -51,9 +66,9 @@ SyscallResult anos_kprint(const char *message);
 SyscallResult anos_kputchar(char c);
 
 // MSI interrupt syscalls
-uint8_t anos_allocate_interrupt_vector(uint32_t bus_device_func,
-                                       uint64_t *msi_address,
-                                       uint32_t *msi_data);
+SyscallResultU8 anos_allocate_interrupt_vector(uint32_t bus_device_func,
+                                               uint64_t *msi_address,
+                                               uint32_t *msi_data);
 SyscallResult anos_wait_interrupt(uint8_t vector, uint32_t *event_data);
 
 #endif /* __ANOS_SYSCALLS_H */

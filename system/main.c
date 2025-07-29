@@ -275,10 +275,12 @@ static noreturn void process_manager_thread(void) {
         size_t message_size;
         char *message_buffer = (char *)0xc0000000;
 
-        uint64_t message_cookie = anos_recv_message(
+        const SyscallResult result = anos_recv_message(
                 process_manager_channel, &tag, &message_size, message_buffer);
 
-        if (message_cookie) {
+        uint64_t message_cookie = result.value;
+
+        if (result.result == SYSCALL_OK && message_cookie) {
 #ifdef DEBUG_SYS_IPC
             printf("SYSTEM::PROCESS received [0x%016lx] 0x%016lx (%ld bytes)\n",
                    message_cookie, tag, message_size);
@@ -311,10 +313,12 @@ static noreturn void ramfs_driver_thread(void) {
         size_t message_size;
         char *message_buffer = (char *)0xb0000000;
 
-        uint64_t message_cookie = anos_recv_message(
+        const SyscallResult result = anos_recv_message(
                 ramfs_channel, &tag, &message_size, message_buffer);
 
-        if (message_cookie) {
+        uint64_t message_cookie = result.value;
+
+        if (result.result == SYSCALL_OK && message_cookie) {
 #ifdef DEBUG_SYS_IPC
             printf("SYSTEM::<ramfs> received [0x%016lx] 0x%016lx (%ld "
                    "bytes): %s\n",
@@ -357,14 +361,16 @@ int main(int argc, char **argv) {
     banner();
 
 #ifdef TEST_THREAD_KILL
-    if (!anos_create_thread(kamikaze_thread,
-                            (uintptr_t)kamikaze_thread_stack)) {
+    const SyscallResult create_kill_result = anos_create_thread(
+            kamikaze_thread, (uintptr_t)kamikaze_thread_stack);
+
+    if (create_kill_result.result != SYSCALL_OK) {
         printf("Failed to create kamikaze thread...\n");
     }
 #endif
 
     AnosMemInfo meminfo;
-    if (anos_get_mem_info(&meminfo) == 0) {
+    if (anos_get_mem_info(&meminfo).result == SYSCALL_OK) {
         printf("%ld / %ld bytes used / free\n",
                meminfo.physical_total - meminfo.physical_avail,
                meminfo.physical_avail);
@@ -440,25 +446,42 @@ int main(int argc, char **argv) {
             },
     };
 
-    const uint64_t vfs_channel = anos_create_channel();
-    ramfs_channel = anos_create_channel();
-    process_manager_channel = anos_create_channel();
+    const SyscallResult create_vfs_result = anos_create_channel();
+    const uint64_t vfs_channel = create_vfs_result.value;
 
-    if (vfs_channel && ramfs_channel && process_manager_channel) {
-        if (anos_register_channel_name(vfs_channel, "SYSTEM::VFS") == 0) {
+    const SyscallResult create_ramfs_result = anos_create_channel();
+    ramfs_channel = create_ramfs_result.value;
+
+    const SyscallResult create_process_manager_result = anos_create_channel();
+    process_manager_channel = create_process_manager_result.value;
+
+    bool all_created_ok = create_vfs_result.result == SYSCALL_OK &&
+                          create_ramfs_result.result == SYSCALL_OK &&
+                          create_process_manager_result.result == SYSCALL_OK;
+
+    if (all_created_ok && vfs_channel && ramfs_channel &&
+        process_manager_channel) {
+        if (anos_register_channel_name(vfs_channel, "SYSTEM::VFS").result ==
+            SYSCALL_OK) {
             if (anos_register_channel_name(process_manager_channel,
-                                           "SYSTEM::PROCESS") != 0) {
+                                           "SYSTEM::PROCESS")
+                        .result != SYSCALL_OK) {
                 printf("Failed to register SYSTEM::PROCESS channel!\n");
             }
             // set up RAMFS driver thread
-            if (!anos_create_thread(ramfs_driver_thread,
-                                    (uintptr_t)ramfs_driver_thread_stack)) {
+            SyscallResult create_thread_result = anos_create_thread(
+                    ramfs_driver_thread, (uintptr_t)ramfs_driver_thread_stack);
+
+            if (create_thread_result.result != SYSCALL_OK) {
                 printf("Failed to create RAMFS driver thread!\n");
             }
 
+            create_thread_result =
+                    anos_create_thread(process_manager_thread,
+                                       (uintptr_t)process_manager_thread_stack);
+
             // set up process manager thread
-            if (!anos_create_thread(process_manager_thread,
-                                    (uintptr_t)process_manager_thread_stack)) {
+            if (create_thread_result.result != SYSCALL_OK) {
                 printf("Failed to create process manager thread!\n");
             }
 
@@ -488,10 +511,12 @@ int main(int argc, char **argv) {
                 size_t message_size;
                 char *message_buffer = (char *)0xa0000000;
 
-                uint64_t message_cookie = anos_recv_message(
+                const SyscallResult result = anos_recv_message(
                         vfs_channel, &tag, &message_size, message_buffer);
 
-                if (message_cookie) {
+                uint64_t message_cookie = result.value;
+
+                if (result.result == SYSCALL_OK && message_cookie) {
 #ifdef DEBUG_SYS_IPC
                     printf("SYSTEM::VFS received [0x%016lx] 0x%016lx (%ld "
                            "bytes): %s\n",
