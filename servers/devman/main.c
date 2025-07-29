@@ -103,7 +103,7 @@ static ACPI_SDTHeader *find_acpi_table(const char *signature,
         const uintptr_t temp_base = USER_ACPI_BASE + 0x10000 + (i * 0x1000);
         const SyscallResult result =
                 anos_map_physical(table_phys_page, (void *)temp_base, 4096,
-                                  ANOS_MAP_VIRTUAL_FLAG_READ);
+                                  ANOS_MAP_PHYSICAL_FLAG_READ);
 
         if (result.result == SYSCALL_OK) {
             ACPI_SDTHeader *table =
@@ -399,7 +399,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
     // Map the physical page containing the table
     const SyscallResult result =
             anos_map_physical(table_phys_page, (void *)USER_ACPI_BASE, 4096,
-                              ANOS_MAP_VIRTUAL_FLAG_READ);
+                              ANOS_MAP_PHYSICAL_FLAG_READ);
     if (result.result != SYSCALL_OK) {
         printf("Failed to map ACPI table! Error code: %ld\n", result.result);
         return;
@@ -459,7 +459,8 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
             constexpr uintptr_t first_table_base = USER_ACPI_BASE + 0x1000;
             const SyscallResult table_result = anos_map_physical(
                     first_table_phys_page, (void *)first_table_base, 4096,
-                    ANOS_MAP_VIRTUAL_FLAG_READ);
+                    ANOS_MAP_PHYSICAL_FLAG_READ);
+
             if (table_result.result != SYSCALL_OK) {
                 printf("Failed to map first table! Error code: %ld\n",
                        table_result.result);
@@ -516,7 +517,8 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
                     USER_ACPI_BASE + 0x2000 + (i * 0x1000);
             const SyscallResult sig_result = anos_map_physical(
                     sig_table_phys_page, (void *)sig_table_base, 4096,
-                    ANOS_MAP_VIRTUAL_FLAG_READ);
+                    ANOS_MAP_PHYSICAL_FLAG_READ);
+
             if (sig_result.result == SYSCALL_OK) {
                 ACPI_SDTHeader *sig_table =
                         (ACPI_SDTHeader *)((uint8_t *)sig_table_base +

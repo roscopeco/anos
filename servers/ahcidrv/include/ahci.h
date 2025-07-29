@@ -126,6 +126,7 @@ typedef struct {
 #define ATA_CMD_READ_DMA_EX 0x25
 #define ATA_CMD_WRITE_DMA_EX 0x35
 #define ATA_CMD_IDENTIFY 0xEC
+#define ATA_CMD_IDENTIFY_PACKET 0xA1
 
 #define AHCI_GHC_AHCI_ENABLE (1U << 31)
 #define AHCI_GHC_RESET (1U << 0)
@@ -156,7 +157,7 @@ typedef struct {
 } AHCIController;
 
 typedef struct {
-    AHCIController *controller;
+    volatile AHCIController *controller;
     uint8_t port_num;
     bool connected;
     bool initialized;
@@ -169,14 +170,16 @@ typedef struct {
     bool msi_enabled;
 } AHCIPort;
 
-bool ahci_controller_init(AHCIController *ctrl, uint64_t ahci_base,
+bool ahci_controller_init(volatile AHCIController *ctrl, uint64_t ahci_base,
                           uint64_t pci_config_base);
-void ahci_controller_cleanup(AHCIController *ctrl);
-bool ahci_port_init(AHCIPort *port, AHCIController *ctrl, uint8_t port_num);
-void ahci_port_cleanup(AHCIPort *port);
-bool ahci_port_identify(AHCIPort *port);
-bool ahci_port_read(AHCIPort *port, uint64_t lba, uint16_t count, void *buffer);
-bool ahci_port_write(AHCIPort *port, uint64_t lba, uint16_t count,
+void ahci_controller_cleanup(volatile AHCIController *ctrl);
+bool ahci_port_init(volatile AHCIPort *port, volatile AHCIController *ctrl,
+                    uint8_t port_num);
+void ahci_port_cleanup(volatile AHCIPort *port);
+bool ahci_port_identify(volatile AHCIPort *port);
+bool ahci_port_read(volatile AHCIPort *port, uint64_t lba, uint16_t count,
+                    void *buffer);
+bool ahci_port_write(volatile AHCIPort *port, uint64_t lba, uint16_t count,
                      const void *buffer);
 
 #endif

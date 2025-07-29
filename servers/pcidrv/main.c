@@ -203,14 +203,14 @@ static int pci_initialize_driver(const uint64_t ecam_base,
     // Map the ECAM space
     const SyscallResult result = anos_map_physical(
             ecam_base, (void *)ECAM_BASE_ADDRESS, bus_driver.mapped_size,
-            ANOS_MAP_VIRTUAL_FLAG_READ);
+            ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
     if (result.result != SYSCALL_OK) {
         printf("Failed to map ECAM space! Error: %ld\n", result.result);
         return -1;
     }
 
-    bus_driver.mapped_ecam = (void *)ECAM_BASE_ADDRESS;
+    bus_driver.mapped_ecam = (volatile void *)ECAM_BASE_ADDRESS;
 
 #ifdef DEBUG_BUS_DRIVER_INIT
     printf("ECAM mapping successful at virtual address 0x%lx\n",
