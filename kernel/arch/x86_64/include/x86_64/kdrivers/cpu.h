@@ -21,6 +21,15 @@
 #define MSR_FSBase ((0xC0000100))
 #define MSR_GSBase ((0xC0000101))
 #define MSR_KernelGSBase ((0xC0000102))
+#define MSR_IA32_PAT ((0x277))
+
+// PAT Memory Types
+#define PAT_UNCACHEABLE ((0x00))
+#define PAT_WRITE_COMBINING ((0x01))
+#define PAT_WRITE_THROUGH ((0x04))
+#define PAT_WRITE_PROTECTED ((0x05))
+#define PAT_WRITE_BACK ((0x06))
+#define PAT_UNCACHED_MINUS ((0x07))
 
 #ifndef MAX_CPU_COUNT
 #ifndef NO_SMP
@@ -50,6 +59,9 @@ void cpu_debug_info(uint8_t cpu_num);
 uint64_t cpu_read_msr(uint32_t msr);
 
 void cpu_write_msr(uint64_t msr, uint64_t value);
+
+void cpu_write_pat(uint8_t pat0, uint8_t pat1, uint8_t pat2, uint8_t pat3,
+                   uint8_t pat4, uint8_t pat5, uint8_t pat6, uint8_t pat7);
 
 uint64_t cpu_read_tsc(void);
 

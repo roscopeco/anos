@@ -235,3 +235,12 @@ bool cpu_rdrand32(uint32_t *value) {
     __asm__ volatile("rdrand %0; setc %1" : "=r"(*value), "=qm"(ok) : : "cc");
     return ok;
 }
+
+void cpu_write_pat(uint8_t pat0, uint8_t pat1, uint8_t pat2, uint8_t pat3,
+                   uint8_t pat4, uint8_t pat5, uint8_t pat6, uint8_t pat7) {
+    uint64_t pat_value = ((uint64_t)pat7 << 56) | ((uint64_t)pat6 << 48) |
+                         ((uint64_t)pat5 << 40) | ((uint64_t)pat4 << 32) |
+                         ((uint64_t)pat3 << 24) | ((uint64_t)pat2 << 16) |
+                         ((uint64_t)pat1 << 8) | (uint64_t)pat0;
+    cpu_write_msr(MSR_IA32_PAT, pat_value);
+}

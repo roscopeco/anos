@@ -67,6 +67,16 @@
 #define PG_GLOBAL ((1ULL << 8))
 
 /*
+ * PAT bit (for large pages)
+ */
+#define PG_PAT_LARGE ((1ULL << 12))
+
+/*
+ * PAT bit (for PTEs)
+ */
+#define PG_PAT_PTE ((1ULL << 7))
+
+/*
  * Page COW attribute (STAGE3-specific)
  */
 #define PG_COPY_ON_WRITE ((1ULL << 6))

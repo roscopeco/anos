@@ -22,6 +22,7 @@
 
 #include "x86_64/entrypoints/common.h"
 #include "x86_64/init_pagetables.h"
+#include "x86_64/kdrivers/cpu.h"
 #include "x86_64/pmm/config.h"
 
 #ifdef DEBUG_VMM
@@ -278,12 +279,20 @@ noreturn void bsp_kernel_entrypoint_limine() {
             PD_START | PG_PRESENT | PG_WRITE; // the mappings in kernel space...
     new_pd[0] = PT_START | PG_PRESENT | PG_WRITE;
 
+    // Initialize PAT with write-combining in upper 4 entries
+    cpu_write_pat(PAT_WRITE_BACK, PAT_WRITE_THROUGH, PAT_UNCACHED_MINUS,
+                  PAT_UNCACHEABLE, PAT_WRITE_COMBINING, PAT_WRITE_COMBINING,
+                  PAT_WRITE_COMBINING, PAT_WRITE_COMBINING);
+
     // map framebuffer, as four 2MiB large pages at 0xffffffff82000000 - 0xffffffff827fffff
-    // TODO write-combining!
-    new_pd[0x10] = fb_phys | PG_PRESENT | PG_WRITE | PG_PAGESIZE;
-    new_pd[0x11] = (fb_phys + 0x200000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE;
-    new_pd[0x12] = (fb_phys + 0x400000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE;
-    new_pd[0x13] = (fb_phys + 0x600000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE;
+    // Use PAT bit for write-combining (maps to PAT entry 4+ which we set to WC above)
+    new_pd[0x10] = fb_phys | PG_PRESENT | PG_WRITE | PG_PAGESIZE | PG_PAT_LARGE;
+    new_pd[0x11] = (fb_phys + 0x200000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE |
+                   PG_PAT_LARGE;
+    new_pd[0x12] = (fb_phys + 0x400000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE |
+                   PG_PAT_LARGE;
+    new_pd[0x13] = (fb_phys + 0x600000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE |
+                   PG_PAT_LARGE;
 
     bootstrap_trampoline(fb_width, fb_height, KERNEL_INIT_STACK_TOP, PM4_START,
                          bootstrap_continue);
