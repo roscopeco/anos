@@ -361,7 +361,7 @@ PerCPUState *sched_find_target_cpu() {
 #else
             debugstr("!!! WARN: [BUG] sched_find_target_cpu has NULL sched "
                      "state for CPU #");
-            printhex8(candidate->cpu_num, debugchar);
+            printhex8(candidate->cpu_id, debugchar);
             debugstr("\n");
 #endif
         }
