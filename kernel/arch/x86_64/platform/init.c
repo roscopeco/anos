@@ -148,7 +148,7 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
     panic("Somehow ended up back in AP entrypoint. This is a bad thing...");
 }
 
-static void wait_for_ap_basic_init_to_complete(void) {
+static bool wait_for_ap_basic_init_to_complete(void) {
     KernelTimer volatile *hpet = hpet_as_timer();
 
     uint64_t end = hpet->current_ticks() +
@@ -158,15 +158,17 @@ static void wait_for_ap_basic_init_to_complete(void) {
         __asm__ __volatile__("pause" : : : "memory");
 
         if (ap_waiting_count == state_get_cpu_count() - 1) {
-            break;
+#ifdef DEBUG_SMP_STARTUP
+            kprintf("INFO: All APs report as started\n");
+#endif
+            return true;
         }
     }
 
 #ifdef DEBUG_SMP_STARTUP
-    if (ap_waiting_count != state_get_cpu_count() - 1) {
-        kprintf("WARN: One or more APs have gone rogue!\n");
-    }
+    kprintf("WARN: One or more APs have gone rogue!\n");
 #endif
+    return false;
 }
 
 bool platform_await_init_complete(void) {
@@ -175,9 +177,7 @@ bool platform_await_init_complete(void) {
     //
     // We know this if they've reached the "wait for ap_startup_wait" loop.
     //
-    wait_for_ap_basic_init_to_complete();
-
-    return true;
+    return wait_for_ap_basic_init_to_complete();
 }
 
 bool platform_task_init(void) {
