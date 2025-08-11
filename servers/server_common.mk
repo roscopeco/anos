@@ -25,6 +25,14 @@ SHORT_HASH?=`git rev-parse --short HEAD`
 
 CDEFS+=-D$(BINARY_UC)_BUILD
 
+ifeq ($(CONSERVATIVE_BUILD),true)
+CFLAGS+=-DCONSERVATIVE_BUILD
+ifeq ($(CONSERVATIVE_UBSAN),true)
+CFLAGS+=-fsanitize=undefined
+BINARY_OBJS+=../common/ubsan.o
+endif
+endif
+
 .PHONY: all build clean test
 
 all: build
