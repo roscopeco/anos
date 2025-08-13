@@ -12,10 +12,28 @@
 
 #include "smp/state.h"
 
+#ifdef CONSERVATIVE_BUILD
+#ifdef CONSERVATIVE_PANICKY
+#include "panic.h"
+#define cond_panic panic
+#else
+#include "kprintf.h"
+#define cond_panic kprintf
+#endif
+#endif
+
 // Assumes GS is already swapped to KernelGSBase...
 static inline PerCPUState *state_get_for_this_cpu(void) {
     PerCPUState *ptr;
     __asm__ volatile("mov %%gs:0, %0" : "=r"(ptr));
+
+#ifdef CONSERVATIVE_BUILD
+    if (((uintptr_t)ptr & 0xffffffff00000000) == 0) {
+        cond_panic("state_get_for_this_cpu assertion failed: ptr not in kernel "
+                   "space");
+    }
+#endif
+
     return ptr;
 }
 
