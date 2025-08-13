@@ -7,63 +7,41 @@
 
 bits 64
 
+%include "kernel/arch/x86_64/isr_common.asm"
+
 global msi_generic_handler
 extern msi_handle_interrupt
 
 section .text
 
-; Generic MSI interrupt handler - calls C handler with vector number
 msi_generic_handler:
-    push rax
-    push rbx
-    push rcx
-    push rdx
-    push rsi
-    push rdi
-    push rbp
-    push r8
-    push r9
-    push r10
-    push r11
-    push r12
-    push r13
-    push r14
-    push r15
 
-    ; Get vector number from stack (pushed by specific ISR)
-    mov rdi, [rsp + 120]
-    xor rsi, rsi        ; data=0 for now, could be extended later
-    
-    call msi_handle_interrupt
+    ; NOTE: Minor weirdness here - although this is an IRQ handler, by the
+    ;       time we get here we've pushed the vector number, so we need to
+    ;       use the trap_with_code conditional swap, which adds an extra
+    ;       8 bytes to the stack offset to account for that...
 
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop r11
-    pop r10
-    pop r9
-    pop r8
-    pop rbp
-    pop rdi
-    pop rsi
-    pop rdx
-    pop rcx
-    pop rbx
-    pop rax
+    trap_conditional_swapgs_with_code       ; Switch to kernel GS if needed
+    pusha_sysv                              ; Push all caller-saved regs
+
+    mov rdi, pusha_sysv_arg0[rsp]           ; Get vector number from stack (pushed by specific ISR below)
+    xor rsi, rsi                            ; data=0 for now
     
-    add rsp, 8          ; remove vector number
+    call msi_handle_interrupt               ; actual handler
+
+    popa_sysv                               ; Restore regs
+    trap_conditional_swapgs_with_code       ; Switch GS back if needed
+
+    add rsp, 8                              ; remove vector number
     iretq
 
-; Generate specific MSI handlers for each vector
 %macro MSI_HANDLER 1
 global msi_handler_%1
 msi_handler_%1:
-    push %1
-    jmp msi_generic_handler
+    push %1                                 ; Push vector number
+    jmp msi_generic_handler                 ; Jump to handler 👆
 %endmacro
 
-; Generate handlers for MSI vector range (0x40-0xDF)
 MSI_HANDLER 0x40
 MSI_HANDLER 0x41
 MSI_HANDLER 0x42
