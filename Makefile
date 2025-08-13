@@ -131,6 +131,7 @@ endif
 #	NAIVE_MEMCPY			Use a naive (byte-wise only) memcpy
 #	TARGET_CPU_USE_SLEEPERS	Consider the size of the sleep queue as well as run queues when selecting a target CPU
 #	NO_BANNER				Disable the startup banner
+#	NO_PANIC_CPU_ID			Don't report CPU ID in panics. Really only useful for debugging kernel-mode GS issues.
 #
 # Additionally:
 #
