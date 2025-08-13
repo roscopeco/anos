@@ -13,12 +13,14 @@ global bsp_timer_interrupt_handler, ap_timer_interrupt_handler
 global syscall_69_handler
 global page_fault_dispatcher
 global double_fault_dispatcher
+global ipwi_ipi_dispatcher
 
 extern handle_exception_nc, handle_exception_wc, handle_unknown_interrupt
 extern handle_bsp_timer_interrupt, handle_ap_timer_interrupt, 
 extern handle_syscall_69
 extern page_fault_handler
 extern double_fault_handler
+extern ipwi_ipi_handler
 
 %macro pusha_sysv_not_rax 0
   push  rcx                               ; Save all C-clobbered registers, except rax for returns
@@ -55,14 +57,18 @@ extern double_fault_handler
 %endmacro
 
 %macro conditional_swapgs 1
-  pushfq
-  cli                                     ; Still cli even for IRQ gates, this is used at the
-%ifndef NO_USER_GS                        ; end of the handlers as well (when interrupts
-	test byte [rsp+0x10+%1], 3              ; might've been re-enabled...)
-	jz %%.noswap
-	swapgs
+%ifndef NO_USER_GS
+    pushfq                                  ; Save flags
+
+    cli                                     ; Still cli even for IRQ gates, this is used at the
+                                            ; end of the handlers as well (when interrupts
+                                            ; might've been re-enabled...)
+
+    cmp qword [rsp+0x10+%1], 8              ; Are we coming from CS 8?
+    jz %%.noswap                            ; We were already in kernel code if so, don't swap...
+    swapgs                                  ; Otherwise, swap GS!
 %%.noswap:
-  popfq
+    popfq                                   ; Restore flags (including interrupt enable)
 %endif
 %endmacro
 
@@ -251,7 +257,7 @@ page_fault_dispatcher:
 
 ; Double fault handler
 double_fault_dispatcher:
-  trap_conditional_swapgs_with_code
+  irq_conditional_swapgs
   pusha_sysv                              ; Push all caller-saved registers
 
   mov   rdi,80[rsp]                       ; Peek return address into first C argument
@@ -266,3 +272,17 @@ double_fault_dispatcher:
 .die:
   hlt                                     ; handler should never return...
   jmp   .die                              ; ... but just in case...
+
+
+; Register this with IRQ_TYPE_IRQ to disable interrupts (may not
+; matter now we use NMI...)
+;
+ipwi_ipi_dispatcher:
+    irq_conditional_swapgs
+    pusha_sysv                              ; Push all caller-saved registers
+
+    call ipwi_ipi_handler
+
+    popa_sysv                               ; Restore all caller-saved registers
+    irq_conditional_swapgs
+    iretq
