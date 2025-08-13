@@ -165,11 +165,13 @@ void cpu_invalidate_tlb_all(void) {
                      "mov %0, %%cr3"
                      : "=r"(cr3)::"memory");
 }
-void cpu_swapgs(void) {
-#ifndef NO_USER_GS
-    __asm__ volatile("swapgs" : : : "memory");
-#endif
-}
+
+/*
+ * This is deliberately not conditional on NO_USER_GS,
+ * functions shouldn't be a conditional no-op - if conditional
+ * swappage is needed from C, make the call conditional...
+ */
+void cpu_swapgs(void) { __asm__ volatile("swapgs" : : : "memory"); }
 
 uintptr_t cpu_read_cr3(void) {
     uintptr_t value;

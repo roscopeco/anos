@@ -4,6 +4,10 @@
 ; Copyright (c) 2025 Ross Bamford
 ;
 
+bits 64
+
+%include "kernel/arch/x86_64/isr_common.asm"
+
 global ipwi_ipi_dispatcher
 extern ipwi_ipi_handler
 
@@ -11,5 +15,11 @@ extern ipwi_ipi_handler
 ; matter now we use NMI...)
 ;
 ipwi_ipi_dispatcher:
+    irq_conditional_swapgs
+    pusha_sysv                              ; Push all caller-saved registers
+
     call ipwi_ipi_handler
+
+    popa_sysv                               ; Restore all caller-saved registers
+    irq_conditional_swapgs
     iretq

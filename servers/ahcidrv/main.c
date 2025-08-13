@@ -24,10 +24,10 @@
 #define VERSION STRVER(VERSTR)
 
 static AHCIController controller = {0};
-static AHCIPort ports[32] = {0};
+static AHCIPort ports[32] = {nullptr};
 
-static int ahci_initialize_driver(uint64_t ahci_base,
-                                  uint64_t pci_config_base) {
+static int ahci_initialize_driver(const uint64_t ahci_base,
+                                  const uint64_t pci_config_base) {
 #ifdef DEBUG_AHCI_INIT
     printf("Initializing AHCI driver:\n");
     printf("  AHCI Base: 0x%016lx\n", ahci_base);
