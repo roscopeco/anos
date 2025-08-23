@@ -869,12 +869,15 @@ SYSCALL_HANDLER(map_physical) {
             }
 #elifdef ARCH_RISCV64
             if (flags & ANOS_MAP_PHYSICAL_FLAG_EXEC) {
-                page_flags |= PG_NOEXEC;
+                page_flags |= PG_EXEC;
             }
 #endif
+
+#ifndef ARCH_RISCV64 // We don't support nocache on RISC-V yet...
             if (flags & ANOS_MAP_PHYSICAL_FLAG_NOCACHE) {
                 page_flags |= PG_NOCACHE;
             }
+#endif
         }
 
         // Map the physical page into userspace with specified permissions

@@ -30,5 +30,10 @@ pcidrv/pcidrv.elf: server_common.mk pcidrv/Makefile Makefile pcidrv/main.c
 ahcidrv/ahcidrv.elf: server_common.mk ahcidrv/Makefile Makefile ahcidrv/main.c
 	$(MAKE) -C ahcidrv ahcidrv.elf
 
+ifeq ($(ARCH),x86_64)
 system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf
 	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf
+else
+system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf
+	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf
+endif
