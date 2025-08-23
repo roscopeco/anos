@@ -25,6 +25,7 @@ endif
 endif
 
 export ASM
+export ARCH
 
 OPTIMIZE?=3
 XLD?=$(TARGET_TRIPLE)-ld
