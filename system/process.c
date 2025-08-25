@@ -28,10 +28,6 @@ extern void *_bss_start;
 extern void *_bss_end;
 extern void *__user_stack_top;
 
-// TODO Replace these once malloc is good, this is not thread safe!
-static char __attribute__((aligned(VM_PAGE_SIZE))) newstack_p[VM_PAGE_SIZE];
-static char __attribute__((aligned(VM_PAGE_SIZE))) argv_p[VM_PAGE_SIZE];
-
 static inline unsigned int round_up_to_page_size(const size_t size) {
     return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
 }
@@ -75,25 +71,46 @@ static bool build_new_process_init_values(const uintptr_t stack_top_addr,
         return false;
     }
 
-    // MAX_ARGC is 512, so we only need a page for this...
-    uintptr_t *argv_pointers = (uintptr_t *)argv_p;
+    // Use unique addresses based on stack pointer to avoid collisions between
+    // concurrent calls.
+    //
+    // TODO this is still total bullshit, we need to have a simple virtual
+    //      allocator in userspace, or even just malloc two pages and use
+    //      an aligned address within them...
+    //
+    const uintptr_t unique_addr_base =
+            0x3000000 + ((uintptr_t)&argv & 0xFFF000);
 
-    if (!argv_pointers) {
+    // Allocate argv pointers buffer at a unique address
+    const SyscallResultP argv_result = anos_map_virtual(
+            VM_PAGE_SIZE, unique_addr_base,
+            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+
+    if (argv_result.result != SYSCALL_OK) {
         return false;
     }
+
+    uintptr_t *argv_pointers = (uintptr_t *)argv_result.value;
 
     const uint64_t stack_blocks_needed = value_count / 512;
-    uintptr_t *new_stack = (uintptr_t *)newstack_p;
 
     if (stack_blocks_needed > 1) {
-        // TODO remove this once we have malloc'd blocks!
+        anos_unmap_virtual(VM_PAGE_SIZE, unique_addr_base);
         return false;
     }
 
-    if (!new_stack) {
-        // todo free argv pointer page
+    // Allocate new stack buffer at a different unique address
+    const uintptr_t stack_addr = unique_addr_base + VM_PAGE_SIZE;
+    const SyscallResultP stack_result = anos_map_virtual(
+            VM_PAGE_SIZE, stack_addr,
+            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+
+    if (stack_result.result != SYSCALL_OK) {
+        anos_unmap_virtual(VM_PAGE_SIZE, unique_addr_base);
         return false;
     }
+
+    uintptr_t *new_stack = (uintptr_t *)stack_result.value;
 
     const uintptr_t stack_bottom_addr =
             stack_top_addr - (sizeof(uintptr_t) * value_count);
@@ -160,6 +177,8 @@ static bool build_new_process_init_values(const uintptr_t stack_top_addr,
     out_init_values->value_count = value_count;
     out_init_values->data = new_stack;
     out_init_values->allocated_size = stack_blocks_needed;
+    out_init_values->argv_buffer = (uintptr_t *)unique_addr_base;
+    out_init_values->stack_buffer = (uintptr_t *)stack_addr;
 
     return true;
 }
@@ -209,14 +228,19 @@ int64_t create_server_process(const uint64_t stack_size, const uint16_t capc,
 
     const SyscallResultI64 result = anos_create_process(&process_create_params);
 
+    // Clean up allocated buffers
+    if (init_stack_values.argv_buffer) {
+        anos_unmap_virtual(VM_PAGE_SIZE,
+                           (uintptr_t)init_stack_values.argv_buffer);
+    }
+    if (init_stack_values.stack_buffer) {
+        anos_unmap_virtual(VM_PAGE_SIZE,
+                           (uintptr_t)init_stack_values.stack_buffer);
+    }
+
     if (result.result == SYSCALL_OK) {
         return result.value;
     }
 
     return result.result;
-
-    // TODO free stack_values
 }
-
-static char __attribute__((aligned(VM_PAGE_SIZE))) argv_p[4096];
-static char __attribute__((aligned(VM_PAGE_SIZE))) newstack_p[4096];

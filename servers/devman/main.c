@@ -92,10 +92,15 @@ static void print_signature(const char *sig, const size_t len) {
 extern uint64_t __syscall_capabilities[];
 
 static ACPI_SDTHeader *find_acpi_table(const char *signature,
-                                       const uint64_t *entries,
+                                       const uint32_t *entries,
                                        const uint32_t entry_count) {
-    for (uint32_t i = 0; i < entry_count; i++) {
-        const uint64_t table_addr = entries[i];
+
+    // The entries are 64-bit, but can be misaligned, on 4-byte boundaries.
+    // so we'll read them as pairs of 32-bit values and combine to get
+    // the 64-bit value...
+
+    for (uint32_t i = 0; i < entry_count << 1; i += 2) {
+        const uint64_t table_addr = entries[i] | (uint64_t)entries[i + 1] << 32;
 
         const uint64_t table_phys_page = table_addr & ~0xFFF;
         const uint64_t table_offset = table_addr & 0xFFF;
@@ -431,10 +436,16 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         printf("  Number of entries: %u\n", entry_count);
 #endif
 
-        const uint64_t *entries = (uint64_t *)(table + 1);
+        // Although the entries are 64-bit, they're probably aligned on
+        // a 4-byte boundary rather than 8, per the ACPI spec. So we'll
+        // treat them as 32-bit and combine them manually as we use them
+        // to avoid undefined behaviour...
+
+        const uint32_t *entries = (uint32_t *)(table + 1);
 #ifdef DEBUG_ACPI
-        for (uint32_t i = 0; i < entry_count && i < 8; i++) {
-            printf("  Entry %u: 0x%016lx\n", i, entries[i]);
+        for (uint32_t i = 0; i < (entry_count << 1) && i < 16; i += 2) {
+            printf("  Entry @ ofs %u: 0x%016lx\n", i,
+                   entries[i] | (uint64_t)entries[i + 1] << 32);
         }
 #endif
 
@@ -442,7 +453,8 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
 #ifdef VERY_NOISY_ACPI
         if (entry_count > 0) {
             printf("\n--- Dumping first ACPI table ---\n");
-            const uint64_t first_table_addr = entries[0];
+            const uint64_t first_table_addr = entries[0] | (uint64_t)entries[1]
+                                                                   << 32;
 
             printf("Looking for first table at physical 0x%016lx\n",
                    first_table_addr);
@@ -506,8 +518,9 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
 
         // Dump all table signatures
         printf("\n--- All ACPI Table Signatures ---\n");
-        for (uint32_t i = 0; i < entry_count; i++) {
-            uint64_t sig_table_addr = entries[i];
+        for (uint32_t i = 0; i < (entry_count << 1); i += 2) {
+            uint64_t sig_table_addr = entries[i] | (uint64_t)entries[i + 1]
+                                                           << 32;
 
             // Map each table to read its signature
             uint64_t sig_table_phys_page = sig_table_addr & ~0xFFF;
@@ -523,11 +536,11 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
                 ACPI_SDTHeader *sig_table =
                         (ACPI_SDTHeader *)((uint8_t *)sig_table_base +
                                            sig_table_offset);
-                printf("  Table %u: ", i);
+                printf("  Table @ ofs %u: ", i);
                 print_signature(sig_table->signature, 4);
                 printf("\n");
             } else {
-                printf("  Table %u: <mapping failed>\n", i);
+                printf("  Table @ ofs %u: <mapping failed>\n", i);
             }
         }
 

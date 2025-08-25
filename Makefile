@@ -132,6 +132,7 @@ endif
 #	NAIVE_MEMCPY			Use a naive (byte-wise only) memcpy
 #	TARGET_CPU_USE_SLEEPERS	Consider the size of the sleep queue as well as run queues when selecting a target CPU
 #	NO_BANNER				Disable the startup banner
+#	NO_PANIC_CPU_ID			Don't report CPU ID in panics. Really only useful for debugging kernel-mode GS issues.
 #
 # Additionally:
 #
@@ -214,8 +215,8 @@ STAGE3_OBJS_X86_64= $(STAGE3_DIR)/platform/acpi/acpitables.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/std_routines.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/structs/list.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/spinlock.o						\
-					$(STAGE3_ARCH_X86_64_DIR)/smp/ipwi_dispatcher.o				\
 					$(STAGE3_ARCH_X86_64_DIR)/smp/ipwi.o						\
+					$(STAGE3_ARCH_X86_64_DIR)/smp/ipwi_dispatcher.o				\
 					$(STAGE3_ARCH_X86_64_DIR)/debugmadt.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/capabilities/cookies.o			\
 					$(STAGE3_ARCH_X86_64_DIR)/vmm/vmmapper_init.o				\

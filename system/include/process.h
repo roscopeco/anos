@@ -20,6 +20,8 @@ typedef struct {
     uint64_t value_count;
     uintptr_t *data;
     size_t allocated_size;
+    uintptr_t *argv_buffer;  // Buffer to be freed after use
+    uintptr_t *stack_buffer; // Buffer to be freed after use
 } InitStackValues;
 
 /*
@@ -29,8 +31,8 @@ typedef struct {
  *
  * Returns negative on failure.
  */
-int64_t create_server_process(const uint64_t stack_size, const uint16_t capc,
-                              const InitCapability *capv, const uint16_t argc,
+int64_t create_server_process(uint64_t stack_size, uint16_t capc,
+                              const InitCapability *capv, uint16_t argc,
                               const char *argv[]);
 
 #endif //__ANOS_SYSTEM_PROCESS_H

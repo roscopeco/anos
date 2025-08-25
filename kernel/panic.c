@@ -124,6 +124,7 @@ static inline void print_loc(const char *filename, const uint64_t line) {
 }
 
 static inline void print_cpu(void) {
+#ifndef NO_PANIC_CPU_ID
     if (smp_is_up) {
         PerCPUState *state = state_get_for_this_cpu();
 
@@ -132,11 +133,16 @@ static inline void print_cpu(void) {
         debugattr(0x07);
 
         if (state) {
-            printdec(state->cpu_id, debugchar);
+            if ((uintptr_t)state & 0xfffffff800000000) {
+                printdec((int64_t)state->cpu_id, debugchar);
+            } else {
+                debugstr("<unknown: corrupt state>");
+            }
         } else {
             debugstr("<unknown>");
         }
     }
+#endif
 }
 
 static inline void print_code(const uint64_t code) {
@@ -385,21 +391,21 @@ noreturn void panic_general_protection_fault_sloc(const uint64_t code,
 noreturn void panic_double_fault_sloc(const uintptr_t origin_addr,
                                       const char *filename,
                                       const uint64_t line) {
+
     // double fault is an IRQ handler, interrupts already disabled...
+    //
+    // take no locks, don't print the CPU ID, and don't try
+    // to use the per-CPU state for anything (including stopping other
+    // processors). This is a #DF so we're going down in flames anyway,
+    // and we can't rely on much of anything - including having correct
+    // CPU state in GS or not having panic / scheduler locks held...
 
-    const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
-
-    if (smp_is_up) {
-        panic_stop_all_processors();
-    }
-
-    print_header_vec("[BUG] Double fault", 0x0d);
+    print_header_vec("[BUG] Double fault", 0x08);
     print_loc(filename, line);
     print_origin_ip(origin_addr);
     print_stack_trace();
     print_footer();
 
-    spinlock_unlock_irqrestore(&panic_lock, lock_flags);
     halt_and_catch_fire();
 }
 
