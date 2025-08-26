@@ -444,6 +444,26 @@ int main(int argc, char **argv) {
                             __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT],
                     .capability_id = SYSCALL_ID_WAIT_INTERRUPT,
             },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE],
+                    .capability_id = SYSCALL_ID_RECV_MESSAGE,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE],
+                    .capability_id = SYSCALL_ID_REPLY_MESSAGE,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL],
+                    .capability_id = SYSCALL_ID_CREATE_CHANNEL,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities
+                            [SYSCALL_ID_REGISTER_NAMED_CHANNEL],
+                    .capability_id = SYSCALL_ID_REGISTER_NAMED_CHANNEL,
+            },
     };
 
     const SyscallResult create_vfs_result = anos_create_channel();
@@ -500,7 +520,7 @@ int main(int argc, char **argv) {
             const char *devman_argv[] = {"boot:/devman.elf"};
 
             const int64_t devman_pid = create_server_process(
-                    0x100000, 12, new_process_caps, 1, devman_argv);
+                    0x100000, 16, new_process_caps, 1, devman_argv);
             if (devman_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/devman.elf");
