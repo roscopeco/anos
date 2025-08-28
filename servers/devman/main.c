@@ -264,6 +264,16 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
             },
             {
                     .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE],
+                    .capability_id = SYSCALL_ID_RECV_MESSAGE,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE],
+                    .capability_id = SYSCALL_ID_REPLY_MESSAGE,
+            },
+            {
+                    .capability_cookie =
                             __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL],
                     .capability_id = SYSCALL_ID_CREATE_CHANNEL,
             },
@@ -294,7 +304,7 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
            argv[4]);
 #endif
 
-    int64_t pid = spawn_process_via_system(0x100000, 12, pci_caps, 5, argv);
+    int64_t pid = spawn_process_via_system(0x100000, 13, pci_caps, 5, argv);
     if (pid > 0) {
 #ifdef DEBUG_PCI
         printf("  --> PCI driver spawned with PID %ld\n", pid);
@@ -730,13 +740,43 @@ static void handle_device_message(uint64_t msg_cookie, void *buffer,
         const DeviceQueryMessage *query_msg = (DeviceQueryMessage *)buffer;
 
         if (buffer_size >= sizeof(DeviceQueryMessage)) {
-            // For simplicity, return device count in result
-            // Real implementation would return data in shared page
             static DeviceInfo query_results[MAX_DEVICES];
             const uint32_t found = query_devices(
                     query_msg->query_type, query_msg->device_type,
                     query_msg->device_id, query_results, MAX_DEVICES);
-            result = found;
+
+            if (found > 0) {
+                // Copy device info to the buffer for return
+                size_t data_size = found * sizeof(DeviceInfo);
+                size_t required_size = sizeof(DeviceQueryResponse) + data_size;
+
+                printf("DEVMAN DEBUG: Found %u devices, data_size=%lu, "
+                       "buffer_size=%lu, required=%lu\n",
+                       found, data_size, buffer_size, required_size);
+
+                // Check against actual IPC buffer size, not incoming message size
+                if (required_size <= 4096) {
+                    printf("DEVMAN DEBUG: Returning structured response with "
+                           "device info\n");
+                    DeviceQueryResponse *response =
+                            (DeviceQueryResponse *)buffer;
+                    response->device_count = found;
+                    response->error_code = 0;
+
+                    // Copy device info after the response header
+                    memcpy(response->data, query_results, data_size);
+                    result = required_size;
+                } else {
+                    // Too much data, just return count
+                    printf("DEVMAN DEBUG: Buffer too small, returning count "
+                           "only (%u)\n",
+                           found);
+                    result = found;
+                }
+            } else {
+                printf("DEVMAN DEBUG: No devices found\n");
+                result = 0;
+            }
         }
         break;
     }

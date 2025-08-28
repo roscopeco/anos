@@ -13,6 +13,7 @@
 #include <anos/syscalls.h>
 
 #include "../common/device_types.h"
+#include "../common/filesystem_types.h"
 #include "ahci.h"
 
 #ifndef VERSTR
@@ -27,6 +28,7 @@
 static AHCIController controller = {0};
 static AHCIPort ports[32] = {nullptr};
 static uint64_t devman_channel = 0;
+static uint64_t ahci_channel = 0;
 static uint64_t pci_parent_id = 0;
 
 static int ahci_initialize_driver(const uint64_t ahci_base,
@@ -93,7 +95,7 @@ static bool register_with_devman(void) {
         return false;
     }
 
-    const uint64_t ahci_channel = channel_result.value;
+    ahci_channel = channel_result.value;
     static char __attribute__((aligned(4096))) reg_buffer[4096];
 
     // First, register the AHCI controller itself
@@ -183,6 +185,153 @@ static bool register_with_devman(void) {
     return true;
 }
 
+static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
+                                      void *buffer, size_t buffer_size) {
+    if (buffer_size < sizeof(StorageIOMessage)) {
+        printf("AHCI: Invalid storage I/O message size\n");
+        anos_reply_message(msg_cookie, 0);
+        return;
+    }
+
+    StorageIOMessage *io_msg = (StorageIOMessage *)buffer;
+
+    switch (io_msg->msg_type) {
+    case STORAGE_MSG_READ_SECTORS: {
+        printf("AHCI: Read sectors request - LBA: %lu, Count: %u\n",
+               io_msg->start_sector, io_msg->sector_count);
+
+        // Find an active port to use (use first available)
+        volatile AHCIPort *active_port = NULL;
+        for (uint8_t i = 0; i < controller.port_count; i++) {
+            if (controller.active_ports & (1 << i) && ports[i].initialized) {
+                active_port = &ports[i];
+                break;
+            }
+        }
+
+        if (!active_port) {
+            printf("AHCI: No active storage ports available\n");
+            anos_reply_message(msg_cookie, 0);
+            return;
+        }
+
+        // Allocate buffer for sector data
+        static char __attribute__((
+                aligned(4096))) sector_buffer[64 * 512]; // Max 64 sectors
+
+        // Limit sector count to prevent buffer overflow
+        uint32_t sectors_to_read = io_msg->sector_count;
+        if (sectors_to_read > 64) {
+            sectors_to_read = 64;
+        }
+
+        const bool success = ahci_port_read(active_port, io_msg->start_sector,
+                                            sectors_to_read, sector_buffer);
+
+        if (success) {
+            printf("AHCI: Successfully read %u sectors from LBA %lu\n",
+                   sectors_to_read, io_msg->start_sector);
+
+            // Debug: Check if we got real data or just zeros
+            printf("AHCI: First 16 bytes of sector data: ");
+            uint8_t *data_bytes = (uint8_t *)sector_buffer;
+            bool all_zeros = true;
+            for (int i = 0; i < 16; i++) {
+                printf("%02x ", data_bytes[i]);
+                if (data_bytes[i] != 0) {
+                    all_zeros = false;
+                }
+            }
+            printf("%s\n", all_zeros ? " (ALL ZEROS!)" : "");
+
+            // Copy data to response buffer
+            const size_t data_size = sectors_to_read * active_port->sector_size;
+            memcpy(buffer, sector_buffer, data_size);
+
+            anos_reply_message(msg_cookie, data_size);
+        } else {
+            printf("AHCI: Failed to read sectors\n");
+            anos_reply_message(msg_cookie, 0);
+        }
+        break;
+    }
+
+    case STORAGE_MSG_WRITE_SECTORS: {
+        printf("AHCI: Write sectors request - LBA: %lu, Count: %u\n",
+               io_msg->start_sector, io_msg->sector_count);
+
+        // Find an active port to use
+        volatile AHCIPort *active_port = NULL;
+        for (uint8_t i = 0; i < controller.port_count; i++) {
+            if (controller.active_ports & (1 << i) && ports[i].initialized) {
+                active_port = &ports[i];
+                break;
+            }
+        }
+
+        if (!active_port) {
+            printf("AHCI: No active storage ports available\n");
+            anos_reply_message(msg_cookie, 0);
+            return;
+        }
+
+        // Limit sector count
+        uint32_t sectors_to_write = io_msg->sector_count;
+        if (sectors_to_write > 64) {
+            sectors_to_write = 64;
+        }
+
+        bool success = ahci_port_write(active_port, io_msg->start_sector,
+                                       sectors_to_write, io_msg->data);
+
+        if (success) {
+            printf("AHCI: Successfully wrote %u sectors to LBA %lu\n",
+                   sectors_to_write, io_msg->start_sector);
+            anos_reply_message(msg_cookie, sectors_to_write);
+        } else {
+            printf("AHCI: Failed to write sectors\n");
+            anos_reply_message(msg_cookie, 0);
+        }
+        break;
+    }
+
+    case STORAGE_MSG_GET_INFO: {
+        printf("AHCI: Storage info request\n");
+
+        // Find an active port to use
+        volatile AHCIPort *active_port = NULL;
+        for (uint8_t i = 0; i < controller.port_count; i++) {
+            if (controller.active_ports & (1 << i) && ports[i].initialized) {
+                active_port = &ports[i];
+                break;
+            }
+        }
+
+        if (!active_port) {
+            printf("AHCI: No active storage ports available\n");
+            anos_reply_message(msg_cookie, 0);
+            return;
+        }
+
+        StorageInfoResponse *info = (StorageInfoResponse *)buffer;
+        info->sector_count = active_port->sector_count;
+        info->sector_size = active_port->sector_size;
+        info->capabilities = DEVICE_CAP_READ | DEVICE_CAP_WRITE;
+        strncpy(info->model, "AHCI Storage Device", sizeof(info->model) - 1);
+        strncpy(info->serial, "AHCI-001", sizeof(info->serial) - 1);
+
+        anos_reply_message(msg_cookie, sizeof(StorageInfoResponse));
+        break;
+    }
+
+    default:
+        printf("AHCI: Unknown storage I/O message type: %u\n",
+               io_msg->msg_type);
+        anos_reply_message(msg_cookie, 0);
+        break;
+    }
+}
+
 int main(const int argc, char **argv) {
     printf("\nAHCI Driver #%s [libanos #%s]", VERSION, libanos_version());
 
@@ -214,10 +363,26 @@ int main(const int argc, char **argv) {
         printf("Warning: Failed to register with DEVMAN\n");
     }
 
-    while (1) {
-        anos_task_sleep_current_secs(5);
-    }
+    printf("AHCI driver ready, entering message loop...\n");
 
-    ahci_controller_cleanup(&controller);
-    return 0;
+    // Main IPC message loop to handle storage I/O requests
+    while (1) {
+        static char __attribute__((aligned(4096))) ipc_buffer[4096];
+        size_t buffer_size = sizeof(ipc_buffer);
+        uint64_t tag = 0;
+
+        const SyscallResult recv_result =
+                anos_recv_message(ahci_channel, &tag, &buffer_size, ipc_buffer);
+        const uint64_t msg_cookie = recv_result.value;
+
+        if (recv_result.result == SYSCALL_OK && msg_cookie) {
+            printf("AHCI: Received message with tag %lu, size %lu\n", tag,
+                   buffer_size);
+            handle_storage_io_message(msg_cookie, tag, ipc_buffer, buffer_size);
+        } else {
+            printf("AHCI: Error receiving message or no message available\n");
+            // Sleep briefly to avoid busy loop if no messages
+            anos_task_sleep_current_secs(1);
+        }
+    }
 }

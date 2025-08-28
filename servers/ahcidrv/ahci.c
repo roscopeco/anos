@@ -432,11 +432,11 @@ bool ahci_controller_init(volatile AHCIController *ctrl,
 #ifdef DEBUG_AHCI_INIT
 #ifdef VERY_NOISY_AHCI_INIT
     vdebugf("AHCI structure sizes:\n");
-    vdebugf("  sizeof(AHCIHostRegs): %zu (should be 256)\n",
+    vdebugf("  sizeof(AHCIHostRegs): %lu (should be 256)\n",
             sizeof(AHCIHostRegs));
-    vdebugf("  sizeof(AHCIPortRegs): %zu (should be 128)\n",
+    vdebugf("  sizeof(AHCIPortRegs): %lu (should be 128)\n",
             sizeof(AHCIPortRegs));
-    vdebugf("  sizeof(AHCIRegs): %zu\n", sizeof(AHCIRegs));
+    vdebugf("  sizeof(AHCIRegs): %lu\n", sizeof(AHCIRegs));
     vdebugf("  Port 0 offset: 0x%lx (should be 0x100)\n",
             (uintptr_t)&ctrl->regs->ports[0] - (uintptr_t)ctrl->regs);
 
@@ -1000,9 +1000,20 @@ bool ahci_port_read(volatile AHCIPort *port, const uint64_t lba,
     fis->count = count & 0xFF;
     fis->count_exp = (count >> 8) & 0xFF;
 
-    cmd_table->prdt[0].dba = (uint32_t)((uint64_t)buffer & 0xFFFFFFFF);
-    cmd_table->prdt[0].dbau = (uint32_t)((uint64_t)buffer >> 32);
-    cmd_table->prdt[0].dbc = (count * port->sector_size) - 1;
+    // Allocate DMA-capable memory for the read operation
+    const size_t transfer_size = count * port->sector_size;
+    uint64_t dma_phys_addr = 0;
+    void *dma_buffer =
+            allocate_aligned_memory(transfer_size, 4096, &dma_phys_addr);
+
+    if (!dma_buffer || dma_phys_addr == 0) {
+        printf("AHCI: Failed to allocate DMA memory for read operation\n");
+        return false;
+    }
+
+    cmd_table->prdt[0].dba = (uint32_t)(dma_phys_addr & 0xFFFFFFFF);
+    cmd_table->prdt[0].dbau = (uint32_t)(dma_phys_addr >> 32);
+    cmd_table->prdt[0].dbc = transfer_size - 1;
     cmd_table->prdt[0].i = 1;
 
     // Memory barrier to ensure all command setup is complete before issuing
@@ -1010,7 +1021,19 @@ bool ahci_port_read(volatile AHCIPort *port, const uint64_t lba,
 
     port_regs->ci = 1;
 
-    return ahci_wait_for_completion(port, 0);
+    bool success = ahci_wait_for_completion(port, 0);
+
+    if (success) {
+        // Copy data from DMA buffer to caller's buffer
+        memcpy(buffer, dma_buffer, transfer_size);
+        printf("AHCI: Successfully copied %lu bytes from DMA buffer to "
+               "caller\n",
+               transfer_size);
+    }
+
+    // TODO: Free the DMA memory (anos doesn't seem to have a free_physical_pages syscall yet)
+
+    return success;
 }
 
 bool ahci_port_write(volatile AHCIPort *port, const uint64_t lba,
