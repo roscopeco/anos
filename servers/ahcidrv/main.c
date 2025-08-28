@@ -215,10 +215,6 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
             return;
         }
 
-        // Allocate buffer for sector data (limited by 4KB IPC buffer)
-        static char __attribute__((
-                aligned(4096))) sector_buffer[4096]; // Max 4KB = 8 sectors
-
         // Check sector count limit (4KB IPC buffer / 512 bytes = 8 sectors max)
         if (io_msg->sector_count > 8) {
             printf("AHCI: Requested %u sectors exceeds maximum of 8 sectors "
@@ -230,8 +226,10 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
 
         uint32_t sectors_to_read = io_msg->sector_count;
 
+        // Read directly into caller's zero-copy mapped buffer
+        // ahci_port_read handles DMA internally and copies from DMA buffer to our buffer
         const bool success = ahci_port_read(active_port, io_msg->start_sector,
-                                            sectors_to_read, sector_buffer);
+                                            sectors_to_read, buffer);
 
         if (success) {
             printf("AHCI: Successfully read %u sectors from LBA %lu\n",
@@ -241,7 +239,7 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
 #ifdef VERY_NOISY_AHCI_OPS
             // Debug: Check if we got real data or just zeros
             printf("AHCI: First 16 bytes of sector data: ");
-            uint8_t *data_bytes = (uint8_t *)sector_buffer;
+            uint8_t *data_bytes = (uint8_t *)buffer;
             bool all_zeros = true;
             for (int i = 0; i < 16; i++) {
                 printf("%02x ", data_bytes[i]);
@@ -253,13 +251,9 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
 #endif
 #endif
 
-            // Copy data to response buffer
+            // Reply with the amount of data read
             const size_t data_size = sectors_to_read * active_port->sector_size;
-            printf("AHCI: Copying %lu bytes to IPC buffer (sectors: %u, "
-                   "sector_size: %u)\n",
-                   data_size, sectors_to_read, active_port->sector_size);
-            memcpy(buffer, sector_buffer, data_size);
-
+            printf("AHCI: Returning %lu bytes to caller\n", data_size);
             anos_reply_message(msg_cookie, data_size);
         } else {
             printf("AHCI: Failed to read sectors\n");
