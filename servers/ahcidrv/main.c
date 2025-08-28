@@ -215,15 +215,20 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
             return;
         }
 
-        // Allocate buffer for sector data
+        // Allocate buffer for sector data (limited by 4KB IPC buffer)
         static char __attribute__((
-                aligned(4096))) sector_buffer[64 * 512]; // Max 64 sectors
+                aligned(4096))) sector_buffer[4096]; // Max 4KB = 8 sectors
 
-        // Limit sector count to prevent buffer overflow
-        uint32_t sectors_to_read = io_msg->sector_count;
-        if (sectors_to_read > 64) {
-            sectors_to_read = 64;
+        // Check sector count limit (4KB IPC buffer / 512 bytes = 8 sectors max)
+        if (io_msg->sector_count > 8) {
+            printf("AHCI: Requested %u sectors exceeds maximum of 8 sectors "
+                   "per IPC message\n",
+                   io_msg->sector_count);
+            anos_reply_message(msg_cookie, 0);
+            return;
         }
+
+        uint32_t sectors_to_read = io_msg->sector_count;
 
         const bool success = ahci_port_read(active_port, io_msg->start_sector,
                                             sectors_to_read, sector_buffer);
@@ -232,6 +237,8 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
             printf("AHCI: Successfully read %u sectors from LBA %lu\n",
                    sectors_to_read, io_msg->start_sector);
 
+#ifdef DEBUG_AHCI_OPS
+#ifdef VERY_NOISY_AHCI_OPS
             // Debug: Check if we got real data or just zeros
             printf("AHCI: First 16 bytes of sector data: ");
             uint8_t *data_bytes = (uint8_t *)sector_buffer;
@@ -243,9 +250,14 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
                 }
             }
             printf("%s\n", all_zeros ? " (ALL ZEROS!)" : "");
+#endif
+#endif
 
             // Copy data to response buffer
             const size_t data_size = sectors_to_read * active_port->sector_size;
+            printf("AHCI: Copying %lu bytes to IPC buffer (sectors: %u, "
+                   "sector_size: %u)\n",
+                   data_size, sectors_to_read, active_port->sector_size);
             memcpy(buffer, sector_buffer, data_size);
 
             anos_reply_message(msg_cookie, data_size);
@@ -275,11 +287,16 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
             return;
         }
 
-        // Limit sector count
-        uint32_t sectors_to_write = io_msg->sector_count;
-        if (sectors_to_write > 64) {
-            sectors_to_write = 64;
+        // Check sector count limit (4KB IPC buffer / 512 bytes = 8 sectors max)
+        if (io_msg->sector_count > 8) {
+            printf("AHCI: Write request for %u sectors exceeds maximum of 8 "
+                   "sectors per IPC message\n",
+                   io_msg->sector_count);
+            anos_reply_message(msg_cookie, 0);
+            return;
         }
+
+        uint32_t sectors_to_write = io_msg->sector_count;
 
         bool success = ahci_port_write(active_port, io_msg->start_sector,
                                        sectors_to_write, io_msg->data);
@@ -358,17 +375,15 @@ int main(const int argc, char **argv) {
 
     printf("AHCI initialization @ 0x%s complete.\n", argv[1]);
 
-    // Register devices with DEVMAN
     if (!register_with_devman()) {
-        printf("Warning: Failed to register with DEVMAN\n");
+        printf("Warning: Failed to register AHCI with DEVMAN\n");
     }
 
     printf("AHCI driver ready, entering message loop...\n");
 
-    // Main IPC message loop to handle storage I/O requests
     while (1) {
-        static char __attribute__((aligned(4096))) ipc_buffer[8192];
-        size_t buffer_size = sizeof(ipc_buffer);
+        void *ipc_buffer = (void *)0x300000000;
+        size_t buffer_size = 4096;
         uint64_t tag = 0;
 
         const SyscallResult recv_result =
@@ -380,8 +395,10 @@ int main(const int argc, char **argv) {
                    buffer_size);
             handle_storage_io_message(msg_cookie, tag, ipc_buffer, buffer_size);
         } else {
-            printf("AHCI: Error receiving message or no message available\n");
-            // Sleep briefly to avoid busy loop if no messages
+            printf("AHCI: Error receiving message [0x%016lx]\n",
+                   (uint64_t)recv_result.result);
+
+            // Sleep briefly to avoid pegging the CPU if we're in an error loop
             anos_task_sleep_current_secs(1);
         }
     }
