@@ -147,52 +147,75 @@ static void list_root_directory() {
            root_dir_start, root_dir_size);
     printf("FAT: Root directory has %u entries\n", boot_sector.root_entries);
 
-    // Read root directory sectors
+    // Read root directory in 8-sector chunks (AHCI driver limit)
     static char __attribute__((
-            aligned(512))) root_buffer[16 * 512]; // Max 16 sectors
-    uint32_t sectors_to_read = root_dir_size < 16 ? root_dir_size : 16;
-
-    if (!read_storage_sectors(root_dir_start, sectors_to_read, root_buffer)) {
-        printf("FAT: Failed to read root directory\n");
-        return;
-    }
-
-    FATDirEntry *entries = (FATDirEntry *)root_buffer;
-    uint32_t max_entries = (sectors_to_read * boot_sector.bytes_per_sector) /
-                           sizeof(FATDirEntry);
+            aligned(512))) root_buffer[8 * 512]; // Max 8 sectors per read
 
     printf("FAT: Root directory entries:\n");
     int count = 0;
+    uint32_t sectors_remaining = root_dir_size;
+    uint32_t current_sector = root_dir_start;
+    uint32_t entries_processed = 0;
+    bool found_end_marker = false;
 
-    for (uint32_t i = 0; i < max_entries && i < boot_sector.root_entries; i++) {
-        FATDirEntry *entry = &entries[i];
+    while (sectors_remaining > 0 &&
+           entries_processed < boot_sector.root_entries && !found_end_marker) {
+        uint32_t sectors_to_read =
+                (sectors_remaining < 8) ? sectors_remaining : 8;
 
-        // Skip deleted entries and end of directory
-        if (entry->filename[0] == 0x00)
-            break; // End of directory
-        if (entry->filename[0] == 0xE5)
-            continue; // Deleted entry
-        if (entry->attributes == FAT_ATTR_LFN)
-            continue; // Long filename entry
-
-        printf("  ");
-        print_fat_filename(entry);
-
-        if (entry->attributes & FAT_ATTR_DIRECTORY) {
-            printf(" <DIR>");
-        } else {
-            printf(" %10u bytes", entry->file_size);
+        if (!read_storage_sectors(current_sector, sectors_to_read,
+                                  root_buffer)) {
+            printf("FAT: Failed to read root directory chunk at sector %u\n",
+                   current_sector);
+            break;
         }
 
-        if (entry->attributes & FAT_ATTR_HIDDEN)
-            printf(" [HIDDEN]");
-        if (entry->attributes & FAT_ATTR_SYSTEM)
-            printf(" [SYSTEM]");
-        if (entry->attributes & FAT_ATTR_VOLUME_ID)
-            printf(" [VOLUME]");
+        FATDirEntry *entries = (FATDirEntry *)root_buffer;
+        uint32_t entries_in_chunk =
+                (sectors_to_read * boot_sector.bytes_per_sector) /
+                sizeof(FATDirEntry);
 
-        printf("\n");
-        count++;
+        for (uint32_t i = 0;
+             i < entries_in_chunk &&
+             entries_processed < boot_sector.root_entries && !found_end_marker;
+             i++) {
+            FATDirEntry *entry = &entries[i];
+            entries_processed++;
+
+            // Check for end of directory
+            if (entry->filename[0] == 0x00) {
+                found_end_marker = true;
+                break;
+            }
+
+            // Skip deleted entries and long filename entries
+            if (entry->filename[0] == 0xE5)
+                continue; // Deleted entry
+            if (entry->attributes == FAT_ATTR_LFN)
+                continue; // Long filename entry
+
+            printf("  ");
+            print_fat_filename(entry);
+
+            if (entry->attributes & FAT_ATTR_DIRECTORY) {
+                printf(" <DIR>");
+            } else {
+                printf(" %10u bytes", entry->file_size);
+            }
+
+            if (entry->attributes & FAT_ATTR_HIDDEN)
+                printf(" [HIDDEN]");
+            if (entry->attributes & FAT_ATTR_SYSTEM)
+                printf(" [SYSTEM]");
+            if (entry->attributes & FAT_ATTR_VOLUME_ID)
+                printf(" [VOLUME]");
+
+            printf("\n");
+            count++;
+        }
+
+        sectors_remaining -= sectors_to_read;
+        current_sector += sectors_to_read;
     }
 
     printf("FAT: Found %d files/directories\n", count);
