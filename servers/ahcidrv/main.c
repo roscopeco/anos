@@ -367,7 +367,7 @@ int main(const int argc, char **argv) {
 
     // Main IPC message loop to handle storage I/O requests
     while (1) {
-        static char __attribute__((aligned(4096))) ipc_buffer[4096];
+        static char __attribute__((aligned(4096))) ipc_buffer[8192];
         size_t buffer_size = sizeof(ipc_buffer);
         uint64_t tag = 0;
 

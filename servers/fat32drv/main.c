@@ -83,6 +83,121 @@ typedef struct {
 
 static FATBootSector boot_sector;
 
+// Forward declaration
+static bool read_storage_sectors(uint64_t start_sector, uint32_t sector_count,
+                                 void *buffer);
+
+// FAT Directory Entry structure
+typedef struct {
+    char filename[8];
+    char extension[3];
+    uint8_t attributes;
+    uint8_t reserved;
+    uint8_t creation_time_tenth;
+    uint16_t creation_time;
+    uint16_t creation_date;
+    uint16_t last_access_date;
+    uint16_t first_cluster_high;
+    uint16_t write_time;
+    uint16_t write_date;
+    uint16_t first_cluster_low;
+    uint32_t file_size;
+} __attribute__((packed)) FATDirEntry;
+
+#define FAT_ATTR_READ_ONLY 0x01
+#define FAT_ATTR_HIDDEN 0x02
+#define FAT_ATTR_SYSTEM 0x04
+#define FAT_ATTR_VOLUME_ID 0x08
+#define FAT_ATTR_DIRECTORY 0x10
+#define FAT_ATTR_ARCHIVE 0x20
+#define FAT_ATTR_LFN 0x0F
+
+static void print_fat_filename(const FATDirEntry *entry) {
+    // Print filename (8 chars, space-padded)
+    for (int i = 0; i < 8 && entry->filename[i] != ' '; i++) {
+        printf("%c", entry->filename[i]);
+    }
+
+    // Print extension if present (3 chars, space-padded)
+    if (entry->extension[0] != ' ') {
+        printf(".");
+        for (int i = 0; i < 3 && entry->extension[i] != ' '; i++) {
+            printf("%c", entry->extension[i]);
+        }
+    }
+}
+
+static void list_root_directory() {
+    printf("FAT: Listing root directory contents:\n");
+
+    // Calculate root directory location for FAT12/16
+    if (boot_sector.fat_size_16 == 0) {
+        printf("FAT: Root directory listing not yet implemented for FAT32\n");
+        return;
+    }
+
+    // FAT12/16: Root directory is at a fixed location
+    uint32_t root_dir_start = boot_sector.reserved_sectors +
+                              (boot_sector.num_fats * boot_sector.fat_size_16);
+    uint32_t root_dir_size = (boot_sector.root_entries * sizeof(FATDirEntry) +
+                              boot_sector.bytes_per_sector - 1) /
+                             boot_sector.bytes_per_sector;
+
+    printf("FAT: Root directory starts at sector %u, spans %u sectors\n",
+           root_dir_start, root_dir_size);
+    printf("FAT: Root directory has %u entries\n", boot_sector.root_entries);
+
+    // Read root directory sectors
+    static char __attribute__((
+            aligned(512))) root_buffer[16 * 512]; // Max 16 sectors
+    uint32_t sectors_to_read = root_dir_size < 16 ? root_dir_size : 16;
+
+    if (!read_storage_sectors(root_dir_start, sectors_to_read, root_buffer)) {
+        printf("FAT: Failed to read root directory\n");
+        return;
+    }
+
+    FATDirEntry *entries = (FATDirEntry *)root_buffer;
+    uint32_t max_entries = (sectors_to_read * boot_sector.bytes_per_sector) /
+                           sizeof(FATDirEntry);
+
+    printf("FAT: Root directory entries:\n");
+    int count = 0;
+
+    for (uint32_t i = 0; i < max_entries && i < boot_sector.root_entries; i++) {
+        FATDirEntry *entry = &entries[i];
+
+        // Skip deleted entries and end of directory
+        if (entry->filename[0] == 0x00)
+            break; // End of directory
+        if (entry->filename[0] == 0xE5)
+            continue; // Deleted entry
+        if (entry->attributes == FAT_ATTR_LFN)
+            continue; // Long filename entry
+
+        printf("  ");
+        print_fat_filename(entry);
+
+        if (entry->attributes & FAT_ATTR_DIRECTORY) {
+            printf(" <DIR>");
+        } else {
+            printf(" %10u bytes", entry->file_size);
+        }
+
+        if (entry->attributes & FAT_ATTR_HIDDEN)
+            printf(" [HIDDEN]");
+        if (entry->attributes & FAT_ATTR_SYSTEM)
+            printf(" [SYSTEM]");
+        if (entry->attributes & FAT_ATTR_VOLUME_ID)
+            printf(" [VOLUME]");
+
+        printf("\n");
+        count++;
+    }
+
+    printf("FAT: Found %d files/directories\n", count);
+}
+
 static bool read_storage_sectors(uint64_t start_sector, uint32_t sector_count,
                                  void *buffer) {
     if (!storage_driver_channel) {
@@ -94,7 +209,7 @@ static bool read_storage_sectors(uint64_t start_sector, uint32_t sector_count,
            "driver channel %lu\n",
            sector_count, start_sector, storage_driver_channel);
 
-    static char __attribute__((aligned(4096))) io_buffer[4096];
+    static char __attribute__((aligned(4096))) io_buffer[8192];
     StorageIOMessage *io_msg = (StorageIOMessage *)io_buffer;
 
     io_msg->msg_type = STORAGE_MSG_READ_SECTORS;
@@ -418,6 +533,9 @@ int main(int argc, char **argv) {
         printf("FAT32: Failed to initialize filesystem\n");
         return 1;
     }
+
+    // List root directory contents
+    list_root_directory();
 
     // Register with VFS
     if (!register_with_vfs(mount_prefix)) {
