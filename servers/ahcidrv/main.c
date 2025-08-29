@@ -25,8 +25,20 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
+#ifdef DEBUG_AHCI_OPS
+#define ops_debugf(...) printf(__VA_ARGS__)
+#ifdef VERY_NOISY_AHCI_OPS
+#define ops_vdebugf(...) printf(__VA_ARGS__)
+#else
+#define ops_vdebugf(...)
+#endif
+#else
+#define ops_debugf(...)
+#define ops_vdebugf(...)
+#endif
+
 static AHCIController controller = {0};
-static AHCIPort ports[32] = {nullptr};
+static AHCIPort ports[32] = {{nullptr}};
 static uint64_t devman_channel = 0;
 static uint64_t ahci_channel = 0;
 static uint64_t pci_parent_id = 0;
@@ -50,7 +62,7 @@ static int ahci_initialize_driver(const uint64_t ahci_base,
     printf("  Active ports: 0x%08x\n", controller.active_ports);
 #endif
 
-    for (uint8_t i = 0; i < controller.port_count; i++) {
+    for (uint32_t i = 0; i < controller.port_count; i++) {
         if (controller.active_ports & (1 << i)) {
             if (ahci_port_init(&ports[i], &controller, i)) {
 #ifdef DEBUG_AHCI_INIT
@@ -185,23 +197,23 @@ static bool register_with_devman(void) {
     return true;
 }
 
-static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
-                                      void *buffer, size_t buffer_size) {
+static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
+                                      void *buffer, const size_t buffer_size) {
     if (buffer_size < sizeof(StorageIOMessage)) {
-        printf("AHCI: Invalid storage I/O message size\n");
+        ops_debugf("AHCI: Invalid storage I/O message size\n");
         anos_reply_message(msg_cookie, 0);
         return;
     }
 
-    StorageIOMessage *io_msg = (StorageIOMessage *)buffer;
+    const StorageIOMessage *io_msg = (StorageIOMessage *)buffer;
 
     switch (io_msg->msg_type) {
     case STORAGE_MSG_READ_SECTORS: {
-        printf("AHCI: Read sectors request - LBA: %lu, Count: %u\n",
-               io_msg->start_sector, io_msg->sector_count);
+        ops_vdebugf("AHCI: Read sectors request - LBA: %lu, Count: %u\n",
+                    io_msg->start_sector, io_msg->sector_count);
 
         // Find an active port to use (use first available)
-        volatile AHCIPort *active_port = NULL;
+        volatile AHCIPort *active_port = nullptr;
         for (uint8_t i = 0; i < controller.port_count; i++) {
             if (controller.active_ports & (1 << i) && ports[i].initialized) {
                 active_port = &ports[i];
@@ -210,16 +222,17 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
         }
 
         if (!active_port) {
-            printf("AHCI: No active storage ports available\n");
+            ops_debugf("AHCI: No active storage ports available\n");
             anos_reply_message(msg_cookie, 0);
             return;
         }
 
         // Check sector count limit (4KB IPC buffer / 512 bytes = 8 sectors max)
         if (io_msg->sector_count > 8) {
-            printf("AHCI: Requested %u sectors exceeds maximum of 8 sectors "
-                   "per IPC message\n",
-                   io_msg->sector_count);
+            ops_debugf(
+                    "AHCI: Requested %u sectors exceeds maximum of 8 sectors "
+                    "per IPC message\n",
+                    io_msg->sector_count);
             anos_reply_message(msg_cookie, 0);
             return;
         }
@@ -232,8 +245,8 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
                                             sectors_to_read, buffer);
 
         if (success) {
-            printf("AHCI: Successfully read %u sectors from LBA %lu\n",
-                   sectors_to_read, io_msg->start_sector);
+            ops_vdebugf("AHCI: Successfully read %u sectors from LBA %lu\n",
+                        sectors_to_read, io_msg->start_sector);
 
 #ifdef DEBUG_AHCI_OPS
 #ifdef VERY_NOISY_AHCI_OPS
@@ -253,18 +266,18 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
 
             // Reply with the amount of data read
             const size_t data_size = sectors_to_read * active_port->sector_size;
-            printf("AHCI: Returning %lu bytes to caller\n", data_size);
+            ops_vdebugf("AHCI: Returning %lu bytes to caller\n", data_size);
             anos_reply_message(msg_cookie, data_size);
         } else {
-            printf("AHCI: Failed to read sectors\n");
+            ops_debugf("AHCI: Failed to read sectors\n");
             anos_reply_message(msg_cookie, 0);
         }
         break;
     }
 
     case STORAGE_MSG_WRITE_SECTORS: {
-        printf("AHCI: Write sectors request - LBA: %lu, Count: %u\n",
-               io_msg->start_sector, io_msg->sector_count);
+        ops_vdebugf("AHCI: Write sectors request - LBA: %lu, Count: %u\n",
+                    io_msg->start_sector, io_msg->sector_count);
 
         // Find an active port to use
         volatile AHCIPort *active_port = NULL;
@@ -276,38 +289,39 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
         }
 
         if (!active_port) {
-            printf("AHCI: No active storage ports available\n");
+            ops_debugf("AHCI: No active storage ports available\n");
             anos_reply_message(msg_cookie, 0);
             return;
         }
 
         // Check sector count limit (4KB IPC buffer / 512 bytes = 8 sectors max)
         if (io_msg->sector_count > 8) {
-            printf("AHCI: Write request for %u sectors exceeds maximum of 8 "
-                   "sectors per IPC message\n",
-                   io_msg->sector_count);
+            ops_debugf(
+                    "AHCI: Write request for %u sectors exceeds maximum of 8 "
+                    "sectors per IPC message\n",
+                    io_msg->sector_count);
             anos_reply_message(msg_cookie, 0);
             return;
         }
 
-        uint32_t sectors_to_write = io_msg->sector_count;
+        const uint32_t sectors_to_write = io_msg->sector_count;
 
-        bool success = ahci_port_write(active_port, io_msg->start_sector,
-                                       sectors_to_write, io_msg->data);
+        const bool success = ahci_port_write(active_port, io_msg->start_sector,
+                                             sectors_to_write, io_msg->data);
 
         if (success) {
-            printf("AHCI: Successfully wrote %u sectors to LBA %lu\n",
-                   sectors_to_write, io_msg->start_sector);
+            ops_vdebugf("AHCI: Successfully wrote %u sectors to LBA %lu\n",
+                        sectors_to_write, io_msg->start_sector);
             anos_reply_message(msg_cookie, sectors_to_write);
         } else {
-            printf("AHCI: Failed to write sectors\n");
+            ops_debugf("AHCI: Failed to write sectors\n");
             anos_reply_message(msg_cookie, 0);
         }
         break;
     }
 
     case STORAGE_MSG_GET_INFO: {
-        printf("AHCI: Storage info request\n");
+        ops_vdebugf("AHCI: Storage info request\n");
 
         // Find an active port to use
         volatile AHCIPort *active_port = NULL;
@@ -319,7 +333,7 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
         }
 
         if (!active_port) {
-            printf("AHCI: No active storage ports available\n");
+            ops_debugf("AHCI: No active storage ports available\n");
             anos_reply_message(msg_cookie, 0);
             return;
         }
@@ -336,8 +350,8 @@ static void handle_storage_io_message(uint64_t msg_cookie, uint64_t tag,
     }
 
     default:
-        printf("AHCI: Unknown storage I/O message type: %u\n",
-               io_msg->msg_type);
+        ops_debugf("AHCI: Unknown storage I/O message type: %u\n",
+                   io_msg->msg_type);
         anos_reply_message(msg_cookie, 0);
         break;
     }
@@ -367,13 +381,13 @@ int main(const int argc, char **argv) {
         return 1;
     }
 
-    printf("AHCI initialization @ 0x%s complete.\n", argv[1]);
+    ops_debugf("AHCI initialization @ 0x%s complete.\n", argv[1]);
 
     if (!register_with_devman()) {
         printf("Warning: Failed to register AHCI with DEVMAN\n");
     }
 
-    printf("AHCI driver ready, entering message loop...\n");
+    ops_debugf("AHCI driver ready, entering message loop...\n");
 
     while (1) {
         void *ipc_buffer = (void *)0x300000000;
@@ -385,12 +399,12 @@ int main(const int argc, char **argv) {
         const uint64_t msg_cookie = recv_result.value;
 
         if (recv_result.result == SYSCALL_OK && msg_cookie) {
-            printf("AHCI: Received message with tag %lu, size %lu\n", tag,
-                   buffer_size);
+            ops_vdebugf("AHCI: Received message with tag %lu, size %lu\n", tag,
+                        buffer_size);
             handle_storage_io_message(msg_cookie, tag, ipc_buffer, buffer_size);
         } else {
-            printf("AHCI: Error receiving message [0x%016lx]\n",
-                   (uint64_t)recv_result.result);
+            ops_debugf("AHCI: Error receiving message [0x%016lx]\n",
+                       (uint64_t)recv_result.result);
 
             // Sleep briefly to avoid pegging the CPU if we're in an error loop
             anos_task_sleep_current_secs(1);

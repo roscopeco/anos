@@ -7,6 +7,7 @@ BINARY_OBJS=main.o
 #
 #	DEBUG_FAT32				Enable FAT32 debug output
 #	DEBUG_FAT32_IO			Enable storage I/O debug output
+#	DEBUG_FAT32_ROOT_DIR	Enable debug print of FAT root directory
 #
 CDEFS=
 

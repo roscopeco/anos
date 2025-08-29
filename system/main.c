@@ -29,6 +29,12 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
+#ifdef DEBUG_FS_INIT
+#define fs_debugf printf
+#else
+#define fs_debugf(...)
+#endif
+
 #define FS_QUERY_OBJECT_SIZE ((1))
 #define FS_LOAD_OBJECT_PAGE ((2))
 
@@ -361,21 +367,17 @@ static noreturn void ramfs_driver_thread(void) {
     }
 }
 
-// Forward declaration
 static void start_filesystem_drivers(const InitCapability *caps,
                                      uint16_t cap_count);
 
 static noreturn void filesystem_starter_thread(void) {
-    printf("Filesystem starter thread starting...\n");
-
+    // TODO this isn't very fucking robust...
     // Wait a bit for the system to stabilize
     anos_task_sleep_current_secs(2);
 
     start_filesystem_drivers(global_fs_caps, global_fs_cap_count);
 
-    printf("Filesystem starter thread completed\n");
-
-    // Thread complete, sleep forever
+    // TODO this thread should terminate, but that causes #PF right now...
     while (true) {
         anos_task_sleep_current_secs(3600);
     }
@@ -413,7 +415,7 @@ static bool register_filesystem_driver(const char *mount_prefix,
     filesystem_mount_count++;
 
     printf("VFS: Registered filesystem driver for mount prefix '%s' (channel: "
-           "%lu)\n",
+           "0x%016lx)\n",
            mount_prefix, fs_channel);
     return true;
 }
@@ -458,17 +460,17 @@ static bool spawn_filesystem_driver(const char *driver_name,
             create_server_process(0x100000, cap_count, caps, 2, fs_argv);
 
     if (fs_pid < 0) {
-        printf("Warning: Failed to create %s filesystem driver for %s\n",
-               driver_name, mount_prefix);
+        fs_debugf("Warning: Failed to create %s filesystem driver for %s\n",
+                  driver_name, mount_prefix);
         return false;
     }
 
-    printf("Started %s filesystem driver (PID: %ld) for mount: %s\n",
-           driver_name, fs_pid, mount_prefix);
+    fs_debugf("Started %s filesystem driver (PID: %ld) for mount: %s\n",
+              driver_name, fs_pid, mount_prefix);
     return true;
 }
 
-static uint32_t query_storage_devices(uint64_t devman_channel,
+static uint32_t query_storage_devices(const uint64_t devman_channel,
                                       DeviceInfo *devices_out,
                                       uint32_t max_devices) {
     static char __attribute__((aligned(4096))) query_buffer[4096];
@@ -483,13 +485,17 @@ static uint32_t query_storage_devices(uint64_t devman_channel,
             devman_channel, 0, sizeof(DeviceQueryMessage), query_buffer);
 
     if (query_result.result == SYSCALL_OK && query_result.value > 0) {
-        printf("DEBUG: DEVMAN query returned %lu bytes\n", query_result.value);
+        fs_debugf("DEBUG: DEVMAN query returned %lu bytes\n",
+                  query_result.value);
 
         // Check if we got a structured response with device info
         if (query_result.value > sizeof(DeviceQueryResponse)) {
-            DeviceQueryResponse *response = (DeviceQueryResponse *)query_buffer;
-            printf("DEBUG: Structured response - count=%u, error=%u\n",
-                   response->device_count, response->error_code);
+
+            const DeviceQueryResponse *response =
+                    (DeviceQueryResponse *)query_buffer;
+
+            fs_debugf("DEBUG: Structured response - count=%u, error=%u\n",
+                      response->device_count, response->error_code);
 
             if (response->device_count > 0 && response->error_code == 0) {
                 // Copy device info to output array
@@ -498,19 +504,13 @@ static uint32_t query_storage_devices(uint64_t devman_channel,
                 if (count > max_devices)
                     count = max_devices;
 
-                printf("DEBUG: Copying %u device info structures\n", count);
+                fs_debugf("DEBUG: Copying %u device info structures\n", count);
                 if (devices_out) {
                     memcpy(devices_out, devices, count * sizeof(DeviceInfo));
                 }
                 return count;
             }
         }
-        // Fallback: old-style response with just count (no device info available)
-        printf("DEBUG: Fallback to old-style response, count=%lu\n",
-               query_result.value);
-        printf("DEBUG: This means no real device info is available - likely "
-               "returning mock count\n");
-        return 0; // Return 0 instead of fake count to prevent mock devices
     }
 
     return 0;
@@ -518,28 +518,28 @@ static uint32_t query_storage_devices(uint64_t devman_channel,
 
 static void start_filesystem_drivers(const InitCapability *caps,
                                      uint16_t cap_count) {
-    printf("Waiting for DEVMAN to become available...\n");
+    fs_debugf("Waiting for DEVMAN to become available...\n");
 
     // Wait for DEVMAN to be available
     uint64_t devman_channel = 0;
     for (int retry = 0; retry < 10; retry++) {
-        SyscallResult devman_result = anos_find_named_channel("DEVMAN");
+
+        const SyscallResult devman_result = anos_find_named_channel("DEVMAN");
         if (devman_result.result == SYSCALL_OK && devman_result.value != 0) {
             devman_channel = devman_result.value;
-            printf("DEVMAN found, waiting for device discovery to "
-                   "complete...\n");
+
+            fs_debugf("DEVMAN found, waiting for device discovery to "
+                      "complete...\n");
+
             break;
         }
-        printf("  DEVMAN not found yet, waiting... (attempt %d/10)\n",
-               retry + 1);
+        fs_debugf("  DEVMAN not found yet, waiting... (attempt %d/10)\n",
+                  retry + 1);
         anos_task_sleep_current_secs(1);
     }
 
     if (!devman_channel) {
-        printf("Warning: DEVMAN not available, starting default filesystem "
-               "drivers...\n");
-        spawn_filesystem_driver("fat32drv", "disk0:", caps, cap_count);
-        spawn_filesystem_driver("fat32drv", "usb0:", caps, cap_count);
+        printf("Warning: DEVMAN not available, no filesystems started\n");
         return;
     }
 
@@ -547,34 +547,38 @@ static void start_filesystem_drivers(const InitCapability *caps,
     // Poll DEVMAN until we find storage devices or timeout
     static DeviceInfo storage_devices[8]; // Max 8 storage devices
     uint32_t storage_device_count = 0;
-    printf("Polling for storage device discovery...\n");
+    printf("Waiting for storage device discovery...\n");
 
     for (int retry = 0; retry < 15; retry++) {
         storage_device_count =
                 query_storage_devices(devman_channel, storage_devices, 8);
         if (storage_device_count > 0) {
-            printf("Found %u storage devices after %d seconds\n",
-                   storage_device_count, retry + 1);
+            fs_debugf("Found %u storage devices after %d seconds\n",
+                      storage_device_count, retry + 1);
             break;
         }
-        printf("  No storage devices found yet, waiting... (attempt %d/15)\n",
-               retry + 1);
+        fs_debugf(
+                "  No storage devices found yet, waiting... (attempt %d/15)\n",
+                retry + 1);
         anos_task_sleep_current_secs(1);
     }
 
     if (storage_device_count > 0) {
-        printf("Starting filesystem drivers for %u discovered storage "
-               "devices...\n",
-               storage_device_count);
+        fs_debugf("Starting filesystem drivers for %u discovered storage "
+                  "devices...\n",
+                  storage_device_count);
 
-        // Debug: Show all discovered device info
         for (uint32_t i = 0; i < storage_device_count; i++) {
+
+#ifdef DEBUG_FS_INIT
             DeviceInfo *device = &storage_devices[i];
-            printf("  Device %u: ID=%lu, Name='%s', Driver='%s', Channel=%lu, "
-                   "Type=%u, HW=%u, Caps=0x%x\n",
-                   i, device->device_id, device->name, device->driver_name,
-                   device->driver_channel, device->device_type,
-                   device->hardware_type, device->capabilities);
+            fs_debugf(
+                    "  Device %u: ID=%lu, Name='%s', Driver='%s', Channel=%lu, "
+                    "Type=%u, HW=%u, Caps=0x%x\n",
+                    i, device->device_id, device->name, device->driver_name,
+                    device->driver_channel, device->device_type,
+                    device->hardware_type, device->capabilities);
+#endif
         }
 
         // Start filesystem drivers based on real discovered devices
@@ -583,15 +587,16 @@ static void start_filesystem_drivers(const InitCapability *caps,
 
             // Verify this is a real, functional storage device
             if (device->driver_channel == 0) {
-                printf("  Skipping device '%s' - no driver channel\n",
-                       device->name);
+                fs_debugf("  Skipping device '%s' - no driver channel\n",
+                          device->name);
                 continue;
             }
 
             if (!(device->capabilities &
                   (DEVICE_CAP_READ | DEVICE_CAP_WRITE))) {
-                printf("  Skipping device '%s' - no read/write capabilities\n",
-                       device->name);
+                fs_debugf(
+                        "  Skipping device '%s' - no read/write capabilities\n",
+                        device->name);
                 continue;
             }
 
@@ -607,17 +612,16 @@ static void start_filesystem_drivers(const InitCapability *caps,
                 snprintf(mount_prefix, sizeof(mount_prefix), "storage%u:", i);
             }
 
-            printf("  Starting filesystem driver for device '%s' (ID: %lu, "
-                   "Driver: %s) -> %s\n",
-                   device->name, device->device_id, device->driver_name,
-                   mount_prefix);
+            fs_debugf("  Starting filesystem driver for device '%s' (ID: %lu, "
+                      "Driver: %s) -> %s\n",
+                      device->name, device->device_id, device->driver_name,
+                      mount_prefix);
 
             spawn_filesystem_driver("fat32drv", mount_prefix, caps, cap_count);
         }
     } else {
         printf("No functional storage devices discovered after waiting - no "
                "filesystem drivers started\n");
-        // Don't start any fake drivers - if there are no real devices, don't pretend there are
     }
 }
 
@@ -792,9 +796,10 @@ int main(int argc, char **argv) {
                 printf("%s: Failed to create server process\n",
                        "boot:/devman.elf");
             } else {
-                printf("DEVMAN started (PID: %ld), starting filesystem starter "
-                       "thread\n",
-                       devman_pid);
+                fs_debugf("DEVMAN started (PID: %ld), starting filesystem "
+                          "starter "
+                          "thread\n",
+                          devman_pid);
 
                 // Store capabilities for filesystem drivers
                 global_fs_caps = new_process_caps;
@@ -808,7 +813,7 @@ int main(int argc, char **argv) {
                 if (fs_thread_result.result != SYSCALL_OK) {
                     printf("Failed to create filesystem starter thread!\n");
                 } else {
-                    printf("Filesystem starter thread created\n");
+                    fs_debugf("Filesystem starter thread created\n");
                 }
             }
 

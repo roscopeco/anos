@@ -1026,12 +1026,12 @@ bool ahci_port_read(volatile AHCIPort *port, const uint64_t lba,
     if (success) {
         // Copy data from DMA buffer to caller's buffer
         memcpy(buffer, dma_buffer, transfer_size);
-        printf("AHCI: Successfully copied %lu bytes from DMA buffer to "
-               "caller\n",
-               transfer_size);
+        vdebugf("AHCI: Successfully copied %lu bytes from DMA buffer to "
+                "caller\n",
+                transfer_size);
     }
 
-    // TODO: Free the DMA memory (anos doesn't seem to have a free_physical_pages syscall yet)
+    // TODO: Free the DMA memory (anos doesn't have a free_physical_pages syscall yet)
 
     return success;
 }

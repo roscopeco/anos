@@ -22,6 +22,18 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
+#ifdef DEBUG_DEVICE
+#define device_debugf(...) printf(__VA_ARGS__)
+#ifdef VERY_NOISY_DEVICE
+#define device_vdebugf(...) printf(__VA_ARGS__)
+#else
+#define device_vdebugf(...)
+#endif
+#else
+#define device_debugf(...)
+#define device_vdebugf(...)
+#endif
+
 // Device registry
 #define MAX_DEVICES 256
 static DeviceInfo device_registry[MAX_DEVICES];
@@ -645,17 +657,21 @@ static uint64_t register_device(const DeviceInfo *info) {
     device_registry[device_count].device_id = device_id;
     device_count++;
 
+#ifdef DEBUG_DEVICE_REG
     printf("Registered device: %s (ID: %lu, Type: %u, Driver: %s)\n",
            info->name, device_id, info->device_type, info->driver_name);
+#endif
 
     return device_id;
 }
 
-static bool unregister_device(uint64_t device_id) {
+static bool unregister_device(const uint64_t device_id) {
     for (uint32_t i = 0; i < device_count; i++) {
         if (device_registry[i].device_id == device_id) {
+#ifdef DEBUG_DEVICE_REG
             printf("Unregistered device: %s (ID: %lu)\\n",
                    device_registry[i].name, device_id);
+#endif
 
             // Move last device to this slot
             device_registry[i] = device_registry[device_count - 1];
@@ -666,9 +682,10 @@ static bool unregister_device(uint64_t device_id) {
     return false;
 }
 
-static uint32_t query_devices(DeviceQueryType query_type,
-                              DeviceType device_type, uint64_t target_id,
-                              DeviceInfo *results, uint32_t max_results) {
+static uint32_t query_devices(const DeviceQueryType query_type,
+                              const DeviceType device_type,
+                              const uint64_t target_id, DeviceInfo *results,
+                              uint32_t max_results) {
     uint32_t found = 0;
 
     for (uint32_t i = 0; i < device_count && found < max_results; i++) {
@@ -698,8 +715,9 @@ static uint32_t query_devices(DeviceQueryType query_type,
     return found;
 }
 
-static void handle_device_message(uint64_t msg_cookie, void *buffer,
-                                  size_t buffer_size) {
+static void handle_device_message(const uint64_t msg_cookie, void *buffer,
+                                  const size_t buffer_size) {
+
     if (buffer_size < sizeof(DeviceMessageType)) {
         anos_reply_message(msg_cookie, 0);
         return;
@@ -747,17 +765,19 @@ static void handle_device_message(uint64_t msg_cookie, void *buffer,
 
             if (found > 0) {
                 // Copy device info to the buffer for return
-                size_t data_size = found * sizeof(DeviceInfo);
-                size_t required_size = sizeof(DeviceQueryResponse) + data_size;
+                const size_t data_size = found * sizeof(DeviceInfo);
+                const size_t required_size =
+                        sizeof(DeviceQueryResponse) + data_size;
 
-                printf("DEVMAN DEBUG: Found %u devices, data_size=%lu, "
-                       "buffer_size=%lu, required=%lu\n",
-                       found, data_size, buffer_size, required_size);
+                device_debugf("DEVMAN DEBUG: Found %u devices, data_size=%lu, "
+                              "buffer_size=%lu, required=%lu\n",
+                              found, data_size, buffer_size, required_size);
 
                 // Check against actual IPC buffer size, not incoming message size
                 if (required_size <= 4096) {
-                    printf("DEVMAN DEBUG: Returning structured response with "
-                           "device info\n");
+                    device_debugf(
+                            "DEVMAN DEBUG: Returning structured response with "
+                            "device info\n");
                     DeviceQueryResponse *response =
                             (DeviceQueryResponse *)buffer;
                     response->device_count = found;
@@ -768,13 +788,14 @@ static void handle_device_message(uint64_t msg_cookie, void *buffer,
                     result = required_size;
                 } else {
                     // Too much data, just return count
-                    printf("DEVMAN DEBUG: Buffer too small, returning count "
-                           "only (%u)\n",
-                           found);
+                    device_debugf(
+                            "DEVMAN DEBUG: Buffer too small, returning count "
+                            "only (%u)\n",
+                            found);
                     result = found;
                 }
             } else {
-                printf("DEVMAN DEBUG: No devices found\n");
+                device_debugf("DEVMAN DEBUG: No devices found\n");
                 result = 0;
             }
         }
@@ -782,7 +803,7 @@ static void handle_device_message(uint64_t msg_cookie, void *buffer,
     }
 
     default:
-        printf("Unknown device message type: %u\\n", *msg_type);
+        device_debugf("Unknown device message type: %u\\n", *msg_type);
         break;
     }
 

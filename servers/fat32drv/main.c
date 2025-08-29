@@ -15,6 +15,8 @@
 #include "../common/device_types.h"
 #include "../common/filesystem_types.h"
 
+#include <stdbool.h>
+
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
 #define VERSTR #unknown
@@ -24,12 +26,24 @@
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
 
+#ifdef DEBUG_FAT32
+#define debugf(...) printf(__VA_ARGS__)
+#ifdef VERY_NOISY_FAT32
+#define vdebugf(...) printf(__VA_ARGS__)
+#else
+#define vdebugf(...)
+#endif
+#else
+#define debugf(...)
+#define vdebugf(...)
+#endif
+
 static uint64_t fat32_channel = 0;
 static uint64_t storage_device_id = 0;
 static uint64_t storage_driver_channel = 0;
 static uint64_t vfs_channel = 0;
 
-// Common FAT Boot Sector structure (works for FAT12/16/32)
+// Common FAT Boot Sector structure
 typedef struct {
     uint8_t jump[3];
     char oem_name[8];
@@ -83,10 +97,6 @@ typedef struct {
 
 static FATBootSector boot_sector;
 
-// Forward declaration
-static bool read_storage_sectors(uint64_t start_sector, uint32_t sector_count,
-                                 void *buffer);
-
 // FAT Directory Entry structure
 typedef struct {
     char filename[8];
@@ -112,6 +122,10 @@ typedef struct {
 #define FAT_ATTR_ARCHIVE 0x20
 #define FAT_ATTR_LFN 0x0F
 
+static bool read_storage_sectors(uint64_t start_sector, uint32_t sector_count,
+                                 void *buffer);
+
+#ifdef DEBUG_FAT32_ROOT_DIR
 static void print_fat_filename(const FATDirEntry *entry) {
     // Print filename (8 chars, space-padded)
     for (int i = 0; i < 8 && entry->filename[i] != ' '; i++) {
@@ -220,29 +234,22 @@ static void list_root_directory() {
 
     printf("FAT: Found %d files/directories\n", count);
 }
+#else
+#define list_root_directory() ((void)0)
+#endif
 
-static bool read_storage_sectors(uint64_t start_sector, uint32_t sector_count,
-                                 void *buffer) {
+static bool read_storage_sectors(const uint64_t start_sector,
+                                 const uint32_t sector_count, void *buffer) {
     if (!storage_driver_channel) {
-        printf("FAT32: No storage driver channel available\n");
+        debugf("FAT32: No storage driver channel available\n");
         return false;
     }
 
-    // Check sector count limit (AHCI driver supports max 8 sectors per request)
-    if (sector_count > 8) {
-        printf("FAT32: Requested %u sectors exceeds AHCI driver maximum of 8 "
-               "sectors\n",
-               sector_count);
-        return false;
-    }
+    vdebugf("FAT32: Requesting %u sectors starting at LBA %lu from storage "
+            "driver channel %lu\n",
+            sector_count, start_sector, storage_driver_channel);
 
-    printf("FAT32: Requesting %u sectors starting at LBA %lu from storage "
-           "driver channel %lu\n",
-           sector_count, start_sector, storage_driver_channel);
-
-    // Use aligned static buffer for send message (this is OK for sending)
-    static char __attribute__((
-            aligned(4096))) io_buffer[4096]; // IPC supports maximum 1 page
+    static char __attribute__((aligned(4096))) io_buffer[4096];
     StorageIOMessage *io_msg = (StorageIOMessage *)io_buffer;
 
     io_msg->msg_type = STORAGE_MSG_READ_SECTORS;
@@ -250,45 +257,48 @@ static bool read_storage_sectors(uint64_t start_sector, uint32_t sector_count,
     io_msg->sector_count = sector_count;
     io_msg->reserved = 0;
 
-    size_t msg_size = sizeof(StorageIOMessage);
-    printf("FAT32: Sending storage I/O message (size: %lu)\n", msg_size);
+    constexpr size_t msg_size = sizeof(StorageIOMessage);
+    vdebugf("FAT32: Sending storage I/O message (size: %lu)\n", msg_size);
 
-    SyscallResult result =
+    const SyscallResult result =
             anos_send_message(storage_driver_channel, 0, msg_size, io_buffer);
 
-    printf("FAT32: Storage I/O syscall result: %ld, value: %lu\n",
-           result.result, result.value);
+    vdebugf("FAT32: Storage I/O syscall result: %ld, value: %lu\n",
+            result.result, result.value);
 
     if (result.result == SYSCALL_OK && result.value > 0) {
-        // Use the real data returned by the AHCI driver
-        size_t data_returned = result.value;
-        size_t expected_size = sector_count * 512;
+        const size_t data_returned = result.value;
+        const size_t expected_size = sector_count * 512;
 
-        printf("FAT32: Received %lu bytes from storage driver (expected %lu)\n",
-               data_returned, expected_size);
+        vdebugf("FAT32: Received %lu bytes from storage driver (expected "
+                "%lu)\n",
+                data_returned, expected_size);
 
-        // Debug: Show first few bytes of returned data
-        printf("FAT32: First 16 bytes of returned data: ");
-        uint8_t *data_bytes = (uint8_t *)io_buffer;
+#ifdef DEBUG_FAT32
+#ifdef VERY_NOISY_FAT32
+        vdebugf("FAT32: First 16 bytes of returned data: ");
+        const uint8_t *data_bytes = (uint8_t *)io_buffer;
         for (int i = 0; i < 16 && i < data_returned; i++) {
-            printf("%02x ", data_bytes[i]);
+            vdebugf("%02x ", data_bytes[i]);
         }
-        printf("\n");
+        vdebugf("\n");
+#endif
+#endif
 
         // Due to 4KB IPC limit, AHCI driver may return less data than requested
         // We'll take whatever we got, up to what we expected
-        size_t copy_size =
+        const size_t copy_size =
                 (data_returned < expected_size) ? data_returned : expected_size;
 
         if (copy_size > 0) {
             // Copy the real sector data from the AHCI driver response
             memcpy(buffer, io_buffer, copy_size);
-            printf("FAT32: Successfully read %lu bytes of sector data from "
-                   "storage\n",
-                   copy_size);
+            vdebugf("FAT32: Successfully read %lu bytes of sector data from "
+                    "storage\n",
+                    copy_size);
             return true;
         } else {
-            printf("FAT32: Storage driver returned no data\n");
+            debugf("FAT32: Storage driver returned no data\n");
             return false;
         }
     } else {
@@ -300,80 +310,91 @@ static bool read_storage_sectors(uint64_t start_sector, uint32_t sector_count,
 }
 
 static bool initialize_fat32_filesystem() {
-    // Read the boot sector
     if (!read_storage_sectors(0, 1, &boot_sector)) {
         printf("FAT32: Failed to read boot sector\n");
         return false;
     }
 
-    // Debug: Dump first 16 bytes of boot sector
+#ifdef DEBUG_FAT32
+#ifdef VERY_NOISY_FAT32
     printf("FAT32: Boot sector first 16 bytes: ");
-    uint8_t *boot_data = (uint8_t *)&boot_sector;
+    const uint8_t *boot_data = (uint8_t *)&boot_sector;
     for (int i = 0; i < 16; i++) {
         printf("%02x ", boot_data[i]);
     }
     printf("\n");
+#endif
+#endif
 
     // Determine FAT type and show fs_type field
     const char *fs_type_field;
     if (boot_sector.fat_size_16 == 0) {
         // FAT32
         fs_type_field = boot_sector.ebr.fat32.fs_type;
-        printf("FAT: Detected FAT32 filesystem\n");
+        debugf("FAT: Detected FAT32 filesystem\n");
     } else {
         // FAT12/16
         fs_type_field = boot_sector.ebr.fat16.fs_type;
-        printf("FAT: Detected FAT12/16 filesystem\n");
+        debugf("FAT: Detected FAT12/16 filesystem\n");
     }
 
-    printf("FAT: fs_type field: '");
+#ifdef DEBUG_FAT32
+    debugf("FAT: fs_type field: '");
     for (int i = 0; i < 8; i++) {
         if (fs_type_field[i] >= 32 && fs_type_field[i] <= 126) {
-            printf("%c", fs_type_field[i]);
+            debugf("%c", fs_type_field[i]);
         } else {
-            printf("\\x%02x", fs_type_field[i]);
+            debugf("\\x%02x", fs_type_field[i]);
         }
     }
-    printf("'\n");
+    debugf("'\n");
+#endif
 
     // Basic validation - support FAT12, FAT16, and FAT32
     if (strncmp(fs_type_field, "FAT12", 5) != 0 &&
         strncmp(fs_type_field, "FAT16", 5) != 0 &&
         strncmp(fs_type_field, "FAT32", 5) != 0) {
-        printf("FAT: Unsupported filesystem type (not FAT12/16/32)\n");
+        debugf("FAT: Unsupported filesystem type (not FAT12/16/32)\n");
         return false;
     }
 
-    printf("FAT: Filesystem initialized\n");
-    printf("  Bytes per sector: %u\n", boot_sector.bytes_per_sector);
-    printf("  Sectors per cluster: %u\n", boot_sector.sectors_per_cluster);
+    debugf("FAT: Filesystem initialized\n");
+    debugf("  Bytes per sector: %u\n", boot_sector.bytes_per_sector);
+    debugf("  Sectors per cluster: %u\n", boot_sector.sectors_per_cluster);
 
     if (boot_sector.fat_size_16 == 0) {
         // FAT32
-        printf("  FAT size: %u sectors\n", boot_sector.ebr.fat32.fat_size_32);
-        printf("  Root cluster: %u\n", boot_sector.ebr.fat32.root_cluster);
+        debugf("  FAT size: %u sectors\n", boot_sector.ebr.fat32.fat_size_32);
+        debugf("  Root cluster: %u\n", boot_sector.ebr.fat32.root_cluster);
     } else {
         // FAT12/16
-        printf("  FAT size: %u sectors\n", boot_sector.fat_size_16);
-        printf("  Root entries: %u\n", boot_sector.root_entries);
+        debugf("  FAT size: %u sectors\n", boot_sector.fat_size_16);
+        debugf("  Root entries: %u\n", boot_sector.root_entries);
     }
 
     return true;
 }
 
-static void handle_filesystem_message(uint64_t msg_cookie, uint64_t tag,
-                                      void *buffer, size_t buffer_size) {
-    uint64_t result = 0;
-
+static void handle_filesystem_message(const uint64_t msg_cookie,
+                                      const uint64_t tag, void *buffer,
+                                      const size_t buffer_size) {
     switch (tag) {
     case FS_MSG_QUERY_OBJECT_SIZE: {
+        if (buffer_size < sizeof(FilesystemObjectSizeQuery)) {
+            printf("FAT32: Invalid FS_MSG_QUERY_OBJECT_SIZE message size (%lu "
+                   "< %lu)\n",
+                   buffer_size, sizeof(FilesystemObjectSizeQuery));
+            anos_reply_message(msg_cookie, 0);
+            return;
+        }
+
         FilesystemObjectSizeQuery *query = (FilesystemObjectSizeQuery *)buffer;
 
-        static char __attribute__((aligned(4096))) response_buffer[4096];
-        FilesystemObjectSizeResponse *response =
-                (FilesystemObjectSizeResponse *)response_buffer;
+        vdebugf("FAT32: Query object size for: %s\n", query->path);
 
-        printf("FAT32: Query object size for: %s\n", query->path);
+        // Write response directly to caller's zero-copy mapped buffer
+        FilesystemObjectSizeResponse *response =
+                (FilesystemObjectSizeResponse *)query;
 
         // TODO: Implement actual FAT32 file lookup
         // For now, return error indicating file operations not yet implemented
@@ -386,14 +407,22 @@ static void handle_filesystem_message(uint64_t msg_cookie, uint64_t tag,
     }
 
     case FS_MSG_LOAD_OBJECT_PAGE: {
+        if (buffer_size < sizeof(FilesystemObjectPageLoad)) {
+            printf("FAT32: Invalid FS_MSG_LOAD_OBJECT_PAGE message size (%lu < "
+                   "%lu)\n",
+                   buffer_size, sizeof(FilesystemObjectPageLoad));
+            anos_reply_message(msg_cookie, 0);
+            return;
+        }
+
         FilesystemObjectPageLoad *load_req = (FilesystemObjectPageLoad *)buffer;
 
-        static char __attribute__((aligned(4096))) response_buffer[4096];
-        FilesystemObjectPageResponse *response =
-                (FilesystemObjectPageResponse *)response_buffer;
+        vdebugf("FAT32: Load object page for: %s (offset: %lu, pages: %u)\n",
+                load_req->path, load_req->page_offset, load_req->page_count);
 
-        printf("FAT32: Load object page for: %s (offset: %lu, pages: %u)\n",
-               load_req->path, load_req->page_offset, load_req->page_count);
+        // Write response directly to caller's zero-copy mapped buffer
+        FilesystemObjectPageResponse *response =
+                (FilesystemObjectPageResponse *)load_req;
 
         // TODO: Implement actual FAT32 file reading using real sector data
         // For now, return error indicating file operations not yet implemented
@@ -405,16 +434,16 @@ static void handle_filesystem_message(uint64_t msg_cookie, uint64_t tag,
     }
 
     default:
-        printf("FAT32: Unknown filesystem message type: %lu\n", tag);
+        debugf("FAT32: Unknown filesystem message type: %lu\n", tag);
         break;
     }
 
-    anos_reply_message(msg_cookie, result);
+    anos_reply_message(msg_cookie, 0);
 }
 
 static bool register_with_vfs(const char *mount_prefix) {
     // Find VFS channel
-    SyscallResult vfs_result = anos_find_named_channel("SYSTEM::VFS");
+    const SyscallResult vfs_result = anos_find_named_channel("SYSTEM::VFS");
     if (vfs_result.result != SYSCALL_OK || vfs_result.value == 0) {
         printf("FAT32: Failed to find SYSTEM::VFS channel\n");
         return false;
@@ -431,7 +460,7 @@ static bool register_with_vfs(const char *mount_prefix) {
     mount_entry->mount_prefix[sizeof(mount_entry->mount_prefix) - 1] = '\0';
     mount_entry->fs_driver_channel = fat32_channel;
 
-    SyscallResult reg_result =
+    const SyscallResult reg_result =
             anos_send_message(vfs_channel, VFS_REGISTER_FILESYSTEM,
                               sizeof(VFSMountEntry), reg_buffer);
 
@@ -442,7 +471,7 @@ static bool register_with_vfs(const char *mount_prefix) {
         return true;
     }
 
-    printf("FAT32: Failed to register with VFS\n");
+    debugf("FAT32: Failed to register with VFS\n");
     return false;
 }
 
@@ -480,20 +509,23 @@ static uint32_t query_storage_devices_fat32(uint64_t devman_channel,
 }
 
 static bool find_and_connect_to_storage_device() {
-    printf("FAT32: Waiting for DEVMAN to become available...\n");
+    debugf("FAT32: Waiting for DEVMAN to become available...\n");
 
     // Wait for DEVMAN to be available
     uint64_t devman_channel = 0;
     for (int retry = 0; retry < 10; retry++) {
-        SyscallResult devman_result = anos_find_named_channel("DEVMAN");
+        const SyscallResult devman_result = anos_find_named_channel("DEVMAN");
+
         if (devman_result.result == SYSCALL_OK && devman_result.value != 0) {
             devman_channel = devman_result.value;
-            printf("FAT32: DEVMAN found, waiting for storage device "
+            debugf("FAT32: DEVMAN found, waiting for storage device "
                    "discovery...\n");
             break;
         }
-        printf("FAT32: DEVMAN not found yet, waiting... (attempt %d/10)\n",
+
+        debugf("FAT32: DEVMAN not found yet, waiting... (attempt %d/10)\n",
                retry + 1);
+
         anos_task_sleep_current_secs(1);
     }
 
@@ -505,19 +537,22 @@ static bool find_and_connect_to_storage_device() {
     // Wait for storage devices to be discovered
     uint32_t storage_device_count = 0;
     DeviceInfo storage_device_info = {0};
-    printf("FAT32: Polling for storage device discovery...\n");
+    debugf("FAT32: Polling for storage device discovery...\n");
 
     for (int retry = 0; retry < 20; retry++) {
         storage_device_count = query_storage_devices_fat32(
                 devman_channel, &storage_device_info);
+
         if (storage_device_count > 0) {
-            printf("FAT32: Found %u storage devices after %d seconds\n",
+            debugf("FAT32: Found %u storage devices after %d seconds\n",
                    storage_device_count, retry + 1);
             break;
         }
-        printf("FAT32: No storage devices found yet, waiting... (attempt "
+
+        debugf("FAT32: No storage devices found yet, waiting... (attempt "
                "%d/20)\n",
                retry + 1);
+
         anos_task_sleep_current_secs(1);
     }
 
@@ -526,10 +561,11 @@ static bool find_and_connect_to_storage_device() {
         storage_device_id = storage_device_info.device_id;
         storage_driver_channel = storage_device_info.driver_channel;
 
-        printf("FAT32: Using storage device '%s' (ID: %lu, Channel: %lu)\n",
+        debugf("FAT32: Using storage device '%s' (ID: %lu, Channel: "
+               "0x%016lx)\n",
                storage_device_info.name, storage_device_id,
                storage_driver_channel);
-        printf("FAT32: Storage driver: %s\n", storage_device_info.driver_name);
+        debugf("FAT32: Storage driver: %s\n", storage_device_info.driver_name);
         return true;
     }
 
@@ -551,14 +587,14 @@ int main(int argc, char **argv) {
     printf("FAT32: Starting for mount prefix '%s'\n", mount_prefix);
 
     // Create IPC channel for this filesystem driver
-    SyscallResult channel_result = anos_create_channel();
+    const SyscallResult channel_result = anos_create_channel();
     if (channel_result.result != SYSCALL_OK) {
         printf("FAT32: Failed to create IPC channel\n");
         return 1;
     }
 
     fat32_channel = channel_result.value;
-    printf("FAT32: Created IPC channel %lu\n", fat32_channel);
+    debugf("FAT32: Created IPC channel %lu\n", fat32_channel);
 
     // Find and connect to storage device
     if (!find_and_connect_to_storage_device()) {
@@ -591,9 +627,9 @@ int main(int argc, char **argv) {
         size_t buffer_size = 4096;
         uint64_t tag = 0;
 
-        SyscallResult recv_result = anos_recv_message(fat32_channel, &tag,
-                                                      &buffer_size, ipc_buffer);
-        uint64_t msg_cookie = recv_result.value;
+        const SyscallResult recv_result = anos_recv_message(
+                fat32_channel, &tag, &buffer_size, ipc_buffer);
+        const uint64_t msg_cookie = recv_result.value;
 
         if (recv_result.result == SYSCALL_OK && msg_cookie) {
             handle_filesystem_message(msg_cookie, tag, ipc_buffer, buffer_size);
@@ -602,6 +638,4 @@ int main(int argc, char **argv) {
             anos_task_sleep_current_secs(1);
         }
     }
-
-    return 0;
 }
