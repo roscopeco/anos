@@ -19,6 +19,7 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #	DEBUG_INIT_RAMFS		Dump info about the initial RAMFS loaded by system
 #	DEBUG_SYS_IPC			Debug IPC messages received by SYSTEM
 #	DEBUG_SERVER_LOADER		Debug the initial server program loader
+#	DEBUG_FS_INIT			Debug filesystem init
 #
 #	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
 #	TEST_BEEP_BOOP			Start the Beep Boop test server process
