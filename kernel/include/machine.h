@@ -53,8 +53,7 @@ void wait_for_interrupt(void);
 noreturn
 #endif
 
-        void
-        halt_and_catch_fire(void);
+        void halt_and_catch_fire(void);
 
 void outl(uint16_t port, uint32_t value);
 uint32_t inl(uint16_t port);

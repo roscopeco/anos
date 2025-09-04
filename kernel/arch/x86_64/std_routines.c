@@ -4,11 +4,10 @@
 __attribute__((no_sanitize(
         "alignment"))) // Can't align both src and dest in the general case..
 #ifdef UNIT_TESTS
-void *
-anos_std_memcpy(void *restrict dest, const void *restrict src, size_t count)
+void *anos_std_memcpy(void *restrict dest, const void *restrict src,
+                      size_t count)
 #else
-void *
-memcpy(void *restrict dest, const void *restrict src, size_t count)
+void *memcpy(void *restrict dest, const void *restrict src, size_t count)
 #endif
 {
     char *d = (char *)dest;
@@ -177,11 +176,9 @@ memcpy(void *restrict dest, const void *restrict src, size_t count)
 __attribute__((no_sanitize(
         "alignment"))) // Can't align both src and dest in the general case..
 #ifdef UNIT_TESTS
-void *
-anos_std_memmove(void *dest, const void *src, size_t count)
+void *anos_std_memmove(void *dest, const void *src, size_t count)
 #else
-void *
-memmove(void *dest, const void *src, size_t count)
+void *memmove(void *dest, const void *src, size_t count)
 #endif
 {
     unsigned char *d = (unsigned char *)dest;
