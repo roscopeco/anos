@@ -546,8 +546,8 @@ struct PsnipClockTimespec {
          (PSNIP_CLOCK_WALL_METHOD == PSNIP_CLOCK_METHOD_CLOCK_GETTIME)) ||     \
         (defined(PSNIP_CLOCK_MONOTONIC_METHOD) &&                              \
          (PSNIP_CLOCK_MONOTONIC_METHOD == PSNIP_CLOCK_METHOD_CLOCK_GETTIME))
-PSNIP_CLOCK__FUNCTION psnip_uint32_t
-psnip_clock__clock_getres(clockid_t clk_id) {
+PSNIP_CLOCK__FUNCTION
+psnip_uint32_t psnip_clock__clock_getres(clockid_t clk_id) {
     struct timespec res;
     int r;
 
