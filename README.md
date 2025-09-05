@@ -413,7 +413,7 @@ It also runs in emulators, of course - here's Qemu booted via UEFI, using the
 graphical debug terminal at 1280x800 resolution and again showing the IPC features,
 user-mode hardware driver capabilities and other features:
 
-<img src="images/Screenshot 2025-07-26 at 14.26.13.png" alt="UEFI-booted ANOS running in Qemu">
+<img src="images/Screenshot 2025-09-04 at 21.51.59.png" alt="UEFI-booted ANOS running in Qemu">
 
 Broadly, this is happening here:
 
@@ -448,7 +448,12 @@ Broadly, this is happening here:
   * There is one driver process for each controller (so in qemu for example, there are two)
   * The driver maps and initializes the AHCI controller
   * Allocates memory for queues and buffers, and hooks them up to the hardware
-  * Scans the bus, issuing an `IDENTIFY` for each found device and outputs basic information 
+  * Scans the bus, issuing an `IDENTIFY` for each found device and outputs basic information
+  * All AHCI drivers and active ports are registered with the device manager 
+* Basic FAT32 filesystem driver is started
+  * This finds the UEFI root partition (which is why FAT32 was chosen to begin with)
+  * In debug mode (see the qemu screenshot) it dumps the root directory to the console
+  * It then registers a VFS endpoint with SYSTEM to allow software to access the filesystem
 
 Here's another picture (from the same PC as the image above) showing the AHCI driver initialisation process
 with debugging output enabled. This shows detail of the userspace mapping of config space 

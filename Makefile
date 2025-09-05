@@ -494,8 +494,8 @@ endif
 endif
 
 $(UEFI_IMG): $(STAGE3_DIR)/$(STAGE3).elf $(UEFI_CONF) $(UEFI_BOOT_WALLPAPER) $(UEFI_APPLICATION)
-	dd of=$@ if=/dev/zero bs=4M count=1
-	mformat -T 8192 -v ANOSDISK002 -i $@ ::
+	dd of=$@ if=/dev/zero bs=8M count=1
+	mformat -T 16384 -v ANOSDISK002 -i $@ ::
 	mmd -i $@ EFI
 	mmd -i $@ EFI/BOOT
 	mcopy -i $@ $(UEFI_CONF) ::/EFI/BOOT/limine.conf

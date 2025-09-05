@@ -138,7 +138,8 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
 #endif
 }
 
-__attribute__((no_sanitize("alignment"))) // we have to go byte-wise through the ACPI tables...
+__attribute__((no_sanitize(
+        "alignment"))) // we have to go byte-wise through the ACPI tables...
 void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
     // copy the AP trampoline code to a fixed address in low conventional memory
     memcpy(AP_TRAMPOLINE_BASE_VADDR, AP_TRAMPOLINE_BIN_START,

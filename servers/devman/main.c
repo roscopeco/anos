@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../common/device_types.h"
 #include <anos/syscalls.h>
 
 #ifndef VERSTR
@@ -20,6 +21,25 @@
 #define XSTRVER(verstr) #verstr
 #define STRVER(xstrver) XSTRVER(xstrver)
 #define VERSION STRVER(VERSTR)
+
+#ifdef DEBUG_DEVICE
+#define device_debugf(...) printf(__VA_ARGS__)
+#ifdef VERY_NOISY_DEVICE
+#define device_vdebugf(...) printf(__VA_ARGS__)
+#else
+#define device_vdebugf(...)
+#endif
+#else
+#define device_debugf(...)
+#define device_vdebugf(...)
+#endif
+
+// Device registry
+#define MAX_DEVICES 256
+static DeviceInfo device_registry[MAX_DEVICES];
+static uint32_t device_count = 0;
+static uint64_t next_device_id = 1;
+static uint64_t devman_channel = 0;
 
 // ACPI Table Structures (matching kernel definitions)
 typedef struct {
@@ -255,6 +275,21 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
                     .capability_id = SYSCALL_ID_SEND_MESSAGE,
             },
             {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE],
+                    .capability_id = SYSCALL_ID_RECV_MESSAGE,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE],
+                    .capability_id = SYSCALL_ID_REPLY_MESSAGE,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL],
+                    .capability_id = SYSCALL_ID_CREATE_CHANNEL,
+            },
+            {
                     .capability_cookie = __syscall_capabilities
                             [SYSCALL_ID_FIND_NAMED_CHANNEL],
                     .capability_id = SYSCALL_ID_FIND_NAMED_CHANNEL,
@@ -281,7 +316,7 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
            argv[4]);
 #endif
 
-    int64_t pid = spawn_process_via_system(0x100000, 11, pci_caps, 5, argv);
+    int64_t pid = spawn_process_via_system(0x100000, 13, pci_caps, 5, argv);
     if (pid > 0) {
 #ifdef DEBUG_PCI
         printf("  --> PCI driver spawned with PID %ld\n", pid);
@@ -611,6 +646,174 @@ static int map_and_init_acpi(void) {
     return 0;
 }
 
+static uint64_t register_device(const DeviceInfo *info) {
+    if (device_count >= MAX_DEVICES) {
+        return 0; // Registry full
+    }
+
+    const uint64_t device_id = next_device_id++;
+
+    device_registry[device_count] = *info;
+    device_registry[device_count].device_id = device_id;
+    device_count++;
+
+#ifdef DEBUG_DEVICE_REG
+    printf("Registered device: %s (ID: %lu, Type: %u, Driver: %s)\n",
+           info->name, device_id, info->device_type, info->driver_name);
+#endif
+
+    return device_id;
+}
+
+static bool unregister_device(const uint64_t device_id) {
+    for (uint32_t i = 0; i < device_count; i++) {
+        if (device_registry[i].device_id == device_id) {
+#ifdef DEBUG_DEVICE_REG
+            printf("Unregistered device: %s (ID: %lu)\\n",
+                   device_registry[i].name, device_id);
+#endif
+
+            // Move last device to this slot
+            device_registry[i] = device_registry[device_count - 1];
+            device_count--;
+            return true;
+        }
+    }
+    return false;
+}
+
+static uint32_t query_devices(const DeviceQueryType query_type,
+                              const DeviceType device_type,
+                              const uint64_t target_id, DeviceInfo *results,
+                              uint32_t max_results) {
+    uint32_t found = 0;
+
+    for (uint32_t i = 0; i < device_count && found < max_results; i++) {
+        bool match = false;
+
+        switch (query_type) {
+        case QUERY_ALL:
+            match = true;
+            break;
+        case QUERY_BY_TYPE:
+            match = (device_registry[i].device_type == device_type);
+            break;
+        case QUERY_BY_ID:
+            match = (device_registry[i].device_id == target_id);
+            break;
+        case QUERY_CHILDREN:
+            match = (device_registry[i].parent_id == target_id);
+            break;
+        }
+
+        if (match) {
+            results[found] = device_registry[i];
+            found++;
+        }
+    }
+
+    return found;
+}
+
+static void handle_device_message(const uint64_t msg_cookie, void *buffer,
+                                  const size_t buffer_size) {
+
+    if (buffer_size < sizeof(DeviceMessageType)) {
+        anos_reply_message(msg_cookie, 0);
+        return;
+    }
+
+    const DeviceMessageType *msg_type = (DeviceMessageType *)buffer;
+    uint64_t result = 0;
+
+    switch (*msg_type) {
+    case DEVICE_MSG_REGISTER: {
+        const DeviceRegistrationMessage *reg_msg =
+                (DeviceRegistrationMessage *)buffer;
+
+        if (buffer_size >= sizeof(DeviceRegistrationMessage) &&
+            reg_msg->device_count > 0) {
+            const DeviceInfo *devices = (DeviceInfo *)reg_msg->data;
+
+            // For now, register just the first device
+            // TODO: Handle multiple device registration
+            if (buffer_size >=
+                sizeof(DeviceRegistrationMessage) + sizeof(DeviceInfo)) {
+                result = register_device(&devices[0]);
+            }
+        }
+        break;
+    }
+
+    case DEVICE_MSG_UNREGISTER: {
+        if (buffer_size >= sizeof(uint64_t) * 2) {
+            const uint64_t *device_id =
+                    (uint64_t *)((char *)buffer + sizeof(DeviceMessageType));
+            result = unregister_device(*device_id) ? 1 : 0;
+        }
+        break;
+    }
+
+    case DEVICE_MSG_QUERY: {
+        const DeviceQueryMessage *query_msg = (DeviceQueryMessage *)buffer;
+
+        if (buffer_size >= sizeof(DeviceQueryMessage)) {
+            static DeviceInfo query_results[MAX_DEVICES];
+            const uint32_t found = query_devices(
+                    query_msg->query_type, query_msg->device_type,
+                    query_msg->device_id, query_results, MAX_DEVICES);
+
+            if (found > 0) {
+                // Copy device info to the buffer for return
+                const size_t data_size = found * sizeof(DeviceInfo);
+                const size_t required_size =
+                        sizeof(DeviceQueryResponse) + data_size;
+
+                device_debugf("DEVMAN DEBUG: Found %u devices, data_size=%lu, "
+                              "buffer_size=%lu, required=%lu\n",
+                              found, data_size, buffer_size, required_size);
+
+                // Check against actual IPC buffer size, not incoming message size
+                if (required_size <= 4096) {
+                    device_debugf(
+                            "DEVMAN DEBUG: Returning structured response with "
+                            "device info\n");
+                    DeviceQueryResponse *response =
+                            (DeviceQueryResponse *)buffer;
+                    response->device_count = found;
+                    response->error_code = 0;
+
+                    // Copy device info after the response header
+                    memcpy(response->data, query_results, data_size);
+                    result = required_size;
+                } else {
+                    // Too much data, just return count
+                    device_debugf(
+                            "DEVMAN DEBUG: Buffer too small, returning count "
+                            "only (%u)\n",
+                            found);
+                    result = found;
+                }
+            } else {
+                device_debugf("DEVMAN DEBUG: No devices found\n");
+                result = 0;
+            }
+        }
+        break;
+    }
+
+    default:
+        device_debugf("Unknown device message type: %u\\n", *msg_type);
+        break;
+    }
+
+    const SyscallResult reply_result = anos_reply_message(msg_cookie, result);
+
+    if (reply_result.result != SYSCALL_OK) {
+        printf("WARN: Failed to reply to DEVMAN message\n");
+    }
+}
+
 int main(const int argc, char **argv) {
     printf("\nDEVMAN System device manager #%s [libanos #%s]\n", VERSION,
            libanos_version());
@@ -627,9 +830,40 @@ int main(const int argc, char **argv) {
 #endif
     }
 
-    printf("Device manager initialization complete.\n");
+    // Create IPC channel for device registration
+    const SyscallResult channel_result = anos_create_channel();
+    if (channel_result.result != SYSCALL_OK) {
+        printf("Failed to create DEVMAN IPC channel\n");
+        return 1;
+    }
+    devman_channel = channel_result.value;
+
+    // Register our channel with a well-known name
+    const SyscallResult register_result =
+            anos_register_channel_name(devman_channel, "DEVMAN");
+    if (register_result.result != SYSCALL_OK) {
+        printf("Failed to register DEVMAN channel\n");
+        return 1;
+    }
+
+    printf("Device manager initialization complete\n");
+
+    // Main IPC message loop
+    static char __attribute__((aligned(4096))) ipc_buffer[4096];
 
     while (1) {
-        anos_task_sleep_current_secs(5);
+        size_t buffer_size = sizeof(ipc_buffer);
+        uint64_t tag = 0;
+
+        const SyscallResult recv_result = anos_recv_message(
+                devman_channel, &tag, &buffer_size, ipc_buffer);
+        const uint64_t msg_cookie = recv_result.value;
+
+        if (recv_result.result == SYSCALL_OK && msg_cookie) {
+            handle_device_message(msg_cookie, ipc_buffer, buffer_size);
+        } else {
+            printf("Error: Failed to receive message on devman channel\n");
+            return 1;
+        }
     }
 }

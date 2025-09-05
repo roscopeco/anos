@@ -12,6 +12,7 @@
 
 #include <anos/syscalls.h>
 
+#include "../common/device_types.h"
 #include "enumerate.h"
 #include "pci.h"
 
@@ -41,6 +42,7 @@ typedef struct {
 #define ECAM_BASE_ADDRESS ((0x9000000000))
 
 static PCIBusDriver bus_driver = {0};
+static uint64_t pci_bus_device_id = 0;
 
 extern uint64_t __syscall_capabilities[];
 
@@ -59,7 +61,7 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
         return -1;
     }
 
-    size_t capabilities_size = capc * sizeof(InitCapability);
+    const size_t capabilities_size = capc * sizeof(InitCapability);
     size_t argv_size = 0;
 
     for (uint16_t i = 0; i < argc; i++) {
@@ -68,7 +70,7 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
         }
     }
 
-    size_t total_size =
+    const size_t total_size =
             sizeof(ProcessSpawnRequest) + capabilities_size + argv_size;
 
     static char __attribute__((aligned(4096))) ipc_buffer[4096];
@@ -95,7 +97,7 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
     if (argc > 0 && argv) {
         for (uint16_t i = 0; i < argc; i++) {
             if (argv[i]) {
-                size_t len = strlen(argv[i]);
+                const size_t len = strlen(argv[i]);
                 memcpy(data_ptr, argv[i], len);
                 data_ptr[len] = '\0';
                 data_ptr += len + 1;
@@ -117,8 +119,8 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
     return (int64_t)spawn_result.value;
 }
 
-void spawn_ahci_driver(const uint64_t ahci_base,
-                       const uint64_t pci_config_base) {
+void spawn_ahci_driver(const uint64_t ahci_base, const uint64_t pci_config_base,
+                       const uint64_t pci_device_id) {
 #ifdef DEBUG_BUS_DRIVER_INIT
     printf("\nSpawning AHCI driver for controller at 0x%016lx (PCI config at "
            "0x%016lx)...\n",
@@ -130,9 +132,14 @@ void spawn_ahci_driver(const uint64_t ahci_base,
     snprintf(ahci_base_str, sizeof(ahci_base_str), "%lx", ahci_base);
     snprintf(pci_config_str, sizeof(pci_config_str), "%lx", pci_config_base);
 
-    const char *argv[] = {"boot:/ahcidrv.elf", ahci_base_str, pci_config_str};
+    char pci_device_id_str[32];
+    snprintf(pci_device_id_str, sizeof(pci_device_id_str), "%lu",
+             pci_device_id);
 
-    InitCapability ahci_caps[] = {
+    const char *argv[] = {"boot:/ahcidrv.elf", ahci_base_str, pci_config_str,
+                          pci_device_id_str};
+
+    const InitCapability ahci_caps[] = {
             {.capability_id = SYSCALL_ID_DEBUG_PRINT,
              .capability_cookie =
                      __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT]},
@@ -159,13 +166,29 @@ void spawn_ahci_driver(const uint64_t ahci_base,
             {.capability_id = SYSCALL_ID_WAIT_INTERRUPT,
              .capability_cookie =
                      __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT]},
+            {.capability_id = SYSCALL_ID_FIND_NAMED_CHANNEL,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_FIND_NAMED_CHANNEL]},
+            {.capability_id = SYSCALL_ID_SEND_MESSAGE,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE]},
+            {.capability_id = SYSCALL_ID_RECV_MESSAGE,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE]},
+            {.capability_id = SYSCALL_ID_REPLY_MESSAGE,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE]},
+            {.capability_id = SYSCALL_ID_CREATE_CHANNEL,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL]},
     };
 
 #ifdef DEBUG_BUS_DRIVER_INIT
     printf("  --> spawn: %s %s\n", argv[0], argv[1]);
 #endif
 
-    int64_t pid = spawn_process_via_system(0x100000, 9, ahci_caps, 3, argv);
+    const int64_t pid =
+            spawn_process_via_system(0x100000, 14, ahci_caps, 4, argv);
     if (pid > 0) {
 #ifdef DEBUG_BUS_DRIVER_INIT
         printf("  --> AHCI driver spawned with PID %ld\n", pid);
@@ -220,12 +243,12 @@ static int pci_initialize_driver(const uint64_t ecam_base,
     return 0;
 }
 
-static void pci_enumerate_all_buses(void) {
+static void pci_enumerate_all_buses(uint64_t pci_bus_device_id) {
     // TODO maybe don't run through all the buses?
     //      should only have one root bus, can recursively scan from there...
     for (uint16_t bus = bus_driver.bus_start; bus <= bus_driver.bus_end;
          bus++) {
-        pci_enumerate_bus(&bus_driver, bus);
+        pci_enumerate_bus(&bus_driver, bus, pci_bus_device_id);
     }
 }
 
@@ -258,7 +281,18 @@ int main(const int argc, char **argv) {
         return 1;
     }
 
-    pci_enumerate_all_buses();
+    // Test DEVMAN connection for device registration
+    const SyscallResult devman_result = anos_find_named_channel("DEVMAN");
+    if (devman_result.result == SYSCALL_OK && devman_result.value) {
+        // Register PCI bus itself as a device
+        // TODO: This should be done per-bus, not per-driver
+        pci_bus_device_id = 1; // For now, assume bus device ID 1
+    } else {
+        printf("WARN: DEVMAN channel not available - devices will not be "
+               "registered\n");
+    }
+
+    pci_enumerate_all_buses(pci_bus_device_id);
 
     printf("\nPCI enumeration complete, PCI driver exiting.\n");
     return 0;

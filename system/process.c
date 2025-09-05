@@ -71,6 +71,12 @@ static bool build_new_process_init_values(const uintptr_t stack_top_addr,
         return false;
     }
 
+    // Ensure total value count leaves stack aligned
+    uint64_t aligned_value_count = value_count;
+    if (value_count & 1) {
+        aligned_value_count += 1;
+    }
+
     // Use unique addresses based on stack pointer to avoid collisions between
     // concurrent calls.
     //
@@ -92,7 +98,7 @@ static bool build_new_process_init_values(const uintptr_t stack_top_addr,
 
     uintptr_t *argv_pointers = (uintptr_t *)argv_result.value;
 
-    const uint64_t stack_blocks_needed = value_count / 512;
+    const uint64_t stack_blocks_needed = aligned_value_count / 512;
 
     if (stack_blocks_needed > 1) {
         anos_unmap_virtual(VM_PAGE_SIZE, unique_addr_base);
@@ -113,7 +119,7 @@ static bool build_new_process_init_values(const uintptr_t stack_top_addr,
     uintptr_t *new_stack = (uintptr_t *)stack_result.value;
 
     const uintptr_t stack_bottom_addr =
-            stack_top_addr - (sizeof(uintptr_t) * value_count);
+            stack_top_addr - (sizeof(uintptr_t) * aligned_value_count);
 
     // copy string data first...
     uint8_t *str_data_ptr =
@@ -174,7 +180,7 @@ static bool build_new_process_init_values(const uintptr_t stack_top_addr,
     *--long_data_pointer = cap_ptr;
     *--long_data_pointer = cap_count;
 
-    out_init_values->value_count = value_count;
+    out_init_values->value_count = aligned_value_count;
     out_init_values->data = new_stack;
     out_init_values->allocated_size = stack_blocks_needed;
     out_init_values->argv_buffer = (uintptr_t *)unique_addr_base;

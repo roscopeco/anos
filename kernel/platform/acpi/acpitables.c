@@ -183,8 +183,7 @@ static inline bool has_sig(const char *expect, const ACPI_SDTHeader *sdt) {
 }
 
 __attribute__((no_sanitize("alignment"))) // ACPI tables can be unaligned...
-static ACPI_SDTHeader *
-map_sdt(uint64_t phys_addr) {
+static ACPI_SDTHeader *map_sdt(uint64_t phys_addr) {
     uint64_t vaddr = get_mapping_for(phys_addr);
 
     if (vaddr == 0) {
@@ -277,8 +276,7 @@ static ACPI_RSDT *map_acpi_tables(ACPI_RSDP *rsdp) {
 ACPI_RSDT *acpi_tables_init(ACPI_RSDP *rsdp) { return map_acpi_tables(rsdp); }
 
 __attribute__((no_sanitize("alignment"))) // ACPI tables can be unaligned...
-ACPI_SDTHeader *
-acpi_tables_find(ACPI_RSDT *rsdt, const char *ident) {
+ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdt, const char *ident) {
     if (rsdt == NULL || ident == NULL) {
         return NULL;
     }

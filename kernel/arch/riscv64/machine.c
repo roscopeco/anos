@@ -16,8 +16,7 @@ void wait_for_interrupt(void) { __asm__ volatile("wfi"); }
 noreturn
 #endif
 
-        void
-        halt_and_catch_fire(void) {
+        void halt_and_catch_fire(void) {
     cpu_clear_sie(0);
     cpu_clear_sip(0);
 

@@ -9,6 +9,8 @@ BINARY_OBJS=main.o
 #	VERY_NOISY_ACPI			Dump **lots** of info about ACPI tables
 #	DEBUG_PCI				Dump info about PCI drivers that are spawned
 #	DEBUG_PCI_MCFG			Dump info about the MCFG ACPI table
+#	DEBUG_DEVICE_REG		Dump info about device registration
+#	DEBUG_DEVICE			Dump info about device communication
 #
 CDEFS=
 

@@ -18,8 +18,7 @@ void wait_for_interrupt(void) { __asm__ volatile("hlt"); }
 #ifndef UNIT_TESTS
 noreturn
 #endif
-        void
-        halt_and_catch_fire(void) {
+        void halt_and_catch_fire(void) {
     __asm__ volatile("cli\n\t");
 
     while (true) {

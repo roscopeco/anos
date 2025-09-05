@@ -70,9 +70,9 @@ void _putchar(char character);
 #else
 #define kprintf printf_
 #ifdef __GNUC__
-__attribute__ ((format (__printf__, 1, 2)))
+__attribute__((format(__printf__, 1, 2)))
 #endif
-int printf_(const char* format, ...);
+int printf_(const char *format, ...);
 #endif
 
 /**
@@ -84,9 +84,9 @@ int printf_(const char* format, ...);
  */
 #define sprintf sprintf_
 #ifdef __GNUC__
-__attribute__ ((format (__printf__, 2, 3)))
+__attribute__((format(__printf__, 2, 3)))
 #endif
-int sprintf_(char* buffer, const char* format, ...);
+int sprintf_(char *buffer, const char *format, ...);
 
 /**
  * Tiny snprintf/vsnprintf implementation
@@ -101,14 +101,14 @@ int sprintf_(char* buffer, const char* format, ...);
 #define snprintf snprintf_
 #define vsnprintf vsnprintf_
 #ifdef __GNUC__
-__attribute__ ((format (__printf__, 3, 4)))
+__attribute__((format(__printf__, 3, 4)))
 #endif
-int  snprintf_(char* buffer, size_t count, const char* format, ...);
+int snprintf_(char *buffer, size_t count, const char *format, ...);
 
 #ifdef __GNUC__
-__attribute__ ((format (__printf__, 3, 0)))
+__attribute__((format(__printf__, 3, 0)))
 #endif
-int vsnprintf_(char* buffer, size_t count, const char* format, va_list va);
+int vsnprintf_(char *buffer, size_t count, const char *format, va_list va);
 
 /**
  * Tiny vprintf implementation
@@ -118,9 +118,9 @@ int vsnprintf_(char* buffer, size_t count, const char* format, va_list va);
  */
 #define vprintf vprintf_
 #ifdef __GNUC__
-__attribute__ ((format (__printf__, 1, 0)))
+__attribute__((format(__printf__, 1, 0)))
 #endif
-int vprintf_(const char* format, va_list va);
+int vprintf_(const char *format, va_list va);
 
 /**
  * printf with output function
@@ -131,9 +131,10 @@ int vprintf_(const char* format, va_list va);
  * \return The number of characters that are sent to the output function, not counting the terminating null character
  */
 #ifdef __GNUC__
-__attribute__ ((format (__printf__, 3, 4)))
+__attribute__((format(__printf__, 3, 4)))
 #endif
-int fctprintf(void (*out)(char character, void* arg), void* arg, const char* format, ...);
+int fctprintf(void (*out)(char character, void *arg), void *arg,
+              const char *format, ...);
 
 #ifdef __cplusplus
 }
