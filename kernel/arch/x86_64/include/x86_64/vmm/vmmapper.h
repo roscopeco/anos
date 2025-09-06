@@ -106,6 +106,7 @@
 #define PER_CPU_TEMP_PAGE_BASE ((0xFFFFFFFF80400000))
 
 #define IS_USER_ADDRESS(ptr) (((((uint64_t)(ptr)) & 0xffff800000000000) == 0))
+#define IS_PAGE_ALIGNED(ptr) ((((uint64_t)(ptr)) & PAGE_RELATIVE_MASK) == 0)
 
 #define PAGE_TABLE_ENTRIES ((512))
 

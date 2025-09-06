@@ -449,7 +449,7 @@ SYSCALL_HANDLER(send_message) {
     const size_t size = (size_t)arg2;
     void *buffer = (void *)arg3;
 
-    if (IS_USER_ADDRESS(buffer)) {
+    if (IS_USER_ADDRESS(buffer) && IS_PAGE_ALIGNED(buffer)) {
         const uint64_t result =
                 ipc_channel_send(channel_cookie, tag, size, buffer);
 
@@ -470,7 +470,7 @@ SYSCALL_HANDLER(recv_message) {
     void *buffer = (void *)arg3;
 
     if (IS_USER_ADDRESS(tag) && IS_USER_ADDRESS(size) &&
-        IS_USER_ADDRESS(buffer)) {
+        IS_USER_ADDRESS(buffer) && IS_PAGE_ALIGNED(buffer)) {
         const uint64_t result =
                 ipc_channel_recv(channel_cookie, tag, size, buffer);
 
