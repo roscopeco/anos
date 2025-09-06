@@ -41,21 +41,21 @@ void named_channel_init(void) {
     name_table = hash_table_create(INITIAL_PAGE_COUNT);
 }
 
-bool named_channel_register(uint64_t cookie, char *name) {
+bool named_channel_register(const uint64_t cookie, char *name) {
     if (!ipc_channel_exists(cookie)) {
         return false;
     }
 
-    uint64_t name_hash = str_hash_sdbm((unsigned char *)name, 255);
+    const uint64_t name_hash = str_hash_sdbm((unsigned char *)name, 255);
     return hash_table_insert(name_table, name_hash, (void *)cookie);
 }
 
 uint64_t named_channel_find(char *name) {
-    uint64_t name_hash = str_hash_sdbm((unsigned char *)name, 255);
+    const uint64_t name_hash = str_hash_sdbm((unsigned char *)name, 255);
     return (uint64_t)hash_table_lookup(name_table, name_hash);
 }
 
 uint64_t named_channel_deregister(char *name) {
-    uint64_t name_hash = str_hash_sdbm((unsigned char *)name, 255);
+    const uint64_t name_hash = str_hash_sdbm((unsigned char *)name, 255);
     return (uint64_t)hash_table_remove(name_table, name_hash);
 }

@@ -25,7 +25,7 @@
  * The magic of number 33 (why it works better than many other constants,
  * prime or not) has never been adequately explained.
  */
-static inline uint64_t str_hash_djb2(unsigned char *str, size_t max_len) {
+static inline uint64_t str_hash_djb2(unsigned char *str, const size_t max_len) {
     unsigned long hash = 5381;
     size_t pos = 0;
     int c;
@@ -59,7 +59,7 @@ static inline uint64_t str_hash_djb2(unsigned char *str, size_t max_len) {
  * 
  * This is one of the algorithms used in berkeley db (see sleepycat) and elsewhere.
  */
-static inline uint64_t str_hash_sdbm(unsigned char *str, size_t max_len) {
+static inline uint64_t str_hash_sdbm(unsigned char *str, const size_t max_len) {
     unsigned long hash = 0;
     size_t pos = 0;
     int c;
