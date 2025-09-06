@@ -1,5 +1,6 @@
 SERVERS_ROOT_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
+ARCH?=x86_64
 MKRAMFS?=mkramfs
 MKRAMFS_DIR?=$(SERVERS_ROOT_DIR)/../tools/$(MKRAMFS)
 MKRAMFS_BIN?=$(MKRAMFS_DIR)/$(MKRAMFS)
@@ -39,8 +40,8 @@ fat32drv/fat32drv.elf: server_common.mk fat32drv/Makefile Makefile fat32drv/main
 	$(MAKE) -C fat32drv fat32drv.elf
 
 ifeq ($(ARCH),x86_64)
-system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf xhcidrv/xhcidrv.elf fat32drv/fat32drv.elf xhcidrv/xhcidrv.elf
-	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf xhcidrv/xhcidrv.elf fat32drv/fat32drv.elf xhcidrv/xhcidrv.elf
+system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf xhcidrv/xhcidrv.elf fat32drv/fat32drv.elf
+	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf xhcidrv/xhcidrv.elf fat32drv/fat32drv.elf
 else
 system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf
 	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf
