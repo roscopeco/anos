@@ -127,9 +127,9 @@ typedef struct {
 // Function prototypes
 bool xhci_controller_init(XHCIController *controller, uint64_t base_addr,
                           uint64_t pci_config_base);
-bool xhci_controller_reset(XHCIController *controller);
-bool xhci_controller_start(XHCIController *controller);
-bool xhci_controller_stop(XHCIController *controller);
+bool xhci_controller_reset(const XHCIController *controller);
+bool xhci_controller_start(const XHCIController *controller);
+bool xhci_controller_stop(const XHCIController *controller);
 
 bool xhci_port_init(XHCIPort *port, XHCIController *controller,
                     uint8_t port_num);
