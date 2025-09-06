@@ -148,7 +148,9 @@ QEMU_BASEOPTS=																										\
 	-m 256M																											\
 	-M q35																											\
 	-device ioh3420,bus=pcie.0,id=pcie.1,addr=1e																	\
-	-device qemu-xhci,bus=pcie.1																					\
+	-device qemu-xhci,bus=pcie.1,id=xhci																			\
+	-device usb-mouse,bus=xhci.0																					\
+	-device usb-kbd,bus=xhci.0																						\
 	-device ahci,id=ahci																							\
 	-device ide-hd,drive=drive0,bus=ahci.0																			\
 	-device VGA																										\
