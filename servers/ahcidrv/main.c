@@ -63,7 +63,7 @@ static int ahci_initialize_driver(const uint64_t ahci_base,
 #endif
 
     for (uint32_t i = 0; i < controller.port_count; i++) {
-        if (controller.active_ports & (1 << i)) {
+        if (controller.active_ports & (1U << i)) {
             if (ahci_port_init(&ports[i], &controller, i)) {
 #ifdef DEBUG_AHCI_INIT
                 printf("Port %u initialized successfully\n", i);
@@ -147,7 +147,7 @@ static bool register_with_devman(void) {
 
     // Then register each active port as a storage device under the controller
     for (uint32_t i = 0; i < controller.port_count; i++) {
-        if (controller.active_ports & (1 << i) && ports[i].initialized) {
+        if (controller.active_ports & (1U << i) && ports[i].initialized) {
             reg_msg = (DeviceRegistrationMessage *)reg_buffer;
             reg_msg->msg_type = DEVICE_MSG_REGISTER;
             reg_msg->device_type = DEVICE_TYPE_STORAGE;
@@ -215,7 +215,7 @@ static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
         // Find an active port to use (use first available)
         volatile AHCIPort *active_port = nullptr;
         for (uint8_t i = 0; i < controller.port_count; i++) {
-            if (controller.active_ports & (1 << i) && ports[i].initialized) {
+            if (controller.active_ports & (1U << i) && ports[i].initialized) {
                 active_port = &ports[i];
                 break;
             }
@@ -282,7 +282,7 @@ static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
         // Find an active port to use
         volatile AHCIPort *active_port = NULL;
         for (uint8_t i = 0; i < controller.port_count; i++) {
-            if (controller.active_ports & (1 << i) && ports[i].initialized) {
+            if (controller.active_ports & (1U << i) && ports[i].initialized) {
                 active_port = &ports[i];
                 break;
             }
@@ -326,7 +326,7 @@ static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
         // Find an active port to use
         volatile AHCIPort *active_port = NULL;
         for (uint8_t i = 0; i < controller.port_count; i++) {
-            if (controller.active_ports & (1 << i) && ports[i].initialized) {
+            if (controller.active_ports & (1U << i) && ports[i].initialized) {
                 active_port = &ports[i];
                 break;
             }

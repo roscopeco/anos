@@ -11,10 +11,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// C compatibility fixes for AHCI driver
-#ifndef __cplusplus
-#define nullptr NULL
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support constexpr yet - Sept 2025
+#ifndef constexpr
 #define constexpr const
+#endif
+#ifndef nullptr
+#define nullptr NULL
+#endif
 #endif
 
 // Syscall result type

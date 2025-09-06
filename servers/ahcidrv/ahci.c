@@ -85,8 +85,8 @@ static inline void memset_explicit(volatile void *dst, const int c,
 static uint64_t memory_offset = 0;
 
 #ifdef UNIT_TESTS
-// Mock AHCI registers for unit testing
-static AHCIRegs mock_ahci_registers;
+// Mock AHCI registers for unit testing - declared in mock_syscalls.c
+extern AHCIRegs mock_ahci_registers;
 // Mock DMA memory pool for unit testing
 static uint8_t mock_dma_memory[0x100000]; // 1MB pool
 static size_t mock_dma_offset = 0;
@@ -128,6 +128,28 @@ static void mock_command_completion(uint32_t port_num, uint32_t command_slot) {
     // Set interrupt status to indicate command completion
     mock_ahci_registers.ports[port_num].is |=
             (1U << 0); // Device to Host FIS interrupt
+}
+
+// Mock register write interception for unit tests
+static void mock_handle_register_write(volatile void *addr, uint32_t value) {
+    // Calculate which register is being written to
+    uintptr_t reg_offset = (uintptr_t)addr - (uintptr_t)&mock_ahci_registers;
+
+    // Check if this is a CI register write (command issue)
+    for (int port = 0; port < 32; port++) {
+        uintptr_t ci_offset = (uintptr_t)&mock_ahci_registers.ports[port].ci -
+                              (uintptr_t)&mock_ahci_registers;
+        if (reg_offset == ci_offset && value != 0) {
+            // Command issued, simulate completion
+            for (int slot = 0; slot < 32; slot++) {
+                if (value & (1U << slot)) {
+                    mock_command_completion(port, slot);
+                    break; // Only handle first command for simplicity
+                }
+            }
+            break;
+        }
+    }
 }
 
 // Reset mock state for unit tests
@@ -506,7 +528,7 @@ void ahci_controller_cleanup(volatile AHCIController *ctrl) {
     }
 
     for (int i = 0; i < ctrl->port_count; i++) {
-        if (ctrl->active_ports & (1 << i)) {
+        if (ctrl->active_ports & (1U << i)) {
             ahci_port_stop(&ctrl->regs->ports[i]);
         }
     }
@@ -708,7 +730,7 @@ static bool ahci_wait_for_completion(const volatile AHCIPort *port,
                    port->port_num, event_data);
 
             // Check if command completed
-            if ((port_regs->ci & (1 << slot)) == 0) {
+            if ((port_regs->ci & (1U << slot)) == 0) {
                 return true;
             }
 
@@ -726,11 +748,11 @@ static bool ahci_wait_for_completion(const volatile AHCIPort *port,
     // Original polling-based completion
     int timeout = AHCI_COMMAND_TIMEOUT_MS * 10; // Convert ms to 100μs units
     while (timeout > 0) {
-        if ((port_regs->ci & (1 << slot)) == 0) {
+        if ((port_regs->ci & (1U << slot)) == 0) {
             return true;
         }
 
-        if (port_regs->is & (1 << 30)) {
+        if (port_regs->is & (1U << 30)) {
             debugf("Port %u: Task file error\n", port->port_num);
             return false;
         }
@@ -1021,6 +1043,11 @@ bool ahci_port_read(volatile AHCIPort *port, const uint64_t lba,
 
     port_regs->ci = 1;
 
+#ifdef UNIT_TESTS
+    // In unit tests, simulate command completion for read operations
+    mock_command_completion(port->port_num, 0);
+#endif
+
     bool success = ahci_wait_for_completion(port, 0);
 
     if (success) {
@@ -1085,6 +1112,11 @@ bool ahci_port_write(volatile AHCIPort *port, const uint64_t lba,
     __asm__ __volatile__("" ::: "memory");
 
     port_regs->ci = 1;
+
+#ifdef UNIT_TESTS
+    // In unit tests, simulate command completion for write operations
+    mock_command_completion(port->port_num, 0);
+#endif
 
     return ahci_wait_for_completion(port, 0);
 }
