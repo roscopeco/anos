@@ -5,6 +5,7 @@ ASM?=nasm
 XLD?=$(TARGET_TRIPLE)-gcc
 XOBJCOPY?=$(TARGET_TRIPLE)-objcopy
 XOBJDUMP?=$(TARGET_TRIPLE)-objdump
+XSTRIP?=$(TARGET_TRIPLE)-strip
 XCC?=$(TARGET_TRIPLE)-gcc
 XAR?=$(TARGET_TRIPLE)-ar
 XRANLIB?=$(TARGET_TRIPLE)-ranlib
@@ -34,12 +35,17 @@ endif
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(THIS_DIR)/..)
 
+SYSTEM?=system
+ARCH_X86_64_REALMODE?=realmode
+
+STAGE3?=kernel
+STAGE3_DIR?=$(STAGE3)
+SYSTEM_ELF?=$(SYSTEM).elf
+SYSTEM_BIN?=$(SYSTEM).img
+
 # System loads at 0x0000000001000000 (16MiB)
 #
 SYSTEM_ADDR?=0x01000000
-
-SYSTEM?=system
-SYSTEM_BIN=$(SYSTEM).bin
 
 SYSTEM_OBJS=main.o																\
 			printf.o															\
@@ -90,26 +96,28 @@ endif
 %.o: %.c
 	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -Iinclude $(CFLAGS) -c -o $@ $<
 
-$(SYSTEM).elf: $(SYSTEM_OBJS)
+$(SYSTEM_ELF): $(SYSTEM_OBJS)
 	$(XLD) -T $(SYSTEM).ld -o $@ $^
 	chmod a-x $@
+	cp $@ $(patsubst %.elf,%_debug.elf,$@)
+	$(XSTRIP) $@
 
-$(SYSTEM_BIN): $(SYSTEM).elf $(SYSTEM).dis
-	$(XOBJCOPY) --strip-debug -O binary $< $@
+$(SYSTEM_BIN): $(SYSTEM_ELF) $(SYSTEM).dis
+	$(XOBJCOPY) -O binary $< $@
 	chmod a-x $@
 
 $(ROOT_DIR)/servers/system.ramfs: $(ROOT_DIR)/servers
 	$(MAKE) -C $< system_ramfs
 
 ifeq ($(ARCH),x86_64)
-$(SYSTEM).dis: $(SYSTEM).elf
+$(SYSTEM).dis: $(SYSTEM_ELF)
 	$(XOBJDUMP) -D -mi386 -Maddr32,data32 $< > $@
 
 system_ramfs_linkable.o: $(ROOT_DIR)/servers/system.ramfs
 	$(XOBJCOPY) -I binary --rename-section .data=.system_ramfs_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
 else
 ifeq ($(ARCH),riscv64)
-$(SYSTEM).dis: $(SYSTEM).elf
+$(SYSTEM).dis: $(SYSTEM_ELF)
 	$(XOBJDUMP) -D -mriscv -Maddr32,data32 $< > $@
 
 system_ramfs_linkable.o: $(ROOT_DIR)/servers/system.ramfs
