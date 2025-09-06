@@ -739,6 +739,31 @@ int main(int argc, char **argv) {
                             [SYSCALL_ID_REGISTER_NAMED_CHANNEL],
                     .capability_id = SYSCALL_ID_REGISTER_NAMED_CHANNEL,
             },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_UNMAP_VIRTUAL],
+                    .capability_id = SYSCALL_ID_UNMAP_VIRTUAL,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_CREATE_REGION],
+                    .capability_id = SYSCALL_ID_CREATE_REGION,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_DESTROY_REGION],
+                    .capability_id = SYSCALL_ID_DESTROY_REGION,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_DESTROY_CHANNEL],
+                    .capability_id = SYSCALL_ID_DESTROY_CHANNEL,
+            },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_CREATE_THREAD],
+                    .capability_id = SYSCALL_ID_CREATE_THREAD,
+            },
     };
 
     const SyscallResult create_vfs_result = anos_create_channel();
@@ -791,7 +816,7 @@ int main(int argc, char **argv) {
                                               "Hello, world!"};
 
             const int64_t test_server_pid = create_server_process(
-                    0x100000, 3, new_process_caps, 2, test_server_argv);
+                    0x100000, 21, new_process_caps, 2, test_server_argv);
             if (test_server_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/test_server.elf");
