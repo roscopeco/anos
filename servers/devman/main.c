@@ -646,7 +646,15 @@ static int map_and_init_acpi(void) {
     return 0;
 }
 
+#ifdef UNIT_TESTS
+uint64_t register_device(const DeviceInfo *info) {
+#else
 static uint64_t register_device(const DeviceInfo *info) {
+#endif
+    if (!info) {
+        return 0; // Invalid input
+    }
+
     if (device_count >= MAX_DEVICES) {
         return 0; // Registry full
     }
@@ -665,7 +673,11 @@ static uint64_t register_device(const DeviceInfo *info) {
     return device_id;
 }
 
+#ifdef UNIT_TESTS
+bool unregister_device(const uint64_t device_id) {
+#else
 static bool unregister_device(const uint64_t device_id) {
+#endif
     for (uint32_t i = 0; i < device_count; i++) {
         if (device_registry[i].device_id == device_id) {
 #ifdef DEBUG_DEVICE_REG
@@ -682,10 +694,16 @@ static bool unregister_device(const uint64_t device_id) {
     return false;
 }
 
+#ifdef UNIT_TESTS
+uint32_t query_devices(const DeviceQueryType query_type,
+                       const DeviceType device_type, const uint64_t target_id,
+                       DeviceInfo *results, uint32_t max_results) {
+#else
 static uint32_t query_devices(const DeviceQueryType query_type,
                               const DeviceType device_type,
                               const uint64_t target_id, DeviceInfo *results,
                               uint32_t max_results) {
+#endif
     uint32_t found = 0;
 
     for (uint32_t i = 0; i < device_count && found < max_results; i++) {

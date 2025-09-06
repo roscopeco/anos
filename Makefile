@@ -410,9 +410,10 @@ include kernel/tests/include.mk
 include system/tests/include.mk
 include servers/pcidrv/tests/include.mk
 include servers/ahcidrv/tests/include.mk
+include servers/devman/tests/include.mk
 
-test: test-kernel test-system test-pcidrv test-ahcidrv
-coverage: coverage-kernel coverage-system coverage-pcidrv coverage-ahcidrv
+test: test-kernel test-system test-pcidrv test-ahcidrv test-devman
+coverage: coverage-kernel coverage-system coverage-pcidrv coverage-ahcidrv coverage-devman
 
 ifeq ($(ARCH),x86_64)
 %.o: %.asm
