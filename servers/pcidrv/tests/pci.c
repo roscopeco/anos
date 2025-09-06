@@ -43,6 +43,14 @@ void spawn_ahci_driver(uint64_t ahci_base, uint64_t pci_config_base,
     // Mock - do nothing for tests
 }
 
+void spawn_xhci_driver(uint64_t xhci_base, uint64_t pci_config_base,
+                       uint64_t pci_device_id) {
+    (void)xhci_base;
+    (void)pci_config_base;
+    (void)pci_device_id;
+    // Mock - do nothing for tests
+}
+
 // Mock ECAM memory space (16MB to cover bus 0-15)
 static uint8_t mock_ecam_space[16 * 1024 * 1024];
 static PCIBusDriver test_bus_driver;

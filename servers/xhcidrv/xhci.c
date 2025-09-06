@@ -15,6 +15,18 @@
 #include "include/pci.h"
 #include "include/xhci.h"
 
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support nullptr or constexpr yet - Sept 2025
+#ifndef nullptr
+#ifdef NULL
+#define nullptr NULL
+#else
+#define nullptr (((void *)0))
+#endif
+#endif
+#define constexpr const
+#endif
+
 #ifdef DEBUG_XHCI_INIT
 #define init_debugf(...) printf(__VA_ARGS__)
 #ifdef VERY_NOISY_XHCI_INIT
@@ -67,7 +79,7 @@ bool xhci_controller_init(XHCIController *controller, const uint64_t base_addr,
     }
 
     // Update PCI access to use mapped virtual address
-    const uint64_t mapped_pci_config = PCI_CONFIG_BASE_ADDRESS;
+    constexpr uint64_t mapped_pci_config = PCI_CONFIG_BASE_ADDRESS;
 
     if (!xhci_pci_enable_device(mapped_pci_config)) {
         printf("Failed to enable xHCI PCI device\n");
@@ -79,7 +91,7 @@ bool xhci_controller_init(XHCIController *controller, const uint64_t base_addr,
                  xhci_pci_read32(mapped_pci_config, PCI_BAR0));
 
     // For now, map a standard amount (64KB should be sufficient for most xHCI controllers)
-    const size_t map_size = 64 * 1024;
+    constexpr size_t map_size = 64 * 1024;
 
     init_debugf("Mapping %lu bytes of xHCI register space...\n", map_size);
 
@@ -164,7 +176,7 @@ bool xhci_controller_init(XHCIController *controller, const uint64_t base_addr,
     return true;
 }
 
-bool xhci_controller_reset(XHCIController *controller) {
+bool xhci_controller_reset(const XHCIController *controller) {
     init_debugf("Resetting xHCI controller...\n");
 
     // Set the reset bit
@@ -186,7 +198,7 @@ bool xhci_controller_reset(XHCIController *controller) {
     return false;
 }
 
-bool xhci_controller_start(XHCIController *controller) {
+bool xhci_controller_start(const XHCIController *controller) {
     init_debugf("Starting xHCI controller...\n");
 
     // Set the run bit
@@ -210,7 +222,7 @@ bool xhci_controller_start(XHCIController *controller) {
     return false;
 }
 
-bool xhci_controller_stop(XHCIController *controller) {
+bool xhci_controller_stop(const XHCIController *controller) {
     init_debugf("Stopping xHCI controller...\n");
 
     // Clear the run bit
