@@ -24,7 +24,7 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
 #	TEST_BEEP_BOOP			Start the Beep Boop test server process
 #
-CDEFS=
+CDEFS=-DTEST_BEEP_BOOP
 
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(THIS_DIR)/..)
