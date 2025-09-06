@@ -74,8 +74,8 @@ jobs:
 
       - name: Make merged coverage files
         run: |
-          lcov --add-tracefile gcov/kernel/coverage.info --add-tracefile gcov/system/coverage.info --add-tracefile gcov/pcidrv/coverage.info --add-tracefile gcov/ahcidrv/coverage.info -o gcov/all.info
-          lcov --add-tracefile gcov/system/coverage.info --add-tracefile gcov/pcidrv/coverage.info --add-tracefile gcov/ahcidrv/coverage.info -o gcov/userspace.info
+          lcov --add-tracefile gcov/kernel/coverage.info --add-tracefile gcov/system/coverage.info --add-tracefile gcov/devman/coverage.info --add-tracefile gcov/pcidrv/coverage.info --add-tracefile gcov/ahcidrv/coverage.info -o gcov/all.info
+          lcov --add-tracefile gcov/system/coverage.info --add-tracefile gcov/devman/coverage.info --add-tracefile gcov/pcidrv/coverage.info --add-tracefile gcov/ahcidrv/coverage.info -o gcov/userspace.info
 
       - name: Kernel Coverage Badge
         uses: ImBIOS/lcov-coverage-badge@v1

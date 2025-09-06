@@ -12,6 +12,10 @@
 uint32_t pci_config_read32(const PCIBusDriver *bus_driver, const uint8_t bus,
                            const uint8_t device, const uint8_t function,
                            const uint8_t offset) {
+    if (!bus_driver) {
+        return 0xFFFFFFFF;
+    }
+
 #ifdef CONSERVATIVE_BUILD
     if (bus < bus_driver->bus_start || bus > bus_driver->bus_end) {
         return 0xFFFFFFFF;

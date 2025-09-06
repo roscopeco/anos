@@ -28,7 +28,7 @@ servers/pcidrv/tests/build:
 	mkdir -p servers/pcidrv/tests/build
 
 servers/pcidrv/tests/build/%.o: servers/pcidrv/%.c $(TEST_BUILD_DIRS)
-	$(CC) -DUNIT_TESTS $(PCIDRV_TEST_CFLAGS) -c -o $@ $<
+	$(CC) -DUNIT_TESTS $(PCIDRV_TEST_CFLAGS) -Iservers/pcidrv/tests -c -o $@ $<
 
 servers/pcidrv/tests/build/%.o: servers/pcidrv/%.asm $(TEST_BUILD_DIRS)
 	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
@@ -36,7 +36,7 @@ servers/pcidrv/tests/build/%.o: servers/pcidrv/%.asm $(TEST_BUILD_DIRS)
 servers/pcidrv/tests/%.o: servers/pcidrv/tests/%.c servers/pcidrv/tests/munit.h
 	$(CC) -DUNIT_TESTS $(PCIDRV_TEST_CFLAGS) -Iservers/pcidrv/tests -c -o $@ $<
 
-servers/pcidrv/tests/build/pci: servers/pcidrv/tests/munit.o servers/pcidrv/tests/pci.o servers/pcidrv/tests/build/pci.o
+servers/pcidrv/tests/build/pci: servers/pcidrv/tests/munit.o servers/pcidrv/tests/pci.o servers/pcidrv/tests/build/pci.o servers/pcidrv/tests/build/enumerate.o
 	$(CC) $(PCIDRV_TEST_CFLAGS) -o $@ $^
 
 ALL_TESTS=servers/pcidrv/tests/build/pci
