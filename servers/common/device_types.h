@@ -24,7 +24,8 @@ typedef enum {
     DEVICE_TYPE_PCI = 1,
     DEVICE_TYPE_STORAGE = 2,
     DEVICE_TYPE_NETWORK = 3,
-    DEVICE_TYPE_DISPLAY = 4
+    DEVICE_TYPE_DISPLAY = 4,
+    DEVICE_TYPE_USB = 5
 } DeviceType;
 
 // Hardware types for storage devices
@@ -35,6 +36,15 @@ typedef enum {
     STORAGE_HW_IDE = 3,
     STORAGE_HW_USB = 4
 } StorageHardwareType;
+
+// Hardware types for USB devices
+typedef enum {
+    USB_HW_UNKNOWN = 0,
+    USB_HW_XHCI = 1,
+    USB_HW_EHCI = 2,
+    USB_HW_UHCI = 3,
+    USB_HW_OHCI = 4
+} UsbHardwareType;
 
 // Query types
 typedef enum {
@@ -85,6 +95,21 @@ typedef struct {
     uint8_t prog_if;
     uint64_t config_base; // PCI config space base address
 } PciDeviceInfo;
+
+// USB-specific device information
+typedef struct {
+    DeviceInfo base;
+    uint16_t vendor_id;
+    uint16_t product_id;
+    uint8_t device_class;
+    uint8_t device_subclass;
+    uint8_t device_protocol;
+    uint8_t port_number;
+    uint8_t device_speed;
+    char manufacturer[64];
+    char product[64];
+    char serial_number[32];
+} UsbDeviceInfo;
 
 // Device registration message
 typedef struct {
