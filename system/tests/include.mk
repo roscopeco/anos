@@ -28,7 +28,7 @@ system/tests/build:
 	mkdir -p system/tests/build
 
 system/tests/build/%.o: system/%.c $(TEST_BUILD_DIRS)
-	$(CC) -DUNIT_TESTS $(SYSTEM_TEST_CFLAGS) -c -o $@ $<
+	$(CC) -DUNIT_TESTS $(SYSTEM_TEST_CFLAGS) -Isystem/tests -c -o $@ $<
 
 system/tests/build/%.o: system/%.asm $(TEST_BUILD_DIRS)
 	$(ASM) -DUNIT_TESTS -f $(HOST_OBJFORMAT) -Dasm_$(HOST_OBJFORMAT) -F dwarf -g -o $@ $<
@@ -42,7 +42,13 @@ system/tests/build/ramfs: system/tests/munit.o system/tests/ramfs.o system/tests
 system/tests/build/path: system/tests/munit.o system/tests/path.o system/tests/build/path.o
 	$(CC) $(SYSTEM_TEST_CFLAGS) -o $@ $^
 
-ALL_TESTS=system/tests/build/ramfs system/tests/build/path
+system/tests/build/printf: system/tests/munit.o system/tests/printf.o system/tests/build/printf.o system/tests/mock_printf_putchar.o
+	$(CC) $(SYSTEM_TEST_CFLAGS) -o $@ $^
+
+system/tests/build/process_utils: system/tests/munit.o system/tests/process_utils.o system/tests/build/process_utils.o
+	$(CC) $(SYSTEM_TEST_CFLAGS) -o $@ $^
+
+ALL_TESTS=system/tests/build/ramfs system/tests/build/path system/tests/build/printf system/tests/build/process_utils
 
 .PHONY: test-system
 test-system: $(ALL_TESTS)

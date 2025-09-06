@@ -28,20 +28,32 @@ extern void *_bss_start;
 extern void *_bss_end;
 extern void *__user_stack_top;
 
+#ifdef UNIT_TESTS
+unsigned int round_up_to_page_size(const size_t size) {
+#else
 static inline unsigned int round_up_to_page_size(const size_t size) {
+#endif
     return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
 }
 
+#ifdef UNIT_TESTS
+unsigned int round_up_to_machine_word_size(const size_t size) {
+#else
 static inline unsigned int round_up_to_machine_word_size(const size_t size) {
+#endif
     return (size + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1);
 }
 
-static bool build_new_process_init_values(const uintptr_t stack_top_addr,
-                                          const uint16_t cap_count,
-                                          const InitCapability *capabilities,
-                                          const uint16_t argc,
-                                          const char *argv[],
-                                          InitStackValues *out_init_values) {
+#ifdef UNIT_TESTS
+bool build_new_process_init_values(const uintptr_t stack_top_addr,
+#else
+static bool
+build_new_process_init_values(const uintptr_t stack_top_addr,
+#endif
+                                   const uint16_t cap_count,
+                                   const InitCapability *capabilities,
+                                   const uint16_t argc, const char *argv[],
+                                   InitStackValues *out_init_values) {
     if (!out_init_values) {
         return false;
     }
