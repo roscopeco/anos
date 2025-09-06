@@ -18,7 +18,7 @@
 #endif
 
 uint32_t xhci_pci_read32(const uint64_t config_base, const uint8_t offset) {
-    volatile uint32_t *reg = (volatile uint32_t *)(config_base + offset);
+    const volatile uint32_t *reg = (volatile uint32_t *)(config_base + offset);
     const uint32_t value = *reg;
     pci_debugf("PCI read32 [0x%lx + 0x%02x] = 0x%08x\n", config_base, offset,
                value);
@@ -26,7 +26,7 @@ uint32_t xhci_pci_read32(const uint64_t config_base, const uint8_t offset) {
 }
 
 uint16_t xhci_pci_read16(const uint64_t config_base, const uint8_t offset) {
-    volatile uint16_t *reg = (volatile uint16_t *)(config_base + offset);
+    const volatile uint16_t *reg = (volatile uint16_t *)(config_base + offset);
     const uint16_t value = *reg;
     pci_debugf("PCI read16 [0x%lx + 0x%02x] = 0x%04x\n", config_base, offset,
                value);
@@ -34,7 +34,7 @@ uint16_t xhci_pci_read16(const uint64_t config_base, const uint8_t offset) {
 }
 
 uint8_t xhci_pci_read8(const uint64_t config_base, const uint8_t offset) {
-    volatile uint8_t *reg = (volatile uint8_t *)(config_base + offset);
+    const volatile uint8_t *reg = (volatile uint8_t *)(config_base + offset);
     const uint8_t value = *reg;
     pci_debugf("PCI read8 [0x%lx + 0x%02x] = 0x%02x\n", config_base, offset,
                value);
