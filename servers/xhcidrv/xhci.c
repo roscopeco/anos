@@ -81,7 +81,7 @@ bool xhci_controller_init(XHCIController *controller, const uint64_t base_addr,
     // For now, map a standard amount (64KB should be sufficient for most xHCI controllers)
     const size_t map_size = 64 * 1024;
 
-    init_debugf("Mapping %zu bytes of xHCI register space...\n", map_size);
+    init_debugf("Mapping %lu bytes of xHCI register space...\n", map_size);
 
     const SyscallResult map_result = anos_map_physical(
             base_addr, (void *)XHCI_VIRTUAL_BASE, map_size,

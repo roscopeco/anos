@@ -44,8 +44,8 @@ kterminal/kterminal.elf: server_common.mk kterminal/Makefile Makefile
 	$(MAKE) -C kterminal kterminal.elf
 
 ifeq ($(ARCH),x86_64)
-system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf xhcidrv/xhcidrv.elf fat32drv/fat32drv.elf kterminal/kterminal.elf xhcidrv/xhcidrv.elf
-	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf xhcidrv/xhcidrv.elf fat32drv/fat32drv.elf kterminal/kterminal.elf xhcidrv/xhcidrv.elf
+system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf xhcidrv/xhcidrv.elf fat32drv/fat32drv.elf kterminal/kterminal.elf
+	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf xhcidrv/xhcidrv.elf fat32drv/fat32drv.elf kterminal/kterminal.elf
 else
 system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf
 	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf
