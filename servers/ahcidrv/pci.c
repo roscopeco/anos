@@ -49,7 +49,7 @@ void pci_write_config16(const uint64_t pci_base, const uint16_t offset,
 uint8_t pci_find_msi_capability(const uint64_t pci_base) {
     // Check if capabilities are supported
     const volatile uint16_t status = pci_read_config16(pci_base, 0x06);
-    if (!(status & (1 << 4))) {
+    if (!(status & (1U << 4))) {
         debugf("PCI device does not support capabilities\n");
         return 0;
     }

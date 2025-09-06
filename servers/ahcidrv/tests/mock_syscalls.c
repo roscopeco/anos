@@ -20,9 +20,12 @@ typedef struct {
 #define SYSCALL_RESULT_OK ((0))
 #define SYSCALL_RESULT_ERROR ((-1))
 
-// Mock memory for hardware registers
-static uint8_t mock_ahci_registers[0x8000]; // 32KB AHCI register space
-static uint8_t mock_dma_memory[0x100000];   // 1MB DMA memory pool
+// Include AHCI types for register structure
+#include "../include/ahci.h"
+
+// Mock memory for hardware registers - make this available to tests
+AHCIRegs mock_ahci_registers;
+static uint8_t mock_dma_memory[0x100000]; // 1MB DMA memory pool
 
 // Mock state tracking
 static struct {
@@ -50,7 +53,7 @@ void mock_syscalls_reset(void) {
     mock_state.dma_memory_used = 0;
 
     // Clear mock memory
-    memset(mock_ahci_registers, 0, sizeof(mock_ahci_registers));
+    memset(&mock_ahci_registers, 0, sizeof(mock_ahci_registers));
     memset(mock_dma_memory, 0, sizeof(mock_dma_memory));
 }
 
@@ -179,15 +182,22 @@ SyscallResult anos_kputchar(char c) {
 }
 
 // Mock MSI interrupt syscalls
-uint8_t anos_allocate_interrupt_vector(uint32_t bus_device_func,
-                                       uint64_t *msi_address,
-                                       uint32_t *msi_data) {
+typedef struct {
+    uint64_t result;
+    uint8_t value;
+} SyscallResultU8;
+
+SyscallResultU8 anos_allocate_interrupt_vector(uint32_t bus_device_func,
+                                               uint64_t *msi_address,
+                                               uint32_t *msi_data) {
     // Return mock MSI configuration
     if (msi_address)
         *msi_address = 0xFEE00000ULL; // Standard MSI address
     if (msi_data)
         *msi_data = 0x4000; // Mock MSI data
-    return 0x40;            // Mock vector number
+
+    const SyscallResultU8 result = {.result = SYSCALL_RESULT_OK, .value = 0x40};
+    return result; // Mock vector number
 }
 
 SyscallResult anos_wait_interrupt(uint8_t vector, uint32_t *event_data) {
@@ -196,3 +206,18 @@ SyscallResult anos_wait_interrupt(uint8_t vector, uint32_t *event_data) {
         *event_data = 0x12345678; // Mock event data
     return RESULT(SYSCALL_RESULT_OK, 0);
 }
+
+// Additional syscalls needed by AHCI driver
+SyscallResult anos_find_named_channel(const char *name) {
+    return RESULT(SYSCALL_RESULT_OK, 456); // Mock channel ID
+}
+
+SyscallResult anos_reply_message(uint64_t msg_cookie, size_t response_size) {
+    return RESULT(SYSCALL_RESULT_OK, 0);
+}
+
+SyscallResult anos_task_sleep_current_secs(uint32_t seconds) {
+    return RESULT(SYSCALL_RESULT_OK, 0);
+}
+
+const char *libanos_version(void) { return "test-mock-1.0"; }
