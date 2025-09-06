@@ -260,20 +260,66 @@ bool xhci_port_scan(XHCIPort *port) {
     port->connected = (portsc & XHCI_PORTSC_CCS) != 0;
     port->enabled = (portsc & XHCI_PORTSC_PED) != 0;
 
+    init_vdebugf("Port %u: PORTSC=0x%08x\n", port->port_num, portsc);
+
     if (port->connected) {
         port->speed = (portsc & XHCI_PORTSC_SPEED_MASK) >> 10;
-        init_vdebugf("Port %u: Device connected (speed: %u)\n", port->port_num,
-                     port->speed);
 
-        // For now, create generic device info
-        port->vendor_id = 0x0000;  // Unknown
-        port->product_id = 0x0000; // Unknown
-        port->device_class = 0x09; // Hub class as default
-        snprintf(port->manufacturer, sizeof(port->manufacturer), "Unknown");
-        snprintf(port->product, sizeof(port->product), "USB Device on Port %u",
-                 port->port_num);
-        snprintf(port->serial_number, sizeof(port->serial_number), "PORT%u",
-                 port->port_num);
+        const char *speed_str;
+        switch (port->speed) {
+        case XHCI_SPEED_FULL:
+            speed_str = "Full Speed (12 Mbps)";
+            break;
+        case XHCI_SPEED_LOW:
+            speed_str = "Low Speed (1.5 Mbps)";
+            break;
+        case XHCI_SPEED_HIGH:
+            speed_str = "High Speed (480 Mbps)";
+            break;
+        case XHCI_SPEED_SUPER:
+            speed_str = "SuperSpeed (5 Gbps)";
+            break;
+        default:
+            speed_str = "Unknown Speed";
+            break;
+        }
+
+        const bool port_power = (portsc & XHCI_PORTSC_PP) != 0;
+        const uint8_t link_state = (portsc & XHCI_PORTSC_PLS_MASK) >> 5;
+
+        printf("xHCI Port %u: Device connected - %s, Power=%s, LinkState=%u, "
+               "Enabled=%s\n",
+               port->port_num, speed_str, port_power ? "On" : "Off", link_state,
+               port->enabled ? "Yes" : "No");
+
+        // Create device info based on detected characteristics
+        port->vendor_id =
+                0x0000; // Would need USB enumeration to get real VID/PID
+        port->product_id = 0x0000;
+
+        // Guess device class based on speed (rough heuristic)
+        switch (port->speed) {
+        case XHCI_SPEED_LOW:
+            port->device_class = 0x03; // HID (keyboards, mice often low speed)
+            break;
+        case XHCI_SPEED_FULL:
+        case XHCI_SPEED_HIGH:
+            port->device_class = 0x08; // Mass Storage (common for USB drives)
+            break;
+        case XHCI_SPEED_SUPER:
+            port->device_class = 0x08; // Mass Storage (USB 3.0 drives)
+            break;
+        default:
+            port->device_class = 0x00; // Unknown
+            break;
+        }
+
+        snprintf(port->manufacturer, sizeof(port->manufacturer),
+                 "Unknown Manufacturer");
+        snprintf(port->product, sizeof(port->product), "%s Device (Port %u)",
+                 speed_str, port->port_num);
+        snprintf(port->serial_number, sizeof(port->serial_number),
+                 "XHCI-P%u-S%u", port->port_num, port->speed);
 
         port->initialized = true;
         return true;
