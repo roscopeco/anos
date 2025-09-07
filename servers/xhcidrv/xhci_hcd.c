@@ -783,25 +783,23 @@ int xhci_wait_for_transfer_completion(XhciHostController *xhci_hcd,
     hcd_debugf("xHCI HCD: Waiting for transfer completion (timeout %u ms)\n",
                timeout_ms);
 
-    // Scan entire event ring for transfer events (very noisy debug only)
-    hcd_vdebugf("xHCI HCD: Scanning entire event ring for transfer events:\n");
+    // Scan entire event ring for transfer events
+    printf("xHCI HCD: Scanning entire event ring for transfer events:\n");
     for (uint32_t scan_idx = 0; scan_idx < xhci_hcd->event_ring.size;
          scan_idx++) {
         volatile const XhciTrb *scan_trb = &xhci_hcd->event_ring.trbs[scan_idx];
         uint32_t control = scan_trb->control;
         if (control != 0) { // Non-zero TRB found
             uint32_t trb_type = TRB_GET_TYPE(scan_trb);
-#ifdef DEBUG_XHCI_HCD
             bool cycle = (control & TRB_CONTROL_CYCLE_BIT) != 0;
-            hcd_vdebugf("  Ring[%u]: param=0x%016lx status=0x%08x "
-                        "control=0x%08x (type=%u cycle=%u)\n",
-                        scan_idx, scan_trb->parameter, scan_trb->status,
-                        control, trb_type, cycle);
-#endif
+            printf("  Ring[%u]: param=0x%016lx status=0x%08x "
+                   "control=0x%08x (type=%u cycle=%u)\n",
+                   scan_idx, scan_trb->parameter, scan_trb->status, control,
+                   trb_type, cycle);
 
             if (trb_type == TRB_TYPE_TRANSFER) {
-                hcd_debugf("  *** TRANSFER EVENT FOUND at index %u! ***\n",
-                           scan_idx);
+                printf("  *** TRANSFER EVENT FOUND at index %u! ***\n",
+                       scan_idx);
             }
         }
     }
@@ -1170,6 +1168,8 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
         return -1;
     }
 
+    printf("!!!!!!!!!!!!!!! 0x%016lx\n", setup_alloc.value);
+
     // Map setup packet memory
     const SyscallResult setup_map = anos_map_physical(
             setup_alloc.value, (void *)(0x700000000 + setup_alloc.value), 4096,
@@ -1191,6 +1191,10 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
            setup->bmRequestType, setup->bRequest, setup->wValue, setup->wIndex,
            setup->wLength);
 
+    printf("xHCI HCD: Setup phys  : %02x %02x %04x %04x %04x at 0x%016lx\n",
+           setup_phys->bmRequestType, setup_phys->bRequest, setup_phys->wValue,
+           setup_phys->wIndex, setup_phys->wLength, setup_alloc.value);
+
     // 1. Setup Stage TRB
     XhciTrb *setup_trb = xhci_ring_enqueue_trb(ring);
     if (!setup_trb) {
@@ -1198,13 +1202,12 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
         return -1;
     }
 
-    setup_trb->parameter =
-            setup_alloc.value; // Physical address of setup packet
-    setup_trb->status = 8;     // Setup packet is always 8 bytes
+    // Try immediate data mode - embed setup packet in TRB parameter field
+    uint64_t setup_data = 0;
+    memcpy(&setup_data, setup, 8); // Copy 8 bytes of setup packet
 
-    // Preserve cycle bit set by xhci_ring_enqueue_trb, add TRB type
-    //setup_trb->control = (setup_trb->control & TRB_CONTROL_CYCLE_BIT) |
-    //      (TRB_TYPE_SETUP_STAGE << TRB_CONTROL_TYPE_SHIFT);
+    setup_trb->parameter = setup_data; // Embed setup packet directly
+    setup_trb->status = 8; // Transfer Length = 8 bytes (immediate mode)
 
     setup_trb->control = TRB_CONTROL_CYCLE_BIT |
                          (TRB_TYPE_SETUP_STAGE << TRB_CONTROL_TYPE_SHIFT) |
