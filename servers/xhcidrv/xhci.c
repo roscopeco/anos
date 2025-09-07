@@ -151,10 +151,10 @@ bool xhci_controller_init(XHCIController *controller, const uint64_t base_addr,
             (volatile void *)((uint8_t *)controller->cap_regs +
                               (rtsoff & ~0x1F));
 
-    printf("xHCI: Doorbell registers at offset 0x%x (virtual addr %p)\n", dboff,
-           controller->doorbell_regs);
-    printf("xHCI: Runtime registers at offset 0x%x (virtual addr %p)\n", rtsoff,
-           controller->runtime_regs);
+    init_debugf("xHCI: Doorbell registers at offset 0x%x (virtual addr %p)\n",
+                dboff, controller->doorbell_regs);
+    init_debugf("xHCI: Runtime registers at offset 0x%x (virtual addr %p)\n",
+                rtsoff, controller->runtime_regs);
 
     // Check if controller is already running
     const uint32_t usbsts =
@@ -267,11 +267,15 @@ bool xhci_port_init(XHCIPort *port, XHCIController *controller,
 
 bool xhci_port_scan(XHCIPort *port) {
     const uint32_t port_offset = port->port_num * 0x10;
+
+#ifdef DEBUG_XHCI_INIT
     const void *reg_addr = (const uint8_t *)port->controller->port_regs +
                            port_offset + XHCI_PORT_SC;
 
-    printf("xHCI: Port %u: offset=0x%x, reg_addr=%p (base=%p)\n",
-           port->port_num, port_offset, reg_addr, port->controller->port_regs);
+    init_vdebugf("xHCI: Port %u: offset=0x%x, reg_addr=%p (base=%p)\n",
+                 port->port_num, port_offset, reg_addr,
+                 port->controller->port_regs);
+#endif
 
     uint32_t portsc = xhci_read32(port->controller, port->controller->port_regs,
                                   port_offset + XHCI_PORT_SC);
@@ -279,12 +283,13 @@ bool xhci_port_scan(XHCIPort *port) {
     port->connected = (portsc & XHCI_PORTSC_CCS) != 0;
     port->enabled = (portsc & XHCI_PORTSC_PED) != 0;
 
-    printf("xHCI: Scanning port %u: PORTSC=0x%08x, connected=%s\n",
-           port->port_num, portsc, (portsc & XHCI_PORTSC_CCS) ? "YES" : "NO");
+    init_debugf("xHCI: Scanning port %u: PORTSC=0x%08x, connected=%s\n",
+                port->port_num, portsc,
+                (portsc & XHCI_PORTSC_CCS) ? "YES" : "NO");
 
     if (port->connected) {
-        printf("xHCI: Port %u device detected, initiating reset\n",
-               port->port_num);
+        init_debugf("xHCI: Port %u device detected, initiating reset\n",
+                    port->port_num);
 
         // Initiate port reset by setting PR bit (bit 4)
         uint32_t reset_portsc = portsc | XHCI_PORTSC_PR;
@@ -292,16 +297,20 @@ bool xhci_port_scan(XHCIPort *port) {
                      port_offset + XHCI_PORT_SC, reset_portsc);
 
         // Wait for reset to complete (PR bit clears automatically)
-        printf("xHCI: Waiting for port %u reset to complete\n", port->port_num);
+        init_debugf("xHCI: Waiting for port %u reset to complete\n",
+                    port->port_num);
         int reset_timeout = 1000; // 1 second timeout
         while (reset_timeout-- > 0) {
             portsc = xhci_read32(port->controller, port->controller->port_regs,
                                  port_offset + XHCI_PORT_SC);
 
             if ((portsc & XHCI_PORTSC_PR) == 0) {
+#ifdef DEBUG_XHCI_INIT
                 uint8_t pls = (portsc & XHCI_PORTSC_PLS_MASK) >> 5;
-                printf("xHCI: Port %u reset completed, PORTSC=0x%08x, PLS=%u\n",
-                       port->port_num, portsc, pls);
+                init_debugf("xHCI: Port %u reset completed, PORTSC=0x%08x, "
+                            "PLS=%u\n",
+                            port->port_num, portsc, pls);
+#endif
                 break;
             }
 
