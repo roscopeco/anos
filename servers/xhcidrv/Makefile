@@ -1,6 +1,10 @@
 SERVER_NAME=xhcidrv
 BINARY=xhcidrv
-BINARY_OBJS=main.o xhci.o pci.o
+BINARY_OBJS=main.o xhci.o pci.o xhci_rings.o xhci_hcd.o
+
+# Link with USB core library
+USB_CORE_DIR=../common/usb
+LDFLAGS=-L$(USB_CORE_DIR) -lusbcore
 
 # The following C defines are recognised by the xHCI driver and enable various things
 #
@@ -13,3 +17,12 @@ BINARY_OBJS=main.o xhci.o pci.o
 CDEFS=
 
 include ../server_common.mk
+
+# Build USB core library first
+$(USB_CORE_DIR)/libusbcore.a:
+	$(MAKE) -C $(USB_CORE_DIR)
+
+# Override linking to include USB core library
+$(BINARY_NAME): $(BINARY_OBJS) $(USB_CORE_DIR)/libusbcore.a
+	$(XCC) -o $@ $(BINARY_OBJS) $(LDFLAGS)
+	chmod a-x $@

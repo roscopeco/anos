@@ -181,6 +181,9 @@ void spawn_xhci_driver(const uint64_t xhci_base, const uint64_t pci_config_base,
             {.capability_id = SYSCALL_ID_CREATE_CHANNEL,
              .capability_cookie =
                      __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL]},
+            {.capability_id = SYSCALL_ID_CREATE_REGION,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_CREATE_REGION]},
     };
 
 #ifdef DEBUG_BUS_DRIVER_INIT
@@ -188,7 +191,7 @@ void spawn_xhci_driver(const uint64_t xhci_base, const uint64_t pci_config_base,
 #endif
 
     const int64_t pid =
-            spawn_process_via_system(0x100000, 14, xhci_caps, 4, argv);
+            spawn_process_via_system(0x100000, 15, xhci_caps, 4, argv);
     if (pid > 0) {
 #ifdef DEBUG_BUS_DRIVER_INIT
         printf("  --> xHCI driver spawned with PID %ld\n", pid);

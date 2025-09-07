@@ -669,6 +669,12 @@ int main(int argc, char **argv) {
                             __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
                     .capability_id = SYSCALL_ID_DEBUG_CHAR,
             },
+            // N.B! malloc (via sbrk) in the stdlib needs create region cap!
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_CREATE_REGION],
+                    .capability_id = SYSCALL_ID_CREATE_REGION,
+            },
             {
                     .capability_cookie =
                             __syscall_capabilities[SYSCALL_ID_SLEEP],
