@@ -83,6 +83,7 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
         return -1;
     }
 
+#ifdef DEBUG_XHCI_INIT
     // Initialize and scan all ports, create USB devices through USB core
     printf("xHCI: Scanning %u ports (max_ports=%u)\n", xhci_hcd.base.max_ports,
            xhci_hcd.base.max_ports);
@@ -95,6 +96,7 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
         printf("  Port %u (offset 0x%02x): PORTSC=0x%08x, CCS=%s\n", j,
                j * 0x10, portsc, (portsc & 0x1) ? "Connected" : "Disconnected");
     }
+#endif
 
     xhci_hcd.base.active_ports = 0;
     for (uint8_t i = 0; i < xhci_hcd.base.max_ports && i < 16; i++) {
@@ -119,6 +121,7 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
                     } else {
                         printf("Failed to enumerate USB device on port %u\n",
                                i);
+
                         usb_free_device(usb_device);
                     }
                 } else {
