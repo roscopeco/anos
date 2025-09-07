@@ -114,9 +114,10 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
 
                     // Now enumerate device (this will do control transfers)
                     if (usb_enumerate_device(usb_device) == 0) {
-                        printf("USB device enumerated on port %u: VID:0x%04x "
-                               "PID:0x%04x\n",
-                               i, usb_device->device_desc.idVendor,
+                        printf("    USB device on port %u: %s [VID:0x%04x "
+                               "PID:0x%04x]\n",
+                               i, usb_device->product,
+                               usb_device->device_desc.idVendor,
                                usb_device->device_desc.idProduct);
                     } else {
                         printf("Failed to enumerate USB device on port %u\n",

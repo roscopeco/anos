@@ -75,45 +75,43 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
 
     // Initialize base xHCI controller
     if (!xhci_controller_init(&xhci_hcd->base, base_addr, pci_config_base)) {
-        printf("xHCI HCD: Failed to initialize base controller\n");
+        hcd_debugf("xHCI HCD: Failed to initialize base controller\n");
         return -1;
     }
 
     // Initialize command ring
     if (xhci_ring_init(&xhci_hcd->command_ring, XHCI_RING_SIZE) != 0) {
-        printf("xHCI HCD: Failed to initialize command ring\n");
+        hcd_debugf("xHCI HCD: Failed to initialize command ring\n");
         return -1;
     }
 
     // Initialize event ring
     if (xhci_ring_init(&xhci_hcd->event_ring, XHCI_RING_SIZE) != 0) {
-        printf("xHCI HCD: Failed to initialize event ring\n");
+        hcd_debugf("xHCI HCD: Failed to initialize event ring\n");
         xhci_ring_free(&xhci_hcd->command_ring);
         return -1;
     }
 
     // Allocate and initialize DCBAA
-    SyscallResultA dcbaa_alloc;
-    dcbaa_alloc = anos_alloc_physical_pages(4096);
+    const SyscallResultA dcbaa_alloc = anos_alloc_physical_pages(4096);
     if (dcbaa_alloc.result != SYSCALL_OK) {
-        printf("xHCI HCD: Failed to allocate DCBAA - syscall result: "
-               "0x%016lx\n",
-               (uint64_t)dcbaa_alloc.result);
-        printf("xHCI HCD: Requested 1 page (4096 bytes)\n");
+        hcd_debugf("xHCI HCD: Failed to allocate DCBAA - syscall result: "
+                   "0x%016lx\n",
+                   (uint64_t)dcbaa_alloc.result);
+        hcd_debugf("xHCI HCD: Requested 1 page (4096 bytes)\n");
         return -1;
     }
 
     xhci_hcd->dcbaa_physical = dcbaa_alloc.value;
 
-    SyscallResult dcbaa_map;
-    dcbaa_map = anos_map_physical(
+    const SyscallResult dcbaa_map = anos_map_physical(
             xhci_hcd->dcbaa_physical,
             (void *)(0x600000000 + xhci_hcd->dcbaa_physical), 4096,
             ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
                     ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
     if (dcbaa_map.result != SYSCALL_OK) {
-        printf("xHCI HCD: Failed to map DCBAA\n");
+        hcd_debugf("xHCI HCD: Failed to map DCBAA\n");
         return -1;
     }
 
@@ -133,19 +131,20 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
     if (max_device_slots > XHCI_MAX_DEVICES) {
         max_device_slots = XHCI_MAX_DEVICES;
     }
-    printf("xHCI HCD: Setting CONFIG register - MaxDeviceSlots=%u\n",
-           max_device_slots);
+    hcd_vdebugf("xHCI HCD: Setting CONFIG register - MaxDeviceSlots=%u\n",
+                max_device_slots);
     xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_CONFIG,
                  max_device_slots);
 
-    // Verify CONFIG register
-    uint32_t config_readback = xhci_read32(
+#ifdef DEBUG_XHCI_HCD
+    const uint32_t config_readback = xhci_read32(
             &xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_CONFIG);
-    printf("xHCI HCD: CONFIG register readback: 0x%08x (should be %u)\n",
-           config_readback, max_device_slots);
+    hcd_vdebugf("xHCI HCD: CONFIG register readback: 0x%08x (should be %u)\n",
+                config_readback, max_device_slots);
+#endif
 
-    uint32_t hccparams1 = xhci_read32(&xhci_hcd->base, xhci_hcd->base.cap_regs,
-                                      XHCI_CAP_HCCPARAMS1);
+    const uint32_t hccparams1 = xhci_read32(
+            &xhci_hcd->base, xhci_hcd->base.cap_regs, XHCI_CAP_HCCPARAMS1);
 #ifdef DEBUG_XHCI_HCD
     uint32_t hccparams2 = xhci_read32(&xhci_hcd->base, xhci_hcd->base.cap_regs,
                                       XHCI_CAP_HCCPARAMS2);
@@ -167,7 +166,7 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
 #endif
 
     // Check extended capabilities pointer
-    uint16_t xecp = (hccparams1 >> 16) & 0xFFFF;
+    const uint16_t xecp = (hccparams1 >> 16) & 0xFFFF;
     hcd_vdebugf("  Extended capabilities pointer: 0x%04x\n", xecp);
     if (xecp != 0) {
         hcd_vdebugf(
@@ -175,7 +174,7 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
                 "setup\n");
 
         // Read first extended capability
-        uint32_t ext_cap =
+        const uint32_t ext_cap =
                 xhci_read32(&xhci_hcd->base, xhci_hcd->base.cap_regs, xecp);
         uint8_t cap_id = ext_cap & 0xFF;
 
@@ -242,14 +241,14 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
 
     // Set up Event Ring Segment Table (ERST)
     if (xhci_setup_event_ring(xhci_hcd) != 0) {
-        printf("xHCI HCD: Failed to setup event ring\n");
+        hcd_debugf("xHCI HCD: Failed to setup event ring\n");
         return -1;
     }
 
     // Create USB host controller instance
     xhci_hcd->usb_hcd = malloc(sizeof(UsbHostController));
     if (!xhci_hcd->usb_hcd) {
-        printf("xHCI HCD: Failed to allocate USB host controller\n");
+        hcd_debugf("xHCI HCD: Failed to allocate USB host controller\n");
         return -1;
     }
 
@@ -315,7 +314,7 @@ int xhci_hcd_submit_transfer(UsbHostController *hcd, UsbTransfer *transfer) {
     case USB_TRANSFER_INTERRUPT:
         return xhci_submit_interrupt_transfer(xhci_hcd, transfer);
     default:
-        printf("xHCI HCD: Unsupported transfer type %d\n", transfer->type);
+        hcd_debugf("xHCI HCD: Unsupported transfer type %d\n", transfer->type);
         return -1;
     }
 }
@@ -349,7 +348,7 @@ int xhci_hcd_set_address(UsbHostController *hcd, UsbDevice *device,
     if (slot_id == 0) {
         slot_id = xhci_alloc_device_slot(xhci_hcd);
         if (slot_id == 0) {
-            printf("xHCI HCD: Failed to allocate device slot\n");
+            hcd_debugf("xHCI HCD: Failed to allocate device slot\n");
             return -1;
         }
         device->hcd_private = (void *)(uintptr_t)slot_id;
@@ -357,7 +356,7 @@ int xhci_hcd_set_address(UsbHostController *hcd, UsbDevice *device,
 
     // Setup device context
     if (xhci_setup_device_context(xhci_hcd, slot_id, device) != 0) {
-        printf("xHCI HCD: Failed to setup device context\n");
+        hcd_debugf("xHCI HCD: Failed to setup device context\n");
         return -1;
     }
 
@@ -370,14 +369,14 @@ int xhci_hcd_set_address(UsbHostController *hcd, UsbDevice *device,
 
     int result = xhci_send_command(xhci_hcd, (XhciTrb *)&address_cmd);
     if (result != 0) {
-        printf("xHCI HCD: Address Device command failed\n");
+        hcd_debugf("xHCI HCD: Address Device command failed\n");
         return -1;
     }
 
     // Wait for command completion
     result = xhci_wait_for_command_completion(xhci_hcd, 5000);
     if (result != 0) {
-        printf("xHCI HCD: Address Device command timed out\n");
+        hcd_debugf("xHCI HCD: Address Device command timed out\n");
         return -1;
     }
 
@@ -394,9 +393,9 @@ int xhci_hcd_enable_device(UsbHostController *hcd, UsbDevice *device) {
     hcd_debugf("xHCI HCD: Enabling device on port %u\n", device->port_number);
 
     // Allocate device slot
-    uint8_t slot_id = xhci_alloc_device_slot(xhci_hcd);
+    const uint8_t slot_id = xhci_alloc_device_slot(xhci_hcd);
     if (slot_id == 0) {
-        printf("xHCI HCD: Failed to allocate device slot\n");
+        hcd_debugf("xHCI HCD: Failed to allocate device slot\n");
         return -1;
     }
 
@@ -407,33 +406,33 @@ int xhci_hcd_enable_device(UsbHostController *hcd, UsbDevice *device) {
     enable_cmd.control = TRB_CONTROL_CYCLE_BIT |
                          (TRB_TYPE_ENABLE_SLOT << TRB_CONTROL_TYPE_SHIFT);
 
-    printf("xHCI HCD: Sending Enable Slot TRB: reserved1=0x%016lx "
-           "reserved2=0x%08x control=0x%08x\n",
-           enable_cmd.reserved1, enable_cmd.reserved2, enable_cmd.control);
+    hcd_debugf("xHCI HCD: Sending Enable Slot TRB: reserved1=0x%016lx "
+               "reserved2=0x%08x control=0x%08x\n",
+               enable_cmd.reserved1, enable_cmd.reserved2, enable_cmd.control);
 
     int result = xhci_send_command(xhci_hcd, (XhciTrb *)&enable_cmd);
     if (result != 0) {
-        printf("xHCI HCD: Enable Slot command failed\n");
+        hcd_debugf("xHCI HCD: Enable Slot command failed\n");
         xhci_free_device_slot(xhci_hcd, slot_id);
         return -1;
     }
 
     result = xhci_wait_for_command_completion(xhci_hcd, 5000);
     if (result != 0) {
-        printf("xHCI HCD: Enable Slot command timed out\n");
+        hcd_debugf("xHCI HCD: Enable Slot command timed out\n");
         xhci_free_device_slot(xhci_hcd, slot_id);
         return -1;
     }
 
-    printf("xHCI HCD: Enable Slot completed for slot %u, setting up device "
-           "context\n",
-           slot_id);
+    hcd_debugf("xHCI HCD: Enable Slot completed for slot %u, setting up device "
+               "context\n",
+               slot_id);
 
     // Set up device context and endpoint 0 after successful Enable Slot
     result = xhci_setup_device_context(xhci_hcd, slot_id, device);
     if (result != 0) {
-        printf("xHCI HCD: Failed to setup device context for slot %u\n",
-               slot_id);
+        hcd_debugf("xHCI HCD: Failed to setup device context for slot %u\n",
+                   slot_id);
         xhci_free_device_slot(xhci_hcd, slot_id);
         return -1;
     }
@@ -445,24 +444,25 @@ int xhci_hcd_enable_device(UsbHostController *hcd, UsbDevice *device) {
                           (TRB_TYPE_ADDRESS_DEVICE << TRB_CONTROL_TYPE_SHIFT) |
                           (slot_id << TRB_CONTROL_SLOT_ID_SHIFT);
 
-    printf("xHCI HCD: Sending Address Device command for slot %u\n", slot_id);
+    hcd_debugf("xHCI HCD: Sending Address Device command for slot %u\n",
+               slot_id);
     result = xhci_send_command(xhci_hcd, (XhciTrb *)&address_cmd);
     if (result != 0) {
-        printf("xHCI HCD: Address Device command failed\n");
+        hcd_debugf("xHCI HCD: Address Device command failed\n");
         xhci_free_device_slot(xhci_hcd, slot_id);
         return -1;
     }
 
     result = xhci_wait_for_command_completion(xhci_hcd, 5000);
     if (result != 0) {
-        printf("xHCI HCD: Address Device command timed out\n");
+        hcd_debugf("xHCI HCD: Address Device command timed out\n");
         xhci_free_device_slot(xhci_hcd, slot_id);
         return -1;
     }
 
-    printf("xHCI HCD: Device fully enabled in slot %u with endpoint 0 "
-           "configured\n",
-           slot_id);
+    hcd_debugf("xHCI HCD: Device fully enabled in slot %u with endpoint 0 "
+               "configured\n",
+               slot_id);
     return 0;
 }
 
@@ -620,7 +620,7 @@ int xhci_send_command(XhciHostController *xhci_hcd, XhciTrb *command_trb) {
     // Enqueue the command TRB to the command ring
     XhciTrb *ring_trb = xhci_ring_enqueue_trb(&xhci_hcd->command_ring);
     if (!ring_trb) {
-        printf("xHCI HCD: Failed to enqueue command TRB\n");
+        hcd_debugf("xHCI HCD: Failed to enqueue command TRB\n");
         return -1;
     }
 
@@ -716,7 +716,7 @@ int xhci_wait_for_command_completion(XhciHostController *xhci_hcd,
                 xhci_hcd->event_ring.dequeue_index,
                 xhci_hcd->event_ring.consumer_cycle_state);
 
-#ifdef VERY_NOISY_XHCI_HCD
+#ifdef DEBUG_XHCI_HCD_RINGS
     printf("xHCI HCD: EINT flag indicates events present - scanning entire "
            "event ring:\n");
     for (uint32_t scan_idx = 0; scan_idx < xhci_hcd->event_ring.size;
@@ -745,17 +745,19 @@ int xhci_wait_for_command_completion(XhciHostController *xhci_hcd,
 
         if (has_event) {
             const uint32_t trb_type = TRB_GET_TYPE(event_trb);
-            printf("xHCI HCD: Found event TRB type %u at index %u (cycle=%u "
-                   "expected=%u)\n",
-                   trb_type, xhci_hcd->event_ring.dequeue_index, trb_cycle,
-                   xhci_hcd->event_ring.consumer_cycle_state);
+            hcd_debugf(
+                    "xHCI HCD: Found event TRB type %u at index %u (cycle=%u "
+                    "expected=%u)\n",
+                    trb_type, xhci_hcd->event_ring.dequeue_index, trb_cycle,
+                    xhci_hcd->event_ring.consumer_cycle_state);
 
             if (trb_type == TRB_TYPE_COMMAND_COMPLETION) {
-                printf("xHCI HCD: Command completed successfully\n");
+                hcd_debugf("xHCI HCD: Command completed successfully\n");
                 xhci_ring_inc_dequeue(&xhci_hcd->event_ring);
                 return 0;
             }
             xhci_ring_inc_dequeue(&xhci_hcd->event_ring);
+#ifdef DEBUG_XHCI_HCD
         } else {
             // Show first few attempts to see if we're polling correctly
             if (i < 10) {
@@ -764,13 +766,15 @@ int xhci_wait_for_command_completion(XhciHostController *xhci_hcd,
                        i, xhci_hcd->event_ring.dequeue_index,
                        xhci_hcd->event_ring.consumer_cycle_state);
             }
+#endif
         }
 
         // Sleep for 1ms
         anos_task_sleep_current(1000000);
     }
 
-    printf("xHCI HCD: Command completion timeout after %u ms\n", timeout_ms);
+    hcd_debugf("xHCI HCD: Command completion timeout after %u ms\n",
+               timeout_ms);
     return -1;
 }
 
@@ -783,7 +787,7 @@ int xhci_wait_for_transfer_completion(XhciHostController *xhci_hcd,
     hcd_debugf("xHCI HCD: Waiting for transfer completion (timeout %u ms)\n",
                timeout_ms);
 
-    // Scan entire event ring for transfer events
+#ifdef DEBUG_XHCI_HCD_RINGS
     printf("xHCI HCD: Scanning entire event ring for transfer events:\n");
     for (uint32_t scan_idx = 0; scan_idx < xhci_hcd->event_ring.size;
          scan_idx++) {
@@ -803,6 +807,7 @@ int xhci_wait_for_transfer_completion(XhciHostController *xhci_hcd,
             }
         }
     }
+#endif
 
     // Process all pending events in ring order until we find a transfer event
     hcd_debugf("xHCI HCD: Processing events sequentially from dequeue index %u "
@@ -832,25 +837,26 @@ int xhci_wait_for_transfer_completion(XhciHostController *xhci_hcd,
                         trb_cycle);
 
             if (trb_type == TRB_TYPE_TRANSFER) {
-                printf("xHCI HCD: Transfer event found - param=0x%016lx "
-                       "status=0x%08x control=0x%08x\n",
-                       event_trb->parameter, event_trb->status,
-                       event_trb->control);
+                hcd_debugf("xHCI HCD: Transfer event found - param=0x%016lx "
+                           "status=0x%08x control=0x%08x\n",
+                           event_trb->parameter, event_trb->status,
+                           event_trb->control);
 
                 // Check completion code
-                uint32_t completion_code = (event_trb->status >> 24) & 0xFF;
-                printf("xHCI HCD: Transfer completion code: %u (%s)\n",
-                       completion_code,
-                       xhci_completion_code_string(completion_code));
+                const uint32_t completion_code =
+                        (event_trb->status >> 24) & 0xFF;
+                hcd_debugf("xHCI HCD: Transfer completion code: %u (%s)\n",
+                           completion_code,
+                           xhci_completion_code_string(completion_code));
 
                 if (completion_code == XHCI_COMP_SUCCESS) {
-                    printf("xHCI HCD: Transfer completed successfully!\n");
+                    hcd_debugf("xHCI HCD: Transfer completed successfully!\n");
                     xhci_ring_inc_dequeue(&xhci_hcd->event_ring);
                     return 0;
                 } else {
-                    printf("xHCI HCD: Transfer failed with completion code "
-                           "%u\n",
-                           completion_code);
+                    hcd_debugf("xHCI HCD: Transfer failed with completion code "
+                               "%u\n",
+                               completion_code);
                     xhci_ring_inc_dequeue(&xhci_hcd->event_ring);
                     return -1;
                 }
@@ -869,7 +875,8 @@ int xhci_wait_for_transfer_completion(XhciHostController *xhci_hcd,
         anos_task_sleep_current(1000000);
     }
 
-    printf("xHCI HCD: Transfer completion timeout after %u ms\n", timeout_ms);
+    hcd_debugf("xHCI HCD: Transfer completion timeout after %u ms\n",
+               timeout_ms);
     return -1;
 }
 
@@ -901,13 +908,13 @@ int xhci_setup_endpoint_ring(XhciHostController *xhci_hcd, uint8_t slot_id,
     // Allocate and initialize the endpoint transfer ring
     xhci_hcd->endpoint_rings[slot_id][endpoint_id] = malloc(sizeof(XhciRing));
     if (!xhci_hcd->endpoint_rings[slot_id][endpoint_id]) {
-        printf("xHCI HCD: Failed to allocate endpoint ring\n");
+        hcd_debugf("xHCI HCD: Failed to allocate endpoint ring\n");
         return -1;
     }
 
     XhciRing *ring = xhci_hcd->endpoint_rings[slot_id][endpoint_id];
     if (xhci_ring_init(ring, XHCI_RING_SIZE) != 0) {
-        printf("xHCI HCD: Failed to initialize endpoint ring\n");
+        hcd_debugf("xHCI HCD: Failed to initialize endpoint ring\n");
         free(ring);
         xhci_hcd->endpoint_rings[slot_id][endpoint_id] = NULL;
         return -1;
@@ -927,9 +934,9 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
     }
 
     // Allocate input context (1 page should be enough for slot + ep0 context)
-    SyscallResultA input_ctx_alloc = anos_alloc_physical_pages(4096);
+    const SyscallResultA input_ctx_alloc = anos_alloc_physical_pages(4096);
     if (input_ctx_alloc.result != SYSCALL_OK) {
-        printf("xHCI HCD: Failed to allocate input context\n");
+        hcd_debugf("xHCI HCD: Failed to allocate input context\n");
         return -1;
     }
 
@@ -941,7 +948,7 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
                     ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
     if (input_ctx_map.result != SYSCALL_OK) {
-        printf("xHCI HCD: Failed to map input context\n");
+        hcd_debugf("xHCI HCD: Failed to map input context\n");
         return -1;
     }
 
@@ -995,7 +1002,7 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
 
     // Set up endpoint 0 transfer ring
     if (xhci_setup_endpoint_ring(xhci_hcd, slot_id, 0) != 0) {
-        printf("xHCI HCD: Failed to setup endpoint 0 ring\n");
+        hcd_debugf("xHCI HCD: Failed to setup endpoint 0 ring\n");
         return -1;
     }
 
@@ -1006,9 +1013,9 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
     ep0_context[3] = (uint32_t)(ep0_ring->trbs_physical >> 32);
 
     // Allocate actual device context (separate from input context)
-    SyscallResultA device_ctx_alloc = anos_alloc_physical_pages(4096);
+    const SyscallResultA device_ctx_alloc = anos_alloc_physical_pages(4096);
     if (device_ctx_alloc.result != SYSCALL_OK) {
-        printf("xHCI HCD: Failed to allocate device context\n");
+        hcd_debugf("xHCI HCD: Failed to allocate device context\n");
         return -1;
     }
 
@@ -1020,7 +1027,7 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
                     ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
     if (device_ctx_map.result != SYSCALL_OK) {
-        printf("xHCI HCD: Failed to map device context\n");
+        hcd_debugf("xHCI HCD: Failed to map device context\n");
         return -1;
     }
 
@@ -1058,7 +1065,7 @@ int xhci_submit_control_transfer(XhciHostController *xhci_hcd,
     // Get device slot ID
     const uint8_t slot_id = (uint8_t)(uintptr_t)transfer->device->hcd_private;
     if (slot_id == 0) {
-        printf("xHCI HCD: No device slot allocated for control transfer\n");
+        hcd_debugf("xHCI HCD: No device slot allocated for control transfer\n");
         return -1;
     }
 
@@ -1071,33 +1078,37 @@ int xhci_submit_control_transfer(XhciHostController *xhci_hcd,
     // Get endpoint 0's transfer ring
     XhciRing *ep0_ring = xhci_hcd->endpoint_rings[slot_id][0];
     if (!ep0_ring) {
-        printf("xHCI HCD: No endpoint ring for slot %u endpoint 0\n", slot_id);
+        hcd_debugf("xHCI HCD: No endpoint ring for slot %u endpoint 0\n",
+                   slot_id);
         return -1;
     }
 
     if (!xhci_ring_has_space(ep0_ring, trbs_needed)) {
-        printf("xHCI HCD: Not enough space in endpoint transfer ring\n");
+        hcd_debugf("xHCI HCD: Not enough space in endpoint transfer ring\n");
         return -1;
     }
 
     // Build and enqueue TRBs for the control transfer
-    int result = xhci_build_control_transfer_trbs(xhci_hcd, transfer, slot_id);
+    const int result =
+            xhci_build_control_transfer_trbs(xhci_hcd, transfer, slot_id);
     if (result != 0) {
-        printf("xHCI HCD: Failed to build control transfer TRBs\n");
+        hcd_debugf("xHCI HCD: Failed to build control transfer TRBs\n");
         return -1;
     }
 
     // Ring doorbell to notify hardware
-    printf("xHCI HCD: Control transfer TRBs built, ringing doorbell for slot "
-           "%u EP0\n",
-           slot_id);
+    hcd_debugf(
+            "xHCI HCD: Control transfer TRBs built, ringing doorbell for slot "
+            "%u EP0\n",
+            slot_id);
     xhci_ring_doorbell(xhci_hcd, slot_id, 1); // DCI 1 = control endpoint
 
     // Wait for transfer completion
     hcd_debugf("xHCI HCD: Waiting for transfer completion\n");
-    int completion_result = xhci_wait_for_transfer_completion(xhci_hcd, 5000);
+    const int completion_result =
+            xhci_wait_for_transfer_completion(xhci_hcd, 5000);
     if (completion_result != 0) {
-        printf("xHCI HCD: Transfer completion timeout\n");
+        hcd_debugf("xHCI HCD: Transfer completion timeout\n");
         transfer->status = USB_TRANSFER_STATUS_ERROR;
         return -1;
     }
@@ -1105,21 +1116,24 @@ int xhci_submit_control_transfer(XhciHostController *xhci_hcd,
     // Copy data back for IN transfers after completion
     if (setup->wLength > 0 && (setup->bmRequestType & 0x80) &&
         transfer->buffer) {
-        uint64_t data_phys = (uint64_t)(uintptr_t)transfer->hcd_private;
+        const uint64_t data_phys = (uint64_t)(uintptr_t)transfer->hcd_private;
         if (data_phys) {
-            volatile void *data_virt =
+            const volatile void *data_virt =
                     (volatile void *)(0x800000000 + data_phys);
             memcpy(transfer->buffer, (const void *)data_virt, setup->wLength);
+
+#ifdef DEBUG_XHCI_HCD
             hcd_debugf("xHCI HCD: Copied %u bytes back from device\n",
                        setup->wLength);
 
             // Debug: dump first few bytes of received data
-            printf("xHCI HCD: Raw data received: ");
-            uint8_t *data_bytes = (uint8_t *)transfer->buffer;
+            hcd_debugf("xHCI HCD: Raw data received: ");
+            const uint8_t *data_bytes = (uint8_t *)transfer->buffer;
             for (uint32_t i = 0; i < setup->wLength && i < 16; i++) {
-                printf("%02x ", data_bytes[i]);
+                hcd_debugf("%02x ", data_bytes[i]);
             }
-            printf("\n");
+            hcd_debugf("\n");
+#endif
         }
     }
 
@@ -1150,7 +1164,8 @@ int xhci_submit_interrupt_transfer(XhciHostController *xhci_hcd,
 // =============================================================================
 
 int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
-                                     UsbTransfer *transfer, uint8_t slot_id) {
+                                     UsbTransfer *transfer,
+                                     const uint8_t slot_id) {
     if (!xhci_hcd || !transfer || !transfer->setup_packet) {
         return -1;
     }
@@ -1164,11 +1179,9 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
     const SyscallResultA setup_alloc =
             anos_alloc_physical_pages(4096); // 1 page
     if (setup_alloc.result != SYSCALL_OK) {
-        printf("xHCI HCD: Failed to allocate setup packet memory\n");
+        hcd_debugf("xHCI HCD: Failed to allocate setup packet memory\n");
         return -1;
     }
-
-    printf("!!!!!!!!!!!!!!! 0x%016lx\n", setup_alloc.value);
 
     // Map setup packet memory
     const SyscallResult setup_map = anos_map_physical(
@@ -1177,7 +1190,7 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
                     ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
     if (setup_map.result != SYSCALL_OK) {
-        printf("xHCI HCD: Failed to map setup packet memory\n");
+        hcd_debugf("xHCI HCD: Failed to map setup packet memory\n");
         return -1;
     }
 
@@ -1187,18 +1200,19 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
     *setup_phys = *setup;
 
     // Debug: show what we're sending
-    printf("xHCI HCD: Setup packet: %02x %02x %04x %04x %04x\n",
-           setup->bmRequestType, setup->bRequest, setup->wValue, setup->wIndex,
-           setup->wLength);
+    hcd_debugf("xHCI HCD: Setup packet: %02x %02x %04x %04x %04x\n",
+               setup->bmRequestType, setup->bRequest, setup->wValue,
+               setup->wIndex, setup->wLength);
 
-    printf("xHCI HCD: Setup phys  : %02x %02x %04x %04x %04x at 0x%016lx\n",
-           setup_phys->bmRequestType, setup_phys->bRequest, setup_phys->wValue,
-           setup_phys->wIndex, setup_phys->wLength, setup_alloc.value);
+    hcd_vdebugf(
+            "xHCI HCD: Setup phys  : %02x %02x %04x %04x %04x at 0x%016lx\n",
+            setup_phys->bmRequestType, setup_phys->bRequest, setup_phys->wValue,
+            setup_phys->wIndex, setup_phys->wLength, setup_alloc.value);
 
     // 1. Setup Stage TRB
     XhciTrb *setup_trb = xhci_ring_enqueue_trb(ring);
     if (!setup_trb) {
-        printf("xHCI HCD: Failed to enqueue setup TRB\n");
+        hcd_debugf("xHCI HCD: Failed to enqueue setup TRB\n");
         return -1;
     }
 
@@ -1237,7 +1251,7 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
         const SyscallResultA data_alloc = anos_alloc_physical_pages(data_size);
 
         if (data_alloc.result != SYSCALL_OK) {
-            printf("xHCI HCD: Failed to allocate data buffer\n");
+            hcd_debugf("xHCI HCD: Failed to allocate data buffer\n");
             return -1;
         }
 
@@ -1248,7 +1262,7 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
                         ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
         if (data_map.result != SYSCALL_OK) {
-            printf("xHCI HCD: Failed to map data buffer\n");
+            hcd_debugf("xHCI HCD: Failed to map data buffer\n");
             return -1;
         }
 
@@ -1260,7 +1274,7 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
 
         XhciTrb *data_trb = xhci_ring_enqueue_trb(ring);
         if (!data_trb) {
-            printf("xHCI HCD: Failed to enqueue data TRB\n");
+            hcd_debugf("xHCI HCD: Failed to enqueue data TRB\n");
             return -1;
         }
 
@@ -1283,7 +1297,7 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
     // 3. Status Stage TRB
     XhciTrb *status_trb = xhci_ring_enqueue_trb(ring);
     if (!status_trb) {
-        printf("xHCI HCD: Failed to enqueue status TRB\n");
+        hcd_debugf("xHCI HCD: Failed to enqueue status TRB\n");
         return -1;
     }
 
@@ -1327,9 +1341,9 @@ void xhci_ring_doorbell(XhciHostController *xhci_hcd, uint8_t slot_id,
     if (xhci_hcd->base.doorbell_regs) {
         xhci_write32(&xhci_hcd->base, xhci_hcd->base.doorbell_regs,
                      doorbell_offset, doorbell_value);
-        printf("xHCI HCD: Doorbell written to hardware\n");
+        hcd_debugf("xHCI HCD: Doorbell written to hardware\n");
     } else {
-        printf("xHCI HCD: ERROR - No doorbell registers mapped\n");
+        hcd_debugf("xHCI HCD: ERROR - No doorbell registers mapped\n");
     }
 }
 
@@ -1341,20 +1355,20 @@ int xhci_setup_event_ring(XhciHostController *xhci_hcd) {
     hcd_debugf("xHCI HCD: Setting up event ring segment table\n");
 
     // Allocate Event Ring Segment Table (ERST)
-    SyscallResultA erst_alloc = anos_alloc_physical_pages(4096);
+    const SyscallResultA erst_alloc = anos_alloc_physical_pages(4096);
     if (erst_alloc.result != SYSCALL_OK) {
-        printf("xHCI HCD: Failed to allocate ERST\n");
+        hcd_debugf("xHCI HCD: Failed to allocate ERST\n");
         return -1;
     }
 
     // Map ERST
-    SyscallResult erst_map = anos_map_physical(
+    const SyscallResult erst_map = anos_map_physical(
             erst_alloc.value, (void *)(0xA00000000 + erst_alloc.value), 4096,
             ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
                     ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
     if (erst_map.result != SYSCALL_OK) {
-        printf("xHCI HCD: Failed to map ERST\n");
+        hcd_debugf("xHCI HCD: Failed to map ERST\n");
         return -1;
     }
 
@@ -1367,19 +1381,19 @@ int xhci_setup_event_ring(XhciHostController *xhci_hcd) {
 
     // Write ERST registers to runtime register space
     if (!xhci_hcd->base.runtime_regs) {
-        printf("xHCI HCD: ERROR - No runtime registers mapped\n");
+        hcd_debugf("xHCI HCD: ERROR - No runtime registers mapped\n");
         return -1;
     }
 
     // Interrupter 0 registers (offset 0x20 from runtime base)
-    const uint32_t interrupter_base = 0x20;
+    constexpr uint32_t interrupter_base = 0x20;
 
     // ERSTSZ (Event Ring Segment Table Size) - 1 segment
     xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
                  interrupter_base + 0x08, 1);
 
     // CRITICAL: Disable interrupts and use polling mode
-    printf("xHCI HCD: Disabling interrupts - using polling mode\n");
+    hcd_debugf("xHCI HCD: Disabling interrupts - using polling mode\n");
     xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
                  interrupter_base + 0x00, 0); // IMAN = 0 (disable interrupts)
 
@@ -1402,6 +1416,8 @@ int xhci_setup_event_ring(XhciHostController *xhci_hcd) {
                "0x%016lx\n",
                erst_alloc.value, xhci_hcd->event_ring.trbs_physical);
 
+#ifdef DEBUG_XHCI_HCD
+#ifdef VERY_NOISY_XHCI_HCD
     // Verify ERST registers were written correctly
     uint32_t erstsz_read =
             xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
@@ -1419,12 +1435,12 @@ int xhci_setup_event_ring(XhciHostController *xhci_hcd) {
             xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
                         interrupter_base + 0x1C);
 
-    printf("xHCI HCD: ERST registers verification:\n");
-    printf("  ERSTSZ: 0x%08x (should be 1)\n", erstsz_read);
-    printf("  ERSTBA: 0x%08x%08x (should be 0x%016lx)\n", erstba_high,
-           erstba_low, erst_alloc.value);
-    printf("  ERDP: 0x%08x%08x (should be 0x%016lx)\n", erdp_high, erdp_low,
-           xhci_hcd->event_ring.trbs_physical);
+    hcd_debugf("xHCI HCD: ERST registers verification:\n");
+    hcd_debugf("  ERSTSZ: 0x%08x (should be 1)\n", erstsz_read);
+    hcd_debugf("  ERSTBA: 0x%08x%08x (should be 0x%016lx)\n", erstba_high,
+               erstba_low, erst_alloc.value);
+    hcd_debugf("  ERDP: 0x%08x%08x (should be 0x%016lx)\n", erdp_high, erdp_low,
+               xhci_hcd->event_ring.trbs_physical);
 
     // Verify CRCR (Command Ring Control Register)
     uint32_t crcr_low =
@@ -1434,6 +1450,8 @@ int xhci_setup_event_ring(XhciHostController *xhci_hcd) {
     uint64_t expected_crcr = xhci_hcd->command_ring.trbs_physical | 0x1;
     printf("  CRCR: 0x%08x%08x (should be 0x%016lx)\n", crcr_high, crcr_low,
            expected_crcr);
+#endif
+#endif
 
     return 0;
 }

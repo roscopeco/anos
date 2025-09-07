@@ -13,6 +13,9 @@ LDFLAGS=-L$(USB_CORE_DIR) -lusbcore
 #	DEBUG_XHCI_PCI			Dump debug info from the driver's PCI interface
 #	DEBUG_XHCI_OPS			Dump debug info about the drivers device operations
 #	VERY_NOISY_XHCI_OPS		Dump **lots** of extra debug info about xHCI device ops
+#	DEBUG_XHCI_HCD			Dump debug info from HCD interface code
+#   VERY_NOISY_XHCI_HCD		Dump **lots** of extra debug info from HCD code
+#	DEBUG_XHCI_HCD_RINGS	Dump debug info about HCD rings
 #
 CDEFS=
 
