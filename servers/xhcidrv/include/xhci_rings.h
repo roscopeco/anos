@@ -111,7 +111,7 @@ typedef struct {
 #define XHCI_RING_SIZE 256 // Number of TRBs per ring
 
 typedef struct {
-    XhciTrb *trbs;          // TRB array (page-aligned)
+    volatile XhciTrb *trbs; // TRB array (page-aligned, hardware-writable)
     uint64_t trbs_physical; // Physical address of TRB array
 
     uint32_t enqueue_index; // Next TRB to enqueue
@@ -262,7 +262,7 @@ typedef struct {
 int xhci_ring_init(XhciRing *ring, uint32_t size);
 void xhci_ring_free(XhciRing *ring);
 XhciTrb *xhci_ring_enqueue_trb(XhciRing *ring);
-XhciTrb *xhci_ring_dequeue_trb(XhciRing *ring);
+volatile XhciTrb *xhci_ring_dequeue_trb(XhciRing *ring);
 bool xhci_ring_has_space(XhciRing *ring, uint32_t num_trbs);
 void xhci_ring_inc_enqueue(XhciRing *ring);
 void xhci_ring_inc_dequeue(XhciRing *ring);
