@@ -309,6 +309,11 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
                             __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT],
                     .capability_id = SYSCALL_ID_WAIT_INTERRUPT,
             },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_CREATE_REGION],
+                    .capability_id = SYSCALL_ID_CREATE_REGION,
+            },
     };
 
 #ifdef DEBUG_PCI
@@ -316,7 +321,7 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
            argv[4]);
 #endif
 
-    int64_t pid = spawn_process_via_system(0x100000, 13, pci_caps, 5, argv);
+    int64_t pid = spawn_process_via_system(0x100000, 15, pci_caps, 5, argv);
     if (pid > 0) {
 #ifdef DEBUG_PCI
         printf("  --> PCI driver spawned with PID %ld\n", pid);

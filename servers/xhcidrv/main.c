@@ -13,7 +13,9 @@
 #include <anos/syscalls.h>
 
 #include "../common/device_types.h"
+#include "../common/usb/usb_core.h"
 #include "include/xhci.h"
+#include "include/xhci_hcd.h"
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -36,7 +38,7 @@
 #define ops_vdebugf(...)
 #endif
 
-static XHCIController controller = {0};
+static XhciHostController xhci_hcd = {0};
 static XHCIPort ports[16] = {{0}}; // Support up to 16 ports
 static uint64_t devman_channel = 0;
 static uint64_t xhci_channel = 0;
@@ -50,29 +52,59 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
     printf("  PCI Config Base: 0x%016lx\n", pci_config_base);
 #endif
 
-    if (!xhci_controller_init(&controller, xhci_base, pci_config_base)) {
-        printf("Failed to initialize xHCI controller\n");
+    // Initialize USB core
+    if (usb_core_init() != 0) {
+        printf("Failed to initialize USB core\n");
+        return -1;
+    }
+
+    // Initialize xHCI host controller driver
+    if (xhci_hcd_init(&xhci_hcd, xhci_base, pci_config_base) != 0) {
+        printf("Failed to initialize xHCI host controller driver\n");
+        return -1;
+    }
+
+    // Register with USB core
+    if (usb_register_host_controller(xhci_hcd.usb_hcd) != 0) {
+        printf("Failed to register xHCI with USB core\n");
         return -1;
     }
 
 #ifdef DEBUG_XHCI_INIT
     printf("xHCI controller initialized successfully\n");
-    printf("  HCI Version: 0x%04x\n", controller.hci_version);
-    printf("  Max Ports: %u\n", controller.max_ports);
-    printf("  Max Slots: %u\n", controller.max_slots);
+    printf("  HCI Version: 0x%04x\n", xhci_hcd.base.hci_version);
+    printf("  Max Ports: %u\n", xhci_hcd.base.max_ports);
+    printf("  Max Slots: %u\n", xhci_hcd.base.max_slots);
 #endif
 
     // Start the controller
-    if (!xhci_controller_start(&controller)) {
+    if (!xhci_controller_start(&xhci_hcd.base)) {
         printf("Failed to start xHCI controller\n");
         return -1;
     }
 
-    // Initialize and scan all ports
-    controller.active_ports = 0;
-    for (uint8_t i = 0; i < controller.max_ports && i < 16; i++) {
-        if (xhci_port_init(&ports[i], &controller, i)) {
-            controller.active_ports |= (1U << i);
+    // Initialize and scan all ports, create USB devices through USB core
+    xhci_hcd.base.active_ports = 0;
+    for (uint8_t i = 0; i < xhci_hcd.base.max_ports && i < 16; i++) {
+        if (xhci_port_init(&ports[i], &xhci_hcd.base, i)) {
+            xhci_hcd.base.active_ports |= (1U << i);
+
+            // Create USB device through USB core layer
+            UsbDevice *usb_device =
+                    usb_alloc_device(xhci_hcd.usb_hcd, i, ports[i].speed);
+            if (usb_device) {
+                // Enable device in USB core (this will call back to xHCI)
+                if (usb_enumerate_device(usb_device) == 0) {
+                    printf("USB device enumerated on port %u: VID:0x%04x "
+                           "PID:0x%04x\n",
+                           i, usb_device->device_desc.idVendor,
+                           usb_device->device_desc.idProduct);
+                } else {
+                    printf("Failed to enumerate USB device on port %u\n", i);
+                    usb_free_device(usb_device);
+                }
+            }
+
 #ifdef DEBUG_XHCI_INIT
             printf("Port %u initialized - device connected\n", i);
 #endif
@@ -80,7 +112,7 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
     }
 
 #ifdef DEBUG_XHCI_INIT
-    printf("Active ports: 0x%08x\n", controller.active_ports);
+    printf("Active ports: 0x%08x\n", xhci_hcd.base.active_ports);
 #endif
 
     return 0;
@@ -141,8 +173,8 @@ static bool register_with_devman(void) {
     }
 
     // Register each connected USB device
-    for (uint8_t i = 0; i < controller.max_ports && i < 16; i++) {
-        if ((controller.active_ports & (1U << i)) && ports[i].initialized) {
+    for (uint8_t i = 0; i < xhci_hcd.base.max_ports && i < 16; i++) {
+        if ((xhci_hcd.base.active_ports & (1U << i)) && ports[i].initialized) {
             reg_msg = (DeviceRegistrationMessage *)reg_buffer;
             reg_msg->msg_type = DEVICE_MSG_REGISTER;
             reg_msg->device_type = DEVICE_TYPE_USB;

@@ -16,6 +16,7 @@ clean:
 	$(MAKE) -C ahcidrv clean
 	$(MAKE) -C xhcidrv clean
 	$(MAKE) -C fat32drv clean
+	$(MAKE) -C common/usb clean
 	$(RM) system.ramfs
 
 $(MKRAMFS_BIN): $(MKRAMFS_DIR)
