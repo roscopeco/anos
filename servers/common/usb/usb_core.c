@@ -15,6 +15,12 @@
 #include "usb_core.h"
 #include "usb_spec.h"
 
+#ifdef DEBUG_USB_CORE
+#define debugf printf
+#else
+#define debugf(...)
+#endif
+
 // =============================================================================
 // Global USB Core State
 // =============================================================================
@@ -34,12 +40,12 @@ int usb_register_host_controller(UsbHostController *hcd) {
     }
 
     if (num_registered_hcds >= 4) {
-        printf("USB: Maximum number of host controllers reached\n");
+        debugf("USB: Maximum number of host controllers reached\n");
         return -1;
     }
 
     registered_hcds[num_registered_hcds++] = hcd;
-    printf("USB: Registered host controller '%s' with %u ports\n", hcd->name,
+    debugf("USB: Registered host controller '%s' with %u ports\n", hcd->name,
            hcd->num_ports);
 
     return 0;
@@ -53,7 +59,7 @@ int usb_unregister_host_controller(UsbHostController *hcd) {
                 registered_hcds[j] = registered_hcds[j + 1];
             }
             registered_hcds[--num_registered_hcds] = NULL;
-            printf("USB: Unregistered host controller '%s'\n", hcd->name);
+            debugf("USB: Unregistered host controller '%s'\n", hcd->name);
             return 0;
         }
     }
@@ -71,7 +77,7 @@ UsbDevice *usb_alloc_device(UsbHostController *hcd, uint8_t port_number,
 
     UsbDevice *device = calloc(1, sizeof(UsbDevice));
     if (!device) {
-        printf("USB: Failed to allocate device structure\n");
+        debugf("USB: Failed to allocate device structure\n");
         return NULL;
     }
 
@@ -81,7 +87,7 @@ UsbDevice *usb_alloc_device(UsbHostController *hcd, uint8_t port_number,
     device->state = USB_DEVICE_STATE_DEFAULT;
     device->address = 0; // Will be assigned during enumeration
 
-    printf("USB: Allocated device on port %u (speed: %s)\n", port_number,
+    debugf("USB: Allocated device on port %u (speed: %s)\n", port_number,
            usb_get_speed_string(speed));
 
     return device;
@@ -113,14 +119,14 @@ int usb_enumerate_device(UsbDevice *device) {
         return -1;
     }
 
-    printf("USB: Enumerating device on port %u\n", device->port_number);
+    debugf("USB: Enumerating device on port %u\n", device->port_number);
 
     // Step 1: Get device descriptor (first 8 bytes for max packet size)
     UsbDeviceDescriptor partial_desc;
     int result = usb_get_descriptor(device, USB_DESC_TYPE_DEVICE, 0,
                                     &partial_desc, 8);
     if (result < 0) {
-        printf("USB: Failed to get partial device descriptor\n");
+        debugf("USB: Failed to get partial device descriptor\n");
         return -1;
     }
 
@@ -135,7 +141,7 @@ int usb_enumerate_device(UsbDevice *device) {
 
     result = usb_set_address(device, new_address);
     if (result < 0) {
-        printf("USB: Failed to set device address %u\n", new_address);
+        debugf("USB: Failed to set device address %u\n", new_address);
         return -1;
     }
 
@@ -148,36 +154,46 @@ int usb_enumerate_device(UsbDevice *device) {
                                 &device->device_desc,
                                 sizeof(UsbDeviceDescriptor));
     if (result < 0) {
-        printf("USB: Failed to get full device descriptor\n");
+        debugf("USB: Failed to get full device descriptor\n");
         return -1;
     }
 
-    printf("USB: Device enumerated - VID:0x%04x PID:0x%04x Class:0x%02x\n",
+    debugf("USB: Device enumerated - VID:0x%04x PID:0x%04x Class:0x%02x\n",
            device->device_desc.idVendor, device->device_desc.idProduct,
            device->device_desc.bDeviceClass);
 
     // Step 4: Get string descriptors
     if (device->device_desc.iManufacturer) {
-        usb_get_string_descriptor(device, device->device_desc.iManufacturer,
-                                  device->manufacturer,
-                                  sizeof(device->manufacturer));
+        int result = usb_get_string_descriptor(
+                device, device->device_desc.iManufacturer, device->manufacturer,
+                sizeof(device->manufacturer));
+        if (result > 0) {
+            debugf("USB: Manufacturer: %s\n", device->manufacturer);
+        }
     }
 
     if (device->device_desc.iProduct) {
-        usb_get_string_descriptor(device, device->device_desc.iProduct,
-                                  device->product, sizeof(device->product));
+        int result = usb_get_string_descriptor(
+                device, device->device_desc.iProduct, device->product,
+                sizeof(device->product));
+        if (result > 0) {
+            debugf("USB: Product: %s\n", device->product);
+        }
     }
 
     if (device->device_desc.iSerialNumber) {
-        usb_get_string_descriptor(device, device->device_desc.iSerialNumber,
-                                  device->serial_number,
-                                  sizeof(device->serial_number));
+        int result = usb_get_string_descriptor(
+                device, device->device_desc.iSerialNumber,
+                device->serial_number, sizeof(device->serial_number));
+        if (result > 0) {
+            debugf("USB: Serial Number: %s\n", device->serial_number);
+        }
     }
 
     return 0;
 }
 
-int usb_configure_device(UsbDevice *device, uint8_t config_value) {
+int usb_configure_device(UsbDevice *device, const uint8_t config_value) {
     if (!device || device->state != USB_DEVICE_STATE_ADDRESS) {
         return -1;
     }
@@ -188,14 +204,14 @@ int usb_configure_device(UsbDevice *device, uint8_t config_value) {
                                     config_value - 1, &config_desc,
                                     sizeof(UsbConfigurationDescriptor));
     if (result < 0) {
-        printf("USB: Failed to get configuration descriptor\n");
+        debugf("USB: Failed to get configuration descriptor\n");
         return -1;
     }
 
     // Get full configuration descriptor with all interfaces and endpoints
     device->raw_config_desc = malloc(config_desc.wTotalLength);
     if (!device->raw_config_desc) {
-        printf("USB: Failed to allocate configuration descriptor buffer\n");
+        debugf("USB: Failed to allocate configuration descriptor buffer\n");
         return -1;
     }
 
@@ -203,7 +219,7 @@ int usb_configure_device(UsbDevice *device, uint8_t config_value) {
                                 config_value - 1, device->raw_config_desc,
                                 config_desc.wTotalLength);
     if (result < 0) {
-        printf("USB: Failed to get full configuration descriptor\n");
+        debugf("USB: Failed to get full configuration descriptor\n");
         free(device->raw_config_desc);
         device->raw_config_desc = NULL;
         return -1;
@@ -219,12 +235,12 @@ int usb_configure_device(UsbDevice *device, uint8_t config_value) {
                     USB_REQ_TYPE_DEVICE,
             USB_REQ_SET_CONFIGURATION, config_value, 0, NULL, 0, 5000);
     if (result < 0) {
-        printf("USB: Failed to set configuration %u\n", config_value);
+        debugf("USB: Failed to set configuration %u\n", config_value);
         return -1;
     }
 
     device->state = USB_DEVICE_STATE_CONFIGURED;
-    printf("USB: Device configured with configuration %u\n", config_value);
+    debugf("USB: Device configured with configuration %u\n", config_value);
 
     return 0;
 }
@@ -240,7 +256,7 @@ UsbTransfer *usb_alloc_transfer(UsbDevice *device, uint8_t endpoint,
 
     UsbTransfer *transfer = calloc(1, sizeof(UsbTransfer));
     if (!transfer) {
-        printf("USB: Failed to allocate transfer structure\n");
+        debugf("USB: Failed to allocate transfer structure\n");
         return NULL;
     }
 
@@ -364,18 +380,20 @@ int usb_get_string_descriptor(UsbDevice *device, uint8_t string_index,
 
     // Get string descriptor in UTF-16
     uint8_t string_desc[256];
-    int result = usb_get_descriptor(device, USB_DESC_TYPE_STRING, string_index,
-                                    string_desc, sizeof(string_desc));
+    const int result =
+            usb_get_descriptor(device, USB_DESC_TYPE_STRING, string_index,
+                               string_desc, sizeof(string_desc));
     if (result < 0)
         return -1;
 
     // Convert UTF-16 to ASCII (simplified)
-    uint8_t length = string_desc[0];
+    const uint8_t length = string_desc[0];
     if (length < 2)
         return -1;
 
-    size_t str_len = (length - 2) / 2; // UTF-16 string length
-    size_t copy_len = (str_len < buffer_size - 1) ? str_len : buffer_size - 1;
+    const size_t str_len = (length - 2) / 2; // UTF-16 string length
+    const size_t copy_len =
+            (str_len < buffer_size - 1) ? str_len : buffer_size - 1;
 
     for (size_t i = 0; i < copy_len; i++) {
         buffer[i] = string_desc[2 + i * 2]; // Take low byte of UTF-16 char
@@ -464,7 +482,7 @@ int usb_core_init(void) {
     num_registered_hcds = 0;
 
     usb_core_initialized = true;
-    printf("USB: Core layer initialized\n");
+    debugf("USB: Core layer initialized\n");
 
     return 0;
 }
@@ -477,5 +495,5 @@ void usb_core_shutdown(void) {
     // TODO: Clean up registered controllers and devices
 
     usb_core_initialized = false;
-    printf("USB: Core layer shutdown\n");
+    debugf("USB: Core layer shutdown\n");
 }
