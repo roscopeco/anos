@@ -151,8 +151,10 @@ bool xhci_controller_init(XHCIController *controller, const uint64_t base_addr,
             (volatile void *)((uint8_t *)controller->cap_regs +
                               (rtsoff & ~0x1F));
 
-    init_vdebugf("Doorbell registers at offset 0x%x\n", dboff);
-    init_vdebugf("Runtime registers at offset 0x%x\n", rtsoff);
+    printf("xHCI: Doorbell registers at offset 0x%x (virtual addr %p)\n", dboff,
+           controller->doorbell_regs);
+    printf("xHCI: Runtime registers at offset 0x%x (virtual addr %p)\n", rtsoff,
+           controller->runtime_regs);
 
     // Check if controller is already running
     const uint32_t usbsts =
@@ -204,7 +206,7 @@ bool xhci_controller_start(const XHCIController *controller) {
     // Set the run bit
     uint32_t usbcmd =
             xhci_read32(controller, controller->op_regs, XHCI_OP_USBCMD);
-    usbcmd |= XHCI_CMD_RUN | XHCI_CMD_INTE;
+    usbcmd |= XHCI_CMD_RUN; // Remove XHCI_CMD_INTE for polling mode
     xhci_write32(controller, controller->op_regs, XHCI_OP_USBCMD, usbcmd);
 
     // Wait for controller to start (HCH bit cleared)
@@ -265,16 +267,67 @@ bool xhci_port_init(XHCIPort *port, XHCIController *controller,
 
 bool xhci_port_scan(XHCIPort *port) {
     const uint32_t port_offset = port->port_num * 0x10;
-    const uint32_t portsc =
-            xhci_read32(port->controller, port->controller->port_regs,
-                        port_offset + XHCI_PORT_SC);
+    const void *reg_addr = (const uint8_t *)port->controller->port_regs +
+                           port_offset + XHCI_PORT_SC;
+
+    printf("xHCI: Port %u: offset=0x%x, reg_addr=%p (base=%p)\n",
+           port->port_num, port_offset, reg_addr, port->controller->port_regs);
+
+    uint32_t portsc = xhci_read32(port->controller, port->controller->port_regs,
+                                  port_offset + XHCI_PORT_SC);
 
     port->connected = (portsc & XHCI_PORTSC_CCS) != 0;
     port->enabled = (portsc & XHCI_PORTSC_PED) != 0;
 
-    init_vdebugf("Port %u: PORTSC=0x%08x\n", port->port_num, portsc);
+    printf("xHCI: Scanning port %u: PORTSC=0x%08x, connected=%s\n",
+           port->port_num, portsc, (portsc & XHCI_PORTSC_CCS) ? "YES" : "NO");
 
     if (port->connected) {
+        printf("xHCI: Port %u device detected, initiating reset\n",
+               port->port_num);
+
+        // Initiate port reset by setting PR bit (bit 4)
+        uint32_t reset_portsc = portsc | XHCI_PORTSC_PR;
+        xhci_write32(port->controller, port->controller->port_regs,
+                     port_offset + XHCI_PORT_SC, reset_portsc);
+
+        // Wait for reset to complete (PR bit clears automatically)
+        printf("xHCI: Waiting for port %u reset to complete\n", port->port_num);
+        int reset_timeout = 1000; // 1 second timeout
+        while (reset_timeout-- > 0) {
+            portsc = xhci_read32(port->controller, port->controller->port_regs,
+                                 port_offset + XHCI_PORT_SC);
+
+            if ((portsc & XHCI_PORTSC_PR) == 0) {
+                uint8_t pls = (portsc & XHCI_PORTSC_PLS_MASK) >> 5;
+                printf("xHCI: Port %u reset completed, PORTSC=0x%08x, PLS=%u\n",
+                       port->port_num, portsc, pls);
+                break;
+            }
+
+            // Sleep 1ms
+            // anos_task_sleep_current(1000000); // Uncomment if needed
+            for (volatile int i = 0; i < 100000; i++)
+                ; // Simple delay
+        }
+
+        if (reset_timeout <= 0) {
+            printf("xHCI: Port %u reset timeout\n", port->port_num);
+            return false;
+        }
+
+        // Re-read port status after reset
+        portsc = xhci_read32(port->controller, port->controller->port_regs,
+                             port_offset + XHCI_PORT_SC);
+        port->connected = (portsc & XHCI_PORTSC_CCS) != 0;
+        port->enabled = (portsc & XHCI_PORTSC_PED) != 0;
+
+        if (!port->connected) {
+            printf("xHCI: Port %u device disconnected after reset\n",
+                   port->port_num);
+            return false;
+        }
+
         port->speed = (portsc & XHCI_PORTSC_SPEED_MASK) >> 10;
 
         const char *speed_str;

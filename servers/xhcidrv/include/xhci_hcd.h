@@ -77,7 +77,8 @@ typedef struct {
     XhciRing event_ring;   // Primary event ring
 
     // Device context management
-    XhciDcbaa *dcbaa;        // Device Context Base Address Array
+    volatile XhciDcbaa
+            *dcbaa; // Device Context Base Address Array (hardware-writable)
     uint64_t dcbaa_physical; // Physical address of DCBAA
 
     XhciInputContext
@@ -130,10 +131,14 @@ int xhci_hcd_disable_port(UsbHostController *hcd, uint8_t port);
 int xhci_send_command(XhciHostController *xhci_hcd, XhciTrb *command_trb);
 int xhci_wait_for_command_completion(XhciHostController *xhci_hcd,
                                      uint32_t timeout_ms);
+int xhci_wait_for_transfer_completion(XhciHostController *xhci_hcd,
+                                      uint32_t timeout_ms);
 
 // Context Management
 int xhci_alloc_device_slot(XhciHostController *xhci_hcd);
 void xhci_free_device_slot(XhciHostController *xhci_hcd, uint8_t slot_id);
+int xhci_setup_endpoint_ring(XhciHostController *xhci_hcd, uint8_t slot_id,
+                             uint8_t endpoint_id);
 int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
                               UsbDevice *device);
 
