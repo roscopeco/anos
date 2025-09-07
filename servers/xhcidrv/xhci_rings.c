@@ -62,7 +62,7 @@ int xhci_ring_init(XhciRing *ring, uint32_t size) {
         return -1;
     }
 
-    ring->trbs = (XhciTrb *)(0x500000000 + ring->trbs_physical);
+    ring->trbs = (volatile XhciTrb *)(0x500000000 + ring->trbs_physical);
 
     // Initialize ring state
     ring->enqueue_index = 0;
@@ -72,7 +72,7 @@ int xhci_ring_init(XhciRing *ring, uint32_t size) {
     ring->consumer_cycle_state = 1;
 
     // Clear all TRBs
-    memset(ring->trbs, 0, size * sizeof(XhciTrb));
+    memset((void *)ring->trbs, 0, size * sizeof(XhciTrb));
 
     ring_debugf(
             "xHCI: Initialized ring with %u TRBs at phys=0x%016lx virt=%p\n",
@@ -104,7 +104,7 @@ XhciTrb *xhci_ring_enqueue_trb(XhciRing *ring) {
         return NULL;
     }
 
-    XhciTrb *trb = &ring->trbs[ring->enqueue_index];
+    XhciTrb *trb = (XhciTrb *)&ring->trbs[ring->enqueue_index];
 
     // Set cycle bit for producer
     trb->control = (trb->control & ~TRB_CONTROL_CYCLE_BIT) |
@@ -116,7 +116,7 @@ XhciTrb *xhci_ring_enqueue_trb(XhciRing *ring) {
     return trb;
 }
 
-XhciTrb *xhci_ring_dequeue_trb(XhciRing *ring) {
+volatile XhciTrb *xhci_ring_dequeue_trb(XhciRing *ring) {
     if (!ring || !ring->trbs) {
         return NULL;
     }
@@ -126,7 +126,7 @@ XhciTrb *xhci_ring_dequeue_trb(XhciRing *ring) {
         return NULL;
     }
 
-    XhciTrb *trb = &ring->trbs[ring->dequeue_index];
+    volatile XhciTrb *trb = &ring->trbs[ring->dequeue_index];
 
     // Check cycle bit
     bool trb_cycle = (trb->control & TRB_CONTROL_CYCLE_BIT) != 0;

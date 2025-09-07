@@ -84,6 +84,18 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
     }
 
     // Initialize and scan all ports, create USB devices through USB core
+    printf("xHCI: Scanning %u ports (max_ports=%u)\n", xhci_hcd.base.max_ports,
+           xhci_hcd.base.max_ports);
+
+    // Debug: manually read first few port registers
+    printf("xHCI: Manual port register reads:\n");
+    for (uint8_t j = 0; j < 8 && j < xhci_hcd.base.max_ports; j++) {
+        uint32_t portsc =
+                xhci_read32(&xhci_hcd.base, xhci_hcd.base.port_regs, j * 0x10);
+        printf("  Port %u (offset 0x%02x): PORTSC=0x%08x, CCS=%s\n", j,
+               j * 0x10, portsc, (portsc & 0x1) ? "Connected" : "Disconnected");
+    }
+
     xhci_hcd.base.active_ports = 0;
     for (uint8_t i = 0; i < xhci_hcd.base.max_ports && i < 16; i++) {
         if (xhci_port_init(&ports[i], &xhci_hcd.base, i)) {
@@ -93,14 +105,24 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
             UsbDevice *usb_device =
                     usb_alloc_device(xhci_hcd.usb_hcd, i, ports[i].speed);
             if (usb_device) {
-                // Enable device in USB core (this will call back to xHCI)
-                if (usb_enumerate_device(usb_device) == 0) {
-                    printf("USB device enumerated on port %u: VID:0x%04x "
-                           "PID:0x%04x\n",
-                           i, usb_device->device_desc.idVendor,
-                           usb_device->device_desc.idProduct);
+                // First enable the device (allocates xHCI slot)
+                if (xhci_hcd.usb_hcd->ops->enable_device &&
+                    xhci_hcd.usb_hcd->ops->enable_device(xhci_hcd.usb_hcd,
+                                                         usb_device) == 0) {
+
+                    // Now enumerate device (this will do control transfers)
+                    if (usb_enumerate_device(usb_device) == 0) {
+                        printf("USB device enumerated on port %u: VID:0x%04x "
+                               "PID:0x%04x\n",
+                               i, usb_device->device_desc.idVendor,
+                               usb_device->device_desc.idProduct);
+                    } else {
+                        printf("Failed to enumerate USB device on port %u\n",
+                               i);
+                        usb_free_device(usb_device);
+                    }
                 } else {
-                    printf("Failed to enumerate USB device on port %u\n", i);
+                    printf("Failed to enable USB device on port %u\n", i);
                     usb_free_device(usb_device);
                 }
             }
