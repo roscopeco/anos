@@ -137,10 +137,12 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
                  max_device_slots);
 
 #ifdef DEBUG_XHCI_HCD
+#ifdef VERY_NOISY_XHCI_HCD
     const uint32_t config_readback = xhci_read32(
             &xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_CONFIG);
     hcd_vdebugf("xHCI HCD: CONFIG register readback: 0x%08x (should be %u)\n",
                 config_readback, max_device_slots);
+#endif
 #endif
 
     const uint32_t hccparams1 = xhci_read32(
@@ -583,6 +585,7 @@ int xhci_send_command(XhciHostController *xhci_hcd, XhciTrb *command_trb) {
 
     // Verify controller is running before sending command
 #ifdef DEBUG_XHCI_HCD
+#ifdef VERY_NOISY_XHCI_HCD
     uint32_t usbsts = xhci_read32(&xhci_hcd->base, xhci_hcd->base.op_regs,
                                   XHCI_OP_USBSTS);
     uint32_t usbcmd = xhci_read32(&xhci_hcd->base, xhci_hcd->base.op_regs,
@@ -610,7 +613,7 @@ int xhci_send_command(XhciHostController *xhci_hcd, XhciTrb *command_trb) {
                 (usbsts & (1 << 10)) ? "YES" : "NO");
     hcd_vdebugf("    CAS (Command Abort Status): %s\n",
                 (usbsts & (1 << 11)) ? "YES" : "NO");
-
+#endif
     // Check DNCTRL register
     uint32_t dnctrl = xhci_read32(&xhci_hcd->base, xhci_hcd->base.op_regs,
                                   XHCI_OP_DNCTRL);

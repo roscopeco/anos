@@ -269,12 +269,14 @@ bool xhci_port_scan(XHCIPort *port) {
     const uint32_t port_offset = port->port_num * 0x10;
 
 #ifdef DEBUG_XHCI_INIT
+#ifdef VERY_NOISY_XHCI_INIT
     const void *reg_addr = (const uint8_t *)port->controller->port_regs +
                            port_offset + XHCI_PORT_SC;
 
     init_vdebugf("xHCI: Port %u: offset=0x%x, reg_addr=%p (base=%p)\n",
                  port->port_num, port_offset, reg_addr,
                  port->controller->port_regs);
+#endif
 #endif
 
     uint32_t portsc = xhci_read32(port->controller, port->controller->port_regs,
