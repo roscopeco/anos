@@ -38,8 +38,10 @@
 #define ops_vdebugf(...)
 #endif
 
+static constexpr int MAX_PORTS = 32;
+
 static XhciHostController xhci_hcd = {0};
-static XHCIPort ports[16] = {{0}}; // Support up to 16 ports
+static XHCIPort ports[MAX_PORTS] = {{nullptr}}; // Support up to 32 ports
 static uint64_t devman_channel = 0;
 static uint64_t xhci_channel = 0;
 static uint64_t pci_parent_id = 0;
@@ -99,7 +101,7 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
 #endif
 
     xhci_hcd.base.active_ports = 0;
-    for (uint8_t i = 0; i < xhci_hcd.base.max_ports && i < 16; i++) {
+    for (uint8_t i = 0; i < xhci_hcd.base.max_ports && i < MAX_PORTS; i++) {
         if (xhci_port_init(&ports[i], &xhci_hcd.base, i)) {
             xhci_hcd.base.active_ports |= (1U << i);
 
