@@ -5,6 +5,7 @@ ASM?=nasm
 XLD?=$(TARGET_TRIPLE)-ld
 XOBJCOPY?=$(TARGET_TRIPLE)-objcopy
 XOBJDUMP?=$(TARGET_TRIPLE)-objdump
+STRIP?=$(TARGET_TRIPLE)-strip
 XCC?=$(TARGET_TRIPLE)-gcc
 XAR?=$(TARGET_TRIPLE)-ar
 ASFLAGS=-f elf64 -F dwarf -g
@@ -55,6 +56,8 @@ clean:
 $(BINARY_NAME): $(BINARY_OBJS)
 	$(XCC) -o $@ $^
 	chmod a-x $@
+	cp $@ $(patsubst %.elf,%_debug.elf,$@)
+	$(STRIP) $@
 
 $(BINARY).dis: $(BINARY_NAME)
 	$(XOBJDUMP) -D -mi386 -Maddr32,data32 $< > $@
