@@ -83,10 +83,21 @@
 #define XHCI_SPEED_HIGH 3
 #define XHCI_SPEED_SUPER 4
 
+// Runtime Interrupter Register Offsets (from interrupter base)
+#define XHCI_IMAN 0x00      // Interrupt Management
+#define XHCI_IMOD 0x04      // Interrupt Moderation
+#define XHCI_ERSTSZ 0x08    // Event Ring Segment Table Size
+#define XHCI_RSVD 0x0C      // Reserved
+#define XHCI_ERSTBA_LO 0x10 // Event Ring Segment Table Base Address (Low)
+#define XHCI_ERSTBA_HI 0x14 // Event Ring Segment Table Base Address (High)
+#define XHCI_ERDP_LO 0x18   // Event Ring Dequeue Pointer (Low)
+#define XHCI_ERDP_HI 0x1C   // Event Ring Dequeue Pointer (High)
+
 // xHCI Controller structure
 typedef struct {
     uint64_t base_addr;           // Base address of xHCI registers
-    uint64_t pci_config_base;     // PCI config space base
+    uint64_t pci_config_base;     // PCI config space base (physical)
+    uint64_t pci_config_virt;     // PCI config space base (virtual mapped)
     volatile void *cap_regs;      // Capability registers
     volatile void *op_regs;       // Operational registers
     volatile void *port_regs;     // Port registers base
@@ -99,6 +110,11 @@ typedef struct {
     uint8_t max_interrupters; // Maximum interrupters
     uint8_t max_ports;        // Maximum root hub ports
     uint32_t page_size;       // Controller page size
+
+    // MSI interrupt configuration
+    uint8_t msi_cap_offset; // PCI MSI capability offset
+    uint8_t msi_vector;     // Allocated MSI interrupt vector
+    bool msi_enabled;       // MSI interrupts enabled
 
     bool initialized;      // Controller initialization state
     uint32_t active_ports; // Bitmask of active ports

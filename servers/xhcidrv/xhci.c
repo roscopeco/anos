@@ -84,9 +84,25 @@ bool xhci_controller_init(XHCIController *controller, const uint64_t base_addr,
     // Update PCI access to use mapped virtual address
     constexpr uint64_t mapped_pci_config = PCI_CONFIG_BASE_ADDRESS;
 
+    // Store the virtual mapped address
+    controller->pci_config_virt = mapped_pci_config;
+
     if (!xhci_pci_enable_device(mapped_pci_config)) {
         printf("Failed to enable xHCI PCI device\n");
         return false;
+    }
+
+    // Find MSI capability for interrupt support
+    controller->msi_cap_offset =
+            xhci_pci_find_msi_capability(mapped_pci_config);
+    controller->msi_enabled = false;
+    controller->msi_vector = 0;
+
+    if (controller->msi_cap_offset) {
+        init_debugf("MSI capability found at offset 0x%02x\n",
+                    controller->msi_cap_offset);
+    } else {
+        init_debugf("No MSI capability found - will use polling mode\n");
     }
 
     // Get BAR0 to determine register space size (for future use)
@@ -209,11 +225,30 @@ bool xhci_controller_reset(const XHCIController *controller) {
 bool xhci_controller_start(const XHCIController *controller) {
     init_debugf("Starting xHCI controller...\n");
 
-    // Set the run bit
+    // Set the run bit and enable interrupts if MSI is configured
     uint32_t usbcmd =
             xhci_read32(controller, controller->op_regs, XHCI_OP_USBCMD);
-    usbcmd |= XHCI_CMD_RUN; // Remove XHCI_CMD_INTE for polling mode
+    usbcmd |= XHCI_CMD_RUN;
+
+    if (controller->msi_enabled) {
+        usbcmd |= XHCI_CMD_INTE; // Enable interrupts when MSI is available
+        init_debugf("xHCI: Enabling global interrupts (MSI vector 0x%02x)\n",
+                    controller->msi_vector);
+    } else {
+        init_debugf("xHCI: Using polling mode (no MSI)\n");
+    }
+
     xhci_write32(controller, controller->op_regs, XHCI_OP_USBCMD, usbcmd);
+
+    // Enable interrupter 0 if MSI is configured
+    if (controller->msi_enabled) {
+        // Enable interrupter 0 in runtime registers
+        const uint32_t iman_offset =
+                0x20; // IMAN register offset for interrupter 0
+        xhci_write32(controller, controller->runtime_regs, iman_offset,
+                     0x02); // Set IE (Interrupt Enable) bit
+        init_debugf("xHCI: Enabled interrupter 0\n");
+    }
 
     // Wait for controller to start (HCH bit cleared)
     for (int timeout = 0; timeout < 100; timeout++) {

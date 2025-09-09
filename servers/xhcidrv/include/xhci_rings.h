@@ -90,6 +90,7 @@ typedef struct {
                       ((type) << TRB_CONTROL_TYPE_SHIFT))
 #define TRB_GET_TYPE(trb)                                                      \
     (((trb)->control & TRB_CONTROL_TYPE_MASK) >> TRB_CONTROL_TYPE_SHIFT)
+#define TRB_GET_COMPLETION_CODE(trb) (((trb)->status >> 24) & 0xFF)
 
 #define TRB_SET_SLOT_ID(trb, slot)                                             \
     ((trb)->control = ((trb)->control & ~TRB_CONTROL_SLOT_ID_MASK) |           \

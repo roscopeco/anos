@@ -14,6 +14,7 @@
 
 #include <anos/syscalls.h>
 
+#include "include/pci.h"
 #include "include/xhci_hcd.h"
 #include "usb/usb_core.h"
 #include "usb/usb_spec.h"
@@ -48,6 +49,10 @@ void xhci_ring_doorbell(XhciHostController *xhci_hcd, uint8_t slot_id,
                         uint8_t target);
 
 int xhci_setup_event_ring(XhciHostController *xhci_hcd);
+
+// Interrupt processing functions
+int xhci_process_command_completion_event(XhciHostController *xhci_hcd);
+int xhci_process_transfer_completion_event(XhciHostController *xhci_hcd);
 
 // =============================================================================
 // Host Controller Operations Table
@@ -288,6 +293,58 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, const uint64_t base_addr,
     if (xhci_setup_event_ring(xhci_hcd) != 0) {
         hcd_debugf("xHCI HCD: Failed to setup event ring\n");
         return -1;
+    }
+
+    // Configure MSI interrupt if available
+    if (xhci_hcd->base.msi_cap_offset != 0) {
+        // Generate fake bus/device/function for interrupt allocation
+        // TODO: Get real PCI bus/device/function from system
+        constexpr uint32_t bus_device_func = 0x010000; // Mock PCI address
+
+        uint64_t msi_address;
+        uint32_t msi_data;
+
+        const SyscallResultU8 alloc_result = anos_allocate_interrupt_vector(
+                bus_device_func, &msi_address, &msi_data);
+
+        if (alloc_result.result == SYSCALL_OK && alloc_result.value != 0) {
+            const uint8_t vector = alloc_result.value;
+
+            // Check what type of capability we have
+            const uint8_t cap_id =
+                    xhci_pci_read8(xhci_hcd->base.pci_config_virt,
+                                   xhci_hcd->base.msi_cap_offset);
+
+            bool msi_configured = false;
+            if (cap_id == PCI_CAP_ID_MSIX) {
+                hcd_debugf("xHCI HCD: Configuring MSI-X interrupts\n");
+                msi_configured = xhci_pci_configure_msix(
+                        xhci_hcd->base.pci_config_virt,
+                        xhci_hcd->base.msi_cap_offset, msi_address, msi_data,
+                        (uint64_t)xhci_hcd->base.cap_regs);
+            } else if (cap_id == PCI_CAP_ID_MSI) {
+                hcd_debugf("xHCI HCD: Configuring MSI interrupts\n");
+                msi_configured = xhci_pci_configure_msi(
+                        xhci_hcd->base.pci_config_virt,
+                        xhci_hcd->base.msi_cap_offset, msi_address, msi_data);
+            }
+
+            if (msi_configured) {
+                xhci_hcd->base.msi_vector = vector;
+                xhci_hcd->base.msi_enabled = true;
+                hcd_debugf("xHCI HCD: MSI/MSI-X vector 0x%02x configured "
+                           "successfully\n",
+                           vector);
+            } else {
+                hcd_debugf("xHCI HCD: Failed to configure MSI/MSI-X hardware, "
+                           "using polling\n");
+            }
+        } else {
+            hcd_debugf("xHCI HCD: Failed to allocate interrupt vector, using "
+                       "polling\n");
+        }
+    } else {
+        hcd_debugf("xHCI HCD: No MSI capability found, using polling mode\n");
     }
 
     // Create USB host controller instance
@@ -739,13 +796,33 @@ int xhci_wait_for_command_completion(XhciHostController *xhci_hcd,
     hcd_debugf("xHCI HCD: Waiting for command completion (timeout %u ms)\n",
                timeout_ms);
 
-    // For now, implement a simple polling mechanism
-    // In a real implementation, this would process the event ring
-    hcd_vdebugf(
-            "xHCI HCD: Starting command completion wait, event ring @ %p (phys "
-            "0x%016lx)\n",
-            (void *)xhci_hcd->event_ring.trbs,
-            xhci_hcd->event_ring.trbs_physical);
+    // Use interrupt-driven processing if MSI is enabled
+    if (xhci_hcd->base.msi_enabled) {
+        hcd_debugf("xHCI HCD: Waiting for MSI interrupt on vector 0x%02x\n",
+                   xhci_hcd->base.msi_vector);
+
+        uint32_t event_data;
+        const SyscallResult result =
+                anos_wait_interrupt(xhci_hcd->base.msi_vector, &event_data);
+
+        if (result.result == SYSCALL_OK) {
+            hcd_debugf("xHCI HCD: Received MSI interrupt (data=0x%08x)\n",
+                       event_data);
+
+            // Process the event ring to find command completion
+            return xhci_process_command_completion_event(xhci_hcd);
+        } else {
+            hcd_debugf("xHCI HCD: Failed to wait for interrupt (error=%ld)\n",
+                       result.result);
+            return -1;
+        }
+    }
+
+    // Fall back to polling mode if MSI is not enabled
+    hcd_vdebugf("xHCI HCD: Using polling mode, event ring @ %p (phys "
+                "0x%016lx)\n",
+                (void *)xhci_hcd->event_ring.trbs,
+                xhci_hcd->event_ring.trbs_physical);
     hcd_vdebugf("xHCI HCD: Event ring enqueue=%u dequeue=%u cycle=%u\n",
                 xhci_hcd->event_ring.enqueue_index,
                 xhci_hcd->event_ring.dequeue_index,
@@ -821,6 +898,30 @@ int xhci_wait_for_transfer_completion(XhciHostController *xhci_hcd,
 
     hcd_debugf("xHCI HCD: Waiting for transfer completion (timeout %u ms)\n",
                timeout_ms);
+
+    // Use interrupt-driven processing if MSI is enabled
+    if (xhci_hcd->base.msi_enabled) {
+        hcd_debugf("xHCI HCD: Waiting for MSI interrupt on vector 0x%02x\n",
+                   xhci_hcd->base.msi_vector);
+
+        uint32_t event_data;
+        const SyscallResult result =
+                anos_wait_interrupt(xhci_hcd->base.msi_vector, &event_data);
+
+        if (result.result == SYSCALL_OK) {
+            hcd_debugf("xHCI HCD: Received MSI interrupt (data=0x%08x)\n",
+                       event_data);
+
+            // Process the event ring to find transfer completion
+            return xhci_process_transfer_completion_event(xhci_hcd);
+        } else {
+            hcd_debugf("xHCI HCD: Failed to wait for interrupt (error=%ld)\n",
+                       result.result);
+            return -1;
+        }
+    }
+
+    // Fall back to polling mode if MSI is not enabled
 
 #ifdef DEBUG_XHCI_HCD_RINGS
     printf("xHCI HCD: Scanning entire event ring for transfer events:\n");
@@ -1432,10 +1533,24 @@ int xhci_setup_event_ring(XhciHostController *xhci_hcd) {
     xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
                  interrupter_base + 0x08, 1);
 
-    // CRITICAL: Disable interrupts and use polling mode
-    hcd_debugf("xHCI HCD: Disabling interrupts - using polling mode\n");
+    // IMOD (Interrupt Moderation) - disable moderation for debugging
     xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                 interrupter_base + 0x00, 0); // IMAN = 0 (disable interrupts)
+                 interrupter_base + 0x04, 0); // No moderation
+    hcd_debugf("xHCI HCD: Interrupt moderation disabled\n");
+
+    // Configure interrupt mode based on MSI availability
+    if (xhci_hcd->base.msi_enabled) {
+        hcd_debugf("xHCI HCD: Enabling interrupts for MSI vector 0x%02x\n",
+                   xhci_hcd->base.msi_vector);
+        xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                     interrupter_base + 0x00,
+                     0x02); // IMAN = IE (Interrupt Enable)
+    } else {
+        hcd_debugf("xHCI HCD: Disabling interrupts - using polling mode\n");
+        xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                     interrupter_base + 0x00,
+                     0); // IMAN = 0 (disable interrupts)
+    }
 
     // ERSTBA (Event Ring Segment Table Base Address)
     xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
@@ -1494,4 +1609,246 @@ int xhci_setup_event_ring(XhciHostController *xhci_hcd) {
 #endif
 
     return 0;
+}
+
+// =============================================================================
+// Interrupt-Driven Event Processing
+// =============================================================================
+
+int xhci_process_command_completion_event(XhciHostController *xhci_hcd) {
+    if (!xhci_hcd) {
+        return -1;
+    }
+
+    hcd_debugf(
+            "xHCI HCD: Processing command completion event from interrupt\n");
+
+    // CRITICAL: Write USBSTS first as required by xHCI spec for interrupt acknowledgment
+    const uint32_t usbsts = xhci_read32(&xhci_hcd->base, xhci_hcd->base.op_regs,
+                                        XHCI_OP_USBSTS);
+    if (usbsts & XHCI_STS_EINT) {
+        xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_USBSTS,
+                     XHCI_STS_EINT); // Clear EINT bit
+        hcd_debugf("xHCI HCD: Cleared USBSTS.EINT (was 0x%08x)\n", usbsts);
+    }
+
+    // Store initial dequeue index to update ERDP later
+    const uint32_t initial_dequeue = xhci_hcd->event_ring.dequeue_index;
+
+    // Process all available events in the event ring
+    while (true) {
+        volatile const XhciTrb *event_trb =
+                &xhci_hcd->event_ring.trbs[xhci_hcd->event_ring.dequeue_index];
+        bool trb_cycle = (event_trb->control & TRB_CONTROL_CYCLE_BIT) != 0;
+        bool has_event =
+                (event_trb->control != 0) &&
+                (trb_cycle == xhci_hcd->event_ring.consumer_cycle_state);
+
+        if (!has_event) {
+            break; // No more events available
+        }
+
+        const uint32_t trb_type = TRB_GET_TYPE(event_trb);
+
+        hcd_debugf("xHCI HCD: Processing event TRB type %u (%s)\n", trb_type,
+                   xhci_trb_type_string(trb_type));
+
+        if (trb_type == TRB_TYPE_COMMAND_COMPLETION) {
+            const uint32_t completion_code = TRB_GET_COMPLETION_CODE(event_trb);
+            hcd_debugf("xHCI HCD: Command completion event (code %u: %s)\n",
+                       completion_code,
+                       xhci_completion_code_string(completion_code));
+
+            xhci_ring_inc_dequeue(&xhci_hcd->event_ring);
+
+            // Update ERDP (Event Ring Dequeue Pointer) and acknowledge interrupt
+            const uint64_t new_erdp =
+                    xhci_hcd->event_ring.trbs_physical +
+                    (xhci_hcd->event_ring.dequeue_index * sizeof(XhciTrb));
+
+            constexpr uint32_t interrupter_base = 0x20;
+
+            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                         interrupter_base + 0x18,
+                         (uint32_t)(new_erdp & 0xFFFFFFFF));
+            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                         interrupter_base + 0x1C, (uint32_t)(new_erdp >> 32));
+
+            // Clear interrupt pending bit in IMAN
+            const uint32_t iman =
+                    xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                                interrupter_base);
+            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                         interrupter_base, iman | (1 << 0));
+
+            // Flush posted writes with dummy read
+            (void)xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                              0x20);
+
+            hcd_debugf("xHCI HCD: Updated ERDP to 0x%016lx, cleared interrupt "
+                       "(IMAN was 0x%08x)\n",
+                       new_erdp, iman);
+
+            return (completion_code == XHCI_COMP_SUCCESS) ? 0 : -1;
+        }
+
+        // Skip non-command-completion events
+        xhci_ring_inc_dequeue(&xhci_hcd->event_ring);
+    }
+
+    // Even if no command completion found, we should acknowledge the interrupt
+    // Update ERDP if dequeue pointer changed
+    if (xhci_hcd->event_ring.dequeue_index != initial_dequeue) {
+        const uint64_t new_erdp =
+                (xhci_hcd->event_ring.trbs_physical +
+                 (xhci_hcd->event_ring.dequeue_index * sizeof(XhciTrb))) |
+                (1ULL << 3); // Set EHB (Event Handler Busy) bit
+
+        constexpr uint32_t interrupter_base = 0x20;
+        xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                     interrupter_base + 0x18,
+                     (uint32_t)(new_erdp & 0xFFFFFFFF));
+        xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                     interrupter_base + 0x1C, (uint32_t)(new_erdp >> 32));
+        hcd_debugf("xHCI HCD: Updated ERDP to 0x%016lx\n", new_erdp);
+    }
+
+    // Clear interrupt pending bit while preserving interrupt enable
+#ifdef DEBUG_XHCI_HCD
+    const uint32_t iman =
+#endif
+            xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20);
+
+    xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20,
+                 (1 << 1) | (1 << 0)); // IE=1, IP=1 (clear)
+
+    // Flush posted writes with dummy read
+    (void)xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20);
+
+    hcd_debugf("xHCI HCD: No command completion event found, but cleared "
+               "interrupt (IMAN was 0x%08x)\n",
+               iman);
+
+    return -1;
+}
+
+int xhci_process_transfer_completion_event(XhciHostController *xhci_hcd) {
+    if (!xhci_hcd) {
+        return -1;
+    }
+
+    hcd_debugf(
+            "xHCI HCD: Processing transfer completion event from interrupt\n");
+
+    // CRITICAL: Write USBSTS first as required by xHCI spec for interrupt acknowledgment
+    const uint32_t usbsts = xhci_read32(&xhci_hcd->base, xhci_hcd->base.op_regs,
+                                        XHCI_OP_USBSTS);
+    if (usbsts & XHCI_STS_EINT) {
+        xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_USBSTS,
+                     XHCI_STS_EINT); // Clear EINT bit
+        hcd_debugf("xHCI HCD: Cleared USBSTS.EINT (was 0x%08x)\n", usbsts);
+    }
+
+    // Store initial dequeue index to update ERDP later
+    const uint32_t initial_dequeue = xhci_hcd->event_ring.dequeue_index;
+
+    // Process all available events in the event ring
+    while (true) {
+        volatile const XhciTrb *event_trb =
+                &xhci_hcd->event_ring.trbs[xhci_hcd->event_ring.dequeue_index];
+
+        const bool trb_cycle =
+                (event_trb->control & TRB_CONTROL_CYCLE_BIT) != 0;
+        const bool has_event =
+                (event_trb->control != 0) &&
+                (trb_cycle == xhci_hcd->event_ring.consumer_cycle_state);
+
+        if (!has_event) {
+            break; // No more events available
+        }
+
+        const uint32_t trb_type = TRB_GET_TYPE(event_trb);
+
+        hcd_debugf("xHCI HCD: Processing event TRB type %u (%s)\n", trb_type,
+                   xhci_trb_type_string(trb_type));
+
+        if (trb_type == TRB_TYPE_TRANSFER) {
+            const uint32_t completion_code = TRB_GET_COMPLETION_CODE(event_trb);
+            hcd_debugf("xHCI HCD: Transfer completion event (code %u: %s)\n",
+                       completion_code,
+                       xhci_completion_code_string(completion_code));
+
+            xhci_ring_inc_dequeue(&xhci_hcd->event_ring);
+
+            // Update ERDP and acknowledge interrupt
+            const uint64_t new_erdp =
+                    (xhci_hcd->event_ring.trbs_physical +
+                     (xhci_hcd->event_ring.dequeue_index * sizeof(XhciTrb))) |
+                    (1ULL << 3); // Set EHB (Event Handler Busy) bit
+            constexpr uint32_t interrupter_base = 0x20;
+            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                         interrupter_base + 0x18,
+                         (uint32_t)(new_erdp & 0xFFFFFFFF));
+            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                         interrupter_base + 0x1C, (uint32_t)(new_erdp >> 32));
+
+            // Clear interrupt pending bit while preserving interrupt enable
+#ifdef DEBUG_XHCI_HCD
+            const uint32_t iman =
+#endif
+                    xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                                0x20);
+            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20,
+                         (1 << 1) | (1 << 0)); // IE=1, IP=1 (clear)
+
+            // Flush posted writes with dummy read
+            (void)xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                              0x20);
+
+            hcd_debugf("xHCI HCD: Acknowledged interrupt (ERDP=0x%016lx, "
+                       "IMAN=0x%08x)\n",
+                       new_erdp, iman);
+
+            return (completion_code == XHCI_COMP_SUCCESS) ? 0 : -1;
+        }
+
+        // Skip non-transfer-completion events
+        xhci_ring_inc_dequeue(&xhci_hcd->event_ring);
+    }
+
+    // Update ERDP if dequeue pointer changed
+    if (xhci_hcd->event_ring.dequeue_index != initial_dequeue) {
+        const uint64_t new_erdp =
+                (xhci_hcd->event_ring.trbs_physical +
+                 (xhci_hcd->event_ring.dequeue_index * sizeof(XhciTrb))) |
+                (1ULL << 3); // Set EHB (Event Handler Busy) bit
+
+        constexpr uint32_t interrupter_base = 0x20;
+
+        xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                     interrupter_base + 0x18,
+                     (uint32_t)(new_erdp & 0xFFFFFFFF));
+        xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                     interrupter_base + 0x1C, (uint32_t)(new_erdp >> 32));
+
+        hcd_debugf("xHCI HCD: Updated ERDP to 0x%016lx\n", new_erdp);
+    }
+
+    // Clear interrupt pending bit while preserving interrupt enable
+#ifdef DEBUG_XHCI_HCD
+    const uint32_t iman =
+#endif
+            xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20);
+
+    xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20,
+                 (1 << 1) | (1 << 0)); // IE=1, IP=1 (clear)
+
+    // Flush posted writes with dummy read
+    (void)xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20);
+
+    hcd_debugf("xHCI HCD: No transfer completion event found, but cleared "
+               "interrupt (IMAN was 0x%08x)\n",
+               iman);
+
+    return -1;
 }
