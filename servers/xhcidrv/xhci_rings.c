@@ -87,21 +87,21 @@ void xhci_ring_free(XhciRing *ring) {
     }
 
     // TODO: Unmap virtual memory and free physical pages
-    ring->trbs = NULL;
+    ring->trbs = nullptr;
     ring->trbs_physical = 0;
     memset(ring, 0, sizeof(XhciRing));
 }
 
 XhciTrb *xhci_ring_enqueue_trb(XhciRing *ring) {
     if (!ring || !ring->trbs) {
-        return NULL;
+        return nullptr;
     }
 
     // Check if we have space (leave one slot for link TRB if needed)
     uint32_t next_enqueue = (ring->enqueue_index + 1) % ring->size;
     if (next_enqueue == ring->dequeue_index) {
         ring_debugf("xHCI: Ring full, cannot enqueue TRB\n");
-        return NULL;
+        return nullptr;
     }
 
     XhciTrb *trb = (XhciTrb *)&ring->trbs[ring->enqueue_index];
@@ -118,20 +118,20 @@ XhciTrb *xhci_ring_enqueue_trb(XhciRing *ring) {
 
 volatile XhciTrb *xhci_ring_dequeue_trb(XhciRing *ring) {
     if (!ring || !ring->trbs) {
-        return NULL;
+        return nullptr;
     }
 
     // Check if ring is empty
     if (ring->enqueue_index == ring->dequeue_index) {
-        return NULL;
+        return nullptr;
     }
 
     volatile XhciTrb *trb = &ring->trbs[ring->dequeue_index];
 
     // Check cycle bit
-    bool trb_cycle = (trb->control & TRB_CONTROL_CYCLE_BIT) != 0;
+    const bool trb_cycle = (trb->control & TRB_CONTROL_CYCLE_BIT) != 0;
     if (trb_cycle != ring->consumer_cycle_state) {
-        return NULL; // TRB not ready
+        return nullptr; // TRB not ready
     }
 
     ring_debugf("xHCI: Dequeuing TRB at index %u, cycle=%u\n",
@@ -156,8 +156,9 @@ bool xhci_ring_has_space(XhciRing *ring, uint32_t num_trbs) {
 }
 
 void xhci_ring_inc_enqueue(XhciRing *ring) {
-    if (!ring)
+    if (!ring) {
         return;
+    }
 
     ring->enqueue_index = (ring->enqueue_index + 1) % ring->size;
     ring->enqueued_count++;
@@ -189,7 +190,7 @@ void xhci_ring_inc_dequeue(XhciRing *ring) {
 // Utility Functions
 // =============================================================================
 
-const char *xhci_trb_type_string(uint32_t trb_type) {
+const char *xhci_trb_type_string(const uint32_t trb_type) {
     switch (trb_type) {
     case TRB_TYPE_NORMAL:
         return "Normal";
@@ -236,7 +237,7 @@ const char *xhci_trb_type_string(uint32_t trb_type) {
     }
 }
 
-const char *xhci_completion_code_string(uint32_t completion_code) {
+const char *xhci_completion_code_string(const uint32_t completion_code) {
     switch (completion_code) {
     case XHCI_COMP_SUCCESS:
         return "Success";
