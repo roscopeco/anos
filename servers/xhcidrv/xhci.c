@@ -56,6 +56,9 @@ void xhci_write32(const XHCIController *controller, volatile void *base,
 
 bool xhci_controller_init(XHCIController *controller, const uint64_t base_addr,
                           const uint64_t pci_config_base) {
+
+    // TODO tidy this up...
+
     init_debugf("Initializing xHCI controller at 0x%016lx\n", base_addr);
 
     memset(controller, 0, sizeof(XHCIController));
@@ -189,10 +192,13 @@ bool xhci_controller_reset(const XHCIController *controller) {
     for (int timeout = 0; timeout < 100; timeout++) {
         const uint32_t usbsts =
                 xhci_read32(controller, controller->op_regs, XHCI_OP_USBSTS);
+
         if (!(usbsts & XHCI_STS_CNR)) {
             init_debugf("xHCI controller reset complete\n");
             return true;
         }
+
+        // TODO these feel a bit ... long.
         anos_task_sleep_current_secs(1);
     }
 
@@ -213,10 +219,12 @@ bool xhci_controller_start(const XHCIController *controller) {
     for (int timeout = 0; timeout < 100; timeout++) {
         const uint32_t usbsts =
                 xhci_read32(controller, controller->op_regs, XHCI_OP_USBSTS);
+
         if (!(usbsts & XHCI_STS_HCH)) {
             init_debugf("xHCI controller started successfully\n");
             return true;
         }
+
         anos_task_sleep_current_secs(1);
     }
 
@@ -237,10 +245,12 @@ bool xhci_controller_stop(const XHCIController *controller) {
     for (int timeout = 0; timeout < 100; timeout++) {
         const uint32_t usbsts =
                 xhci_read32(controller, controller->op_regs, XHCI_OP_USBSTS);
+
         if (usbsts & XHCI_STS_HCH) {
             init_debugf("xHCI controller stopped\n");
             return true;
         }
+
         anos_task_sleep_current_secs(1);
     }
 
@@ -294,7 +304,7 @@ bool xhci_port_scan(XHCIPort *port) {
                     port->port_num);
 
         // Initiate port reset by setting PR bit (bit 4)
-        uint32_t reset_portsc = portsc | XHCI_PORTSC_PR;
+        const uint32_t reset_portsc = portsc | XHCI_PORTSC_PR;
         xhci_write32(port->controller, port->controller->port_regs,
                      port_offset + XHCI_PORT_SC, reset_portsc);
 
@@ -316,10 +326,7 @@ bool xhci_port_scan(XHCIPort *port) {
                 break;
             }
 
-            // Sleep 1ms
-            // anos_task_sleep_current(1000000); // Uncomment if needed
-            for (volatile int i = 0; i < 100000; i++)
-                ; // Simple delay
+            anos_task_sleep_current(1000000);
         }
 
         if (reset_timeout <= 0) {
@@ -368,27 +375,13 @@ bool xhci_port_scan(XHCIPort *port) {
                port->port_num, speed_str, port_power ? "On" : "Off", link_state,
                port->enabled ? "Yes" : "No");
 
-        // Create device info based on detected characteristics
-        port->vendor_id =
-                0x0000; // Would need USB enumeration to get real VID/PID
+        // Setup default port info, will populate more later when we enumerate.
+        // defaulting here just so it's sane if enumeration fails...
+        //
+        port->vendor_id = 0x0000; // Populated later...
         port->product_id = 0x0000;
 
-        // Guess device class based on speed (rough heuristic)
-        switch (port->speed) {
-        case XHCI_SPEED_LOW:
-            port->device_class = 0x03; // HID (keyboards, mice often low speed)
-            break;
-        case XHCI_SPEED_FULL:
-        case XHCI_SPEED_HIGH:
-            port->device_class = 0x08; // Mass Storage (common for USB drives)
-            break;
-        case XHCI_SPEED_SUPER:
-            port->device_class = 0x08; // Mass Storage (USB 3.0 drives)
-            break;
-        default:
-            port->device_class = 0x00; // Unknown
-            break;
-        }
+        port->device_class = 0;
 
         snprintf(port->manufacturer, sizeof(port->manufacturer),
                  "Unknown Manufacturer");
@@ -398,6 +391,7 @@ bool xhci_port_scan(XHCIPort *port) {
                  "XHCI-P%u-S%u", port->port_num, port->speed);
 
         port->initialized = true;
+
         return true;
     } else {
         init_vdebugf("Port %u: No device connected\n", port->port_num);

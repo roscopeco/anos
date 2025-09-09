@@ -14,9 +14,9 @@
 
 #include <anos/syscalls.h>
 
-#include "../../common/usb/usb_core.h"
-#include "../../common/usb/usb_spec.h"
 #include "include/xhci_hcd.h"
+#include "usb/usb_core.h"
+#include "usb/usb_spec.h"
 
 #ifdef DEBUG_XHCI_HCD
 #define hcd_debugf(...) printf(__VA_ARGS__)
@@ -30,17 +30,23 @@
 #define hcd_vdebugf(...)
 #endif
 
-// Forward declarations
+#define VM_PAGE_SIZE ((4096))
+
 int xhci_submit_control_transfer(XhciHostController *xhci_hcd,
                                  UsbTransfer *transfer);
+
 int xhci_submit_bulk_transfer(XhciHostController *xhci_hcd,
                               UsbTransfer *transfer);
+
 int xhci_submit_interrupt_transfer(XhciHostController *xhci_hcd,
                                    UsbTransfer *transfer);
+
 int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
                                      UsbTransfer *transfer, uint8_t slot_id);
+
 void xhci_ring_doorbell(XhciHostController *xhci_hcd, uint8_t slot_id,
                         uint8_t target);
+
 int xhci_setup_event_ring(XhciHostController *xhci_hcd);
 
 // =============================================================================
@@ -65,40 +71,132 @@ static UsbHostControllerOps xhci_hcd_ops = {
 // Host Controller Setup
 // =============================================================================
 
-int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
-                  uint64_t pci_config_base) {
+static uint16_t get_xecp(const uint32_t hccparams1) {
+    return (hccparams1 >> 16) & 0xFFFF;
+}
+
+static void
+xhci_handle_extended_capability_setup(const XhciHostController *xhci_hcd,
+                                      const uint16_t xecp) {
+
+    // Read first extended capability
+    const uint32_t ext_cap =
+            xhci_read32(&xhci_hcd->base, xhci_hcd->base.cap_regs, xecp);
+    uint8_t cap_id = ext_cap & 0xFF;
+
+#ifdef DEBUG_XHCI_HCD
+#ifdef VERY_NOISY_XHCI_HCD
+    uint8_t next_ptr = (ext_cap >> 8) & 0xFF;
+    uint16_t cap_specific = (ext_cap >> 16) & 0xFFFF;
+
+    hcd_vdebugf("  First extended capability: ID=0x%02x, Next=0x%02x, "
+                "Specific=0x%04x\n",
+                cap_id, next_ptr, cap_specific);
+#endif
+#endif
+
+    if (cap_id == 1) { // USB Legacy Support Capability
+        hcd_debugf("  Found USB Legacy Support Capability - may need to "
+                   "disable OS handoff\n");
+
+        // Read USB Legacy Support Control/Status
+        if (xecp + 4 < 0x1000) { // Safety check
+            uint32_t usblegctlsts = xhci_read32(
+                    &xhci_hcd->base, xhci_hcd->base.cap_regs, xecp + 4);
+            hcd_vdebugf("  USBLEGCTLSTS: 0x%08x\n", usblegctlsts);
+
+            // Check if BIOS/SMM owns the controller
+            if (usblegctlsts & (1 << 16)) { // HC BIOS Owned Semaphore
+                hcd_debugf("  WARNING: BIOS still owns the controller - "
+                           "attempting OS handoff\n");
+
+                // Set OS Owned Semaphore
+                xhci_write32(&xhci_hcd->base, xhci_hcd->base.cap_regs, xecp + 4,
+                             usblegctlsts | (1 << 24));
+
+                // Wait for handoff (timeout after 1 second)
+                for (int timeout = 1000; timeout > 0; timeout--) {
+                    usblegctlsts = xhci_read32(
+                            &xhci_hcd->base, xhci_hcd->base.cap_regs, xecp + 4);
+                    if (!(usblegctlsts & (1 << 16))) { // BIOS released control
+                        hcd_debugf("  OS handoff successful\n");
+                        break;
+                    }
+                    // Small delay
+                    for (volatile int i = 0; i < 10000; i++)
+                        ;
+                }
+
+                if (usblegctlsts & (1 << 16)) {
+                    printf("  WARNING: OS handoff failed - BIOS still owns "
+                           "controller\n");
+                }
+            }
+        }
+    }
+}
+
+static void xhci_set_command_ring_register(const XhciHostController *xhci_hcd) {
+    const uint64_t crcr = xhci_hcd->command_ring.trbs_physical | 0x1; // RCS bit
+    xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_CRCR,
+                 (uint32_t)(crcr & 0xFFFFFFFF));
+    xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_CRCR + 4,
+                 (uint32_t)(crcr >> 32));
+}
+
+static int xhci_init_usb_hcd(XhciHostController *xhci_hcd) {
+    xhci_hcd->usb_hcd = malloc(sizeof(UsbHostController));
+    if (!xhci_hcd->usb_hcd) {
+        hcd_debugf("xHCI HCD: Failed to allocate USB host controller\n");
+        return -1;
+    }
+
+    memset(xhci_hcd->usb_hcd, 0, sizeof(UsbHostController));
+
+    xhci_hcd->usb_hcd->name = "xHCI Host Controller";
+    xhci_hcd->usb_hcd->ops = &xhci_hcd_ops;
+    xhci_hcd->usb_hcd->max_devices = 127;
+    xhci_hcd->usb_hcd->num_ports = xhci_hcd->base.max_ports;
+    xhci_hcd->usb_hcd->supported_speeds =
+            (1 << USB_SPEED_LOW) | (1 << USB_SPEED_FULL) |
+            (1 << USB_SPEED_HIGH) | (1 << USB_SPEED_SUPER);
+
+    xhci_hcd->usb_hcd->private_data = (void *)xhci_hcd;
+
+    return 0;
+}
+
+int xhci_hcd_init(XhciHostController *xhci_hcd, const uint64_t base_addr,
+                  const uint64_t pci_config_base) {
+
     if (!xhci_hcd) {
         return -1;
     }
 
     memset(xhci_hcd, 0, sizeof(XhciHostController));
 
-    // Initialize base xHCI controller
     if (!xhci_controller_init(&xhci_hcd->base, base_addr, pci_config_base)) {
         hcd_debugf("xHCI HCD: Failed to initialize base controller\n");
         return -1;
     }
 
-    // Initialize command ring
     if (xhci_ring_init(&xhci_hcd->command_ring, XHCI_RING_SIZE) != 0) {
         hcd_debugf("xHCI HCD: Failed to initialize command ring\n");
         return -1;
     }
 
-    // Initialize event ring
     if (xhci_ring_init(&xhci_hcd->event_ring, XHCI_RING_SIZE) != 0) {
         hcd_debugf("xHCI HCD: Failed to initialize event ring\n");
         xhci_ring_free(&xhci_hcd->command_ring);
         return -1;
     }
 
-    // Allocate and initialize DCBAA
-    const SyscallResultA dcbaa_alloc = anos_alloc_physical_pages(4096);
+    const SyscallResultA dcbaa_alloc = anos_alloc_physical_pages(VM_PAGE_SIZE);
     if (dcbaa_alloc.result != SYSCALL_OK) {
         hcd_debugf("xHCI HCD: Failed to allocate DCBAA - syscall result: "
                    "0x%016lx\n",
                    (uint64_t)dcbaa_alloc.result);
-        hcd_debugf("xHCI HCD: Requested 1 page (4096 bytes)\n");
+        hcd_debugf("xHCI HCD: Requested 1 page (%d bytes)\n", VM_PAGE_SIZE);
         return -1;
     }
 
@@ -106,7 +204,7 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
 
     const SyscallResult dcbaa_map = anos_map_physical(
             xhci_hcd->dcbaa_physical,
-            (void *)(0x600000000 + xhci_hcd->dcbaa_physical), 4096,
+            (void *)(0x600000000 + xhci_hcd->dcbaa_physical), VM_PAGE_SIZE,
             ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
                     ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
@@ -131,8 +229,10 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
     if (max_device_slots > XHCI_MAX_DEVICES) {
         max_device_slots = XHCI_MAX_DEVICES;
     }
+
     hcd_vdebugf("xHCI HCD: Setting CONFIG register - MaxDeviceSlots=%u\n",
                 max_device_slots);
+
     xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_CONFIG,
                  max_device_slots);
 
@@ -147,6 +247,7 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
 
     const uint32_t hccparams1 = xhci_read32(
             &xhci_hcd->base, xhci_hcd->base.cap_regs, XHCI_CAP_HCCPARAMS1);
+
 #ifdef DEBUG_XHCI_HCD
     uint32_t hccparams2 = xhci_read32(&xhci_hcd->base, xhci_hcd->base.cap_regs,
                                       XHCI_CAP_HCCPARAMS2);
@@ -168,78 +269,20 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
 #endif
 
     // Check extended capabilities pointer
-    const uint16_t xecp = (hccparams1 >> 16) & 0xFFFF;
+    const uint16_t xecp = get_xecp(hccparams1);
+
     hcd_vdebugf("  Extended capabilities pointer: 0x%04x\n", xecp);
+
     if (xecp != 0) {
         hcd_vdebugf(
                 "  WARNING: Controller has extended capabilities that may need "
                 "setup\n");
 
-        // Read first extended capability
-        const uint32_t ext_cap =
-                xhci_read32(&xhci_hcd->base, xhci_hcd->base.cap_regs, xecp);
-        uint8_t cap_id = ext_cap & 0xFF;
-
-#ifdef DEBUG_XHCI_HCD
-#ifdef VERY_NOISY_XHCI_HCD
-        uint8_t next_ptr = (ext_cap >> 8) & 0xFF;
-        uint16_t cap_specific = (ext_cap >> 16) & 0xFFFF;
-
-        hcd_vdebugf("  First extended capability: ID=0x%02x, Next=0x%02x, "
-                    "Specific=0x%04x\n",
-                    cap_id, next_ptr, cap_specific);
-#endif
-#endif
-
-        if (cap_id == 1) { // USB Legacy Support Capability
-            hcd_debugf("  Found USB Legacy Support Capability - may need to "
-                       "disable OS handoff\n");
-
-            // Read USB Legacy Support Control/Status
-            if (xecp + 4 < 0x1000) { // Safety check
-                uint32_t usblegctlsts = xhci_read32(
-                        &xhci_hcd->base, xhci_hcd->base.cap_regs, xecp + 4);
-                hcd_vdebugf("  USBLEGCTLSTS: 0x%08x\n", usblegctlsts);
-
-                // Check if BIOS/SMM owns the controller
-                if (usblegctlsts & (1 << 16)) { // HC BIOS Owned Semaphore
-                    hcd_debugf("  WARNING: BIOS still owns the controller - "
-                               "attempting OS handoff\n");
-
-                    // Set OS Owned Semaphore
-                    xhci_write32(&xhci_hcd->base, xhci_hcd->base.cap_regs,
-                                 xecp + 4, usblegctlsts | (1 << 24));
-
-                    // Wait for handoff (timeout after 1 second)
-                    for (int timeout = 1000; timeout > 0; timeout--) {
-                        usblegctlsts =
-                                xhci_read32(&xhci_hcd->base,
-                                            xhci_hcd->base.cap_regs, xecp + 4);
-                        if (!(usblegctlsts &
-                              (1 << 16))) { // BIOS released control
-                            hcd_debugf("  OS handoff successful\n");
-                            break;
-                        }
-                        // Small delay
-                        for (volatile int i = 0; i < 10000; i++)
-                            ;
-                    }
-
-                    if (usblegctlsts & (1 << 16)) {
-                        printf("  WARNING: OS handoff failed - BIOS still owns "
-                               "controller\n");
-                    }
-                }
-            }
-        }
+        xhci_handle_extended_capability_setup(xhci_hcd, xecp);
     }
 
     // Set command ring control register
-    uint64_t crcr = xhci_hcd->command_ring.trbs_physical | 0x1; // RCS bit
-    xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_CRCR,
-                 (uint32_t)(crcr & 0xFFFFFFFF));
-    xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_CRCR + 4,
-                 (uint32_t)(crcr >> 32));
+    xhci_set_command_ring_register(xhci_hcd);
 
     // Set up Event Ring Segment Table (ERST)
     if (xhci_setup_event_ring(xhci_hcd) != 0) {
@@ -248,21 +291,10 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, uint64_t base_addr,
     }
 
     // Create USB host controller instance
-    xhci_hcd->usb_hcd = malloc(sizeof(UsbHostController));
-    if (!xhci_hcd->usb_hcd) {
-        hcd_debugf("xHCI HCD: Failed to allocate USB host controller\n");
+    if (xhci_init_usb_hcd(xhci_hcd) != 0) {
+        hcd_debugf("xHCI HCD: Failed to initialize USB host controller\n");
         return -1;
     }
-
-    memset(xhci_hcd->usb_hcd, 0, sizeof(UsbHostController));
-    xhci_hcd->usb_hcd->name = "xHCI Host Controller";
-    xhci_hcd->usb_hcd->ops = &xhci_hcd_ops;
-    xhci_hcd->usb_hcd->max_devices = 127;
-    xhci_hcd->usb_hcd->num_ports = xhci_hcd->base.max_ports;
-    xhci_hcd->usb_hcd->supported_speeds =
-            (1 << USB_SPEED_LOW) | (1 << USB_SPEED_FULL) |
-            (1 << USB_SPEED_HIGH) | (1 << USB_SPEED_SUPER);
-    xhci_hcd->usb_hcd->private_data = xhci_hcd;
 
     hcd_debugf(
             "xHCI HCD: Initialized with %u ports, command ring at 0x%016lx\n",
@@ -282,7 +314,7 @@ void xhci_hcd_shutdown(XhciHostController *xhci_hcd) {
     // Clean up USB host controller
     if (xhci_hcd->usb_hcd) {
         free(xhci_hcd->usb_hcd);
-        xhci_hcd->usb_hcd = NULL;
+        xhci_hcd->usb_hcd = nullptr;
     }
 
     // TODO: Free device contexts and other allocated memory
@@ -937,7 +969,8 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
     }
 
     // Allocate input context (1 page should be enough for slot + ep0 context)
-    const SyscallResultA input_ctx_alloc = anos_alloc_physical_pages(4096);
+    const SyscallResultA input_ctx_alloc =
+            anos_alloc_physical_pages(VM_PAGE_SIZE);
     if (input_ctx_alloc.result != SYSCALL_OK) {
         hcd_debugf("xHCI HCD: Failed to allocate input context\n");
         return -1;
@@ -946,7 +979,7 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
     // Map input context
     SyscallResult input_ctx_map = anos_map_physical(
             input_ctx_alloc.value,
-            (void *)(0x900000000 + input_ctx_alloc.value), 4096,
+            (void *)(0x900000000 + input_ctx_alloc.value), VM_PAGE_SIZE,
             ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
                     ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
@@ -957,7 +990,7 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
 
     volatile uint8_t *input_context =
             (volatile uint8_t *)(0x900000000 + input_ctx_alloc.value);
-    memset((void *)input_context, 0, 4096);
+    memset((void *)input_context, 0, VM_PAGE_SIZE);
 
     // Store the input context physical address
     xhci_hcd->input_context_physical[slot_id] = input_ctx_alloc.value;
@@ -1016,7 +1049,8 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
     ep0_context[3] = (uint32_t)(ep0_ring->trbs_physical >> 32);
 
     // Allocate actual device context (separate from input context)
-    const SyscallResultA device_ctx_alloc = anos_alloc_physical_pages(4096);
+    const SyscallResultA device_ctx_alloc =
+            anos_alloc_physical_pages(VM_PAGE_SIZE);
     if (device_ctx_alloc.result != SYSCALL_OK) {
         hcd_debugf("xHCI HCD: Failed to allocate device context\n");
         return -1;
@@ -1025,7 +1059,7 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
     // Map device context
     SyscallResult device_ctx_map = anos_map_physical(
             device_ctx_alloc.value,
-            (void *)(0xB00000000 + device_ctx_alloc.value), 4096,
+            (void *)(0xB00000000 + device_ctx_alloc.value), VM_PAGE_SIZE,
             ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
                     ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
@@ -1180,7 +1214,7 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
 
     // Allocate physical memory for setup packet
     const SyscallResultA setup_alloc =
-            anos_alloc_physical_pages(4096); // 1 page
+            anos_alloc_physical_pages(VM_PAGE_SIZE); // 1 page
     if (setup_alloc.result != SYSCALL_OK) {
         hcd_debugf("xHCI HCD: Failed to allocate setup packet memory\n");
         return -1;
@@ -1188,7 +1222,8 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
 
     // Map setup packet memory
     const SyscallResult setup_map = anos_map_physical(
-            setup_alloc.value, (void *)(0x700000000 + setup_alloc.value), 4096,
+            setup_alloc.value, (void *)(0x700000000 + setup_alloc.value),
+            VM_PAGE_SIZE,
             ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
                     ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 
@@ -1249,8 +1284,9 @@ int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
     // 2. Data Stage TRB (if needed)
     if (setup->wLength > 0 && transfer->buffer) {
         // Allocate and map data buffer
-        const size_t data_pages = (setup->wLength + 4095) / 4096;
-        const size_t data_size = data_pages * 4096;
+        const size_t data_pages =
+                (setup->wLength + (VM_PAGE_SIZE - 1)) / VM_PAGE_SIZE;
+        const size_t data_size = data_pages * VM_PAGE_SIZE;
         const SyscallResultA data_alloc = anos_alloc_physical_pages(data_size);
 
         if (data_alloc.result != SYSCALL_OK) {
@@ -1358,7 +1394,7 @@ int xhci_setup_event_ring(XhciHostController *xhci_hcd) {
     hcd_debugf("xHCI HCD: Setting up event ring segment table\n");
 
     // Allocate Event Ring Segment Table (ERST)
-    const SyscallResultA erst_alloc = anos_alloc_physical_pages(4096);
+    const SyscallResultA erst_alloc = anos_alloc_physical_pages(VM_PAGE_SIZE);
     if (erst_alloc.result != SYSCALL_OK) {
         hcd_debugf("xHCI HCD: Failed to allocate ERST\n");
         return -1;
@@ -1366,7 +1402,8 @@ int xhci_setup_event_ring(XhciHostController *xhci_hcd) {
 
     // Map ERST
     const SyscallResult erst_map = anos_map_physical(
-            erst_alloc.value, (void *)(0xA00000000 + erst_alloc.value), 4096,
+            erst_alloc.value, (void *)(0xA00000000 + erst_alloc.value),
+            VM_PAGE_SIZE,
             ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
                     ANOS_MAP_PHYSICAL_FLAG_NOCACHE);
 

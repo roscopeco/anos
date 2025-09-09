@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "../../common/usb/usb_core.h"
+#include "usb/usb_core.h"
 #include "xhci.h"
 #include "xhci_rings.h"
 
