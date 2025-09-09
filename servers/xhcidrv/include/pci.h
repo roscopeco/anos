@@ -3,6 +3,8 @@
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
+ *
+ * TODO this duplication is silly, should really be in /servers/common
  */
 
 #ifndef __ANOS_XHCIDRV_PCI_H

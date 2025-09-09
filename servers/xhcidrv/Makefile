@@ -1,6 +1,6 @@
 SERVER_NAME=xhcidrv
 BINARY=xhcidrv
-BINARY_OBJS=main.o xhci.o pci.o xhci_rings.o xhci_hcd.o $(USB_CORE_DIR)/libusbcore.a
+BINARY_OBJS=main.o xhci.o pci.o xhci_rings.o xhci_hcd.o message_loop.o $(USB_CORE_DIR)/libusbcore.a
 
 # Link with USB core library
 USB_CORE_DIR=../common/usb

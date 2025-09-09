@@ -8,14 +8,17 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdnoreturn.h>
 #include <string.h>
 
 #include <anos/syscalls.h>
 
 #include "../common/device_types.h"
 #include "../common/usb/usb_core.h"
-#include "include/xhci.h"
-#include "include/xhci_hcd.h"
+
+#include "message_loop.h"
+#include "xhci.h"
+#include "xhci_hcd.h"
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -45,6 +48,50 @@ static XHCIPort ports[MAX_PORTS] = {{nullptr}}; // Support up to 32 ports
 static uint64_t devman_channel = 0;
 static uint64_t xhci_channel = 0;
 static uint64_t pci_parent_id = 0;
+
+static uint32_t xhci_init_activate_ports() {
+    uint32_t active_ports = 0;
+
+    for (uint8_t i = 0; i < xhci_hcd.base.max_ports && i < MAX_PORTS; i++) {
+        if (xhci_port_init(&ports[i], &xhci_hcd.base, i)) {
+            active_ports |= (1U << i);
+
+            // Create USB device through USB core layer
+            UsbDevice *usb_device =
+                    usb_alloc_device(xhci_hcd.usb_hcd, i, ports[i].speed);
+            if (usb_device) {
+                // enable the device (allocates xHCI slot)
+                if (xhci_hcd.usb_hcd->ops->enable_device &&
+                    xhci_hcd.usb_hcd->ops->enable_device(xhci_hcd.usb_hcd,
+                                                         usb_device) == 0) {
+
+                    // enumerate device (this will do control transfers)
+                    if (usb_enumerate_device(usb_device) == 0) {
+                        printf("    USB device on port %u: %s [VID:0x%04x "
+                               "PID:0x%04x]\n",
+                               i, usb_device->product,
+                               usb_device->device_desc.idVendor,
+                               usb_device->device_desc.idProduct);
+                    } else {
+                        printf("Failed to enumerate USB device on port %u\n",
+                               i);
+
+                        usb_free_device(usb_device);
+                    }
+                } else {
+                    printf("Failed to enable USB device on port %u\n", i);
+                    usb_free_device(usb_device);
+                }
+            }
+
+#ifdef DEBUG_XHCI_INIT
+            printf("Port %u initialized - device connected\n", i);
+#endif
+        }
+    }
+
+    return active_ports;
+}
 
 static int xhci_initialize_driver(const uint64_t xhci_base,
                                   const uint64_t pci_config_base) {
@@ -85,59 +132,7 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
         return -1;
     }
 
-#ifdef DEBUG_XHCI_INIT
-    // Initialize and scan all ports, create USB devices through USB core
-    printf("xHCI: Scanning %u ports (max_ports=%u)\n", xhci_hcd.base.max_ports,
-           xhci_hcd.base.max_ports);
-
-    // Debug: manually read first few port registers
-    printf("xHCI: Manual port register reads:\n");
-    for (uint8_t j = 0; j < 8 && j < xhci_hcd.base.max_ports; j++) {
-        uint32_t portsc =
-                xhci_read32(&xhci_hcd.base, xhci_hcd.base.port_regs, j * 0x10);
-        printf("  Port %u (offset 0x%02x): PORTSC=0x%08x, CCS=%s\n", j,
-               j * 0x10, portsc, (portsc & 0x1) ? "Connected" : "Disconnected");
-    }
-#endif
-
-    xhci_hcd.base.active_ports = 0;
-    for (uint8_t i = 0; i < xhci_hcd.base.max_ports && i < MAX_PORTS; i++) {
-        if (xhci_port_init(&ports[i], &xhci_hcd.base, i)) {
-            xhci_hcd.base.active_ports |= (1U << i);
-
-            // Create USB device through USB core layer
-            UsbDevice *usb_device =
-                    usb_alloc_device(xhci_hcd.usb_hcd, i, ports[i].speed);
-            if (usb_device) {
-                // First enable the device (allocates xHCI slot)
-                if (xhci_hcd.usb_hcd->ops->enable_device &&
-                    xhci_hcd.usb_hcd->ops->enable_device(xhci_hcd.usb_hcd,
-                                                         usb_device) == 0) {
-
-                    // Now enumerate device (this will do control transfers)
-                    if (usb_enumerate_device(usb_device) == 0) {
-                        printf("    USB device on port %u: %s [VID:0x%04x "
-                               "PID:0x%04x]\n",
-                               i, usb_device->product,
-                               usb_device->device_desc.idVendor,
-                               usb_device->device_desc.idProduct);
-                    } else {
-                        printf("Failed to enumerate USB device on port %u\n",
-                               i);
-
-                        usb_free_device(usb_device);
-                    }
-                } else {
-                    printf("Failed to enable USB device on port %u\n", i);
-                    usb_free_device(usb_device);
-                }
-            }
-
-#ifdef DEBUG_XHCI_INIT
-            printf("Port %u initialized - device connected\n", i);
-#endif
-        }
-    }
+    xhci_hcd.base.active_ports = xhci_init_activate_ports();
 
 #ifdef DEBUG_XHCI_INIT
     printf("Active ports: 0x%08x\n", xhci_hcd.base.active_ports);
@@ -146,28 +141,8 @@ static int xhci_initialize_driver(const uint64_t xhci_base,
     return 0;
 }
 
-static bool register_with_devman(void) {
-    const SyscallResult result = anos_find_named_channel("DEVMAN");
-    if (result.result != SYSCALL_OK) {
-        printf("Failed to find DEVMAN channel\n");
-        return false;
-    }
-
-    devman_channel = result.value;
-
-    // Create IPC channel for this driver
-    const SyscallResult channel_result = anos_create_channel();
-    if (channel_result.result != SYSCALL_OK) {
-        printf("Failed to create xHCI driver IPC channel\n");
-        return false;
-    }
-
-    xhci_channel = channel_result.value;
-    static char __attribute__((aligned(4096))) reg_buffer[4096];
-
-    // First, register the xHCI controller itself
-    DeviceRegistrationMessage *reg_msg =
-            (DeviceRegistrationMessage *)reg_buffer;
+static void
+populate_device_registration_message(DeviceRegistrationMessage *reg_msg) {
     reg_msg->msg_type = DEVICE_MSG_REGISTER;
     reg_msg->device_type = DEVICE_TYPE_USB;
     reg_msg->device_count = 1;
@@ -184,24 +159,14 @@ static bool register_with_devman(void) {
              "xHCI Controller");
     snprintf(controller_info->driver_name, sizeof(controller_info->driver_name),
              "xhcidrv");
+}
 
-    size_t msg_size = sizeof(DeviceRegistrationMessage) + sizeof(DeviceInfo);
-    const SyscallResult controller_reg_result =
-            anos_send_message(devman_channel, 0, msg_size, reg_buffer);
+static void register_usb_devices_with_devman(const uint64_t xhci_controller_id,
+                                             char *reg_buffer) {
+    DeviceRegistrationMessage *reg_msg =
+            (DeviceRegistrationMessage *)reg_buffer;
 
-    uint64_t xhci_controller_id = 0;
-    if (controller_reg_result.result == SYSCALL_OK &&
-        controller_reg_result.value > 0) {
-        xhci_controller_id = controller_reg_result.value;
-        printf("Registered xHCI controller with DEVMAN (ID: %lu)\n",
-               xhci_controller_id);
-    } else {
-        printf("Failed to register xHCI controller with DEVMAN\n");
-        return false;
-    }
-
-    // Register each connected USB device
-    for (uint8_t i = 0; i < xhci_hcd.base.max_ports && i < 16; i++) {
+    for (uint8_t i = 0; i < xhci_hcd.base.max_ports && i < MAX_PORTS; i++) {
         if ((xhci_hcd.base.active_ports & (1U << i)) && ports[i].initialized) {
             reg_msg = (DeviceRegistrationMessage *)reg_buffer;
             reg_msg->msg_type = DEVICE_MSG_REGISTER;
@@ -236,8 +201,9 @@ static bool register_with_devman(void) {
             strncpy(usb_info->serial_number, ports[i].serial_number,
                     sizeof(usb_info->serial_number) - 1);
 
-            msg_size =
+            constexpr size_t msg_size =
                     sizeof(DeviceRegistrationMessage) + sizeof(UsbDeviceInfo);
+
             const SyscallResult reg_result =
                     anos_send_message(devman_channel, 0, msg_size, reg_buffer);
 
@@ -251,18 +217,54 @@ static bool register_with_devman(void) {
             }
         }
     }
-
-    return true;
 }
 
-static void handle_usb_message(const uint64_t msg_cookie, const uint64_t tag,
-                               void *buffer, const size_t buffer_size) {
-    ops_vdebugf("xHCI: Received message with tag %lu, size %lu\n", tag,
-                buffer_size);
+static bool register_with_devman(void) {
+    const SyscallResult result = anos_find_named_channel("DEVMAN");
+    if (result.result != SYSCALL_OK) {
+        printf("Failed to find DEVMAN channel\n");
+        return false;
+    }
 
-    // For now, just acknowledge any messages
-    // TODO: Implement proper USB device communication
-    anos_reply_message(msg_cookie, 0);
+    devman_channel = result.value;
+
+    // Create IPC channel for this driver
+    const SyscallResult channel_result = anos_create_channel();
+    if (channel_result.result != SYSCALL_OK) {
+        printf("Failed to create xHCI driver IPC channel\n");
+        return false;
+    }
+
+    xhci_channel = channel_result.value;
+    static char __attribute__((aligned(4096))) reg_buffer[4096];
+
+    // First, register the xHCI controller itself
+    DeviceRegistrationMessage *reg_msg =
+            (DeviceRegistrationMessage *)reg_buffer;
+
+    populate_device_registration_message(reg_msg);
+
+    constexpr size_t msg_size =
+            sizeof(DeviceRegistrationMessage) + sizeof(DeviceInfo);
+    const SyscallResult controller_reg_result =
+            anos_send_message(devman_channel, 0, msg_size, reg_buffer);
+
+    uint64_t xhci_controller_id = 0;
+
+    if (controller_reg_result.result == SYSCALL_OK &&
+        controller_reg_result.value > 0) {
+        xhci_controller_id = controller_reg_result.value;
+
+        printf("Registered xHCI controller with DEVMAN (ID: %lu)\n",
+               xhci_controller_id);
+    } else {
+        printf("Failed to register xHCI controller with DEVMAN\n");
+        return false;
+    }
+
+    register_usb_devices_with_devman(xhci_controller_id, reg_buffer);
+
+    return true;
 }
 
 int main(const int argc, char **argv) {
@@ -280,9 +282,9 @@ int main(const int argc, char **argv) {
 
     printf(" @ xHCI:0x%s PCI:0x%s Parent:%s\n", argv[1], argv[2], argv[3]);
 
-    const uint64_t xhci_base = strtoull(argv[1], NULL, 16);
-    const uint64_t pci_config_base = strtoull(argv[2], NULL, 16);
-    pci_parent_id = strtoull(argv[3], NULL, 10);
+    const uint64_t xhci_base = strtoull(argv[1], nullptr, 16);
+    const uint64_t pci_config_base = strtoull(argv[2], nullptr, 16);
+    pci_parent_id = strtoull(argv[3], nullptr, 10);
 
     if (xhci_initialize_driver(xhci_base, pci_config_base) != 0) {
         printf("Failed to initialize xHCI driver\n");
@@ -297,26 +299,5 @@ int main(const int argc, char **argv) {
 
     ops_debugf("xHCI driver ready, entering message loop...\n");
 
-    // Main message loop
-    while (1) {
-        void *ipc_buffer = (void *)0x300000000;
-        size_t buffer_size = 4096;
-        uint64_t tag = 0;
-
-        const SyscallResult recv_result =
-                anos_recv_message(xhci_channel, &tag, &buffer_size, ipc_buffer);
-        const uint64_t msg_cookie = recv_result.value;
-
-        if (recv_result.result == SYSCALL_OK && msg_cookie) {
-            ops_vdebugf("xHCI: Received message with tag %lu, size %lu\n", tag,
-                        buffer_size);
-            handle_usb_message(msg_cookie, tag, ipc_buffer, buffer_size);
-        } else {
-            ops_debugf("xHCI: Error receiving message [0x%016lx]\n",
-                       (uint64_t)recv_result.result);
-
-            // Sleep briefly to avoid pegging the CPU if we're in an error loop
-            anos_task_sleep_current_secs(1);
-        }
-    }
+    xhci_message_loop(xhci_channel);
 }
