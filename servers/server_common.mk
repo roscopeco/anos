@@ -51,7 +51,7 @@ clean:
 
 %.o: %.c
 	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) $(CFLAGS) -c -o $@ $<				\
-	-I$(THIS_DIR)/include
+	-I$(THIS_DIR)/include -I$(SERVERS_ROOT_DIR)/common
 
 $(BINARY_NAME): $(BINARY_OBJS)
 	$(XCC) -o $@ $^

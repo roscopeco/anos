@@ -17,6 +17,8 @@
 #define pci_debugf(...)
 #endif
 
+// TODO this duplication is silly, should really be in /servers/common
+
 uint32_t xhci_pci_read32(const uint64_t config_base, const uint8_t offset) {
     const volatile uint32_t *reg = (volatile uint32_t *)(config_base + offset);
     const uint32_t value = *reg;
