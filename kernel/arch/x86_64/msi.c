@@ -1,8 +1,6 @@
 /*
- * stage3 - MSI/MSI-X Interrupt Management
+ * stage3 - MSI/MSI-X Interrupt Management (cleaned)
  * anos - An Operating System
- *
- * Copyright (c) 2025 Ross Bamford
  */
 
 #include "fba/alloc.h"
@@ -17,6 +15,17 @@
 #include "x86_64/kdrivers/local_apic.h"
 #include "x86_64/kdrivers/msi.h"
 
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support nullptr yet - May 2025
+#ifndef nullptr
+#ifdef NULL
+#define nullptr NULL
+#else
+#define nullptr (((void *)0))
+#endif
+#endif
+#endif
+
 #ifdef DEBUG_MSI
 #define debugf kprintf
 #else
@@ -26,13 +35,43 @@
 static MSIManager *msi_manager;
 static SpinLock msi_lock;
 
+#define MSI_INDEX(v) ((uint32_t)((v) - MSI_VECTOR_BASE))
+#define MSI_VALID(v)                                                           \
+    ((uint8_t)(v) >= MSI_VECTOR_BASE && (uint8_t)(v) <= MSI_VECTOR_TOP)
+
+static inline void msi_queue_push(MSIDevice *d, const uint32_t data,
+                                  const uint64_t now) {
+
+    MSIEvent *e = &d->queue[d->head];
+    e->data = data;
+    e->timestamp_ms = now;
+    d->head = (d->head + 1) % MSI_QUEUE_SIZE;
+    d->count++;
+    d->last_event_ms = now;
+    d->total_events++;
+}
+
+static inline bool msi_queue_pop(MSIDevice *d, uint32_t *out) {
+
+    if (d->count == 0) {
+        return false;
+    }
+
+    const MSIEvent *e = &d->queue[d->tail];
+    *out = e->data;
+    d->tail = (d->tail + 1) % MSI_QUEUE_SIZE;
+    d->count--;
+
+    return true;
+}
+
 void msi_init(void) {
     msi_manager = fba_alloc_blocks((sizeof(MSIManager) + VM_PAGE_SIZE - 1) >>
                                    VM_PAGE_LINEAR_SHIFT);
 
     if (!msi_manager) {
         kprintf("ERROR: MSI: Failed to allocate manager. Expect an inoperable "
-                "system.\n");
+                "system.");
         return;
     }
 
@@ -48,7 +87,7 @@ void msi_init(void) {
         msi_manager->devices[i].last_event_ms = 0;
         msi_manager->devices[i].overflow_count = 0;
         msi_manager->devices[i].slow_consumer_detected = false;
-        msi_manager->devices[i].waiting_task = NULL;
+        msi_manager->devices[i].waiting_task = nullptr;
         msi_manager->devices[i].total_events = 0;
         msi_manager->allocated_vectors[i] = 0;
     }
@@ -57,297 +96,252 @@ void msi_init(void) {
 
     spinlock_unlock_irqrestore(&msi_lock, flags);
 
-    debugf("MSI: Initialized manager with vectors 0x%02x-0x%02x\n",
+    debugf("MSI: Initialized manager with vectors 0x%02x-0x%02x",
            MSI_VECTOR_BASE, MSI_VECTOR_TOP);
 }
 
 uint8_t msi_allocate_vector(const uint32_t bus_device_func,
                             const uint64_t owner_pid, uint64_t *msi_address,
                             uint32_t *msi_data) {
-
     const uint64_t flags = spinlock_lock_irqsave(&msi_lock);
 
-    const uint32_t start_hint = msi_manager->next_vector_hint;
-    uint32_t i = start_hint;
+    const uint32_t start = msi_manager->next_vector_hint;
+    uint32_t i = start;
 
     do {
         if (!msi_manager->allocated_vectors[i]) {
-            MSIDevice *device = &msi_manager->devices[i];
+            MSIDevice *dev = &msi_manager->devices[i];
 
-            device->vector = MSI_VECTOR_BASE + i;
-            device->bus_device_func = bus_device_func;
-            device->owner_pid = owner_pid;
-            device->head = 0;
-            device->tail = 0;
-            device->count = 0;
-            device->last_event_ms = get_kernel_upticks();
-            device->overflow_count = 0;
-            device->slow_consumer_detected = false;
-            device->waiting_task = NULL;
-            device->total_events = 0;
+            dev->vector = (uint8_t)(MSI_VECTOR_BASE + i);
+            dev->bus_device_func = bus_device_func;
+            dev->owner_pid = owner_pid;
+            dev->head = dev->tail = dev->count = 0;
+            dev->last_event_ms = get_kernel_upticks();
+            dev->overflow_count = 0;
+            dev->slow_consumer_detected = false;
+            dev->waiting_task = nullptr;
+            dev->total_events = 0;
 
             msi_manager->allocated_vectors[i] = 1;
             msi_manager->next_vector_hint = (i + 1) % MSI_VECTOR_COUNT;
 
-            const uint8_t vector = device->vector;
+            const uint8_t vector = dev->vector;
 
-            // Generate MSI address and data for this vector
-            // Select target CPU using round-robin for load balancing
+            // Pick a target CPU in a simple round-robin based on index.
             const uint32_t cpu_count = state_get_cpu_count();
-            uint32_t target_cpu =
-                    i % cpu_count; // Round-robin based on vector index
-            PerCPUState *target_cpu_state = state_get_for_any_cpu(target_cpu);
+            const uint32_t target_cpu = cpu_count ? (i % cpu_count) : 0;
+            PerCPUState *target_state = state_get_for_any_cpu(target_cpu);
+            if (!target_state)
+                target_state = state_get_for_this_cpu();
+            const uint8_t apic_id = target_state ? target_state->lapic_id : 0;
 
-            if (!target_cpu_state) {
-                // Fallback to current if CPU state not available
-#ifdef CONSERVATIVE_BUILD
-                kprintf("WARN: CPU state not available in msi_allocate_vector; "
-                        "a crash is likely imminent!");
-#endif
-                target_cpu = 0;
-                target_cpu_state = state_get_for_this_cpu();
-            }
+            // MSI address (physical dest mode, no redirection hint).
+            *msi_address = 0xFEE00000ULL | ((uint64_t)apic_id << 12);
 
-            const uint8_t target_apic_id =
-                    target_cpu_state ? target_cpu_state->lapic_id : 0;
-
-            // MSI Address format for x86_64:
-            // Bits 31-20: 0xFEE (MSI address prefix)
-            // Bits 19-12: Destination APIC ID
-            // Bits 11-4: Reserved (0)
-            // Bits 3: Redirection hint (0 = directed)
-            // Bits 2: Destination mode (0 = physical)
-            *msi_address = 0xFEE00000ULL | ((uint64_t)target_apic_id << 12);
-
-            // MSI Data format:
-            // Bits 15: Trigger mode (0 = edge)
-            // Bits 14: Level (0 for edge triggered)
-            // Bits 10-8: Delivery mode (000 = fixed)
-            // Bits 7-0: Vector number
-            *msi_data = vector; // Edge triggered, fixed delivery, our vector
+            // MSI data: edge-triggered, fixed delivery, vector in [7:0].
+            *msi_data = vector;
 
             spinlock_unlock_irqrestore(&msi_lock, flags);
-
-            debugf("MSI: Allocated vector 0x%02x for device %06x to PID %lu "
-                   "on CPU %u (addr=0x%016lx data=0x%08x)\n",
-                   vector, bus_device_func, owner_pid, target_cpu, *msi_address,
-                   *msi_data);
+            debugf("MSI: Allocated vector 0x%02x for BDF %06x to PID %lu on "
+                   "CPU %u (addr=0x%016lx data=0x%08x)",
+                   vector, bus_device_func, (unsigned long)owner_pid,
+                   target_cpu, *msi_addr, *msi_data);
             return vector;
         }
 
         i = (i + 1) % MSI_VECTOR_COUNT;
-    } while (i != start_hint);
+    } while (i != start);
 
     spinlock_unlock_irqrestore(&msi_lock, flags);
-    debugf("WARN: MSI: No free vectors available\n");
+    debugf("WARN: MSI: No free vectors available");
     return 0;
 }
 
 bool msi_deallocate_vector(const uint8_t vector, const uint64_t owner_pid) {
-    if (vector < MSI_VECTOR_BASE || vector > MSI_VECTOR_TOP) {
+    if (!MSI_VALID(vector)) {
         return false;
     }
 
     const uint64_t flags = spinlock_lock_irqsave(&msi_lock);
+    const uint32_t idx = MSI_INDEX(vector);
+    MSIDevice *dev = &msi_manager->devices[idx];
 
-    const uint32_t index = vector - MSI_VECTOR_BASE;
-    MSIDevice *device = &msi_manager->devices[index];
-
-    if (!msi_manager->allocated_vectors[index] ||
-        device->owner_pid != owner_pid) {
+    if (!msi_manager->allocated_vectors[idx] || dev->owner_pid != owner_pid) {
         spinlock_unlock_irqrestore(&msi_lock, flags);
         return false;
     }
 
-    if (device->waiting_task) {
-        const uint64_t lock_flags = sched_lock_this_cpu();
-        sched_unblock(device->waiting_task);
-        sched_unlock_this_cpu(lock_flags);
-        device->waiting_task = NULL;
-    }
+    Task *to_wake = dev->waiting_task;
+    dev->waiting_task = nullptr;
 
-    msi_manager->allocated_vectors[index] = 0;
-    device->vector = 0;
-    device->owner_pid = 0;
+    msi_manager->allocated_vectors[idx] = 0;
+    dev->vector = 0;
+    dev->owner_pid = 0;
 
     spinlock_unlock_irqrestore(&msi_lock, flags);
 
-    debugf("MSI: Deallocated vector 0x%02x\n", vector);
+    if (to_wake) {
+        const uint64_t s = sched_lock_this_cpu();
+        sched_unblock(to_wake);
+        sched_unlock_this_cpu(s);
+    }
+
+    debugf("MSI: Deallocated vector 0x%02x", vector);
     return true;
 }
 
 bool msi_register_handler(const uint8_t vector, Task *task) {
-    if (vector < MSI_VECTOR_BASE || vector > MSI_VECTOR_TOP || !task) {
+    if (!MSI_VALID(vector) || !task) {
         return false;
     }
 
     const uint64_t flags = spinlock_lock_irqsave(&msi_lock);
-
-    const uint32_t index = vector - MSI_VECTOR_BASE;
-    const MSIDevice *device = &msi_manager->devices[index];
-
-    if (!msi_manager->allocated_vectors[index] ||
-        device->owner_pid != task->owner->pid) {
-        spinlock_unlock_irqrestore(&msi_lock, flags);
-        return false;
-    }
-
+    const uint32_t idx = MSI_INDEX(vector);
+    const MSIDevice *dev = &msi_manager->devices[idx];
+    const bool ok = msi_manager->allocated_vectors[idx] &&
+                    (dev->owner_pid == task->owner->pid);
     spinlock_unlock_irqrestore(&msi_lock, flags);
-    return true;
+
+    return ok;
 }
 
 bool msi_wait_interrupt(const uint8_t vector, Task *task,
                         uint32_t *event_data) {
-    if (vector < MSI_VECTOR_BASE || vector > MSI_VECTOR_TOP || !task ||
-        !event_data) {
+    if (!MSI_VALID(vector) || !task || !event_data) {
         return false;
     }
 
     uint64_t flags = spinlock_lock_irqsave(&msi_lock);
+    const uint32_t idx = MSI_INDEX(vector);
+    MSIDevice *dev = &msi_manager->devices[idx];
 
-    const uint32_t index = vector - MSI_VECTOR_BASE;
-    MSIDevice *device = &msi_manager->devices[index];
-
-    if (!msi_manager->allocated_vectors[index] ||
-        device->owner_pid != task->owner->pid) {
+    if (!msi_manager->allocated_vectors[idx] ||
+        dev->owner_pid != task->owner->pid || dev->slow_consumer_detected) {
         spinlock_unlock_irqrestore(&msi_lock, flags);
         return false;
     }
 
-    if (device->slow_consumer_detected) {
-        spinlock_unlock_irqrestore(&msi_lock, flags);
-        return false;
-    }
-
-    if (device->count == 0) {
-        device->waiting_task = task;
+    if (dev->count == 0) {
+        dev->waiting_task = task;
         spinlock_unlock_irqrestore(&msi_lock, flags);
 
-        const uint64_t sched_flags = sched_lock_this_cpu();
+        const uint64_t s = sched_lock_this_cpu();
         sched_block(task);
         sched_schedule();
-        sched_unlock_this_cpu(sched_flags);
+        sched_unlock_this_cpu(s);
 
         flags = spinlock_lock_irqsave(&msi_lock);
     }
 
-    if (device->count > 0) {
-        const MSIEvent *event = &device->queue[device->tail];
-        *event_data = event->data;
-
-        device->tail = (device->tail + 1) % MSI_QUEUE_SIZE;
-        device->count--;
-
-        spinlock_unlock_irqrestore(&msi_lock, flags);
-        return true;
-    }
-
+    const bool ok = msi_queue_pop(dev, event_data);
     spinlock_unlock_irqrestore(&msi_lock, flags);
-    return false;
+    return ok;
 }
 
 void msi_handle_interrupt(const uint8_t vector, const uint32_t data) {
-    if (vector < MSI_VECTOR_BASE || vector > MSI_VECTOR_TOP) {
+    if (!MSI_VALID(vector)) {
         local_apic_eoe();
         return;
     }
 
-    const uint32_t index = vector - MSI_VECTOR_BASE;
-    MSIDevice *device = &msi_manager->devices[index];
+    const uint64_t flags = spinlock_lock_irqsave(&msi_lock);
+    const uint32_t idx = MSI_INDEX(vector);
+    MSIDevice *dev = &msi_manager->devices[idx];
 
-    spinlock_lock(&msi_lock);
-
-    if (!msi_manager->allocated_vectors[index]) {
-        spinlock_unlock(&msi_lock);
+    if (!msi_manager->allocated_vectors[idx]) {
+        spinlock_unlock_irqrestore(&msi_lock, flags);
         local_apic_eoe();
         return;
     }
 
-    const uint64_t current_time = get_kernel_upticks();
+    const uint64_t now = get_kernel_upticks();
+    Task *to_wake = nullptr;
 
-    if (device->count >= MSI_QUEUE_SIZE) {
-        device->overflow_count++;
-
-        if ((current_time - device->last_event_ms) > MSI_TIMEOUT_MS) {
-            device->slow_consumer_detected = true;
-            debugf("MSI: Slow consumer detected on vector 0x%02x, PID %lu "
-                   "killed\n",
-                   vector, device->owner_pid);
+    if (dev->count >= MSI_QUEUE_SIZE) {
+        dev->overflow_count++;
+        if ((now - dev->last_event_ms) > MSI_TIMEOUT_MS) {
+            dev->slow_consumer_detected = true;
+            debugf("MSI: Slow consumer on vector 0x%02x (PID %lu)", vector,
+                   (unsigned long)dev->owner_pid);
         }
-
-        spinlock_unlock(&msi_lock);
-        local_apic_eoe();
-        return;
+    } else {
+        msi_queue_push(dev, data, now);
+        if (dev->waiting_task) {
+            to_wake = dev->waiting_task;
+            dev->waiting_task = nullptr;
+        }
     }
 
-    MSIEvent *event = &device->queue[device->head];
-    event->data = data;
-    event->timestamp_ms = current_time;
+    spinlock_unlock_irqrestore(&msi_lock, flags);
 
-    device->head = (device->head + 1) % MSI_QUEUE_SIZE;
-    device->count++;
-    device->last_event_ms = current_time;
-    device->total_events++;
-
-    if (device->waiting_task) {
-        const uint64_t sched_flags = sched_lock_this_cpu();
-        sched_unblock(device->waiting_task);
-        sched_unlock_this_cpu(sched_flags);
-        device->waiting_task = NULL;
+    if (to_wake) {
+        const uint64_t s = sched_lock_this_cpu();
+        sched_unblock(to_wake);
+        sched_unlock_this_cpu(s);
     }
 
-    spinlock_unlock(&msi_lock);
     local_apic_eoe();
 }
 
-void msi_cleanup_process(uint64_t pid) {
+void msi_cleanup_process(const uint64_t pid) {
+    Task *wake_list[MSI_VECTOR_COUNT];
+    size_t wake_count = 0;
+
     const uint64_t flags = spinlock_lock_irqsave(&msi_lock);
 
     for (int i = 0; i < MSI_VECTOR_COUNT; i++) {
-        MSIDevice *device = &msi_manager->devices[i];
-
-        if (msi_manager->allocated_vectors[i] && device->owner_pid == pid) {
-            if (device->waiting_task) {
-                const uint64_t sched_flags = sched_lock_this_cpu();
-                sched_unblock(device->waiting_task);
-                sched_unlock_this_cpu(sched_flags);
-                device->waiting_task = NULL;
+        MSIDevice *dev = &msi_manager->devices[i];
+        if (msi_manager->allocated_vectors[i] && dev->owner_pid == pid) {
+            if (dev->waiting_task) {
+                wake_list[wake_count++] = dev->waiting_task;
+                dev->waiting_task = nullptr;
             }
-
             msi_manager->allocated_vectors[i] = 0;
-            device->vector = 0;
-            device->owner_pid = 0;
-
-            debugf("MSI: Cleaned up vector 0x%02x for terminated PID %lu\n",
-                   MSI_VECTOR_BASE + i, pid);
+            dev->vector = 0;
+            dev->owner_pid = 0;
+            debugf("MSI: Cleaned up vector 0x%02x for PID %lu",
+                   MSI_VECTOR_BASE + i, (unsigned long)pid);
         }
     }
 
     spinlock_unlock_irqrestore(&msi_lock, flags);
+
+    if (wake_count) {
+        const uint64_t s = sched_lock_this_cpu();
+
+        for (size_t j = 0; j < wake_count; j++) {
+            sched_unblock(wake_list[j]);
+        }
+
+        sched_unlock_this_cpu(s);
+    }
 }
 
 bool msi_is_slow_consumer(const uint8_t vector) {
-    if (vector < MSI_VECTOR_BASE || vector > MSI_VECTOR_TOP) {
-        return false;
-    }
-
-    const uint32_t index = vector - MSI_VECTOR_BASE;
-    return msi_manager->devices[index].slow_consumer_detected;
-}
-
-bool msi_verify_ownership(const uint8_t vector, const uint64_t pid) {
-    if (vector < MSI_VECTOR_BASE || vector > MSI_VECTOR_TOP || !msi_manager) {
+    if (!MSI_VALID(vector)) {
         return false;
     }
 
     const uint64_t flags = spinlock_lock_irqsave(&msi_lock);
-
-    const uint32_t index = vector - MSI_VECTOR_BASE;
-    const MSIDevice *device = &msi_manager->devices[index];
-
-    const bool owned =
-            msi_manager->allocated_vectors[index] && device->owner_pid == pid;
-
+    const bool slow =
+            msi_manager->devices[MSI_INDEX(vector)].slow_consumer_detected;
     spinlock_unlock_irqrestore(&msi_lock, flags);
+
+    return slow;
+}
+
+bool msi_verify_ownership(const uint8_t vector, const uint64_t pid) {
+    if (!MSI_VALID(vector) || !msi_manager) {
+        return false;
+    }
+
+    const uint64_t flags = spinlock_lock_irqsave(&msi_lock);
+    const uint32_t idx = MSI_INDEX(vector);
+
+    const MSIDevice *dev = &msi_manager->devices[idx];
+    const bool owned =
+            msi_manager->allocated_vectors[idx] && (dev->owner_pid == pid);
+    spinlock_unlock_irqrestore(&msi_lock, flags);
+
     return owned;
 }
