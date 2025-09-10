@@ -15,6 +15,17 @@
 #include "x86_64/kdrivers/local_apic.h"
 #include "x86_64/kdrivers/msi.h"
 
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support nullptr yet - May 2025
+#ifndef nullptr
+#ifdef NULL
+#define nullptr NULL
+#else
+#define nullptr (((void *)0))
+#endif
+#endif
+#endif
+
 #ifdef DEBUG_MSI
 #define debugf kprintf
 #else
