@@ -172,6 +172,51 @@ static int xhci_init_usb_hcd(XhciHostController *xhci_hcd) {
     return 0;
 }
 
+static void xhci_clear_usbsts_interrupt(XhciHostController *xhci_hcd) {
+    const uint32_t usbsts = xhci_read32(&xhci_hcd->base, xhci_hcd->base.op_regs,
+                                        XHCI_OP_USBSTS);
+    if (usbsts & XHCI_STS_EINT) {
+        xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_USBSTS,
+                     XHCI_STS_EINT);
+        hcd_debugf("xHCI HCD: Cleared USBSTS.EINT (was 0x%08x)\n", usbsts);
+    }
+}
+
+static void xhci_update_erdp(XhciHostController *xhci_hcd, bool set_ehb) {
+    const uint64_t new_erdp =
+            xhci_hcd->event_ring.trbs_physical +
+            (xhci_hcd->event_ring.dequeue_index * sizeof(XhciTrb));
+
+    const uint64_t erdp_value = set_ehb ? (new_erdp | (1ULL << 3)) : new_erdp;
+
+    constexpr uint32_t interrupter_base = 0x20;
+    xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                 interrupter_base + 0x18, (uint32_t)(erdp_value & 0xFFFFFFFF));
+    xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                 interrupter_base + 0x1C, (uint32_t)(erdp_value >> 32));
+
+    hcd_debugf("xHCI HCD: Updated ERDP to 0x%016lx%s\n", erdp_value,
+               set_ehb ? " (with EHB)" : "");
+}
+
+static void xhci_clear_iman_interrupt(XhciHostController *xhci_hcd) {
+    constexpr uint32_t interrupter_base = 0x20;
+
+#ifdef DEBUG_XHCI_HCD
+    const uint32_t iman = xhci_read32(
+            &xhci_hcd->base, xhci_hcd->base.runtime_regs, interrupter_base);
+#endif
+
+    xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, interrupter_base,
+                 (1 << 1) | (1 << 0));
+
+    (void)xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
+                      interrupter_base);
+
+    hcd_debugf("xHCI HCD: Cleared interrupt pending bit (IMAN was 0x%08x)\n",
+               iman);
+}
+
 int xhci_hcd_init(XhciHostController *xhci_hcd, const uint64_t base_addr,
                   const uint64_t pci_config_base) {
 
@@ -1636,14 +1681,7 @@ int xhci_process_command_completion_event(XhciHostController *xhci_hcd) {
     hcd_debugf(
             "xHCI HCD: Processing command completion event from interrupt\n");
 
-    // CRITICAL: Write USBSTS first as required by xHCI spec for interrupt acknowledgment
-    const uint32_t usbsts = xhci_read32(&xhci_hcd->base, xhci_hcd->base.op_regs,
-                                        XHCI_OP_USBSTS);
-    if (usbsts & XHCI_STS_EINT) {
-        xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_USBSTS,
-                     XHCI_STS_EINT); // Clear EINT bit
-        hcd_debugf("xHCI HCD: Cleared USBSTS.EINT (was 0x%08x)\n", usbsts);
-    }
+    xhci_clear_usbsts_interrupt(xhci_hcd);
 
     // Store initial dequeue index to update ERDP later
     const uint32_t initial_dequeue = xhci_hcd->event_ring.dequeue_index;
@@ -1673,34 +1711,8 @@ int xhci_process_command_completion_event(XhciHostController *xhci_hcd) {
                        xhci_completion_code_string(completion_code));
 
             xhci_ring_inc_dequeue(&xhci_hcd->event_ring);
-
-            // Update ERDP (Event Ring Dequeue Pointer) and acknowledge interrupt
-            const uint64_t new_erdp =
-                    xhci_hcd->event_ring.trbs_physical +
-                    (xhci_hcd->event_ring.dequeue_index * sizeof(XhciTrb));
-
-            constexpr uint32_t interrupter_base = 0x20;
-
-            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                         interrupter_base + 0x18,
-                         (uint32_t)(new_erdp & 0xFFFFFFFF));
-            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                         interrupter_base + 0x1C, (uint32_t)(new_erdp >> 32));
-
-            // Clear interrupt pending bit in IMAN
-            const uint32_t iman =
-                    xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                                interrupter_base);
-            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                         interrupter_base, iman | (1 << 0));
-
-            // Flush posted writes with dummy read
-            (void)xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                              0x20);
-
-            hcd_debugf("xHCI HCD: Updated ERDP to 0x%016lx, cleared interrupt "
-                       "(IMAN was 0x%08x)\n",
-                       new_erdp, iman);
+            xhci_update_erdp(xhci_hcd, false);
+            xhci_clear_iman_interrupt(xhci_hcd);
 
             return (completion_code == XHCI_COMP_SUCCESS) ? 0 : -1;
         }
@@ -1712,35 +1724,12 @@ int xhci_process_command_completion_event(XhciHostController *xhci_hcd) {
     // Even if no command completion found, we should acknowledge the interrupt
     // Update ERDP if dequeue pointer changed
     if (xhci_hcd->event_ring.dequeue_index != initial_dequeue) {
-        const uint64_t new_erdp =
-                (xhci_hcd->event_ring.trbs_physical +
-                 (xhci_hcd->event_ring.dequeue_index * sizeof(XhciTrb))) |
-                (1ULL << 3); // Set EHB (Event Handler Busy) bit
-
-        constexpr uint32_t interrupter_base = 0x20;
-        xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                     interrupter_base + 0x18,
-                     (uint32_t)(new_erdp & 0xFFFFFFFF));
-        xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                     interrupter_base + 0x1C, (uint32_t)(new_erdp >> 32));
-        hcd_debugf("xHCI HCD: Updated ERDP to 0x%016lx\n", new_erdp);
+        xhci_update_erdp(xhci_hcd, true);
     }
 
-    // Clear interrupt pending bit while preserving interrupt enable
-#ifdef DEBUG_XHCI_HCD
-    const uint32_t iman =
-#endif
-            xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20);
-
-    xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20,
-                 (1 << 1) | (1 << 0)); // IE=1, IP=1 (clear)
-
-    // Flush posted writes with dummy read
-    (void)xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20);
-
+    xhci_clear_iman_interrupt(xhci_hcd);
     hcd_debugf("xHCI HCD: No command completion event found, but cleared "
-               "interrupt (IMAN was 0x%08x)\n",
-               iman);
+               "interrupt\n");
 
     return -1;
 }
@@ -1753,14 +1742,7 @@ int xhci_process_transfer_completion_event(XhciHostController *xhci_hcd) {
     hcd_debugf(
             "xHCI HCD: Processing transfer completion event from interrupt\n");
 
-    // CRITICAL: Write USBSTS first as required by xHCI spec for interrupt acknowledgment
-    const uint32_t usbsts = xhci_read32(&xhci_hcd->base, xhci_hcd->base.op_regs,
-                                        XHCI_OP_USBSTS);
-    if (usbsts & XHCI_STS_EINT) {
-        xhci_write32(&xhci_hcd->base, xhci_hcd->base.op_regs, XHCI_OP_USBSTS,
-                     XHCI_STS_EINT); // Clear EINT bit
-        hcd_debugf("xHCI HCD: Cleared USBSTS.EINT (was 0x%08x)\n", usbsts);
-    }
+    xhci_clear_usbsts_interrupt(xhci_hcd);
 
     // Store initial dequeue index to update ERDP later
     const uint32_t initial_dequeue = xhci_hcd->event_ring.dequeue_index;
@@ -1792,35 +1774,8 @@ int xhci_process_transfer_completion_event(XhciHostController *xhci_hcd) {
                        xhci_completion_code_string(completion_code));
 
             xhci_ring_inc_dequeue(&xhci_hcd->event_ring);
-
-            // Update ERDP and acknowledge interrupt
-            const uint64_t new_erdp =
-                    (xhci_hcd->event_ring.trbs_physical +
-                     (xhci_hcd->event_ring.dequeue_index * sizeof(XhciTrb))) |
-                    (1ULL << 3); // Set EHB (Event Handler Busy) bit
-            constexpr uint32_t interrupter_base = 0x20;
-            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                         interrupter_base + 0x18,
-                         (uint32_t)(new_erdp & 0xFFFFFFFF));
-            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                         interrupter_base + 0x1C, (uint32_t)(new_erdp >> 32));
-
-            // Clear interrupt pending bit while preserving interrupt enable
-#ifdef DEBUG_XHCI_HCD
-            const uint32_t iman =
-#endif
-                    xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                                0x20);
-            xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20,
-                         (1 << 1) | (1 << 0)); // IE=1, IP=1 (clear)
-
-            // Flush posted writes with dummy read
-            (void)xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                              0x20);
-
-            hcd_debugf("xHCI HCD: Acknowledged interrupt (ERDP=0x%016lx, "
-                       "IMAN=0x%08x)\n",
-                       new_erdp, iman);
+            xhci_update_erdp(xhci_hcd, true);
+            xhci_clear_iman_interrupt(xhci_hcd);
 
             return (completion_code == XHCI_COMP_SUCCESS) ? 0 : -1;
         }
@@ -1831,37 +1786,12 @@ int xhci_process_transfer_completion_event(XhciHostController *xhci_hcd) {
 
     // Update ERDP if dequeue pointer changed
     if (xhci_hcd->event_ring.dequeue_index != initial_dequeue) {
-        const uint64_t new_erdp =
-                (xhci_hcd->event_ring.trbs_physical +
-                 (xhci_hcd->event_ring.dequeue_index * sizeof(XhciTrb))) |
-                (1ULL << 3); // Set EHB (Event Handler Busy) bit
-
-        constexpr uint32_t interrupter_base = 0x20;
-
-        xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                     interrupter_base + 0x18,
-                     (uint32_t)(new_erdp & 0xFFFFFFFF));
-        xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs,
-                     interrupter_base + 0x1C, (uint32_t)(new_erdp >> 32));
-
-        hcd_debugf("xHCI HCD: Updated ERDP to 0x%016lx\n", new_erdp);
+        xhci_update_erdp(xhci_hcd, true);
     }
 
-    // Clear interrupt pending bit while preserving interrupt enable
-#ifdef DEBUG_XHCI_HCD
-    const uint32_t iman =
-#endif
-            xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20);
-
-    xhci_write32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20,
-                 (1 << 1) | (1 << 0)); // IE=1, IP=1 (clear)
-
-    // Flush posted writes with dummy read
-    (void)xhci_read32(&xhci_hcd->base, xhci_hcd->base.runtime_regs, 0x20);
-
+    xhci_clear_iman_interrupt(xhci_hcd);
     hcd_debugf("xHCI HCD: No transfer completion event found, but cleared "
-               "interrupt (IMAN was 0x%08x)\n",
-               iman);
+               "interrupt\n");
 
     return -1;
 }
