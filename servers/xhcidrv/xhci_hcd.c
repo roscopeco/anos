@@ -15,6 +15,7 @@
 #include <anos/syscalls.h>
 
 #include "include/pci.h"
+#include "include/xhci.h"
 #include "include/xhci_hcd.h"
 #include "usb/usb_core.h"
 #include "usb/usb_spec.h"
@@ -295,11 +296,14 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, const uint64_t base_addr,
         return -1;
     }
 
-    // Configure MSI interrupt if available
+    // Configure MSI interrupt (if available)
     if (xhci_hcd->base.msi_cap_offset != 0) {
-        // Generate fake bus/device/function for interrupt allocation
-        // TODO: Get real PCI bus/device/function from system
-        constexpr uint32_t bus_device_func = 0x010000; // Mock PCI address
+        // PCIe ECAM format: Base + (Bus << 20) + (Device << 15) + (Function << 12)
+        const uint64_t pci_offset = pci_config_base - PCI_CONFIG_BASE_ADDRESS;
+        const uint8_t bus = (pci_offset >> 20) & 0xFF;
+        const uint8_t device = (pci_offset >> 15) & 0x1F;
+        const uint8_t function = (pci_offset >> 12) & 0x7;
+        const uint32_t bus_device_func = (bus << 16) | (device << 8) | function;
 
         uint64_t msi_address;
         uint32_t msi_data;
@@ -310,7 +314,7 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, const uint64_t base_addr,
         if (alloc_result.result == SYSCALL_OK && alloc_result.value != 0) {
             const uint8_t vector = alloc_result.value;
 
-            // Check what type of capability we have
+            // what type of capability do we have?
             const uint8_t cap_id =
                     xhci_pci_read8(xhci_hcd->base.pci_config_virt,
                                    xhci_hcd->base.msi_cap_offset);
@@ -435,6 +439,7 @@ int xhci_hcd_set_address(UsbHostController *hcd, UsbDevice *device,
                device->port_number);
 
     // Allocate device slot if not already done
+    // TODO still passing in an address, and ignoring it!
     uint8_t slot_id = (uint8_t)(uintptr_t)device->hcd_private;
     if (slot_id == 0) {
         slot_id = xhci_alloc_device_slot(xhci_hcd);
@@ -649,7 +654,7 @@ int xhci_hcd_disable_port(UsbHostController *hcd, uint8_t port) {
 
 XhciHostController *xhci_hcd_from_usb_hcd(UsbHostController *hcd) {
     if (!hcd || !hcd->private_data) {
-        return NULL;
+        return nullptr;
     }
     return (XhciHostController *)hcd->private_data;
 }
@@ -1049,10 +1054,11 @@ int xhci_setup_endpoint_ring(XhciHostController *xhci_hcd, uint8_t slot_id,
     }
 
     XhciRing *ring = xhci_hcd->endpoint_rings[slot_id][endpoint_id];
+
     if (xhci_ring_init(ring, XHCI_RING_SIZE) != 0) {
         hcd_debugf("xHCI HCD: Failed to initialize endpoint ring\n");
         free(ring);
-        xhci_hcd->endpoint_rings[slot_id][endpoint_id] = NULL;
+        xhci_hcd->endpoint_rings[slot_id][endpoint_id] = nullptr;
         return -1;
     }
 
@@ -1118,24 +1124,27 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
     ep0_context[0] = (4 << 3); // EP Type = Control (4), State = Disabled (0)
 
     // EP0 Context DW1: Max Packet Size
-    uint16_t max_packet_size =
-            64; // Default, should be updated after getting device descriptor
+    uint16_t max_packet_size = 64;
+
     switch (device->speed) {
     case 1:
         max_packet_size = 8;
         break; // Low speed
     case 2:
-        max_packet_size = 64;
-        break; // Full speed
     case 3:
         max_packet_size = 64;
-        break; // High speed
+        break; // Full speed or high speed
     case 4:
         max_packet_size = 512;
         break; // Super speed
+    default:
+        // Unknown speed, leave size alone
+        // TODO should probably.... error out here, I guess?
+        max_packet_size = 64;
     }
-    ep0_context[1] = (max_packet_size << 16) |
-                     (3 << 1); // Max packet size and Error Count = 3
+
+    // Max packet size and Error Count = 3
+    ep0_context[1] = (max_packet_size << 16) | (3 << 1);
 
     // Set up endpoint 0 transfer ring
     if (xhci_setup_endpoint_ring(xhci_hcd, slot_id, 0) != 0) {
@@ -1144,7 +1153,8 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
     }
 
     // Set Transfer Ring Base Address (TRBA) in endpoint context - DW2/DW3
-    XhciRing *ep0_ring = xhci_hcd->endpoint_rings[slot_id][0];
+    const XhciRing *ep0_ring = xhci_hcd->endpoint_rings[slot_id][0];
+
     ep0_context[2] =
             (uint32_t)(ep0_ring->trbs_physical & 0xFFFFFFFF) | 1; // DCS = 1
     ep0_context[3] = (uint32_t)(ep0_ring->trbs_physical >> 32);
@@ -1158,7 +1168,7 @@ int xhci_setup_device_context(XhciHostController *xhci_hcd, uint8_t slot_id,
     }
 
     // Map device context
-    SyscallResult device_ctx_map = anos_map_physical(
+    const SyscallResult device_ctx_map = anos_map_physical(
             device_ctx_alloc.value,
             (void *)(0xB00000000 + device_ctx_alloc.value), VM_PAGE_SIZE,
             ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE |
@@ -1304,6 +1314,9 @@ int xhci_submit_interrupt_transfer(XhciHostController *xhci_hcd,
 int xhci_build_control_transfer_trbs(XhciHostController *xhci_hcd,
                                      UsbTransfer *transfer,
                                      const uint8_t slot_id) {
+
+    // TODO Holy shit this needs refactoring...
+
     if (!xhci_hcd || !transfer || !transfer->setup_packet) {
         return -1;
     }

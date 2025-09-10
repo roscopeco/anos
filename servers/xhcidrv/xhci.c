@@ -39,7 +39,6 @@
 #define init_vdebugf(...)
 #endif
 
-#define PCI_CONFIG_BASE_ADDRESS 0xC000000000ULL
 #define XHCI_VIRTUAL_BASE 0x400000000
 
 uint32_t xhci_read32(const XHCIController *controller, volatile void *base,

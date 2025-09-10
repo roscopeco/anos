@@ -11,6 +11,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// PCI Configuration
+#define PCI_CONFIG_BASE_ADDRESS 0xC000000000ULL
+
 // xHCI Register Offsets
 #define XHCI_CAP_CAPLENGTH 0x00
 #define XHCI_CAP_HCIVERSION 0x02
