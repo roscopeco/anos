@@ -152,8 +152,7 @@ QEMU_BASEOPTS=																										\
 	-device usb-mouse,bus=xhci.0																					\
 	-device usb-kbd,bus=xhci.0																						\
 	-chardev null,id=usbterm																						\
-	-device usb-serial,chardev=usbterm,bus=xhci.0																	\
-	-device usb-net,bus=xhci.0																						\
+	-device usb-storage,bus=xhci.0,drive=stick																		\
 	-device ahci,id=ahci																							\
 	-device ide-hd,drive=drive0,bus=ahci.0																			\
 	-device VGA																										\
@@ -162,6 +161,7 @@ QEMU_BASEOPTS=																										\
 
 QEMU_UEFI_OPTS=																										\
 	-drive file=$(UEFI_IMG),if=none,format=raw,id=drive0															\
+	-drive file=stick.img,if=none,format=raw,id=stick																\
 	-drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd									\
 	-drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
 else
