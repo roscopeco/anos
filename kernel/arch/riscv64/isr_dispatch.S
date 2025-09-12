@@ -90,7 +90,7 @@ handle_user_ecall_\idx:
     addi    a7, a7, 4
     csrw    sepc, a7
     call    handle_syscall_69
-    j       handled_no_a0_\idx
+    j       handled_with_return_\idx
 
 handle_timer_interrupt_\idx:
     li      t0, 32
@@ -121,7 +121,8 @@ handle_page_fault_\idx:
 
 handled_\idx:
     ld      a0, 256(sp)
-handled_no_a0_\idx:
+    ld      a1, 248(sp)
+handled_with_return_\idx:
     ld      tp, 304(sp)
     ld      ra, 296(sp)
     lw      t0, 280(sp)
@@ -129,7 +130,6 @@ handled_no_a0_\idx:
     ld      t0, 288(sp)
     ld      t1, 272(sp)
     ld      t2, 264(sp)
-    ld      a1, 248(sp)
     ld      a2, 240(sp)
     ld      a3, 232(sp)
     ld      a4, 224(sp)
