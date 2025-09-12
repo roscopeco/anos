@@ -197,6 +197,7 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
 
         const uintptr_t entrypoint =
                 elf_map_elf64(&reader, on_program_header, sys_ramfs_cookie);
+
         if (entrypoint) {
             const ServerEntrypoint sep = (ServerEntrypoint)(entrypoint);
 
@@ -205,9 +206,9 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
             restore_stack_and_jump(initial_sp, sep);
         }
 
-        anos_kprint("Unable to load executable\n");
+        printf("Unable to load executable: %s\n", filename);
     } else {
-        anos_kprint("Unable to get size\n");
+        printf("No such file: %s\n", filename);
     }
 
     anos_kprint("Server exec failed. Dying.\n");

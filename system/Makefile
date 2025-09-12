@@ -26,6 +26,11 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #
 CDEFS=
 
+# We don't really have a RISC-V userspace yet, so always start the beep-boop test on that platform for now...
+ifeq ($(ARCH),riscv64)
+CDEFS+=-DTEST_BEEP_BOOP
+endif
+
 THIS_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 ROOT_DIR=$(abspath $(THIS_DIR)/..)
 
