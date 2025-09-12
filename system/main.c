@@ -797,7 +797,7 @@ int main(int argc, char **argv) {
                                               "Hello, world!"};
 
             const int64_t test_server_pid = create_server_process(
-                    0x100000, 3, new_process_caps, 2, test_server_argv);
+                    0x100000, 4, new_process_caps, 2, test_server_argv);
             if (test_server_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/test_server.elf");
