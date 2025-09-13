@@ -31,6 +31,7 @@ OPTIMIZE?=3
 XLD?=$(TARGET_TRIPLE)-ld
 XOBJCOPY?=$(TARGET_TRIPLE)-objcopy
 XOBJDUMP?=$(TARGET_TRIPLE)-objdump
+XSTRIP?=$(TARGET_TRIPLE)-strip
 QEMU?=qemu-system-$(ARCH)
 XCC?=$(TARGET_TRIPLE)-gcc
 BOCHS?=bochs
@@ -463,6 +464,8 @@ ifeq ($(ARCH),x86_64)
 $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).elf: $(ARCH_X86_64_REALMODE_OBJS)
 	$(XLD) -T $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).ld -o $@ $^
 	chmod a-x $@
+	cp $@ $(patsubst %.elf,%_debug.elf,$@)
+	$(XSTRIP) $@
 
 $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).dis: $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).elf
 	$(XOBJDUMP) -D -S -Maddr64,data64 $< > $@
@@ -479,6 +482,8 @@ endif
 $(STAGE3_DIR)/$(STAGE3).elf: $(STAGE3_OBJS)
 	$(XLD) -T $(STAGE3_DIR)/arch/$(ARCH)/$(STAGE3).ld -o $@ $^
 	chmod a-x $@
+	cp $@ $(patsubst %.elf,%_debug.elf,$@)
+	$(XSTRIP) $@
 
 $(STAGE3_DIR)/$(STAGE3).dis: $(STAGE3_DIR)/$(STAGE3).elf
 	$(XOBJDUMP) -D -S -Maddr64,data64 $< > $@
