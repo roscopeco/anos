@@ -31,6 +31,7 @@ OPTIMIZE?=3
 XLD?=$(TARGET_TRIPLE)-ld
 XOBJCOPY?=$(TARGET_TRIPLE)-objcopy
 XOBJDUMP?=$(TARGET_TRIPLE)-objdump
+XSTRIP?=$(TARGET_TRIPLE)-strip
 QEMU?=qemu-system-$(ARCH)
 XCC?=$(TARGET_TRIPLE)-gcc
 BOCHS?=bochs
@@ -148,7 +149,11 @@ QEMU_BASEOPTS=																										\
 	-m 256M																											\
 	-M q35																											\
 	-device ioh3420,bus=pcie.0,id=pcie.1,addr=1e																	\
-	-device qemu-xhci,bus=pcie.1																					\
+	-device qemu-xhci,bus=pcie.1,id=xhci																			\
+	-device usb-mouse,bus=xhci.0																					\
+	-device usb-kbd,bus=xhci.0																						\
+	-chardev null,id=usbterm																						\
+	-device usb-storage,bus=xhci.0,drive=stick																		\
 	-device ahci,id=ahci																							\
 	-device ide-hd,drive=drive0,bus=ahci.0																			\
 	-device VGA																										\
@@ -157,6 +162,7 @@ QEMU_BASEOPTS=																										\
 
 QEMU_UEFI_OPTS=																										\
 	-drive file=$(UEFI_IMG),if=none,format=raw,id=drive0															\
+	-drive file=stick.img,if=none,format=raw,id=stick																\
 	-drive if=pflash,format=raw,readonly=on,file=uefi/x86_64/ovmf/OVMF-pure-efi.fd									\
 	-drive if=pflash,format=raw,file=uefi/x86_64/ovmf/OVMF_VARS-pure-efi.fd
 else
@@ -458,6 +464,8 @@ ifeq ($(ARCH),x86_64)
 $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).elf: $(ARCH_X86_64_REALMODE_OBJS)
 	$(XLD) -T $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).ld -o $@ $^
 	chmod a-x $@
+	cp $@ $(patsubst %.elf,%_debug.elf,$@)
+	$(XSTRIP) $@
 
 $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).dis: $(STAGE3_ARCH_X86_64_DIR)/$(ARCH_X86_64_REALMODE).elf
 	$(XOBJDUMP) -D -S -Maddr64,data64 $< > $@
@@ -474,6 +482,8 @@ endif
 $(STAGE3_DIR)/$(STAGE3).elf: $(STAGE3_OBJS)
 	$(XLD) -T $(STAGE3_DIR)/arch/$(ARCH)/$(STAGE3).ld -o $@ $^
 	chmod a-x $@
+	cp $@ $(patsubst %.elf,%_debug.elf,$@)
+	$(XSTRIP) $@
 
 $(STAGE3_DIR)/$(STAGE3).dis: $(STAGE3_DIR)/$(STAGE3).elf
 	$(XOBJDUMP) -D -S -Maddr64,data64 $< > $@

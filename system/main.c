@@ -669,6 +669,12 @@ int main(int argc, char **argv) {
                             __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
                     .capability_id = SYSCALL_ID_DEBUG_CHAR,
             },
+            // N.B! malloc (via sbrk) in the stdlib needs create region cap!
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_CREATE_REGION],
+                    .capability_id = SYSCALL_ID_CREATE_REGION,
+            },
             {
                     .capability_cookie =
                             __syscall_capabilities[SYSCALL_ID_SLEEP],
@@ -791,7 +797,7 @@ int main(int argc, char **argv) {
                                               "Hello, world!"};
 
             const int64_t test_server_pid = create_server_process(
-                    0x100000, 3, new_process_caps, 2, test_server_argv);
+                    0x100000, 4, new_process_caps, 2, test_server_argv);
             if (test_server_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/test_server.elf");
@@ -801,7 +807,7 @@ int main(int argc, char **argv) {
             const char *devman_argv[] = {"boot:/devman.elf"};
 
             const int64_t devman_pid = create_server_process(
-                    0x100000, 16, new_process_caps, 1, devman_argv);
+                    0x100000, 17, new_process_caps, 1, devman_argv);
             if (devman_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/devman.elf");
@@ -813,7 +819,7 @@ int main(int argc, char **argv) {
 
                 // Store capabilities for filesystem drivers
                 global_fs_caps = new_process_caps;
-                global_fs_cap_count = 16;
+                global_fs_cap_count = 17;
 
                 // Start filesystem starter thread
                 const SyscallResult fs_thread_result = anos_create_thread(

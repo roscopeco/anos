@@ -17,6 +17,9 @@
 void spawn_ahci_driver(uint64_t ahci_base, uint64_t pci_config_base,
                        uint64_t pci_device_id);
 
+void spawn_xhci_driver(uint64_t xhci_base, uint64_t pci_config_base,
+                       uint64_t pci_device_id);
+
 static uint64_t
 register_pci_device(const PCIBusDriver *bus_driver, const uint8_t bus,
                     const uint8_t device, const uint8_t function,
@@ -165,6 +168,54 @@ void pci_enumerate_function(const PCIBusDriver *bus_driver, const uint8_t bus,
                     ((uint64_t)device << 15) + ((uint64_t)function << 12);
 
             spawn_ahci_driver(ahci_base, pci_config_base, pci_device_id);
+        }
+    }
+
+    // Check for xHCI controller (USB 3.0)
+    if (class_code == 0x0C && subclass == 0x03 && prog_if == 0x30) {
+
+        // For xHCI, use BAR0 to get the base address
+        const uint32_t bar0_low =
+                pci_config_read32(bus_driver, bus, device, function, 0x10);
+#ifdef DEBUG_BUS_DRIVER_ENUM
+        const uint32_t bar0_high =
+                pci_config_read32(bus_driver, bus, device, function, 0x14);
+
+#ifdef VERY_NOISY_BUS_DRIVER
+        printf("\nDEBUG: BAR0 raw values: low=0x%08x high=0x%08x\n", bar0_low,
+               bar0_high);
+#endif
+#endif
+
+        if (bar0_low != 0 && bar0_low != 0xFFFFFFFF) {
+            uint64_t xhci_base = (bar0_low & 0xFFFFFFF0);
+
+#ifdef DEBUG_BUS_DRIVER_ENUM
+            // Check if it's a 64-bit BAR
+            if ((bar0_low & 0x6) == 0x4) {
+                xhci_base |= ((uint64_t)bar0_high << 32);
+#ifdef VERY_NOISY_BUS_DRIVER
+                printf("DEBUG: 64-bit BAR detected\n");
+#endif
+            } else {
+#ifdef VERY_NOISY_BUS_DRIVER
+                printf("DEBUG: 32-bit BAR detected\n");
+#endif
+            }
+
+            printf(" [xHCI Controller - Base: 0x%016lx]", xhci_base);
+#else
+            printf("Found: xHCI Controller at 0x%016lx; Starting "
+                   "driver...\n",
+                   xhci_base);
+#endif
+
+            // Calculate PCI configuration space base for this device
+            const uint64_t pci_config_base =
+                    bus_driver->ecam_base + ((uint64_t)bus << 20) +
+                    ((uint64_t)device << 15) + ((uint64_t)function << 12);
+
+            spawn_xhci_driver(xhci_base, pci_config_base, pci_device_id);
         }
     }
 
