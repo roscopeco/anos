@@ -9,6 +9,7 @@ native_tests/printhex
 **/*.o
 **/*.elf
 **/*.dis
+**/*.img
 kernel/tests/build
 system/tests/build
 servers/pcidrv/tests/build

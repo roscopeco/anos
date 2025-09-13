@@ -185,9 +185,19 @@ SHORT_HASH?=`git rev-parse --short HEAD`
 STAGE3?=kernel
 SYSTEM?=system
 ARCH_X86_64_REALMODE?=realmode
+
 STAGE3_DIR?=$(STAGE3)
 SYSTEM_DIR?=$(SYSTEM)
-SYSTEM_BIN=$(SYSTEM).bin
+SYSTEM_ELF?=$(SYSTEM).elf
+SYSTEM_BIN?=$(SYSTEM).img
+
+export STAGE3
+export STAGE3_DIR
+export SYSTEM
+export SYSTEM_DIR
+export SYSTEM_ELF
+export SYSTEM_BIN
+
 ARCH_X86_64_REALMODE_BIN=$(ARCH_X86_64_REALMODE).bin
 
 STAGE3_INC=-I$(STAGE3)/include -I$(STAGE3)/arch/$(ARCH)/include
@@ -494,7 +504,7 @@ UEFI_APPLICATION=uefi/$(ARCH)/limine/BOOTRISCV64.EFI
 endif
 endif
 
-$(UEFI_IMG): $(STAGE3_DIR)/$(STAGE3).elf $(SYSTEM_DIR)/$(SYSTEM).bin $(UEFI_CONF) $(UEFI_BOOT_WALLPAPER) $(UEFI_APPLICATION)
+$(UEFI_IMG): $(STAGE3_DIR)/$(STAGE3).elf $(SYSTEM_DIR)/$(SYSTEM_BIN) $(UEFI_CONF) $(UEFI_BOOT_WALLPAPER) $(UEFI_APPLICATION)
 	dd of=$@ if=/dev/zero bs=8M count=1
 	mformat -T 16384 -v ANOSDISK002 -i $@ ::
 	mmd -i $@ EFI
