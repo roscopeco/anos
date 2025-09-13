@@ -52,7 +52,7 @@ static_assert(IDLE_STACK_BLOCKS > 0,
 extern MemoryRegion *physical_region;
 
 extern void *_system_bin_start;
-extern void *_system_bin_end;
+extern size_t _system_bin_size;
 
 // we set this in limine_entrypoint, appropriately for the arch...
 extern uintptr_t _system_bin_start_phys;
@@ -114,13 +114,14 @@ noreturn void start_system_ap(uint8_t cpu_id) {
 }
 
 noreturn void start_system(void) {
-    const uint64_t system_start_virt = 0x1000000;
-    const uint64_t system_len_bytes =
-            (uint64_t)&_system_bin_end - (uint64_t)&_system_bin_start;
-    const uint64_t system_len_pages = system_len_bytes >> VM_PAGE_LINEAR_SHIFT;
+    const uint64_t system_len_bytes = _system_bin_size;
+    const uint64_t system_len_pages =
+            (system_len_bytes + VM_PAGE_SIZE - 1) >> VM_PAGE_LINEAR_SHIFT;
 
     // Map pages for the user code
     for (int i = 0; i < system_len_pages; i++) {
+        constexpr uint64_t system_start_virt = 0x1000000;
+
         vmm_map_page(system_start_virt + (i << 12),
                      _system_bin_start_phys + (i << 12),
                      PG_PRESENT | PG_READ | PG_EXEC | PG_USER);

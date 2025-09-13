@@ -295,8 +295,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/vmm/vmm_shootdown.o									\
 			$(STAGE3_DIR)/process/address_space.o								\
 			$(STAGE3_DIR)/sched/mutex.o											\
-			$(STAGE3_ARCH_OBJS)													\
-			$(SYSTEM)_linkable.o
+			$(STAGE3_ARCH_OBJS)
 else
 ifeq ($(ARCH),riscv64)
 STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
@@ -444,8 +443,7 @@ $(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile
 	$(MAKE) -C $(SYSTEM_DIR)
 
 ifeq ($(ARCH),x86_64)
-$(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
-	$(XOBJCOPY) -I binary --rename-section .data=.$(SYSTEM)_bin -O elf64-x86-64 --binary-architecture i386:x86-64 $< $@
+# Nothing to do - system is now loaded by the bootloader on x86_64
 else
 ifeq ($(ARCH),riscv64)
 $(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
@@ -494,7 +492,7 @@ UEFI_APPLICATION=uefi/$(ARCH)/limine/BOOTRISCV64.EFI
 endif
 endif
 
-$(UEFI_IMG): $(STAGE3_DIR)/$(STAGE3).elf $(UEFI_CONF) $(UEFI_BOOT_WALLPAPER) $(UEFI_APPLICATION)
+$(UEFI_IMG): $(STAGE3_DIR)/$(STAGE3).elf $(SYSTEM_DIR)/$(SYSTEM).bin $(UEFI_CONF) $(UEFI_BOOT_WALLPAPER) $(UEFI_APPLICATION)
 	dd of=$@ if=/dev/zero bs=8M count=1
 	mformat -T 16384 -v ANOSDISK002 -i $@ ::
 	mmd -i $@ EFI
@@ -503,6 +501,7 @@ $(UEFI_IMG): $(STAGE3_DIR)/$(STAGE3).elf $(UEFI_CONF) $(UEFI_BOOT_WALLPAPER) $(U
 	mcopy -i $@ $(UEFI_BOOT_WALLPAPER) ::/EFI/BOOT/anos.jpg
 	mcopy -i $@ $(UEFI_APPLICATION) ::/EFI/BOOT
 	mcopy -i $@ $(STAGE3_DIR)/$(STAGE3).elf ::
+	mcopy -i $@ $(SYSTEM_DIR)/$(SYSTEM_BIN) ::
 
 ifeq ($(ARCH),riscv64)
 uefi/riscv64/edk2/RISCV_VIRT_VARS.fd: 

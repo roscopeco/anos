@@ -111,21 +111,22 @@ _start_limine:
 ;
 ; Arguments (mostly passed through):
 ;
-;   rdi - framebuffer width
-;   rsi - framebuffer height
-;   rdx - virtual address for new stack top
-;   rcx - physical address of new PML4
-;   r8  - address to bounce off to
+;   rdi - system size
+;   rsi - framebuffer width
+;   rdx - framebuffer height
+;   rcx - virtual address for new stack top
+;   r8  - physical address of new PML4
+;   r9  - address to bounce off to
 ;   
 bootstrap_trampoline:                     ; (... except this bit, we'll pop back in a bit for this...)
-  mov   cr3,rcx
-  mov   rsp,rdx                           ; (... because C doesn't appreciate having the stack changed...)
+  mov   cr3,r8
+  mov   rsp,rcx                           ; (... because C doesn't appreciate having the stack changed...)
 
   push  0                                 ; Set up a fake stack frame for backtracing
   push  bootstrap_trampoline
   mov   rbp,0
 
-  push  r8                                ; And let's get back to it!
+  push  r9                                ; And let's get back to it!
   ret
 
 

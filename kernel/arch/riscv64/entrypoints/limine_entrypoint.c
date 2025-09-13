@@ -156,8 +156,15 @@ extern uint64_t _bss_end;
 extern uint64_t _code;
 
 extern void *_system_bin_start;
+extern void *_system_bin_end;
 
 uintptr_t _system_bin_start_phys;
+
+// We can infer this on RISC-V currently since the system binary is linked
+// into the kernel, but for compatibility with the non-arch-specific code,
+// let's just define it. We'll need it later anyhow when we separate the
+// system bin from the kernel on this arch too...
+size_t _system_bin_size;
 
 static Limine_MemMap static_memmap;
 static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
@@ -657,8 +664,17 @@ static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
     //
     // IOW we have a baseline environment.
     //
+    _system_bin_size =
+            (uintptr_t)&_system_bin_end - (uintptr_t)&_system_bin_start;
 
     debugterm_reinit((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
+
+    if (_system_bin_size == 0) {
+        // No system module passed, fail early for now.
+        debugstr(
+                "No system module loaded - check bootloader config. Halting\n");
+        halt_and_catch_fire();
+    }
 
     sbi_debug_info();
 
