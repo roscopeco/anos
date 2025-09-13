@@ -53,6 +53,12 @@
     {LIMINE_COMMON_MAGIC, 0x9d5827dcd881dd75, 0xa3148604f6fab11b}
 #define LIMINE_HHDM_REQUEST                                                    \
     {LIMINE_COMMON_MAGIC, 0x48dcf1cb8ad2b852, 0x63984e959a98244b}
+#define LIMINE_MODULE_REQUEST                                                  \
+    {LIMINE_COMMON_MAGIC, 0x3e7e279702be32af, 0xca1c4f3bd1280cee}
+
+#define LIMINE_MEDIA_TYPE_GENERIC 0
+#define LIMINE_MEDIA_TYPE_OPTICAL 1
+#define LIMINE_MEDIA_TYPE_TFTP 2
 
 #ifdef DEBUG_MEMMAP
 void debug_memmap_limine(Limine_MemMap *memmap);
@@ -136,6 +142,50 @@ typedef struct {
     Limine_HHDM *response;
 } __attribute__((packed)) Limine_HHDMRequest;
 
+typedef struct {
+    const char *path;
+    const char *string;
+    uint64_t flags;
+} __attribute__((packed)) Limine_InternalModule;
+
+typedef struct {
+    uint32_t a;
+    uint16_t b;
+    uint16_t c;
+    uint8_t d[8];
+} __attribute__((packed)) Limine_UUID;
+
+typedef struct {
+    uint64_t revision;
+    void *address;
+    uint64_t size;
+    char *path;
+    char *string;
+    uint32_t media_type;
+    uint32_t unused;
+    uint32_t tftp_ip;
+    uint32_t tftp_port;
+    uint32_t partition_index;
+    uint32_t mbr_disk_id;
+    Limine_UUID gpt_disk_uuid;
+    Limine_UUID gpt_part_uuid;
+    Limine_UUID part_uuid;
+} __attribute__((packed)) Limine_File;
+
+typedef struct {
+    uint64_t revision;
+    uint64_t module_count;
+    Limine_File **modules;
+} __attribute__((packed)) Limine_ModuleResponse;
+
+typedef struct {
+    uint64_t id[4];
+    uint64_t revision;
+    Limine_ModuleResponse *response;
+    uint64_t internal_module_count;
+    struct Limine_InternalModule **internal_modules;
+} __attribute__((packed)) Limine_ModuleRequest;
+
 static volatile Limine_MemMapRequest limine_memmap_request
         __attribute__((__aligned__(8))) = {
                 .id = LIMINE_MEMMAP_REQUEST,
@@ -160,6 +210,13 @@ static volatile Limine_HHDMRequest limine_hhdm_request
                 .revision = 3,
 };
 
+static volatile Limine_ModuleRequest limine_module_request
+        __attribute__((__aligned__(8))) = {
+                .id = LIMINE_MODULE_REQUEST,
+                .revision = 3,
+                .internal_module_count = 0,
+};
+
 extern uint64_t _kernel_vma_start;
 extern uint64_t _kernel_vma_end;
 extern uint64_t _bss_end;
@@ -173,6 +230,10 @@ extern void *_system_bin_start;
 // just infer this...
 uintptr_t _system_bin_start_phys;
 
+// We need this later when starting system, we set it here because it's
+// based on the size of the module limine loads for us...
+size_t _system_bin_size;
+
 static Limine_MemMap static_memmap;
 static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
 static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
@@ -182,16 +243,20 @@ static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
 // doesn't care where they are...
 static ACPI_RSDP static_rsdp;
 
+static uint64_t module_count;
+
 // Externals
 noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys);
-noreturn void bootstrap_trampoline(uint16_t fb_width, uint16_t fb_height,
-                                   uintptr_t new_stack, uintptr_t new_pt_phys,
-                                   void *boing);
+noreturn void bootstrap_trampoline(size_t system_size, uint16_t fb_width,
+                                   uint16_t fb_height, uintptr_t new_stack,
+                                   uintptr_t new_pt_phys, void *boing);
 
 // Forwards
-static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height);
+static noreturn void bootstrap_continue(size_t system_size, uint16_t fb_width,
+                                        uint16_t fb_height);
 
 noreturn void bsp_kernel_entrypoint_limine() {
+    module_count = limine_module_request.response->module_count;
 
     // grab stuff we need - memmap first. We'll copy it into a static buffer for ease...
     static_memmap.entries = (Limine_MemMapEntry **)&static_memmap_pointers;
@@ -212,13 +277,13 @@ noreturn void bsp_kernel_entrypoint_limine() {
     }
 
     // framebuffer - assume it's direct mapped so we can just subtract the offset to get its phys...
-    uintptr_t fb_phys =
+    const uintptr_t fb_phys =
             (uintptr_t)limine_framebuffer_request.response->framebuffers[0]
                     ->address -
             limine_hhdm_request.response->offset;
-    uint16_t fb_width =
+    const uint16_t fb_width =
             limine_framebuffer_request.response->framebuffers[0]->width;
-    uint16_t fb_height =
+    const uint16_t fb_height =
             limine_framebuffer_request.response->framebuffers[0]->height;
 
     // RSDP
@@ -254,6 +319,22 @@ noreturn void bsp_kernel_entrypoint_limine() {
                             KERNEL_CODE_PHYS);
     memcpy(new_base, &_code,
            ((uintptr_t)&_kernel_vma_end) - ((uintptr_t)&_code));
+
+    //
+    // .. and finally the system/ramfs binary. This is expected to be
+    // right at the end of the kernel, per the link script.
+    size_t system_size = 0;
+
+    if (limine_module_request.response->module_count == 1) {
+        // TODO check name to make sure it's our module / we only have one!
+        system_size = limine_module_request.response->modules[0]->size;
+        new_base = (uint64_t *)(((uintptr_t)new_base +
+                                 ((uintptr_t)&_system_bin_start) -
+                                 ((uintptr_t)&_code)));
+
+        memcpy(new_base, limine_module_request.response->modules[0]->address,
+               system_size);
+    }
 
     // Set up the static pagetables the kernel expects to exist...
     uint64_t volatile *new_pml4 =
@@ -294,11 +375,12 @@ noreturn void bsp_kernel_entrypoint_limine() {
     new_pd[0x13] = (fb_phys + 0x600000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE |
                    PG_PAT_LARGE;
 
-    bootstrap_trampoline(fb_width, fb_height, KERNEL_INIT_STACK_TOP, PM4_START,
-                         bootstrap_continue);
+    bootstrap_trampoline(system_size, fb_width, fb_height,
+                         KERNEL_INIT_STACK_TOP, PM4_START, bootstrap_continue);
 }
 
-static noreturn void bootstrap_continue(const uint16_t fb_width,
+static noreturn void bootstrap_continue(const size_t system_size,
+                                        const uint16_t fb_width,
                                         const uint16_t fb_height) {
     // We're now on our own pagetables, and have essentially the same setup as
     // we do on entry from STAGE2 when BIOS booting.
@@ -308,8 +390,16 @@ static noreturn void bootstrap_continue(const uint16_t fb_width,
     // Stash this for later - because we're still mapping the kernel code space,
     // we can just infer it for now...
     _system_bin_start_phys = (uint64_t)&_system_bin_start & ~0xFFFFFFFF80000000;
+    _system_bin_size = system_size;
 
     debugterm_init((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
+
+    if (system_size == 0) {
+        // No system module passed, fail early for now.
+        debugstr(
+                "No system module loaded - check bootloader config. Halting\n");
+        halt_and_catch_fire();
+    }
 
     init_kernel_gdt();
     install_interrupts();
