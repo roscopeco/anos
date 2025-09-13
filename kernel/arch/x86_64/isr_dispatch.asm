@@ -68,6 +68,7 @@ pic_irq_handler:
 ; (vector 0x2f) because we should be sending EOI to the master PIC in that case...
 
 bsp_timer_interrupt_handler:
+    cld
     irq_conditional_swapgs
     pusha_sysv
 
@@ -80,6 +81,7 @@ bsp_timer_interrupt_handler:
     iretq
 
 ap_timer_interrupt_handler:
+    cld
     irq_conditional_swapgs
     pusha_sysv
 
@@ -92,6 +94,7 @@ ap_timer_interrupt_handler:
     iretq
 
 syscall_69_handler:
+    cld
     irq_conditional_swapgs                  ; Syscalls are set up to mask interrupts...
     pusha_sysv_not_rax
 
@@ -106,6 +109,7 @@ syscall_69_handler:
 
 ; ISR dispatcher for Unknown (unhandled) IRQs
 unknown_interrupt_handler:
+    cld
     irq_conditional_swapgs
     pusha_sysv
 
@@ -122,6 +126,7 @@ spurious_irq_count  dq  0
 
 ; Page fault handler (only once task subsystem is up)
 page_fault_dispatcher:
+    cld
     trap_conditional_swapgs_with_code
     pusha_sysv                              ; Push all caller-saved registers
 
@@ -146,6 +151,7 @@ page_fault_dispatcher:
 
 ; Double fault handler
 double_fault_dispatcher:
+    cld
     irq_conditional_swapgs
     pusha_sysv                              ; Push all caller-saved registers
 
