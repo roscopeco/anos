@@ -15,6 +15,7 @@ extern ipwi_ipi_handler
 ; matter now we use NMI...)
 ;
 ipwi_ipi_dispatcher:
+    cld
     irq_conditional_swapgs
     pusha_sysv                              ; Push all caller-saved registers
 

@@ -21,6 +21,7 @@ msi_generic_handler:
     ;       use the trap_with_code conditional swap, which adds an extra
     ;       8 bytes to the stack offset to account for that...
 
+    cld
     trap_conditional_swapgs_with_code       ; Switch to kernel GS if needed
     pusha_sysv                              ; Push all caller-saved regs
 

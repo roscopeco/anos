@@ -93,6 +93,7 @@
 %macro trap_dispatcher_with_code 1          ; General handler for traps that stack an error code
 global trap_dispatcher_%+%1                 ; Ensure declared global
 trap_dispatcher_%+%1:                       ; Name e.g. `trap_dispatcher_0`
+    cld
     trap_conditional_swapgs_with_code
     pusha_sysv                              ; Push all caller-saved registers
 
@@ -121,6 +122,7 @@ trap_dispatcher_%+%1:                       ; Name e.g. `trap_dispatcher_0`
 %macro trap_dispatcher_no_code 1            ; General handler for traps that stack an error code
 global trap_dispatcher_%+%1                 ; Ensure declared global
 trap_dispatcher_%+%1:                       ; Name e.g. `trap_dispatcher_1`
+    cld
     trap_conditional_swapgs_no_code
     pusha_sysv                              ; Push all caller-saved registers
 
