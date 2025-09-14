@@ -14,17 +14,16 @@
 #include "debugprint.h"
 #include "kprintf.h"
 #include "machine.h"
-#include "panic.h"
-#include "platform.h"
 #include "pmm/pagealloc.h"
+#include "vmm/vmconfig.h"
+
+#include "platform/bootloaders/limine.h"
+
+#include "riscv64/interrupts.h"
 #include "riscv64/kdrivers/cpu.h"
 #include "riscv64/pmm/config.h"
 #include "riscv64/sbi.h"
 #include "riscv64/vmm/vmmapper.h"
-#include "std/string.h"
-#include "vmm/vmconfig.h"
-
-#include "riscv64/interrupts.h"
 
 #define MAX_MEMMAP_ENTRIES 64
 
@@ -34,16 +33,6 @@
 #define KERNEL_INIT_STACK_TOP ((STATIC_KERNEL_SPACE + KERNEL_BSS_PHYS))
 
 #define KERNEL_FRAMEBUFFER ((0xffffffff82000000))
-
-#define LIMINE_COMMON_MAGIC 0xc7b1dd30df4c8b88, 0x0a82e883a194f07b
-#define LIMINE_MEMMAP_REQUEST                                                  \
-    {LIMINE_COMMON_MAGIC, 0x67cf3d9d378a806f, 0xe304acdfc50c3c62}
-#define LIMINE_RSDP_REQUEST                                                    \
-    {LIMINE_COMMON_MAGIC, 0xc5e77b6b397e7b43, 0x27637845accdcf3c}
-#define LIMINE_FRAMEBUFFER_REQUEST                                             \
-    {LIMINE_COMMON_MAGIC, 0x9d5827dcd881dd75, 0xa3148604f6fab11b}
-#define LIMINE_HHDM_REQUEST                                                    \
-    {LIMINE_COMMON_MAGIC, 0x48dcf1cb8ad2b852, 0x63984e959a98244b}
 
 #ifdef DEBUG_VMM
 #define vmm_debugf(...) kprintf(__VA_ARGS__)
@@ -62,71 +51,6 @@ void debug_memmap_limine(Limine_MemMap *memmap);
 #else
 #define debug_memmap_limine(...)
 #endif
-
-typedef struct {
-    uint64_t id[4];
-    uint64_t revision;
-    Limine_MemMap *memmap;
-} __attribute__((packed)) Limine_MemMapRequest;
-
-typedef struct {
-    uint64_t pitch;
-    uint64_t width;
-    uint64_t height;
-    uint16_t bpp;
-    uint8_t memory_model;
-    uint8_t red_mask_size;
-    uint8_t red_mask_shift;
-    uint8_t green_mask_size;
-    uint8_t green_mask_shift;
-    uint8_t blue_mask_size;
-    uint8_t blue_mask_shift;
-} __attribute__((packed)) Limine_VideoMode;
-
-typedef struct {
-    void *address;
-    uint64_t width;
-    uint64_t height;
-    uint64_t pitch;
-    uint16_t bpp; // Bits per pixel
-    uint8_t memory_model;
-    uint8_t red_mask_size;
-    uint8_t red_mask_shift;
-    uint8_t green_mask_size;
-    uint8_t green_mask_shift;
-    uint8_t blue_mask_size;
-    uint8_t blue_mask_shift;
-    uint8_t unused[7];
-    uint64_t edid_size;
-    void *edid;
-
-    /* Response revision 1 */
-    uint64_t mode_count;
-    Limine_VideoMode **modes;
-} __attribute__((packed)) Limine_FrameBuffer;
-
-typedef struct {
-    uint64_t revision;
-    uint64_t framebuffer_count;
-    Limine_FrameBuffer **framebuffers;
-} __attribute__((packed)) Limine_FrameBuffers;
-
-typedef struct {
-    uint64_t id[4];
-    uint64_t revision;
-    Limine_FrameBuffers *response;
-} __attribute__((packed)) Limine_FrameBufferRequest;
-
-typedef struct {
-    uint64_t revision;
-    uint64_t offset;
-} __attribute__((packed)) Limine_HHDM;
-
-typedef struct {
-    uint64_t id[4];
-    uint64_t revision;
-    Limine_HHDM *response;
-} __attribute__((packed)) Limine_HHDMRequest;
 
 static volatile Limine_MemMapRequest limine_memmap_request
         __attribute__((__aligned__(8))) = {
