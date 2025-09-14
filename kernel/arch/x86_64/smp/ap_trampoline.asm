@@ -156,9 +156,6 @@ main64:
 
 align 16
 
-; TODO This is copied pretty-much verbatim from Stage 2!
-;
-
 AP_GDT:
   ; segment 0 - null
   dq 0
