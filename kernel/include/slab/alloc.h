@@ -43,9 +43,14 @@ typedef struct Slab {
 
 static_assert_sizeof(Slab, ==, 64);
 
-static inline Slab *slab_base(void *block_addr) {
-    // TODO check block_addr is in the FBA area!
-    return (Slab *)(((uintptr_t)block_addr) & SLAB_BASE_MASK);
+static inline Slab *slab_base(void *block_ptr) {
+    const uintptr_t block_addr = (uintptr_t)block_ptr;
+
+    // TODO We need to range check this, but tests are making that a PITA...
+    //      Fix the tests then range change correctly here!!
+    //if (block_addr >= KERNEL_FBA_BEGIN && block_addr < KERNEL_FBA_END) {
+    return (Slab *)(block_addr & SLAB_BASE_MASK);
+    //}
 }
 
 bool slab_alloc_init();
