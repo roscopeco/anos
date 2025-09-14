@@ -35,7 +35,7 @@ bool kernel_drivers_init(ACPI_RSDT *rsdt) {
     return true;
 }
 
-void *kernel_drivers_alloc_pages(uint64_t count) {
+void *kernel_drivers_alloc_pages(const uint64_t count) {
     if (count == 0) {
         return NULL;
     }

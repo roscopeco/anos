@@ -26,16 +26,6 @@
 #define KERNEL_DRIVER_VADDR_BASE ((KERNEL_HARDWARE_VADDR_LAPIC + 0x1000))
 #define KERNEL_DRIVER_VADDR_SIZE 0x00000000000e0000
 
-typedef uint64_t (*KDriverEntrypoint)(void *arg);
-
-typedef struct _KernelDriver {
-    struct _KernelDriver *first_child;
-    struct _KernelDriver *next_sibling;
-    const char ident[30];
-    const char manufacturer[20];
-    KDriverEntrypoint entrypoint;
-} KernelDriver;
-
 bool kernel_drivers_init(ACPI_RSDT *rsdp);
 
 /*
