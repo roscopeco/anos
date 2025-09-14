@@ -5,15 +5,11 @@
  * Copyright (c) 2024 Ross Bamford
  */
 
-#include <stdbool.h>
 #include <stdint.h>
 
 #include "sched.h"
 #include "sleep.h"
 
-static volatile uint32_t counter;
-
-// TODO could probably derive this directly from timer count now...?
 volatile uint64_t lapic_timer_upticks;
 
 uint64_t get_kernel_upticks(void) { return lapic_timer_upticks; }
