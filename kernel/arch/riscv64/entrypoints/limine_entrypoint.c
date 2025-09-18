@@ -14,17 +14,16 @@
 #include "debugprint.h"
 #include "kprintf.h"
 #include "machine.h"
-#include "panic.h"
-#include "platform.h"
 #include "pmm/pagealloc.h"
+#include "vmm/vmconfig.h"
+
+#include "platform/bootloaders/limine.h"
+
+#include "riscv64/interrupts.h"
 #include "riscv64/kdrivers/cpu.h"
 #include "riscv64/pmm/config.h"
 #include "riscv64/sbi.h"
 #include "riscv64/vmm/vmmapper.h"
-#include "std/string.h"
-#include "vmm/vmconfig.h"
-
-#include "riscv64/interrupts.h"
 
 #define MAX_MEMMAP_ENTRIES 64
 
@@ -34,16 +33,6 @@
 #define KERNEL_INIT_STACK_TOP ((STATIC_KERNEL_SPACE + KERNEL_BSS_PHYS))
 
 #define KERNEL_FRAMEBUFFER ((0xffffffff82000000))
-
-#define LIMINE_COMMON_MAGIC 0xc7b1dd30df4c8b88, 0x0a82e883a194f07b
-#define LIMINE_MEMMAP_REQUEST                                                  \
-    {LIMINE_COMMON_MAGIC, 0x67cf3d9d378a806f, 0xe304acdfc50c3c62}
-#define LIMINE_RSDP_REQUEST                                                    \
-    {LIMINE_COMMON_MAGIC, 0xc5e77b6b397e7b43, 0x27637845accdcf3c}
-#define LIMINE_FRAMEBUFFER_REQUEST                                             \
-    {LIMINE_COMMON_MAGIC, 0x9d5827dcd881dd75, 0xa3148604f6fab11b}
-#define LIMINE_HHDM_REQUEST                                                    \
-    {LIMINE_COMMON_MAGIC, 0x48dcf1cb8ad2b852, 0x63984e959a98244b}
 
 #ifdef DEBUG_VMM
 #define vmm_debugf(...) kprintf(__VA_ARGS__)
@@ -63,90 +52,32 @@ void debug_memmap_limine(Limine_MemMap *memmap);
 #define debug_memmap_limine(...)
 #endif
 
-typedef struct {
-    uint64_t id[4];
-    uint64_t revision;
-    Limine_MemMap *memmap;
-} __attribute__((packed)) Limine_MemMapRequest;
-
-typedef struct {
-    uint64_t pitch;
-    uint64_t width;
-    uint64_t height;
-    uint16_t bpp;
-    uint8_t memory_model;
-    uint8_t red_mask_size;
-    uint8_t red_mask_shift;
-    uint8_t green_mask_size;
-    uint8_t green_mask_shift;
-    uint8_t blue_mask_size;
-    uint8_t blue_mask_shift;
-} __attribute__((packed)) Limine_VideoMode;
-
-typedef struct {
-    void *address;
-    uint64_t width;
-    uint64_t height;
-    uint64_t pitch;
-    uint16_t bpp; // Bits per pixel
-    uint8_t memory_model;
-    uint8_t red_mask_size;
-    uint8_t red_mask_shift;
-    uint8_t green_mask_size;
-    uint8_t green_mask_shift;
-    uint8_t blue_mask_size;
-    uint8_t blue_mask_shift;
-    uint8_t unused[7];
-    uint64_t edid_size;
-    void *edid;
-
-    /* Response revision 1 */
-    uint64_t mode_count;
-    Limine_VideoMode **modes;
-} __attribute__((packed)) Limine_FrameBuffer;
-
-typedef struct {
-    uint64_t revision;
-    uint64_t framebuffer_count;
-    Limine_FrameBuffer **framebuffers;
-} __attribute__((packed)) Limine_FrameBuffers;
-
-typedef struct {
-    uint64_t id[4];
-    uint64_t revision;
-    Limine_FrameBuffers *response;
-} __attribute__((packed)) Limine_FrameBufferRequest;
-
-typedef struct {
-    uint64_t revision;
-    uint64_t offset;
-} __attribute__((packed)) Limine_HHDM;
-
-typedef struct {
-    uint64_t id[4];
-    uint64_t revision;
-    Limine_HHDM *response;
-} __attribute__((packed)) Limine_HHDMRequest;
-
 static volatile Limine_MemMapRequest limine_memmap_request
         __attribute__((__aligned__(8))) = {
                 .id = LIMINE_MEMMAP_REQUEST,
                 .revision = 3,
-                .memmap = NULL,
+                .memmap = nullptr,
 };
 
 static volatile Limine_FrameBufferRequest limine_framebuffer_request
         __attribute__((__aligned__(8))) = {
                 .id = LIMINE_FRAMEBUFFER_REQUEST,
                 .revision = 3,
-                .response = NULL,
+                .response = nullptr,
 };
 
 static volatile Limine_HHDMRequest limine_hhdm_request
         __attribute__((__aligned__(8))) = {
                 .id = LIMINE_HHDM_REQUEST,
                 .revision = 3,
-                .response = NULL,
+                .response = nullptr,
+};
+
+static volatile Limine_ModuleRequest limine_module_request
+        __attribute__((__aligned__(8))) = {
+                .id = LIMINE_MODULE_REQUEST,
+                .revision = 3,
+                .internal_module_count = 0,
 };
 
 /* Defined by the linker */
@@ -209,7 +140,7 @@ typedef struct {
     uint64_t page_size;
 } VmmPage;
 
-static inline int8_t vmm_page_size_to_level(uint64_t page_size) {
+static inline int vmm_page_size_to_level(const uint64_t page_size) {
     // Valid page sizes are powers of 2 that are multiples of 4KiB
     if (page_size < 0x1000 || (page_size & (page_size - 1)) != 0) {
         return -1; // Not a power of 2 or too small
@@ -229,23 +160,24 @@ static inline int8_t vmm_page_size_to_level(uint64_t page_size) {
     return (page_size == size) ? level : -1;
 }
 
-static inline bool vmm_table_walk_levels(uintptr_t virt_addr,
-                                         uint8_t table_levels,
-                                         uintptr_t root_table_phys,
-                                         uintptr_t direct_map_base,
+static inline bool vmm_table_walk_levels(const uintptr_t virt_addr,
+                                         const uint8_t table_levels,
+                                         const uintptr_t root_table_phys,
+                                         const uintptr_t direct_map_base,
                                          VmmPage *out) {
-    uint64_t *current_table_virt =
+    const uint64_t *current_table_virt =
             (uint64_t *)(root_table_phys + direct_map_base);
+
     vmm_vdebugf("vmm_table_walk_levels: PML4 virt: %p\n",
                 (void *)current_table_virt);
 
     uint8_t levels_remaining = table_levels;
-    uint64_t current_entry;
 
     while (levels_remaining > 0) {
-        uint16_t entry_index =
+        const uint16_t entry_index =
                 vmm_virt_to_table_index(virt_addr, levels_remaining);
-        current_entry = current_table_virt[entry_index];
+
+        const uint64_t current_entry = current_table_virt[entry_index];
 
         if ((current_entry & PG_PRESENT) == 0) {
             vmm_vdebugf("  * Level %d entry is not present\n",
@@ -301,15 +233,16 @@ static inline int vmm_mmu_mode_to_table_levels(uint8_t mmu_mode) {
     }
 }
 
-static inline bool vmm_table_walk_mode(uintptr_t virt_addr, uint8_t mmu_mode,
-                                       uintptr_t root_table_phys,
-                                       uintptr_t direct_map_base,
+static inline bool vmm_table_walk_mode(const uintptr_t virt_addr,
+                                       const uint8_t mmu_mode,
+                                       const uintptr_t root_table_phys,
+                                       const uintptr_t direct_map_base,
                                        VmmPage *out) {
     if (!out) {
         return false;
     }
 
-    uint8_t table_levels = vmm_mmu_mode_to_table_levels(mmu_mode);
+    const int table_levels = vmm_mmu_mode_to_table_levels(mmu_mode);
 
     if (unlikely(table_levels == 0)) {
         vmm_vdebugf("vmm_table_walk_mode: Returning virt_addr\n");
@@ -329,15 +262,16 @@ static inline bool vmm_table_walk_mode(uintptr_t virt_addr, uint8_t mmu_mode,
                                  root_table_phys, direct_map_base, out);
 }
 
-static inline bool vmm_map_page_no_alloc(uintptr_t virt_addr, uint8_t mmu_mode,
-                                         uintptr_t root_table_phys,
-                                         uintptr_t direct_map_base,
+static inline bool vmm_map_page_no_alloc(const uintptr_t virt_addr,
+                                         const uint8_t mmu_mode,
+                                         const uintptr_t root_table_phys,
+                                         const uintptr_t direct_map_base,
                                          VmmPage *page) {
     if (!page) {
         return false;
     }
 
-    uint8_t table_levels = vmm_mmu_mode_to_table_levels(mmu_mode);
+    const int table_levels = vmm_mmu_mode_to_table_levels(mmu_mode);
 
     vmm_vdebugf("vmm_map_page_no_alloc: mode %d, table levels %d\n", mmu_mode,
                 table_levels);
@@ -354,7 +288,7 @@ static inline bool vmm_map_page_no_alloc(uintptr_t virt_addr, uint8_t mmu_mode,
     }
 
     // Calculate which level we need to map at based on the page size
-    int8_t target_level = vmm_page_size_to_level(page->page_size);
+    const int target_level = vmm_page_size_to_level(page->page_size);
     if (target_level < 0) {
         vmm_vdebugf("vmm_map_page_no_alloc: Invalid page size %ld\n",
                     page->page_size);
@@ -499,7 +433,7 @@ noreturn void bsp_kernel_entrypoint_limine() {
     // backwards-compatibility...
     //
 
-    uint64_t satp = cpu_read_satp();
+    const uint64_t satp = cpu_read_satp();
     uintptr_t pml4_phys, pdpt_phys, pd_phys, pt_1_phys, pt_2_phys;
     VmmPage page;
 
@@ -567,12 +501,22 @@ noreturn void bsp_kernel_entrypoint_limine() {
 
     // Find the phys address of the embedded SYSTEM image as well, we'll need
     // that later on when we come to map it in...
-    if (vmm_table_walk_mode((uintptr_t)&_system_bin_start, cpu_satp_mode(satp),
-                            cpu_satp_to_root_table_phys(satp),
-                            limine_hhdm_request.response->offset, &page)) {
+    if (limine_module_request.response->module_count != 1) {
+        kprintf("Expected exactly one module with SYSTEM image, but found %ld; "
+                "Halting\n",
+                limine_module_request.response->module_count);
+        halt_and_catch_fire();
+    }
+
+    // TODO check name to make sure it's _actually_ our fucking module...
+    if (vmm_table_walk_mode(
+                (uintptr_t)limine_module_request.response->modules[0]->address,
+                cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
+                limine_hhdm_request.response->offset, &page)) {
         _system_bin_start_phys = page.phys_addr;
+        _system_bin_size = limine_module_request.response->modules[0]->size;
     } else {
-        kprintf("Failed to detemine PT physical address; Halting\n");
+        kprintf("Failed to detemine SYSTEM base physical address; Halting\n");
         halt_and_catch_fire();
     }
 
@@ -635,9 +579,11 @@ noreturn void bsp_kernel_entrypoint_limine() {
     // Copy code mappings....
     for (uintptr_t page_virt = (uintptr_t)&_code;
          page_virt < (uintptr_t)&_kernel_vma_end; page_virt += 0x1000) {
+
         if (vmm_table_walk_mode(page_virt, cpu_satp_mode(satp),
                                 cpu_satp_to_root_table_phys(satp),
                                 limine_hhdm_request.response->offset, &page)) {
+
             if (!vmm_map_page_no_alloc(page_virt, SATP_MODE_SV48, pml4_phys,
                                        limine_hhdm_request.response->offset,
                                        &page)) {
@@ -658,14 +604,13 @@ noreturn void bsp_kernel_entrypoint_limine() {
                          bootstrap_continue);
 }
 
-static noreturn void bootstrap_continue(uint16_t fb_width, uint16_t fb_height) {
+static noreturn void bootstrap_continue(const uint16_t fb_width,
+                                        const uint16_t fb_height) {
     // We're now on our own pagetables, and have essentially the same setup as
     // we do on x86_64 at this point...
     //
     // IOW we have a baseline environment.
     //
-    _system_bin_size =
-            (uintptr_t)&_system_bin_end - (uintptr_t)&_system_bin_start;
 
     debugterm_reinit((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
 

@@ -333,8 +333,7 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/managed_resources/resources.o							\
 			$(STAGE3_DIR)/process/address_space.o								\
 			$(STAGE3_DIR)/sched/mutex.o											\
-            $(STAGE3_ARCH_OBJS)													\
-        	$(SYSTEM)_linkable.o
+            $(STAGE3_ARCH_OBJS)
 endif
 endif
 
@@ -350,7 +349,6 @@ CLEAN_ARTIFACTS=$(STAGE3_DIR)/*.dis $(STAGE3_DIR)/*.elf $(STAGE3_DIR)/*.o 		\
 				$(STAGE3_DIR)/managed_resources/*.o								\
 				$(STAGE3_DIR)/capabilities/*.o									\
 				$(STAGE3_DIR)/platform/acpi/*.o									\
-				$(SYSTEM)_linkable.o											\
 		   		$(FLOPPY_IMG)													\
 				$(UEFI_IMG)														\
 	       		$(STAGE3_ARCH_X86_64_DIR)/*.dis $(STAGE3_ARCH_X86_64_DIR)/*.elf	\
@@ -441,17 +439,6 @@ endif
 ############## System  ##############
 $(SYSTEM_DIR)/$(SYSTEM_BIN): $(SYSTEM_DIR)/Makefile
 	$(MAKE) -C $(SYSTEM_DIR)
-
-ifeq ($(ARCH),x86_64)
-# Nothing to do - system is now loaded by the bootloader on x86_64
-else
-ifeq ($(ARCH),riscv64)
-$(SYSTEM)_linkable.o: $(SYSTEM_DIR)/$(SYSTEM_BIN)
-	$(XOBJCOPY) -I binary --rename-section .data=.$(SYSTEM)_bin -O elf64-littleriscv --binary-architecture riscv:rv64 $< $@
-else
-$(error Need an architecture-specific setup for objcopy:system_linkable in system/Makefile)
-endif
-endif
 
 ifeq ($(ARCH),x86_64)
 ############# Real mode #############
