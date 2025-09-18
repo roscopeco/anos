@@ -8,10 +8,6 @@
  * for test/development. They are poorly designed and **won't**
  * be sticking around in this layout. Some of the calls here
  * are only for debugging and will also be removed!
- * 
- * TODO these **badly** need their return values sorting out, in some
- * error cases callers have no way to know what they're going to get
- * (even in terms of signedness!)
  */
 
 #include <stdint.h>

@@ -123,7 +123,7 @@ static inline void *do_alloc(const uintptr_t block_address) {
 }
 
 // This is kinda messy, but should be _reasonably_ performant.
-// TODO Once SIMD etc is supported it could be optimised much more...
+// TODO Now SIMD etc is supported it could probably be optimised much more...
 //
 // align_page_count must be a power of 2 and <= 64
 //

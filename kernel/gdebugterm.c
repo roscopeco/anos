@@ -204,7 +204,7 @@ void debugchar_np(char chr) {
     case 0:
         break;
     case 10:
-        // TODO scrolling etc!
+        // TODO scrolling etc? I _think_ we handle it above but it needs checking...
         logical_y += 1;
         logical_x = 0;
         break;

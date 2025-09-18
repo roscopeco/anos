@@ -492,7 +492,7 @@ static uint64_t* ensure_temp_page_tables(const uint64_t *pml4, uint64_t *temp_pa
             // Create a pointer we'll use to get at the table once we've mapped it...
             uint64_t * const temp_mapped_pd = (uint64_t*)(pd_temp_vaddr + pd_phys_addr_offs);
 
-            // Okay, good - do the mapping & flush TLB. TODO ROSS CHANGED FROM -2
+            // Okay, good - do the mapping & flush TLB.
             map_readwrite_and_flush_offs(temp_page_table, temp_table_level - 1, pd_phys_base_addr, pd_temp_vaddr, pd_phys_addr_offs);
 
             // Right, now we have a PDPT mapped with a virtual pointer we can use it...
@@ -520,7 +520,7 @@ static uint64_t* ensure_temp_page_tables(const uint64_t *pml4, uint64_t *temp_pa
                 // Create a pointer we'll use to get at the table once we've mapped it...
                 uint64_t* temp_mapped_table = (uint64_t*)(temp_table_vaddr + temp_table_phys_addr_offs);
 
-                // Do the mapping & flush TLB. TODO ROSS CHANGED FROM -1
+                // Do the mapping & flush TLB.
                 map_readwrite_and_flush_offs(temp_page_table, temp_table_level, temp_table_phys_base_addr, temp_table_vaddr, temp_table_phys_addr_offs);
 
                 // Just zero this one, that's all we need

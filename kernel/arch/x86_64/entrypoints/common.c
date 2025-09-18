@@ -5,8 +5,6 @@
  * Copyright (c) 2025 Ross Bamford
  */
 
-#include "debugprint.h"
-#include "machine.h"
 #include "x86_64/gdt.h"
 #include "x86_64/interrupts.h"
 #include "x86_64/kdrivers/cpu.h"
@@ -18,14 +16,12 @@
 //
 void init_kernel_gdt(void) {
     GDTR gdtr;
-    GDTEntry *user_code;
-    GDTEntry *user_data;
 
     cpu_store_gdtr(&gdtr);
 
     // Reverse ordered because SYSRET is fucking weird...
-    user_data = get_gdt_entry(&gdtr, 3);
-    user_code = get_gdt_entry(&gdtr, 4);
+    GDTEntry *user_data = get_gdt_entry(&gdtr, 3);
+    GDTEntry *user_code = get_gdt_entry(&gdtr, 4);
 
     init_gdt_entry(
             user_code, 0, 0,
