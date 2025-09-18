@@ -24,7 +24,7 @@
 // Ring Management
 // =============================================================================
 
-int xhci_ring_init(XhciRing *ring, uint32_t size) {
+int xhci_ring_init(XhciRing *ring, const uint32_t size) {
     if (!ring || size == 0 || size > 4096) {
         return -1;
     }
@@ -37,12 +37,14 @@ int xhci_ring_init(XhciRing *ring, uint32_t size) {
     const size_t aligned_size = (trb_array_size + 0xFFF) & ~0xFFF; // Page align
 
     const SyscallResultA alloc_result = anos_alloc_physical_pages(aligned_size);
+
     if (alloc_result.result != SYSCALL_OK) {
         printf("xHCI: Failed to allocate physical memory for ring - syscall "
                "result: 0x%016lx\n",
                (uint64_t)alloc_result.result);
         printf("xHCI: Requested %lu pages (%lu bytes)\n", aligned_size / 4096,
                aligned_size);
+
         return -1;
     }
 
@@ -98,7 +100,8 @@ XhciTrb *xhci_ring_enqueue_trb(XhciRing *ring) {
     }
 
     // Check if we have space (leave one slot for link TRB if needed)
-    uint32_t next_enqueue = (ring->enqueue_index + 1) % ring->size;
+    const uint32_t next_enqueue = (ring->enqueue_index + 1) % ring->size;
+
     if (next_enqueue == ring->dequeue_index) {
         ring_debugf("xHCI: Ring full, cannot enqueue TRB\n");
         return nullptr;
@@ -141,8 +144,9 @@ volatile XhciTrb *xhci_ring_dequeue_trb(XhciRing *ring) {
 }
 
 bool xhci_ring_has_space(XhciRing *ring, uint32_t num_trbs) {
-    if (!ring)
+    if (!ring) {
         return false;
+    }
 
     uint32_t available_slots;
     if (ring->enqueue_index >= ring->dequeue_index) {
@@ -172,8 +176,9 @@ void xhci_ring_inc_enqueue(XhciRing *ring) {
 }
 
 void xhci_ring_inc_dequeue(XhciRing *ring) {
-    if (!ring)
+    if (!ring) {
         return;
+    }
 
     ring->dequeue_index = (ring->dequeue_index + 1) % ring->size;
     ring->dequeued_count++;
