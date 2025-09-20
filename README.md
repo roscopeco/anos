@@ -3,15 +3,23 @@
 ![workflow status](https://github.com/roscopeco/anos/actions/workflows/compile_test.yaml/badge.svg)
 ![code coverage](coverage.svg)
 
+<p align="center">
+<img src="images/logo-concepts/concept1-round-dark-smol.png" height="150px">
+</p>
+
 > [!NOTE]
 > This is not yet an operating system, but _definitely has_  reached 
 > "toy kernel" status, since it now supports user mode preemptive 
 > multitasking on up to 16 CPUs, provides enough kernel support to 
-> run PCI device drivers in userspace, and runs on real hardware 🥳.
+> run functioning device drivers in userspace, and runs on real hardware 🥳.
+
+### Latest Screenshot
+
+<p align="center">
+<img src="images/Screenshot 2025-09-20 at 15.06.12.png" alt="UEFI-booted ANOS running in Qemu" width="600px">
+</p>
 
 ### High-level overview
-
-> **Note** this is still evolving!
 
 Anos is a modern, opinionated, non-POSIX operating system
 (just a hobby, won't be big and professional like GNU-Linux®) 
@@ -413,7 +421,7 @@ It also runs in emulators, of course - here's Qemu booted via UEFI, using the
 graphical debug terminal at 1280x800 resolution and again showing the IPC features,
 user-mode hardware driver capabilities and other features:
 
-<img src="images/Screenshot 2025-09-04 at 21.51.59.png" alt="UEFI-booted ANOS running in Qemu">
+<img src="images/Screenshot 2025-09-20 at 15.06.12.png" alt="UEFI-booted ANOS running in Qemu">
 
 Broadly, this is happening here:
 
@@ -449,11 +457,18 @@ Broadly, this is happening here:
   * The driver maps and initializes the AHCI controller
   * Allocates memory for queues and buffers, and hooks them up to the hardware
   * Scans the bus, issuing an `IDENTIFY` for each found device and outputs basic information
-  * All AHCI drivers and active ports are registered with the device manager 
+  * All AHCI drivers and active ports are registered with the device manager
 * Basic FAT32 filesystem driver is started
   * This finds the UEFI root partition (which is why FAT32 was chosen to begin with)
   * In debug mode (see the qemu screenshot) it dumps the root directory to the console
   * It then registers a VFS endpoint with SYSTEM to allow software to access the filesystem
+* xHCI controller driver (for USB devices) is started, again with appropriate capabilities and args
+  * Again, there's one of these per controller
+  * This driver maps and initializes the xHCI controller
+  * USB low-level hardware and bus initialization is carried out
+  * Communication is established with devices so that we can enumerate them
+    * From there, we'd load appropriate drivers for devices if we had them!
+    * For now, we just register the device with DEVMAN
 
 Here's another picture (from the same PC as the image above) showing the AHCI driver initialisation process
 with debugging output enabled. This shows detail of the userspace mapping of config space 

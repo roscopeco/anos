@@ -119,6 +119,88 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
     return (int64_t)spawn_result.value;
 }
 
+void spawn_xhci_driver(const uint64_t xhci_base, const uint64_t pci_config_base,
+                       const uint64_t pci_device_id) {
+#ifdef DEBUG_BUS_DRIVER_INIT
+    printf("\nSpawning xHCI driver for controller at 0x%016lx (PCI config at "
+           "0x%016lx)...\n",
+           xhci_base, pci_config_base);
+#endif
+
+    char xhci_base_str[32];
+    char pci_config_str[32];
+    snprintf(xhci_base_str, sizeof(xhci_base_str), "%lx", xhci_base);
+    snprintf(pci_config_str, sizeof(pci_config_str), "%lx", pci_config_base);
+
+    char pci_device_id_str[32];
+    snprintf(pci_device_id_str, sizeof(pci_device_id_str), "%lu",
+             pci_device_id);
+
+    const char *argv[] = {"boot:/xhcidrv.elf", xhci_base_str, pci_config_str,
+                          pci_device_id_str};
+
+    const InitCapability xhci_caps[] = {
+            {.capability_id = SYSCALL_ID_DEBUG_PRINT,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT]},
+            {.capability_id = SYSCALL_ID_DEBUG_CHAR,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR]},
+            {.capability_id = SYSCALL_ID_SLEEP,
+             .capability_cookie = __syscall_capabilities[SYSCALL_ID_SLEEP]},
+            {.capability_id = SYSCALL_ID_MAP_PHYSICAL,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL]},
+            {.capability_id = SYSCALL_ID_MAP_VIRTUAL,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL]},
+            {.capability_id = SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_ALLOC_PHYSICAL_PAGES]},
+            {.capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK]},
+            {.capability_id = SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_ALLOC_INTERRUPT_VECTOR]},
+            {.capability_id = SYSCALL_ID_WAIT_INTERRUPT,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT]},
+            {.capability_id = SYSCALL_ID_FIND_NAMED_CHANNEL,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_FIND_NAMED_CHANNEL]},
+            {.capability_id = SYSCALL_ID_SEND_MESSAGE,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE]},
+            {.capability_id = SYSCALL_ID_RECV_MESSAGE,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE]},
+            {.capability_id = SYSCALL_ID_REPLY_MESSAGE,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE]},
+            {.capability_id = SYSCALL_ID_CREATE_CHANNEL,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL]},
+            {.capability_id = SYSCALL_ID_CREATE_REGION,
+             .capability_cookie =
+                     __syscall_capabilities[SYSCALL_ID_CREATE_REGION]},
+    };
+
+#ifdef DEBUG_BUS_DRIVER_INIT
+    printf("  --> spawn: %s %s\n", argv[0], argv[1]);
+#endif
+
+    const int64_t pid =
+            spawn_process_via_system(0x100000, 15, xhci_caps, 4, argv);
+    if (pid > 0) {
+#ifdef DEBUG_BUS_DRIVER_INIT
+        printf("  --> xHCI driver spawned with PID %ld\n", pid);
+#endif
+    } else {
+        printf("ERROR: Failed to spawn xHCI driver (error code: %ld)\n", pid);
+    }
+}
+
 void spawn_ahci_driver(const uint64_t ahci_base, const uint64_t pci_config_base,
                        const uint64_t pci_device_id) {
 #ifdef DEBUG_BUS_DRIVER_INIT
