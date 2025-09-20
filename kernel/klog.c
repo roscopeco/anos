@@ -17,11 +17,14 @@
 
 static KernelLogBuffer klog_buffer = {nullptr};
 static bool klog_initialized = false;
+
+#ifdef KLOG_FRAMEBUFFER_FALLBACK
 static bool userspace_ready = false;
 
 // External reference to gdebugterm functions for fallback
 extern void debugchar_np(char chr);
 extern void debugstr(const char *str);
+#endif
 
 bool klog_init(void) {
     if (klog_initialized) {
@@ -47,7 +50,11 @@ bool klog_init(void) {
     return true;
 }
 
-void klog_set_userspace_ready(const bool ready) { userspace_ready = ready; }
+void klog_set_userspace_ready(const bool ready) {
+#ifdef KLOG_FRAMEBUFFER_FALLBACK
+    userspace_ready = ready;
+#endif
+}
 
 static void klog_write_char_internal(const char c) {
     if (!klog_initialized) {
@@ -68,8 +75,9 @@ static void klog_write_char_internal(const char c) {
 
 void klog_write_char(const char c) {
     if (!klog_initialized) {
-        // Fallback to direct framebuffer output
+#ifdef KLOG_FRAMEBUFFER_FALLBACK
         debugchar_np(c);
+#endif
         return;
     }
 
@@ -93,9 +101,11 @@ void klog_write_char(const char c) {
 
     klog_buffer.waiting_readers = nullptr;
 
+#ifdef KLOG_FRAMEBUFFER_FALLBACK
     if (!userspace_ready) {
         debugchar_np(c);
     }
+#endif
 
     spinlock_unlock_irqrestore(&klog_buffer.lock, flags);
 }
@@ -105,7 +115,9 @@ void klog_write_string(const char *str) {
         return;
 
     if (!klog_initialized) {
+#ifdef KLOG_FRAMEBUFFER_FALLBACK
         debugstr(str);
+#endif
         return;
     }
 
@@ -114,9 +126,11 @@ void klog_write_string(const char *str) {
     while (*str) {
         klog_write_char_internal(*str);
 
+#ifdef KLOG_FRAMEBUFFER_FALLBACK
         if (!userspace_ready) {
             debugchar_np(*str);
         }
+#endif
 
         str++;
     }

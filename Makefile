@@ -122,7 +122,8 @@ endif
 #
 # These set options you might feel like configuring
 #
-#	USE_BIZCAT_FONT			Use BIZCAT font instead of the default (only for graphical terminal)
+#	KLOG_FRAMEBUFFER_FALLBACK	Enable early-boot framebuffer fallback (debugging only)
+#	USE_BIZCAT_FONT				Use BIZCAT font instead of the default (only for fallback terminal)
 #
 # And these will selectively disable features
 #

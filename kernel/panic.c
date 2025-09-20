@@ -3,6 +3,9 @@
  * anos - An Operating System
  *
  * Copyright (c) 2023 Ross Bamford
+ *
+ * NOTE: Do not use kprintf in here! Output for panics needs to
+ * go directly to the debug terminal framebuffer, not the kernel log!
  * 
  * TODO this needs to report CPU number.
  *      It should probably also have a dedicated stack...
