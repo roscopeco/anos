@@ -187,9 +187,9 @@ typedef struct {
     uint8_t value;
 } SyscallResultU8;
 
-SyscallResultU8 anos_allocate_interrupt_vector(uint32_t bus_device_func,
-                                               uint64_t *msi_address,
-                                               uint32_t *msi_data) {
+SyscallResultU8 anos_alloc_interrupt_vector(uint32_t bus_device_func,
+                                            uint64_t *msi_address,
+                                            uint32_t *msi_data) {
     // Return mock MSI configuration
     if (msi_address)
         *msi_address = 0xFEE00000ULL; // Standard MSI address

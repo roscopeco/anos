@@ -16,6 +16,7 @@
 #include "fba/alloc.h"
 #include "ipc/channel.h"
 #include "ipc/named.h"
+#include "klog.h"
 #include "pagefault.h"
 #include "panic.h"
 #include "platform.h"
@@ -70,6 +71,12 @@ noreturn void bsp_kernel_entrypoint(const uintptr_t platform_data) {
 
     if (!slab_alloc_init()) {
         panic("Slab init failed");
+    }
+
+    // Initialize kernel log buffer early
+    if (!klog_init()) {
+        // If klog init fails, we'll fall back to direct framebuffer output
+        // This is not fatal since debugchar_np will still work
     }
 
     if (!refcount_map_init()) {

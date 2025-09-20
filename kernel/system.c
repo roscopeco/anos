@@ -10,6 +10,7 @@
 
 #include "anos_assert.h"
 #include "fba/alloc.h"
+#include "klog.h"
 #include "panic.h"
 #include "pmm/pagealloc.h"
 #include "sched.h"
@@ -185,6 +186,9 @@ noreturn void start_system(void) {
     // Just one more thing.... release the APs now the main scheduler
     // structs and system process are set up.
     ap_startup_wait = false;
+
+    // Userspace is now ready to receive kernel logs
+    klog_set_userspace_ready(true);
 
     // Kick off scheduling...
     sched_schedule();

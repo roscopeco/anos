@@ -667,7 +667,7 @@ bool ahci_port_init(volatile AHCIPort *port, volatile AHCIController *ctrl,
     uint64_t msi_address;
     uint32_t msi_data;
 
-    const SyscallResultU8 alloc_result = anos_allocate_interrupt_vector(
+    const SyscallResultU8 alloc_result = anos_alloc_interrupt_vector(
             bus_device_func, &msi_address, &msi_data);
 
     const uint8_t vector = alloc_result.value;

@@ -6,7 +6,7 @@ MKRAMFS_BIN?=$(MKRAMFS_DIR)/$(MKRAMFS)
 
 .PHONY: all clean 
 
-all: test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf fat32drv/fat32drv.elf
+all: test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf fat32drv/fat32drv.elf guitop/guitop.elf
 
 clean:
 	$(MAKE) -C test_server clean
@@ -14,6 +14,7 @@ clean:
 	$(MAKE) -C pcidrv clean
 	$(MAKE) -C ahcidrv clean
 	$(MAKE) -C fat32drv clean
+	$(MAKE) -C guitop clean
 	$(RM) system.ramfs
 
 $(MKRAMFS_BIN): $(MKRAMFS_DIR)
@@ -34,9 +35,12 @@ ahcidrv/ahcidrv.elf: server_common.mk ahcidrv/Makefile Makefile ahcidrv/main.c
 fat32drv/fat32drv.elf: server_common.mk fat32drv/Makefile Makefile fat32drv/main.c
 	$(MAKE) -C fat32drv fat32drv.elf
 
+guitop/guitop.elf: server_common.mk guitop/Makefile Makefile guitop/main.c
+	$(MAKE) -C guitop guitop.elf
+
 ifeq ($(ARCH),x86_64)
-system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf fat32drv/fat32drv.elf
-	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf fat32drv/fat32drv.elf
+system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf fat32drv/fat32drv.elf guitop/guitop.elf
+	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf fat32drv/fat32drv.elf guitop/guitop.elf
 else
 system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf
 	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf

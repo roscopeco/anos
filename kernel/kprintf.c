@@ -37,7 +37,9 @@
 #include "kprintf.h"
 #include "spinlock.h"
 
-#define _putchar debugchar_np
+#include "klog.h"
+
+void _putchar(char character) { klog_write_char(character); }
 
 // define this globally (e.g. gcc -DPRINTF_INCLUDE_CONFIG_H ...) to include the
 // printf_config.h header file

@@ -739,6 +739,16 @@ int main(int argc, char **argv) {
                             [SYSCALL_ID_REGISTER_NAMED_CHANNEL],
                     .capability_id = SYSCALL_ID_REGISTER_NAMED_CHANNEL,
             },
+            {
+                    .capability_cookie =
+                            __syscall_capabilities[SYSCALL_ID_READ_KERNEL_LOG],
+                    .capability_id = SYSCALL_ID_READ_KERNEL_LOG,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities
+                            [SYSCALL_ID_GET_FRAMEBUFFER_PHYS],
+                    .capability_id = SYSCALL_ID_GET_FRAMEBUFFER_PHYS,
+            },
     };
 
     const SyscallResult create_vfs_result = anos_create_channel();
@@ -801,7 +811,7 @@ int main(int argc, char **argv) {
             const char *devman_argv[] = {"boot:/devman.elf"};
 
             const int64_t devman_pid = create_server_process(
-                    0x100000, 16, new_process_caps, 1, devman_argv);
+                    0x100000, 18, new_process_caps, 1, devman_argv);
             if (devman_pid < 0) {
                 printf("%s: Failed to create server process\n",
                        "boot:/devman.elf");
@@ -810,10 +820,23 @@ int main(int argc, char **argv) {
                           "starter "
                           "thread\n",
                           devman_pid);
+            }
 
+            // Start GUI compositor
+            const char *guitop_argv[] = {"boot:/guitop.elf"};
+            const int64_t guitop_pid = create_server_process(
+                    0x200000, 18, new_process_caps, 1, guitop_argv);
+            if (guitop_pid < 0) {
+                printf("%s: Failed to create GUI compositor process\n",
+                       "boot:/guitop.elf");
+            } else {
+                printf("GUI Compositor started (PID: %ld)\n", guitop_pid);
+            }
+
+            if (devman_pid >= 0) {
                 // Store capabilities for filesystem drivers
                 global_fs_caps = new_process_caps;
-                global_fs_cap_count = 16;
+                global_fs_cap_count = 18;
 
                 // Start filesystem starter thread
                 const SyscallResult fs_thread_result = anos_create_thread(
