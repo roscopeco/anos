@@ -132,6 +132,11 @@ typedef struct {
     struct Limine_InternalModule **internal_modules;
 } __attribute__((packed)) Limine_ModuleRequest;
 
+#define LIMINE_BASE_REVISION(N)                                                \
+    static volatile __attribute__((                                            \
+            __aligned__(8))) uint64_t limine_base_revision[3] = {              \
+            0xf9562b2d5c95a6c8, 0x6a7b384944536bdc, N};
+
 #define LIMINE_COMMON_MAGIC 0xc7b1dd30df4c8b88, 0x0a82e883a194f07b
 
 #define LIMINE_MEMMAP_REQUEST                                                  \
