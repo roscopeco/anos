@@ -73,8 +73,8 @@ static uint32_t const colors[] = {
 static const uint8_t bit_masks[8] = {0x80, 0x40, 0x20, 0x10,
                                      0x08, 0x04, 0x02, 0x01};
 
-bool debugterm_reinit(void volatile *_fb, uint16_t phys_width,
-                      uint16_t phys_height) {
+bool debugterm_reinit(void volatile *_fb, const uint16_t phys_width,
+                      const uint16_t phys_height) {
     fb = _fb;
     fb_phys_width = phys_width;
     fb_phys_height = phys_height;
@@ -93,8 +93,8 @@ bool debugterm_reinit(void volatile *_fb, uint16_t phys_width,
     return true;
 }
 
-bool debugterm_init(void volatile *_fb, uint16_t phys_width,
-                    uint16_t phys_height) {
+bool debugterm_init(void volatile *_fb, const uint16_t phys_width,
+                    const uint16_t phys_height) {
     if (debugterm_reinit(_fb, phys_width, phys_height)) {
         banner();
         return true;
@@ -106,8 +106,9 @@ bool debugterm_init(void volatile *_fb, uint16_t phys_width,
 #define WRITE_PIXEL(n)                                                         \
     *fb_ptr++ = (font_byte & bit_masks[n]) ? fg_color : bg_color
 
-static inline void paint_char(uint8_t c, uint8_t attr, int fb_x_base,
-                              int fb_y_base) {
+static inline void paint_char(const uint8_t c, uint8_t attr,
+                              const int fb_x_base, const int fb_y_base) {
+
     const uint32_t fg_color = colors[attr & 0xf];
     const uint32_t bg_color = colors[attr >> 4];
 
@@ -146,10 +147,6 @@ static void repaint(void) {
 
     const uint8_t volatile *buf_ptr = backbuf;
 
-    // pre-calculate base framebuffer positions for each character row,
-    // taking advantage of page alignment for optimal cache line usage
-    uint32_t fb_row_base = 0;
-
     for (int row = 0; row < display_max / bytes_per_row; row++) {
         // base Y pos for this row of characters
         const int fb_y_base = row * gdebugterm_font_height;
@@ -179,8 +176,8 @@ static inline uint16_t scroll() {
             display_max - line_width_bytes);
 
     uint64_t *p64 = (uint64_t *)(backbuf + display_max - line_width_bytes);
-    uint64_t fill64 = (uint64_t)(' ' | (0x08 << 8)) *
-                      0x0001000100010001ULL; // Repeat pattern
+    constexpr uint64_t fill64 = (uint64_t)(' ' | (0x08 << 8)) *
+                                0x0001000100010001ULL; // Repeat pattern
 
     for (size_t i = 0; i < line_width_bytes / 8; ++i) {
         p64[i] = fill64;
@@ -192,7 +189,7 @@ static inline uint16_t scroll() {
     return BACKBUF_PHYSICAL(logical_x, logical_y);
 }
 
-void debugchar_np(char chr) {
+void debugchar_np(const char chr) {
     uint16_t phys = BACKBUF_PHYSICAL(logical_x, logical_y);
 
     if (phys >= display_max || logical_y > row_count) {
@@ -227,7 +224,7 @@ void debugchar_np(char chr) {
 
 void debugattr(const uint8_t new_attr) { attr = new_attr; }
 
-void debugchar(char chr) {
+void debugchar(const char chr) {
     const uint64_t lock_flags = spinlock_lock_irqsave(&debugterm_lock);
     debugchar_np(chr);
     spinlock_unlock_irqrestore(&debugterm_lock, lock_flags);
@@ -259,11 +256,6 @@ void debugstr_len(const char *str, const int len) {
 
 /* printhex */
 
-static inline void hex_preamble(const PrintHexCharHandler printfunc) {
-    printfunc(ZERO);
-    printfunc(EX);
-}
-
 static inline void digitprint(uint8_t digit) {
     if (digit < 10) {
         digit += 48;
@@ -279,7 +271,7 @@ void printhex64(uint64_t num, PrintHexCharHandler __ignored) {
     debugchar_np(EX);
 
     for (int i = 0; i < 64; i += 4) {
-        char digit = (num & 0xF000000000000000) >> 60;
+        const char digit = (num & 0xF000000000000000) >> 60;
         num <<= 4;
         digitprint(digit);
     }
@@ -292,7 +284,7 @@ void printhex32(uint64_t num, PrintHexCharHandler __ignored) {
     debugchar_np(EX);
 
     for (int i = 0; i < 32; i += 4) {
-        char digit = (num & 0xF0000000) >> 28;
+        const char digit = (num & 0xF0000000) >> 28;
         num <<= 4;
         digitprint(digit);
     }
@@ -305,7 +297,7 @@ void printhex16(uint64_t num, PrintHexCharHandler __ignored) {
     debugchar_np(EX);
 
     for (int i = 0; i < 16; i += 4) {
-        char digit = (num & 0xF000) >> 12;
+        const char digit = (num & 0xF000) >> 12;
         num <<= 4;
         digitprint(digit);
     }
@@ -318,7 +310,7 @@ void printhex8(uint64_t num, PrintHexCharHandler __ignored) {
     debugchar_np(EX);
 
     for (int i = 0; i < 8; i += 4) {
-        char digit = (num & 0xF0) >> 4;
+        const char digit = (num & 0xF0) >> 4;
         num <<= 4;
         digitprint(digit);
     }
