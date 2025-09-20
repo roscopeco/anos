@@ -11,11 +11,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../common/device_types.h"
 #include "gui_types.h"
 #include <anos/syscalls.h>
 
-// Forward declarations
 extern void composite_screen(Compositor *comp);
 
 #ifndef VERSTR
@@ -34,10 +32,8 @@ extern void composite_screen(Compositor *comp);
 #endif
 
 static Compositor compositor = {nullptr};
-// Removed unused channel variables
 static uint64_t kernel_log_terminal_id = 0;
 
-// Compositor wrapper function
 static void composite_windows(void) { composite_screen(&compositor); }
 
 static bool init_framebuffer(void) {
@@ -190,7 +186,7 @@ static void process_kernel_log_data(const char *data, const size_t size) {
     static uint32_t line_pos = 0;
 
     for (size_t i = 0; i < size; i++) {
-        char c = data[i];
+        const char c = data[i];
 
         if (c == '\n' || line_pos >= MAX_LINE_LENGTH - 1) {
             // End of line - add it to terminal
@@ -400,12 +396,9 @@ int main(const int argc, char **argv) {
         printf("Warning: Failed to create kernel log terminal\n");
     }
 
-    // Initial composition
     composite_windows();
 
-    // Main loop: for now, just poll kernel log periodically
     while (1) {
         poll_kernel_log();
-        anos_task_sleep_current_secs(1);
     }
 }

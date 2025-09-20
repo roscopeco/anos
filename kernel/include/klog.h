@@ -8,10 +8,12 @@
 #ifndef __ANOS_KERNEL_KLOG_H
 #define __ANOS_KERNEL_KLOG_H
 
-#include "spinlock.h"
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#include "spinlock.h"
+
+struct Task;
 
 // Kernel log buffer structure
 typedef struct {
@@ -22,6 +24,7 @@ typedef struct {
     volatile size_t count; // Number of unread bytes
     SpinLock lock;         // Synchronization lock
     bool dropped_messages; // True if messages were dropped due to overflow
+    struct Task *waiting_readers; // Linked list of tasks waiting for data
 } KernelLogBuffer;
 
 // Statistics structure for userspace

@@ -7,7 +7,9 @@
 
 #include "klog.h"
 #include "fba/alloc.h"
+#include "sched.h"
 #include "spinlock.h"
+#include "task.h"
 #include <stdint.h>
 
 #define KLOG_BUFFER_SIZE (64 * 1024) // 64KB ringbuffer
@@ -38,15 +40,16 @@ bool klog_init(void) {
     klog_buffer.tail = 0;
     klog_buffer.count = 0;
     klog_buffer.dropped_messages = false;
+    klog_buffer.waiting_readers = nullptr;
     spinlock_init(&klog_buffer.lock);
 
     klog_initialized = true;
     return true;
 }
 
-void klog_set_userspace_ready(bool ready) { userspace_ready = ready; }
+void klog_set_userspace_ready(const bool ready) { userspace_ready = ready; }
 
-static void klog_write_char_internal(char c) {
+static void klog_write_char_internal(const char c) {
     if (!klog_initialized) {
         return;
     }
@@ -73,6 +76,22 @@ void klog_write_char(const char c) {
     const uint64_t flags = spinlock_lock_irqsave(&klog_buffer.lock);
 
     klog_write_char_internal(c);
+
+    // Wake up any tasks waiting for data
+    Task *reader = klog_buffer.waiting_readers;
+
+    while (reader) {
+        Task *next = (Task *)reader->this.next;
+        reader->this.next = nullptr; // Remove from wait list
+
+        const uint64_t sched_flags = sched_lock_this_cpu();
+        sched_unblock(reader);
+        sched_unlock_this_cpu(sched_flags);
+
+        reader = next;
+    }
+
+    klog_buffer.waiting_readers = nullptr;
 
     if (!userspace_ready) {
         debugchar_np(c);
@@ -106,24 +125,41 @@ void klog_write_string(const char *str) {
 }
 
 size_t klog_read(char *dest, const size_t max_bytes) {
-
     if (!klog_initialized || !dest || max_bytes == 0) {
         return 0;
     }
 
-    const uint64_t flags = spinlock_lock_irqsave(&klog_buffer.lock);
+    while (true) {
+        const uint64_t flags = spinlock_lock_irqsave(&klog_buffer.lock);
 
-    size_t bytes_read = 0;
-    while (bytes_read < max_bytes && klog_buffer.count > 0) {
-        dest[bytes_read] = klog_buffer.buffer[klog_buffer.tail];
-        klog_buffer.tail = (klog_buffer.tail + 1) % klog_buffer.size;
-        klog_buffer.count--;
-        bytes_read++;
+        // If we have data, read it and return
+        if (klog_buffer.count > 0) {
+            size_t bytes_read = 0;
+            while (bytes_read < max_bytes && klog_buffer.count > 0) {
+                dest[bytes_read] = klog_buffer.buffer[klog_buffer.tail];
+                klog_buffer.tail = (klog_buffer.tail + 1) % klog_buffer.size;
+                klog_buffer.count--;
+                bytes_read++;
+            }
+            spinlock_unlock_irqrestore(&klog_buffer.lock, flags);
+            return bytes_read;
+        }
+
+        // No data available - add current task to wait list and block
+        Task *current_task = task_current();
+        current_task->this.next = (ListNode *)klog_buffer.waiting_readers;
+        klog_buffer.waiting_readers = current_task;
+
+        spinlock_unlock_irqrestore(&klog_buffer.lock, flags);
+
+        // Block until data becomes available
+        const uint64_t sched_flags = sched_lock_this_cpu();
+        sched_block(current_task);
+        sched_schedule();
+        sched_unlock_this_cpu(sched_flags);
+
+        // When we wake up, loop back to try reading again
     }
-
-    spinlock_unlock_irqrestore(&klog_buffer.lock, flags);
-
-    return bytes_read;
 }
 
 size_t klog_available(void) {

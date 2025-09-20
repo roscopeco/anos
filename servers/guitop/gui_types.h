@@ -8,7 +8,7 @@
 #ifndef __ANOS_GUI_TYPES_H
 #define __ANOS_GUI_TYPES_H
 
-#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define MAX_WINDOWS 64
@@ -53,7 +53,7 @@ typedef struct {
 typedef struct {
     uint64_t window_id;
     uint64_t client_channel;
-    int32_t x, y;           // Position
+    uint32_t x, y;          // Position
     uint32_t width, height; // Dimensions
     uint32_t z_order;       // Layer depth (0 = bottom)
     bool visible;
