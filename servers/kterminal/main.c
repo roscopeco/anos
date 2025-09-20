@@ -74,8 +74,7 @@ static bool init_framebuffer(void) {
 
     debugterm_init((void *)FB_VIRT_ADDR, fb_info.width, fb_info.height);
     debugterm_clear();
-    banner("[ Anos Usermode Kernel Terminal #" VERSION " ]",
-           debugterm_col_count());
+    banner("[ Anos System Log Viewer #" VERSION " ]", debugterm_col_count());
 
     return true;
 }
