@@ -353,7 +353,7 @@ int xhci_hcd_init(XhciHostController *xhci_hcd, const uint64_t base_addr,
         uint64_t msi_address;
         uint32_t msi_data;
 
-        const SyscallResultU8 alloc_result = anos_allocate_interrupt_vector(
+        const SyscallResultU8 alloc_result = anos_alloc_interrupt_vector(
                 bus_device_func, &msi_address, &msi_data);
 
         if (alloc_result.result == SYSCALL_OK && alloc_result.value != 0) {
