@@ -15,8 +15,10 @@
 #include "capabilities/cookies.h"
 #include "capabilities/map.h"
 #include "debugprint.h"
+#include "framebuffer.h"
 #include "ipc/channel.h"
 #include "ipc/named.h"
+#include "klog.h"
 #include "kprintf.h"
 #include "pmm/pagealloc.h"
 #include "process.h"
@@ -915,7 +917,7 @@ SYSCALL_HANDLER(alloc_physical_pages) {
     return RESULT_OK_VAL(phys_addr);
 }
 
-SYSCALL_HANDLER(allocate_interrupt_vector) {
+SYSCALL_HANDLER(alloc_interrupt_vector) {
 #ifdef ARCH_X86_64
     const uint32_t bus_device_func = (uint32_t)arg0;
     uint64_t *msi_address_ptr = (uint64_t *)arg1;
@@ -979,6 +981,46 @@ SYSCALL_HANDLER(wait_interrupt) {
     // On non-x86_64 architectures, wait for interrupt is not yet supported
     return RESULT_TYPE(SYSCALL_NOT_IMPL);
 #endif
+}
+
+SYSCALL_HANDLER(read_kernel_log) {
+    char *buffer = (char *)arg0;
+    const size_t buffer_size = (size_t)arg1;
+    const uint32_t flags = (uint32_t)arg2;
+
+    if (!IS_USER_ADDRESS(buffer) || buffer_size == 0) {
+        return RESULT_BADARGS();
+    }
+
+    // For now, simple implementation - just read available bytes
+    const size_t bytes_read = klog_read(buffer, buffer_size);
+
+    return RESULT_OK_VAL(bytes_read);
+}
+
+SYSCALL_HANDLER(get_framebuffer_phys) {
+    AnosFramebufferInfo *user_info = (AnosFramebufferInfo *)arg0;
+
+    if (!IS_USER_ADDRESS(user_info)) {
+        return RESULT_BADARGS();
+    }
+
+    KernelFramebufferInfo kernel_info;
+    if (!framebuffer_get_info(&kernel_info)) {
+        return RESULT_FAILURE(); // Framebuffer not initialized
+    }
+
+    // Copy kernel framebuffer info to userspace structure
+    user_info->physical_address = kernel_info.physical_address;
+    user_info->width = kernel_info.width;
+    user_info->height = kernel_info.height;
+    user_info->pitch = kernel_info.pitch;
+    user_info->bpp = kernel_info.bpp;
+    user_info->reserved[0] = 0;
+    user_info->reserved[1] = 0;
+    user_info->reserved[2] = 0;
+
+    return RESULT_OK();
 }
 
 static uint64_t init_syscall_capability(CapabilityMap *map,
@@ -1083,9 +1125,13 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
     stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
                                     SYSCALL_NAME(alloc_physical_pages));
     stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
-                                    SYSCALL_NAME(allocate_interrupt_vector));
+                                    SYSCALL_NAME(alloc_interrupt_vector));
     stack_syscall_capability_cookie(SYSCALL_ID_WAIT_INTERRUPT,
                                     SYSCALL_NAME(wait_interrupt));
+    stack_syscall_capability_cookie(SYSCALL_ID_READ_KERNEL_LOG,
+                                    SYSCALL_NAME(read_kernel_log));
+    stack_syscall_capability_cookie(SYSCALL_ID_GET_FRAMEBUFFER_PHYS,
+                                    SYSCALL_NAME(get_framebuffer_phys));
 
     // Stack dummy argc/argv for now
     // TODO this needs refactoring, syscall init shouldn't be responsible

@@ -1,26 +1,19 @@
 /*
- * stage3 - Graphical debug terminal
+ * Userspace Graphical debug terminal
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
- * 
- * TODO this is slow as all hell, especially when `debugchar` is called directly.
- * The whole way this early terminal works needs redoing really...
  */
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
-
-#include "banner.h"
-#include "printdec.h"
-#include "printhex.h"
-#include "spinlock.h"
-#include "std/string.h"
+#include <string.h>
 
 #if USE_BIZCAT_FONT
-#include "gdebugterm/bizcat_font.h"
+#include "bizcat_font.h"
 #else
-#include "gdebugterm/font.h"
+#include "font.h"
 #endif
 
 #define ZERO 48
@@ -49,8 +42,6 @@ static uint8_t attr;
 
 static int font_area;
 
-static SpinLock debugterm_lock;
-
 static uint32_t const colors[] = {
         0x00000000, // COLOR_BLACK
         0x000000aa, // COLOR_BLUE
@@ -73,8 +64,8 @@ static uint32_t const colors[] = {
 static const uint8_t bit_masks[8] = {0x80, 0x40, 0x20, 0x10,
                                      0x08, 0x04, 0x02, 0x01};
 
-bool debugterm_reinit(void volatile *_fb, const uint16_t phys_width,
-                      const uint16_t phys_height) {
+bool debugterm_init(void volatile *_fb, const uint16_t phys_width,
+                    const uint16_t phys_height) {
     fb = _fb;
     fb_phys_width = phys_width;
     fb_phys_height = phys_height;
@@ -91,16 +82,6 @@ bool debugterm_reinit(void volatile *_fb, const uint16_t phys_width,
     font_area = gdebugterm_font_height * gdebugterm_font_width;
 
     return true;
-}
-
-bool debugterm_init(void volatile *_fb, const uint16_t phys_width,
-                    const uint16_t phys_height) {
-    if (debugterm_reinit(_fb, phys_width, phys_height)) {
-        banner();
-        return true;
-    }
-
-    return false;
 }
 
 #define WRITE_PIXEL(n)                                                         \
@@ -162,7 +143,7 @@ static void repaint(void) {
     }
 }
 
-static inline uint16_t scroll() {
+static uint16_t scroll() {
 #ifdef BYTEWISE_SCROLL_DEBUGGING
     for (int i = line_width_bytes; i < display_max; i++) {
         backbuf[i - line_width_bytes] = backbuf[i];
@@ -176,8 +157,8 @@ static inline uint16_t scroll() {
             display_max - line_width_bytes);
 
     uint64_t *p64 = (uint64_t *)(backbuf + display_max - line_width_bytes);
-    constexpr uint64_t fill64 = (uint64_t)(' ' | (0x08 << 8)) *
-                                0x0001000100010001ULL; // Repeat pattern
+    uint64_t fill64 = (uint64_t)(' ' | (0x08 << 8)) *
+                      0x0001000100010001ULL; // Repeat pattern
 
     for (size_t i = 0; i < line_width_bytes / 8; ++i) {
         p64[i] = fill64;
@@ -189,7 +170,7 @@ static inline uint16_t scroll() {
     return BACKBUF_PHYSICAL(logical_x, logical_y);
 }
 
-void debugchar_np(const char chr) {
+void debugterm_putchar(const char chr) {
     uint16_t phys = BACKBUF_PHYSICAL(logical_x, logical_y);
 
     if (phys >= display_max || logical_y > row_count) {
@@ -222,146 +203,25 @@ void debugchar_np(const char chr) {
     }
 }
 
-void debugattr(const uint8_t new_attr) { attr = new_attr; }
-
-void debugchar(const char chr) {
-    const uint64_t lock_flags = spinlock_lock_irqsave(&debugterm_lock);
-    debugchar_np(chr);
-    spinlock_unlock_irqrestore(&debugterm_lock, lock_flags);
-}
-
-static inline void debugstr_np(const char *str) {
-    char c;
-
-    while ((c = *str++)) {
-        debugchar_np(c);
+void debugterm_putstr(const char *str) {
+    while (str) {
+        debugterm_putchar(*str++);
     }
 }
 
-void debugstr(const char *str) {
-    const uint64_t lock_flags = spinlock_lock_irqsave(&debugterm_lock);
-    debugstr_np(str);
-    spinlock_unlock_irqrestore(&debugterm_lock, lock_flags);
-}
+void debugterm_attr(const uint8_t new_attr) { attr = new_attr; }
 
-void debugstr_len(const char *str, const int len) {
-    for (int i = 0; i < len; i++) {
-        if (str[i] == '\0') {
-            break;
-        }
-
-        debugchar_np(str[i]);
+void debugterm_write(void *buffer, const size_t size) {
+    for (int i = 0; i < size; i++) {
+        debugterm_putchar(*((char *)buffer + i));
     }
 }
 
-/* printhex */
+uint16_t debugterm_row_count(void) { return row_count; }
 
-static inline void digitprint(uint8_t digit) {
-    if (digit < 10) {
-        digit += 48;
-    } else {
-        digit += 87;
-    }
+uint16_t debugterm_col_count(void) { return col_count; }
 
-    debugchar_np(digit);
-}
-
-void printhex64(uint64_t num, PrintHexCharHandler __ignored) {
-    debugchar_np(ZERO);
-    debugchar_np(EX);
-
-    for (int i = 0; i < 64; i += 4) {
-        const char digit = (num & 0xF000000000000000) >> 60;
-        num <<= 4;
-        digitprint(digit);
-    }
-
-    debugchar(0);
-}
-
-void printhex32(uint64_t num, PrintHexCharHandler __ignored) {
-    debugchar_np(ZERO);
-    debugchar_np(EX);
-
-    for (int i = 0; i < 32; i += 4) {
-        const char digit = (num & 0xF0000000) >> 28;
-        num <<= 4;
-        digitprint(digit);
-    }
-
-    debugchar(0);
-}
-
-void printhex16(uint64_t num, PrintHexCharHandler __ignored) {
-    debugchar_np(ZERO);
-    debugchar_np(EX);
-
-    for (int i = 0; i < 16; i += 4) {
-        const char digit = (num & 0xF000) >> 12;
-        num <<= 4;
-        digitprint(digit);
-    }
-
-    debugchar(0);
-}
-
-void printhex8(uint64_t num, PrintHexCharHandler __ignored) {
-    debugchar_np(ZERO);
-    debugchar_np(EX);
-
-    for (int i = 0; i < 8; i += 4) {
-        const char digit = (num & 0xF0) >> 4;
-        num <<= 4;
-        digitprint(digit);
-    }
-
-    debugchar(0);
-}
-
-/* printdec */
-
-static const char *llmin = "9223372036854775808";
-
-static void print_llong_min(void) {
-    const char *c = llmin;
-
-    while (*c) {
-        debugchar_np(*c++);
-    }
-}
-
-void printdec(int64_t num, PrintDecCharHandler __ignored) {
-    // Handle negative numbers
-    if (num < 0) {
-        debugchar_np('-');
-        // Handle LLONG_MIN (-9223372036854775808) specially
-        if (num == -9223372036854775807LL - 1) {
-            print_llong_min();
-            return;
-        }
-        num = -num;
-    }
-
-    // Handle case when n is 0
-    if (num == 0) {
-        debugchar_np('0');
-        return;
-    }
-
-    // Buffer to store digits in reverse
-    char buf[20]; // Max 20 digits for 64-bit int
-    char *p = buf;
-
-    // Extract digits in reverse order
-    while (num > 0) {
-        *p++ = num % 10 + '0';
-        num /= 10;
-    }
-
-    // Print digits in correct order
-    while (p > buf) {
-        debugchar_np(*--p);
-    }
-
-    debugchar(0);
+void debugterm_clear(void) {
+    memset((void *)backbuf, 0, display_max);
+    repaint();
 }

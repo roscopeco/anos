@@ -122,7 +122,8 @@ endif
 #
 # These set options you might feel like configuring
 #
-#	USE_BIZCAT_FONT			Use BIZCAT font instead of the default (only for graphical terminal)
+#	KLOG_FRAMEBUFFER_FALLBACK	Enable early-boot framebuffer fallback (debugging only)
+#	USE_BIZCAT_FONT				Use BIZCAT font instead of the default (only for fallback terminal)
 #
 # And these will selectively disable features
 #
@@ -295,6 +296,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/vmm/vmm_shootdown.o									\
 			$(STAGE3_DIR)/process/address_space.o								\
 			$(STAGE3_DIR)/sched/mutex.o											\
+			$(STAGE3_DIR)/framebuffer.o											\
+			$(STAGE3_DIR)/klog.o												\
 			$(STAGE3_ARCH_OBJS)
 else
 ifeq ($(ARCH),riscv64)
@@ -333,6 +336,8 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/managed_resources/resources.o							\
 			$(STAGE3_DIR)/process/address_space.o								\
 			$(STAGE3_DIR)/sched/mutex.o											\
+			$(STAGE3_DIR)/framebuffer.o											\
+			$(STAGE3_DIR)/klog.o												\
             $(STAGE3_ARCH_OBJS)
 endif
 endif

@@ -50,6 +50,15 @@ typedef struct {
 } AnosMemInfo;
 
 typedef struct {
+    uintptr_t physical_address;
+    uint32_t width;
+    uint32_t height;
+    uint32_t pitch;       // Bytes per row
+    uint32_t bpp;         // Bits per pixel
+    uint32_t reserved[3]; // For future use
+} AnosFramebufferInfo;
+
+typedef struct {
     uintptr_t start;
     uint64_t len_bytes;
 } __attribute__((packed)) ProcessMemoryRegion;
@@ -100,6 +109,8 @@ typedef enum {
     SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
     SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
     SYSCALL_ID_WAIT_INTERRUPT,
+    SYSCALL_ID_READ_KERNEL_LOG,
+    SYSCALL_ID_GET_FRAMEBUFFER_PHYS,
 
     // sentinel
     SYSCALL_ID_END,

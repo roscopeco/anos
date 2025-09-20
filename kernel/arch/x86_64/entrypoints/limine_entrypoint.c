@@ -14,6 +14,7 @@
 #include <stdnoreturn.h>
 
 #include "debugprint.h"
+#include "framebuffer.h"
 #include "machine.h"
 #include "std/string.h"
 #include "vmm/vmmapper.h"
@@ -99,6 +100,11 @@ uintptr_t _system_bin_start_phys;
 // based on the size of the module limine loads for us...
 size_t _system_bin_size;
 
+// Global framebuffer info for bootstrap
+static uintptr_t g_fb_phys = 0;
+static uint16_t g_fb_width = 0;
+static uint16_t g_fb_height = 0;
+
 static Limine_MemMap static_memmap;
 static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
 static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
@@ -142,14 +148,11 @@ noreturn void bsp_kernel_entrypoint_limine() {
     }
 
     // framebuffer - assume it's direct mapped so we can just subtract the offset to get its phys...
-    const uintptr_t fb_phys =
-            (uintptr_t)limine_framebuffer_request.response->framebuffers[0]
-                    ->address -
-            limine_hhdm_request.response->offset;
-    const uint16_t fb_width =
-            limine_framebuffer_request.response->framebuffers[0]->width;
-    const uint16_t fb_height =
-            limine_framebuffer_request.response->framebuffers[0]->height;
+    g_fb_phys = (uintptr_t)limine_framebuffer_request.response->framebuffers[0]
+                        ->address -
+                limine_hhdm_request.response->offset;
+    g_fb_width = limine_framebuffer_request.response->framebuffers[0]->width;
+    g_fb_height = limine_framebuffer_request.response->framebuffers[0]->height;
 
     // RSDP
     const ACPI_RSDP *limine_rsdp =
@@ -234,15 +237,16 @@ noreturn void bsp_kernel_entrypoint_limine() {
 
     // map framebuffer, as four 2MiB large pages at 0xffffffff82000000 - 0xffffffff827fffff
     // Use PAT bit for write-combining (maps to PAT entry 4+ which we set to WC above)
-    new_pd[0x10] = fb_phys | PG_PRESENT | PG_WRITE | PG_PAGESIZE | PG_PAT_LARGE;
-    new_pd[0x11] = (fb_phys + 0x200000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE |
-                   PG_PAT_LARGE;
-    new_pd[0x12] = (fb_phys + 0x400000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE |
-                   PG_PAT_LARGE;
-    new_pd[0x13] = (fb_phys + 0x600000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE |
-                   PG_PAT_LARGE;
+    new_pd[0x10] =
+            g_fb_phys | PG_PRESENT | PG_WRITE | PG_PAGESIZE | PG_PAT_LARGE;
+    new_pd[0x11] = (g_fb_phys + 0x200000) | PG_PRESENT | PG_WRITE |
+                   PG_PAGESIZE | PG_PAT_LARGE;
+    new_pd[0x12] = (g_fb_phys + 0x400000) | PG_PRESENT | PG_WRITE |
+                   PG_PAGESIZE | PG_PAT_LARGE;
+    new_pd[0x13] = (g_fb_phys + 0x600000) | PG_PRESENT | PG_WRITE |
+                   PG_PAGESIZE | PG_PAT_LARGE;
 
-    bootstrap_trampoline(system_size, fb_width, fb_height,
+    bootstrap_trampoline(system_size, g_fb_width, g_fb_height,
                          KERNEL_INIT_STACK_TOP, PM4_START, bootstrap_continue);
 }
 
@@ -259,7 +263,11 @@ static noreturn void bootstrap_continue(const size_t system_size,
     _system_bin_start_phys = (uint64_t)&_system_bin_start & ~0xFFFFFFFF80000000;
     _system_bin_size = system_size;
 
-    debugterm_init((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
+    debugterm_init((char *)KERNEL_FRAMEBUFFER, g_fb_width, g_fb_height);
+
+    // Store framebuffer info for syscalls
+    framebuffer_set_info(g_fb_phys, KERNEL_FRAMEBUFFER, g_fb_width, g_fb_height,
+                         32);
 
     if (system_size == 0) {
         // No system module passed, fail early for now.
