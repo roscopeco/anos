@@ -828,7 +828,6 @@ int main(int argc, char **argv) {
                           devman_pid);
             }
 
-            // Start GUI compositor
             const char *kterm_argv[] = {"boot:/kterminal.elf"};
             const int64_t kterm_pid = create_server_process(
                     0x200000, 19, new_process_caps, 1, kterm_argv);
