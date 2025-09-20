@@ -823,14 +823,14 @@ int main(int argc, char **argv) {
             }
 
             // Start GUI compositor
-            const char *guitop_argv[] = {"boot:/guitop.elf"};
-            const int64_t guitop_pid = create_server_process(
-                    0x200000, 18, new_process_caps, 1, guitop_argv);
-            if (guitop_pid < 0) {
-                printf("%s: Failed to create GUI compositor process\n",
-                       "boot:/guitop.elf");
+            const char *kterm_argv[] = {"boot:/kterminal.elf"};
+            const int64_t kterm_pid = create_server_process(
+                    0x200000, 18, new_process_caps, 1, kterm_argv);
+            if (kterm_pid < 0) {
+                printf("%s: Failed to create kernel terminal process\n",
+                       "boot:/kterminal.elf");
             } else {
-                printf("GUI Compositor started (PID: %ld)\n", guitop_pid);
+                fs_debugf("Kernel terminal started (PID: %ld)\n", kterm_pid);
             }
 
             if (devman_pid >= 0) {

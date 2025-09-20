@@ -10,8 +10,8 @@
 
 // clang-format Language: C
 
-#ifndef __ANOS_GUITOP_GDEBUGTERM_FONT_H
-#define __ANOS_GUITOP_GDEBUGTERM_FONT_H
+#ifndef __ANOS_KTERMINAL_GDEBUGTERM_FONT_H
+#define __ANOS_KTERMINAL_GDEBUGTERM_FONT_H
 
 #include <stdint.h>
 
@@ -283,4 +283,4 @@ static const uint8_t gdebugterm_font[] = {
 
 // clang-format on
 
-#endif //__ANOS_GUITOP_GDEBUGTERM_FONT_H
+#endif //__ANOS_KTERMINAL_GDEBUGTERM_FONT_H
