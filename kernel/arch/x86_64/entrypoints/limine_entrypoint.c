@@ -31,7 +31,7 @@
 #include "kprintf.h"
 #endif
 
-#define MAX_MEMMAP_ENTRIES 64
+#define MAX_MEMMAP_ENTRIES 128
 
 // NOTE: These **must** be kept in-step with STAGE2's `init_pagetables.asm`!
 #define PM4_START ((0x9c000))
@@ -51,6 +51,13 @@ void debug_memmap_limine(Limine_MemMap *memmap);
 #else
 #define debug_memmap_limine(...)
 #endif
+
+// TODO migrate to revision 3. We'll need a new way to sort out the
+//      ACPI tables though, since at r3 they don't get mapped into the HHDM
+//      and the identity map isn't available any more - we only get the
+//      phys of the RSDP so will need to not copy and just map...
+//
+LIMINE_BASE_REVISION(2);
 
 static volatile Limine_MemMapRequest limine_memmap_request
         __attribute__((__aligned__(8))) = {
@@ -114,8 +121,6 @@ static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
 // doesn't care where they are...
 static ACPI_RSDP static_rsdp;
 
-static uint64_t module_count;
-
 // Externals
 noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys);
 noreturn void bootstrap_trampoline(size_t system_size, uint16_t fb_width,
@@ -127,8 +132,6 @@ static noreturn void bootstrap_continue(size_t system_size, uint16_t fb_width,
                                         uint16_t fb_height);
 
 noreturn void bsp_kernel_entrypoint_limine() {
-    module_count = limine_module_request.response->module_count;
-
     // grab stuff we need - memmap first. We'll copy it into a static buffer for ease...
     static_memmap.entries = (Limine_MemMapEntry **)&static_memmap_pointers;
     static_memmap.entry_count = limine_memmap_request.memmap->entry_count;
@@ -193,17 +196,27 @@ noreturn void bsp_kernel_entrypoint_limine() {
     //
     // .. and finally the system/ramfs binary. This is expected to be
     // right at the end of the kernel, per the link script.
+    uint64_t module_count = 0;
     size_t system_size = 0;
 
-    if (limine_module_request.response->module_count == 1) {
-        // TODO check name to make sure it's our module / we only have one!
-        system_size = limine_module_request.response->modules[0]->size;
-        new_base = (uint64_t *)(((uintptr_t)new_base +
-                                 ((uintptr_t)&_system_bin_start) -
-                                 ((uintptr_t)&_code)));
+    if (limine_module_request.response) {
+        module_count = limine_module_request.response->module_count;
+    }
 
-        memcpy(new_base, limine_module_request.response->modules[0]->address,
-               system_size);
+    if (module_count == 1) {
+        // TODO check name to make sure it's our module / we only have one!
+        //
+        if (limine_module_request.response->modules[0] &&
+            limine_module_request.response->modules[0]->address) {
+            system_size = limine_module_request.response->modules[0]->size;
+            new_base = (uint64_t *)(((uintptr_t)new_base +
+                                     ((uintptr_t)&_system_bin_start) -
+                                     ((uintptr_t)&_code)));
+
+            memcpy(new_base,
+                   limine_module_request.response->modules[0]->address,
+                   system_size);
+        }
     }
 
     // Set up the static pagetables the kernel expects to exist...
@@ -269,13 +282,6 @@ static noreturn void bootstrap_continue(const size_t system_size,
     framebuffer_set_info(g_fb_phys, KERNEL_FRAMEBUFFER, g_fb_width, g_fb_height,
                          32);
 
-    if (system_size == 0) {
-        // No system module passed, fail early for now.
-        debugstr(
-                "No system module loaded - check bootloader config. Halting\n");
-        halt_and_catch_fire();
-    }
-
     init_kernel_gdt();
     install_interrupts();
 
@@ -304,6 +310,13 @@ static noreturn void bootstrap_continue(const size_t system_size,
             vmm_direct_mapping_gigapages_used,
             vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used);
 #endif
+
+    if (system_size == 0) {
+        // No system module passed, fail early for now.
+        debugstr(
+                "No system module loaded - check bootloader config. Halting\n");
+        halt_and_catch_fire();
+    }
 
     bsp_kernel_entrypoint(((uintptr_t)&static_rsdp) - STATIC_KERNEL_SPACE);
 }
