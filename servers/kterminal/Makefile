@@ -9,6 +9,6 @@ BINARY_OBJS=gdebugterm.o main.o
 #
 #	USE_BIZCAT_FONT			Use BIZCAT font instead of the default
 #
-CDEFS=
+CDEFS=-DUSE_BIZCAT_FONT
 
 include ../server_common.mk
