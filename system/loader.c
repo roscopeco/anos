@@ -36,7 +36,6 @@ void anos_task_sleep_current_secs(int secs);
 
 #include "elf.h"
 #include "loader.h"
-#include "printf.h"
 
 #ifdef DEBUG_SERVER_LOADER
 #define debugf printf

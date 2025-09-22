@@ -6,6 +6,7 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <stdnoreturn.h>
 #include <string.h>
@@ -16,9 +17,10 @@
 #include "../servers/common/device_types.h"
 #include "../servers/common/filesystem_types.h"
 #include "path.h"
-#include "printf.h"
 #include "process.h"
 #include "ramfs.h"
+
+#include "jansson.h"
 
 #ifndef VERSTR
 #warning Version String not defined (-DVERSTR); Using default
@@ -600,6 +602,8 @@ int main(int argc, char **argv) {
     } else {
         printf("WARN: Get mem info failed\n");
     }
+
+    printf("Using Jansson version %s\n", jansson_version_str());
 
 #ifdef DEBUG_INIT_RAMFS
     AnosRAMFSHeader *ramfs = (AnosRAMFSHeader *)&_system_ramfs_start;
