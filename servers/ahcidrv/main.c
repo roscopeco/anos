@@ -138,8 +138,10 @@ static bool register_with_devman(void) {
     if (controller_reg_result.result == SYSCALL_OK &&
         controller_reg_result.value > 0) {
         ahci_controller_id = controller_reg_result.value;
+#ifdef DEBUG_AHCI_INIT
         printf("Registered AHCI controller with DEVMAN (ID: %lu)\n",
                ahci_controller_id);
+#endif
     } else {
         printf("Failed to register AHCI controller with DEVMAN\n");
         return false;
@@ -185,9 +187,11 @@ static bool register_with_devman(void) {
                     anos_send_message(devman_channel, 0, msg_size, reg_buffer);
 
             if (reg_result.result == SYSCALL_OK && reg_result.value > 0) {
+#ifdef DEBUG_AHCI_INIT
                 printf("Registered storage device on port %u with DEVMAN (ID: "
                        "%lu)\n",
                        i, reg_result.value);
+#endif
             } else {
                 printf("Failed to register port %u with DEVMAN\n", i);
             }

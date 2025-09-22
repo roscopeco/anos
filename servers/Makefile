@@ -1,5 +1,6 @@
 SERVERS_ROOT_DIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
+ARCH?=x86_64
 MKRAMFS?=mkramfs
 MKRAMFS_DIR?=$(SERVERS_ROOT_DIR)/../tools/$(MKRAMFS)
 MKRAMFS_BIN?=$(MKRAMFS_DIR)/$(MKRAMFS)

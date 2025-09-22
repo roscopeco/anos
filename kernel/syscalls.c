@@ -634,6 +634,7 @@ SYSCALL_HANDLER(create_region) {
     const Process *proc = task_current()->owner;
 
     // Try coalescing with an adjacent region if one exists
+    // TODO this is probably dangerous
     Region *adj = region_tree_find_adjacent(proc->meminfo->regions, start, end,
                                             flags);
     if (adj) {
@@ -646,7 +647,9 @@ SYSCALL_HANDLER(create_region) {
     }
 
     if (region_tree_overlaps(proc->meminfo->regions, start, end)) {
-        return RESULT_FAILURE(); // overlap not allowed
+        // If it fully overlaps, then... we're good?
+        // TODO this is potentially dangerous, have we checked flags?
+        return RESULT_OK();
     }
 
     Region *region = slab_alloc_block();

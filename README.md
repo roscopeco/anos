@@ -3,15 +3,23 @@
 ![workflow status](https://github.com/roscopeco/anos/actions/workflows/compile_test.yaml/badge.svg)
 ![code coverage](coverage.svg)
 
+<p align="center">
+<img src="images/logo-concepts/concept1-round-dark-smol.png" height="150px">
+</p>
+
 > [!NOTE]
 > This is not yet an operating system, but _definitely has_  reached 
 > "toy kernel" status, since it now supports user mode preemptive 
 > multitasking on up to 16 CPUs, provides enough kernel support to 
-> run PCI device drivers in userspace, and runs on real hardware 🥳.
+> run functioning device drivers in userspace, and runs on real hardware 🥳.
+
+### Latest Screenshot
+
+<p align="center">
+<img src="images/Screenshot 2025-09-22 at 06.14.47.png" alt="UEFI-booted ANOS running in Qemu" width="600px">
+</p>
 
 ### High-level overview
-
-> **Note** this is still evolving!
 
 Anos is a modern, opinionated, non-POSIX operating system
 (just a hobby, won't be big and professional like GNU-Linux®) 
@@ -407,20 +415,17 @@ All code is built with the new
 [Anos newlib toolchain](https://github.com/roscopeco/anos-toolchain), with SYSTEM and server code compiled
 in hosted mode (i.e. without `-ffreestanding` etc).
 
-<img src="images/IMG_2758.jpg" alt="UEFI-booted ANOS running on a real-life computer">
+<img src="images/IMG_2912.jpg" alt="UEFI-booted ANOS running on a real-life computer">
 
 It also runs in emulators, of course - here's Qemu booted via UEFI, using the
 graphical debug terminal at 1280x800 resolution and again showing the IPC features,
 user-mode hardware driver capabilities and other features:
 
-<img src="images/Screenshot 2025-09-04 at 21.51.59.png" alt="UEFI-booted ANOS running in Qemu">
+<img src="images/Screenshot 2025-09-22 at 06.14.47.png" alt="UEFI-booted ANOS running in Qemu">
 
 Broadly, this is happening here:
 
-* Boot
-  * With our BIOS bootloader - fully boot from real to long mode
-  * With Limine (UEFI) - Take over from Limine and set everything up for Kernel
-* Set up our graphical terminal (or text-mode if non-UEFI)
+* Boot (UEFI) - Take over from Limine and set everything up for Kernel
 * Set up a RLE stack-based PMM
 * Set up VMM & direct-mapped paging
 * Set up fixed block & slab allocators
@@ -431,6 +436,9 @@ Broadly, this is happening here:
 * Start a prioritised round-robin scheduler on all CPUs
 * User-mode supervisor ("`SYSTEM`") creates some IPC channels for VFS and other services
 * Supervisor starts some threads with a `syscall`, and sets up listeners for the IPC channels
+* Supervisor starts the kernel log viewer (`kterm`) with a `syscall`
+  * This runs in userspace and takes control of the framebuffer
+  * Kernel log output is read from a data channel the kernel provides
 * Supervisor starts the device manager ("`DEVMAN`") with another `syscall`
 * Device manager is given enhanced capabilities (e.g. map physical memory) and sets up its environment
   * Uses IPC messaging to request system load its (ELF) binary from RAMFS
@@ -449,19 +457,21 @@ Broadly, this is happening here:
   * The driver maps and initializes the AHCI controller
   * Allocates memory for queues and buffers, and hooks them up to the hardware
   * Scans the bus, issuing an `IDENTIFY` for each found device and outputs basic information
-  * All AHCI drivers and active ports are registered with the device manager 
+  * All AHCI drivers and active ports are registered with the device manager
 * Basic FAT32 filesystem driver is started
   * This finds the UEFI root partition (which is why FAT32 was chosen to begin with)
   * In debug mode (see the qemu screenshot) it dumps the root directory to the console
   * It then registers a VFS endpoint with SYSTEM to allow software to access the filesystem
 
-Here's another picture (from the same PC as the image above) showing the AHCI driver initialisation process
-with debugging output enabled. This shows detail of the userspace mapping of config space 
-and BARs for the device, plus how the device's interrupts are set up (using modern
-[Message Signaled Interrupts](https://en.wikipedia.org/wiki/Message_Signaled_Interrupts))
-rather than legacy interrupt line or IOAPIC config). This allows the SATA drive
-in the computer to respond correctly to an `IDENTIFY` command. The SATAPI DVD-ROM drive
-also present is not successfully initialized as it does not yet have driver support. 
+Here's another picture (from the same PC as the image above, but with an older kernel build)
+showing the AHCI driver initialisation process with debugging output enabled. This shows detail
+of the userspace mapping of config space and BARs for the device, plus how the device's
+interrupts are set up (using modern [Message Signaled Interrupts](https://en.wikipedia.org/wiki/Message_Signaled_Interrupts)
+rather than legacy interrupt line or IOAPIC config). 
+
+This allows the SATA drive in the computer to respond correctly to an `IDENTIFY` command.
+The SATAPI DVD-ROM drive also present is not successfully initialized as it does not yet
+have driver support. 
 
 <img src="images/IMG_2762.jpg" alt="Anos AHCI driver init with debug output">
 
