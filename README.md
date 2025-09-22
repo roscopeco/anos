@@ -16,7 +16,7 @@
 ### Latest Screenshot
 
 <p align="center">
-<img src="images/Screenshot 2025-09-22 at 06.14.47.png" alt="UEFI-booted ANOS running in Qemu" width="600px">
+<img src="images/IMG_2912.jpg" alt="UEFI-booted ANOS running on a real-life computer">
 </p>
 
 ### High-level overview
