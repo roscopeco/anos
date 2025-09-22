@@ -30,3 +30,5 @@ uefi/riscv64/edk2/RISCV_VIRT_VARS.fd
 .idea
 native_tests/elf
 qemu.log
+*.Po
+*.Plo
