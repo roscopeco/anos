@@ -20,6 +20,7 @@
 #include "process.h"
 #include "ramfs.h"
 
+#include "config.h"
 #include "jansson.h"
 
 #ifndef VERSTR
@@ -603,7 +604,39 @@ int main(int argc, char **argv) {
         printf("WARN: Get mem info failed\n");
     }
 
-    printf("Using Jansson version %s\n", jansson_version_str());
+    process_config(
+            "{  \"boot_servers\": [    {      \"name\": \"Kernel Log Viewer\", "
+            "     \"path\": \"boot:/kterminal.elf\",      \"capabilities\": [  "
+            "      \"SYSCALL_DEBUG_PRINT\",        \"SYSCALL_DEBUG_CHAR\",     "
+            "   \"SYSCALL_CREATE_REGION\",        \"SYSCALL_SLEEP\",        "
+            "\"SYSCALL_MAP_FIRMWARE_TABLES\",        \"SYSCALL_MAP_PHYSICAL\", "
+            "       \"SYSCALL_MAP_VIRTUAL\",        "
+            "\"SYSCALL_ALLOC_PHYSICAL_PAGES\",        "
+            "\"SYSCALL_SEND_MESSAGE\",        \"SYSCALL_FIND_NAMED_CHANNEL\",  "
+            "      \"SYSCALL_KILL_CURRENT_TASK\",        "
+            "\"SYSCALL_ALLOC_INTERRUPT_VECTOR\",        "
+            "\"SYSCALL_WAIT_INTERRUPT\",        \"SYSCALL_RECV_MESSAGE\",      "
+            "  \"SYSCALL_REPLY_MESSAGE\",        \"SYSCALL_CREATE_CHANNEL\",   "
+            "     \"SYSCALL_REGISTER_NAMED_CHANNEL\",        "
+            "\"SYSCALL_READ_KERNEL_LOG\",        "
+            "\"SYSCALL_GET_FRAMEBUFFER_PHYS\"      ]    },    {      \"name\": "
+            "\"DEVMAN\",      \"path\": \"boot:/devman.elf\",      "
+            "\"capabilities\": [        \"SYSCALL_DEBUG_PRINT\",        "
+            "\"SYSCALL_DEBUG_CHAR\",        \"SYSCALL_CREATE_REGION\",        "
+            "\"SYSCALL_SLEEP\",        \"SYSCALL_MAP_FIRMWARE_TABLES\",        "
+            "\"SYSCALL_MAP_PHYSICAL\",        \"SYSCALL_MAP_VIRTUAL\",        "
+            "\"SYSCALL_ALLOC_PHYSICAL_PAGES\",        "
+            "\"SYSCALL_SEND_MESSAGE\",        \"SYSCALL_FIND_NAMED_CHANNEL\",  "
+            "      \"SYSCALL_KILL_CURRENT_TASK\",        "
+            "\"SYSCALL_ALLOC_INTERRUPT_VECTOR\",        "
+            "\"SYSCALL_WAIT_INTERRUPT\",        \"SYSCALL_RECV_MESSAGE\",      "
+            "  \"SYSCALL_REPLY_MESSAGE\",        \"SYSCALL_CREATE_CHANNEL\",   "
+            "     \"SYSCALL_REGISTER_NAMED_CHANNEL\"      ]    },    {      "
+            "\"name\": \"Test Server\",      \"path\": "
+            "\"boot:/test_server.elf\",      \"capabilities\": [        "
+            "\"SYSCALL_DEBUG_PRINT\",        \"SYSCALL_DEBUG_CHAR\",        "
+            "\"SYSCALL_CREATE_REGION\",        \"SYSCALL_SLEEP\"      ], "
+            "\"arguments\": [ \"Hello, World!\" ]    }  ]}");
 
 #ifdef DEBUG_INIT_RAMFS
     AnosRAMFSHeader *ramfs = (AnosRAMFSHeader *)&_system_ramfs_start;

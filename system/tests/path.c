@@ -11,7 +11,6 @@
 #include <stddef.h>
 #include <string.h>
 
-// Forward declarations (your actual implementation should be linked)
 bool parse_file_path(char *input, size_t input_len, char **mount_point, char **path);
 
 // === Valid Cases ===
