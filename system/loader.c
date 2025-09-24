@@ -49,8 +49,10 @@ const extern void *_code_start;
 const extern void *_code_end;
 const extern void *_bss_start;
 const extern void *_bss_end;
+const extern void *_data_start;
+const extern void *_data_end;
 
-// TODO we shouldn't have inline x86_64 in here!!!
+// TODO we shouldn't have inline assembly in here!!!
 static noreturn void __attribute__((noinline)) restore_stack_and_jump(void *stack_ptr, void (*target)(void)) {
 #ifdef __x86_64__
     __asm__ volatile("mov %0, %%rsp\n"
@@ -134,13 +136,20 @@ static void unmap_system_memory() {
     const uintptr_t bss_start = (uintptr_t)&_bss_start;
     const uintptr_t bss_end = (uintptr_t)&_bss_end;
     const size_t bss_len = bss_end - bss_start;
+    const uintptr_t data_start = (uintptr_t)&_data_start;
+    const uintptr_t data_end = (uintptr_t)&_data_end;
+    const size_t data_len = data_end - data_start;
 
     // TODO this isn't actually going to work this way, we're still running
     //      code in this mapping, unmapping it like this won't end well...
     //
     // anos_unmap_virtual(code_len, code_start);
 
+    anos_unmap_virtual(data_len, data_start);
     anos_unmap_virtual(bss_len, bss_start);
+
+    // from this point, we can't do any more syscalls - the capabilities array
+    // is not mapped any more...
 #endif
 }
 

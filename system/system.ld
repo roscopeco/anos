@@ -30,8 +30,9 @@ SECTIONS
   
   .data : 
   {
+    /* Page alignment is important here - these sections are mapped temporarily into loading executables! */
+    . = ALIGN(4096);
     _data_start = .;
-    . = ALIGN(16);
     *(.data*)
     . = ALIGN(16);
     _data_end = .;

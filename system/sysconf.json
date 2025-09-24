@@ -3,6 +3,7 @@
     {
       "name": "Kernel Log Viewer",
       "path": "boot:/kterminal.elf",
+      "stack_size": 2097152,
       "capabilities": [
         "SYSCALL_DEBUG_PRINT",
         "SYSCALL_DEBUG_CHAR",
@@ -28,6 +29,7 @@
     {
       "name": "DEVMAN",
       "path": "boot:/devman.elf",
+      "stack_size": 1048576,
       "capabilities": [
         "SYSCALL_DEBUG_PRINT",
         "SYSCALL_DEBUG_CHAR",
@@ -51,6 +53,7 @@
     {
       "name": "Test Server",
       "path": "boot:/test_server.elf",
+      "stack_size": 131072,
       "capabilities": [
         "SYSCALL_DEBUG_PRINT",
         "SYSCALL_DEBUG_CHAR",

@@ -80,8 +80,8 @@ static VFSMountEntry filesystem_mounts[MAX_VFS_FILESYSTEMS];
 static uint32_t filesystem_mount_count = 0;
 
 // Global capabilities for filesystem drivers
-static const InitCapability *global_fs_caps = nullptr;
-static uint16_t global_fs_cap_count = 0;
+static constexpr uint16_t global_fs_cap_count = 17;
+static InitCapability global_fs_caps[global_fs_cap_count];
 
 static inline void banner() {
     printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION, libanos_version());
@@ -121,6 +121,82 @@ static void dump_fs(AnosRAMFSHeader *ramfs) {
 #else
 #define dump_fs(...)
 #endif
+
+static void init_global_fs_caps() {
+    const InitCapability new_process_caps[] = {
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
+                    .capability_id = SYSCALL_ID_DEBUG_PRINT,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
+                    .capability_id = SYSCALL_ID_DEBUG_CHAR,
+            },
+            // N.B! malloc (via sbrk) in the stdlib needs create region cap!
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_CREATE_REGION],
+                    .capability_id = SYSCALL_ID_CREATE_REGION,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_SLEEP],
+                    .capability_id = SYSCALL_ID_SLEEP,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_FIRMWARE_TABLES],
+                    .capability_id = SYSCALL_ID_MAP_FIRMWARE_TABLES,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL],
+                    .capability_id = SYSCALL_ID_MAP_PHYSICAL,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL],
+                    .capability_id = SYSCALL_ID_MAP_VIRTUAL,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_ALLOC_PHYSICAL_PAGES],
+                    .capability_id = SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
+                    .capability_id = SYSCALL_ID_SEND_MESSAGE,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_FIND_NAMED_CHANNEL],
+                    .capability_id = SYSCALL_ID_FIND_NAMED_CHANNEL,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK],
+                    .capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_ALLOC_INTERRUPT_VECTOR],
+                    .capability_id = SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT],
+                    .capability_id = SYSCALL_ID_WAIT_INTERRUPT,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE],
+                    .capability_id = SYSCALL_ID_RECV_MESSAGE,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE],
+                    .capability_id = SYSCALL_ID_REPLY_MESSAGE,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL],
+                    .capability_id = SYSCALL_ID_CREATE_CHANNEL,
+            },
+            {
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_REGISTER_NAMED_CHANNEL],
+                    .capability_id = SYSCALL_ID_REGISTER_NAMED_CHANNEL,
+            },
+    };
+
+    memcpy((void *)global_fs_caps, new_process_caps, sizeof(InitCapability) * global_fs_cap_count);
+}
 
 static void handle_file_size_query(const uint64_t message_cookie, const size_t message_size, char *message_buffer) {
     char *mount_point, *path;
@@ -604,124 +680,10 @@ int main(int argc, char **argv) {
         printf("WARN: Get mem info failed\n");
     }
 
-    process_config(
-            "{  \"boot_servers\": [    {      \"name\": \"Kernel Log Viewer\", "
-            "     \"path\": \"boot:/kterminal.elf\",      \"capabilities\": [  "
-            "      \"SYSCALL_DEBUG_PRINT\",        \"SYSCALL_DEBUG_CHAR\",     "
-            "   \"SYSCALL_CREATE_REGION\",        \"SYSCALL_SLEEP\",        "
-            "\"SYSCALL_MAP_FIRMWARE_TABLES\",        \"SYSCALL_MAP_PHYSICAL\", "
-            "       \"SYSCALL_MAP_VIRTUAL\",        "
-            "\"SYSCALL_ALLOC_PHYSICAL_PAGES\",        "
-            "\"SYSCALL_SEND_MESSAGE\",        \"SYSCALL_FIND_NAMED_CHANNEL\",  "
-            "      \"SYSCALL_KILL_CURRENT_TASK\",        "
-            "\"SYSCALL_ALLOC_INTERRUPT_VECTOR\",        "
-            "\"SYSCALL_WAIT_INTERRUPT\",        \"SYSCALL_RECV_MESSAGE\",      "
-            "  \"SYSCALL_REPLY_MESSAGE\",        \"SYSCALL_CREATE_CHANNEL\",   "
-            "     \"SYSCALL_REGISTER_NAMED_CHANNEL\",        "
-            "\"SYSCALL_READ_KERNEL_LOG\",        "
-            "\"SYSCALL_GET_FRAMEBUFFER_PHYS\"      ]    },    {      \"name\": "
-            "\"DEVMAN\",      \"path\": \"boot:/devman.elf\",      "
-            "\"capabilities\": [        \"SYSCALL_DEBUG_PRINT\",        "
-            "\"SYSCALL_DEBUG_CHAR\",        \"SYSCALL_CREATE_REGION\",        "
-            "\"SYSCALL_SLEEP\",        \"SYSCALL_MAP_FIRMWARE_TABLES\",        "
-            "\"SYSCALL_MAP_PHYSICAL\",        \"SYSCALL_MAP_VIRTUAL\",        "
-            "\"SYSCALL_ALLOC_PHYSICAL_PAGES\",        "
-            "\"SYSCALL_SEND_MESSAGE\",        \"SYSCALL_FIND_NAMED_CHANNEL\",  "
-            "      \"SYSCALL_KILL_CURRENT_TASK\",        "
-            "\"SYSCALL_ALLOC_INTERRUPT_VECTOR\",        "
-            "\"SYSCALL_WAIT_INTERRUPT\",        \"SYSCALL_RECV_MESSAGE\",      "
-            "  \"SYSCALL_REPLY_MESSAGE\",        \"SYSCALL_CREATE_CHANNEL\",   "
-            "     \"SYSCALL_REGISTER_NAMED_CHANNEL\"      ]    },    {      "
-            "\"name\": \"Test Server\",      \"path\": "
-            "\"boot:/test_server.elf\",      \"capabilities\": [        "
-            "\"SYSCALL_DEBUG_PRINT\",        \"SYSCALL_DEBUG_CHAR\",        "
-            "\"SYSCALL_CREATE_REGION\",        \"SYSCALL_SLEEP\"      ], "
-            "\"arguments\": [ \"Hello, World!\" ]    }  ]}");
-
 #ifdef DEBUG_INIT_RAMFS
     AnosRAMFSHeader *ramfs = (AnosRAMFSHeader *)&_system_ramfs_start;
     dump_fs(ramfs);
 #endif
-
-    const InitCapability new_process_caps[] = {
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
-                    .capability_id = SYSCALL_ID_DEBUG_PRINT,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
-                    .capability_id = SYSCALL_ID_DEBUG_CHAR,
-            },
-            // N.B! malloc (via sbrk) in the stdlib needs create region cap!
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_CREATE_REGION],
-                    .capability_id = SYSCALL_ID_CREATE_REGION,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_SLEEP],
-                    .capability_id = SYSCALL_ID_SLEEP,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_FIRMWARE_TABLES],
-                    .capability_id = SYSCALL_ID_MAP_FIRMWARE_TABLES,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL],
-                    .capability_id = SYSCALL_ID_MAP_PHYSICAL,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL],
-                    .capability_id = SYSCALL_ID_MAP_VIRTUAL,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_ALLOC_PHYSICAL_PAGES],
-                    .capability_id = SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
-                    .capability_id = SYSCALL_ID_SEND_MESSAGE,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_FIND_NAMED_CHANNEL],
-                    .capability_id = SYSCALL_ID_FIND_NAMED_CHANNEL,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK],
-                    .capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_ALLOC_INTERRUPT_VECTOR],
-                    .capability_id = SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT],
-                    .capability_id = SYSCALL_ID_WAIT_INTERRUPT,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE],
-                    .capability_id = SYSCALL_ID_RECV_MESSAGE,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE],
-                    .capability_id = SYSCALL_ID_REPLY_MESSAGE,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL],
-                    .capability_id = SYSCALL_ID_CREATE_CHANNEL,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_REGISTER_NAMED_CHANNEL],
-                    .capability_id = SYSCALL_ID_REGISTER_NAMED_CHANNEL,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_READ_KERNEL_LOG],
-                    .capability_id = SYSCALL_ID_READ_KERNEL_LOG,
-            },
-            {
-                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_GET_FRAMEBUFFER_PHYS],
-                    .capability_id = SYSCALL_ID_GET_FRAMEBUFFER_PHYS,
-            },
-    };
 
     const SyscallResult create_vfs_result = anos_create_channel();
     const uint64_t vfs_channel = create_vfs_result.value;
@@ -759,50 +721,53 @@ int main(int argc, char **argv) {
                 printf("Failed to create process manager thread!\n");
             }
 
-#ifdef TEST_BEEP_BOOP
-            const char *test_server_argv[] = {"boot:/test_server.elf", "Hello, world!"};
+            process_config("{  \"boot_servers\": [    {      \"name\": \"Kernel Log Viewer\", "
+                           "     \"path\": \"boot:/kterminal.elf\", \"stack_size\": 2097152,     \"capabilities\": [  "
+                           "      \"SYSCALL_DEBUG_PRINT\",        \"SYSCALL_DEBUG_CHAR\",     "
+                           "   \"SYSCALL_CREATE_REGION\",        \"SYSCALL_SLEEP\",        "
+                           "\"SYSCALL_MAP_FIRMWARE_TABLES\",        \"SYSCALL_MAP_PHYSICAL\", "
+                           "       \"SYSCALL_MAP_VIRTUAL\",        "
+                           "\"SYSCALL_ALLOC_PHYSICAL_PAGES\",        "
+                           "\"SYSCALL_SEND_MESSAGE\",        \"SYSCALL_FIND_NAMED_CHANNEL\",  "
+                           "      \"SYSCALL_KILL_CURRENT_TASK\",        "
+                           "\"SYSCALL_ALLOC_INTERRUPT_VECTOR\",        "
+                           "\"SYSCALL_WAIT_INTERRUPT\",        \"SYSCALL_RECV_MESSAGE\",      "
+                           "  \"SYSCALL_REPLY_MESSAGE\",        \"SYSCALL_CREATE_CHANNEL\",   "
+                           "     \"SYSCALL_REGISTER_NAMED_CHANNEL\",        "
+                           "\"SYSCALL_READ_KERNEL_LOG\",        "
+                           "\"SYSCALL_GET_FRAMEBUFFER_PHYS\"      ]    },    {      \"name\": "
+                           "\"DEVMAN\",   \"stack_size\": 2097152,   \"path\": \"boot:/devman.elf\",      "
+                           "\"capabilities\": [        \"SYSCALL_DEBUG_PRINT\",        "
+                           "\"SYSCALL_DEBUG_CHAR\",        \"SYSCALL_CREATE_REGION\",        "
+                           "\"SYSCALL_SLEEP\",        \"SYSCALL_MAP_FIRMWARE_TABLES\",        "
+                           "\"SYSCALL_MAP_PHYSICAL\",        \"SYSCALL_MAP_VIRTUAL\",        "
+                           "\"SYSCALL_ALLOC_PHYSICAL_PAGES\",        "
+                           "\"SYSCALL_SEND_MESSAGE\",        \"SYSCALL_FIND_NAMED_CHANNEL\",  "
+                           "      \"SYSCALL_KILL_CURRENT_TASK\",        "
+                           "\"SYSCALL_ALLOC_INTERRUPT_VECTOR\",        "
+                           "\"SYSCALL_WAIT_INTERRUPT\",        \"SYSCALL_RECV_MESSAGE\",      "
+                           "  \"SYSCALL_REPLY_MESSAGE\",        \"SYSCALL_CREATE_CHANNEL\",   "
+                           "     \"SYSCALL_REGISTER_NAMED_CHANNEL\"      ]    },    {      "
+                           "\"name\": \"Test Server\",   \"stack_size\": 2097152,   \"path\": "
+                           "\"boot:/test_server.elf\",      \"capabilities\": [        "
+                           "\"SYSCALL_DEBUG_PRINT\",        \"SYSCALL_DEBUG_CHAR\",        "
+                           "\"SYSCALL_CREATE_REGION\",        \"SYSCALL_SLEEP\"      ], "
+                           "\"arguments\": [ \"Hello, World!\" ]    }  ]}");
 
-            const int64_t test_server_pid = create_server_process(0x100000, 4, new_process_caps, 2, test_server_argv);
-            if (test_server_pid < 0) {
-                printf("%s: Failed to create server process\n", "boot:/test_server.elf");
-            }
-#endif
+            // Store capabilities for filesystem drivers
+            // TODO get rid of this, and the caps we keep in here, once FS is in config as well...
+            init_global_fs_caps();
 
-            const char *devman_argv[] = {"boot:/devman.elf"};
+            // Start filesystem starter thread
+            // TODO get rid of this too, SYSTEM has no business starting filesystems directly...
+            const SyscallResult fs_thread_result =
+                    anos_create_thread(filesystem_starter_thread,
+                                       (uintptr_t)filesystem_starter_thread_stack + DRIVER_THREAD_STACK_SIZE - 8);
 
-            const int64_t devman_pid = create_server_process(0x100000, 18, new_process_caps, 1, devman_argv);
-            if (devman_pid < 0) {
-                printf("%s: Failed to create server process\n", "boot:/devman.elf");
+            if (fs_thread_result.result != SYSCALL_OK) {
+                printf("Failed to create filesystem starter thread!\n");
             } else {
-                fs_debugf("DEVMAN started (PID: %ld), starting filesystem "
-                          "starter "
-                          "thread\n",
-                          devman_pid);
-            }
-
-            const char *kterm_argv[] = {"boot:/kterminal.elf"};
-            const int64_t kterm_pid = create_server_process(0x200000, 19, new_process_caps, 1, kterm_argv);
-            if (kterm_pid < 0) {
-                printf("%s: Failed to create kernel terminal process\n", "boot:/kterminal.elf");
-            } else {
-                fs_debugf("Kernel terminal started (PID: %ld)\n", kterm_pid);
-            }
-
-            if (devman_pid >= 0) {
-                // Store capabilities for filesystem drivers
-                global_fs_caps = new_process_caps;
-                global_fs_cap_count = 18;
-
-                // Start filesystem starter thread
-                const SyscallResult fs_thread_result =
-                        anos_create_thread(filesystem_starter_thread,
-                                           (uintptr_t)filesystem_starter_thread_stack + DRIVER_THREAD_STACK_SIZE - 8);
-
-                if (fs_thread_result.result != SYSCALL_OK) {
-                    printf("Failed to create filesystem starter thread!\n");
-                } else {
-                    fs_debugf("Filesystem starter thread created\n");
-                }
+                fs_debugf("Filesystem starter thread created\n");
             }
 
             while (true) {
@@ -812,7 +777,7 @@ int main(int argc, char **argv) {
 
                 const SyscallResult result = anos_recv_message(vfs_channel, &tag, &message_size, message_buffer);
 
-                uint64_t message_cookie = result.value;
+                const uint64_t message_cookie = result.value;
 
                 if (result.result == SYSCALL_OK && message_cookie) {
 #ifdef DEBUG_SYS_IPC

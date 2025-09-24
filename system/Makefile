@@ -26,7 +26,7 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
 #	TEST_BEEP_BOOP			Start the Beep Boop test server process
 #
-CDEFS=-DDEBUG_PROCESS_CONFIG
+CDEFS=
 
 # We don't really have a RISC-V userspace yet, so always start the beep-boop test on that platform for now...
 ifeq ($(ARCH),riscv64)

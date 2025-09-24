@@ -12,6 +12,7 @@ typedef enum {
     PROCESS_CONFIG_OK = 0,
     PROCESS_CONFIG_NOT_FOUND = -1,
     PROCESS_CONFIG_INVALID = -2,
+    PROCESS_CONFIG_FAILURE = -3,
 } ProcessConfigResult;
 
 ProcessConfigResult process_config(const char *json);
