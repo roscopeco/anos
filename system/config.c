@@ -12,7 +12,15 @@
 
 #include "config.h"
 #include "jansson.h"
+#include "loader.h"
 #include "process.h"
+
+#ifdef DEBUG_LOAD_CONFIG
+#include <stdio.h>
+#define load_debug(...) printf("LoadConfig: " __VA_ARGS__)
+#else
+#define load_debug(...)
+#endif
 
 #ifdef DEBUG_PROCESS_CONFIG
 #include <stdio.h>
@@ -57,7 +65,106 @@ static const char *const SYSCALL_IDENTIFIERS[] = {"SYSCALL_DEBUG_PRINT",
 
 static constexpr int SYSCALL_IDENTIFIER_COUNT = sizeof(SYSCALL_IDENTIFIERS) / sizeof(SYSCALL_IDENTIFIERS[0]);
 
+static constexpr uintptr_t MSG_BUFFER_ADDR_V = 0x5fff000;
+
 extern uint64_t __syscall_capabilities[];
+
+const char *load_config_file(const char *filename) {
+    char *load_buffer = nullptr;
+    SyscallResult result = anos_find_named_channel("SYSTEM::VFS");
+    const uint64_t sys_vfs_cookie = result.value;
+
+    if (result.result != SYSCALL_OK || !sys_vfs_cookie) {
+        load_debug("Failed to find named VFS channel\n");
+        return nullptr;
+    }
+
+    const SyscallResultP map_result = anos_map_virtual(MAX_IPC_BUFFER_SIZE, MSG_BUFFER_ADDR_V,
+                                                       ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+
+    char *msg_buffer = map_result.value;
+
+    if (result.result != SYSCALL_OK || msg_buffer == nullptr) {
+        load_debug("Failed to map message buffer\n");
+        return nullptr;
+    }
+
+    strncpy(msg_buffer, filename, MAX_IPC_BUFFER_SIZE);
+
+    // TODO this should be strnlen, unbounded strlen isn't safe here!
+    const size_t filename_size = strlen(filename) + 1;
+    result = anos_send_message(sys_vfs_cookie, 1, filename_size, msg_buffer);
+    const uint64_t sys_ramfs_cookie = result.value;
+
+    if (result.result != SYSCALL_OK || !sys_ramfs_cookie) {
+        load_debug("Failed to find filesystem driver\n");
+        goto error;
+    }
+
+    result = anos_send_message(sys_ramfs_cookie, SYS_VFS_TAG_GET_SIZE, filename_size, msg_buffer);
+
+    const size_t file_size = result.value;
+
+    if (result.result == SYSCALL_OK && file_size) {
+        load_debug("Found config file %s\n", filename);
+
+        load_buffer = malloc(file_size + 1);
+
+        if (!load_buffer) {
+            load_debug("Failed to allocate memory for config file\n");
+            goto error;
+        }
+
+        size_t bytes_remain = file_size;
+        size_t file_offset = 0;
+        size_t load_buffer_ptr = 0;
+
+        while (true) {
+            uint64_t *const pos = (uint64_t *)msg_buffer;
+            *pos = file_offset;
+
+            strcpy(msg_buffer + sizeof(uint64_t), filename);
+
+            result = anos_send_message(sys_ramfs_cookie, SYS_VFS_TAG_LOAD_PAGE, filename_size + 9, msg_buffer);
+
+            const uint64_t loaded_bytes = result.value;
+
+            if (result.result != SYSCALL_OK || !loaded_bytes) {
+                printf("FAILED TO LOAD: 0 bytes (result: %ld)\n", (long)result.result);
+
+                free(load_buffer);
+                anos_unmap_virtual(MAX_IPC_BUFFER_SIZE, MSG_BUFFER_ADDR_V);
+                return nullptr;
+            }
+
+            for (int i = 0; i < loaded_bytes; i++) {
+                load_buffer[i + load_buffer_ptr] = msg_buffer[i];
+            }
+
+            bytes_remain -= loaded_bytes;
+            file_offset += loaded_bytes;
+            load_buffer_ptr += loaded_bytes;
+
+            if (!bytes_remain) {
+                break;
+            }
+        }
+
+        anos_unmap_virtual(MAX_IPC_BUFFER_SIZE, MSG_BUFFER_ADDR_V);
+        load_buffer[load_buffer_ptr] = '\0';
+        return load_buffer;
+
+    } else {
+        printf("WARN: SYSTEM config file not found\n");
+    }
+
+error:
+    if (load_buffer) {
+        free((void *)load_buffer);
+    }
+    anos_unmap_virtual(MAX_IPC_BUFFER_SIZE, MSG_BUFFER_ADDR_V);
+    return nullptr;
+}
 
 static uint64_t cap_str_to_id(const char *str) {
     for (int i = 0; i < SYSCALL_IDENTIFIER_COUNT; i++) {

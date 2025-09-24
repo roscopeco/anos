@@ -21,12 +21,13 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #	DEBUG_SYS_IPC			Debug IPC messages received by SYSTEM
 #	DEBUG_SERVER_LOADER		Debug the initial server program loader
 #	DEBUG_FS_INIT			Debug filesystem init
+#	DEBUG_LOAD_CONFIG		Debug sysconf.json loading
 #	DEBUG_PROCESS_CONFIG	Debug sysconf.json processing
 #
 #	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
 #	TEST_BEEP_BOOP			Start the Beep Boop test server process
 #
-CDEFS=
+CDEFS=-DDEBUG_LOAD_CONFIG
 
 # We don't really have a RISC-V userspace yet, so always start the beep-boop test on that platform for now...
 ifeq ($(ARCH),riscv64)

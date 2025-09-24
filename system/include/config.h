@@ -15,6 +15,9 @@ typedef enum {
     PROCESS_CONFIG_FAILURE = -3,
 } ProcessConfigResult;
 
+/* Caller must free memory returned by this! */
+const char *load_config_file(const char *filename);
+
 ProcessConfigResult process_config(const char *json);
 
 #endif

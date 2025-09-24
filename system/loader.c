@@ -52,6 +52,8 @@ const extern void *_bss_end;
 const extern void *_data_start;
 const extern void *_data_end;
 
+static constexpr uintptr_t FS_BUFFER_ADDR_V = 0x6fff000;
+
 // TODO we shouldn't have inline assembly in here!!!
 static noreturn void __attribute__((noinline)) restore_stack_and_jump(void *stack_ptr, void (*target)(void)) {
 #ifdef __x86_64__
@@ -164,8 +166,8 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
         anos_kill_current_task();
     }
 
-    const SyscallResultP map_result =
-            anos_map_virtual(0x1000, 0x1fff000, ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+    const SyscallResultP map_result = anos_map_virtual(MAX_IPC_BUFFER_SIZE, FS_BUFFER_ADDR_V,
+                                                       ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
     char *msg_buffer = map_result.value;
 
@@ -174,9 +176,10 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
         anos_kill_current_task();
     }
 
-    strncpy(msg_buffer, filename, 1024);
+    strncpy(msg_buffer, filename, MAX_IPC_BUFFER_SIZE);
+    const size_t filename_size = strlen(filename) + 1;
 
-    result = anos_send_message(sys_vfs_cookie, 1, 22, msg_buffer);
+    result = anos_send_message(sys_vfs_cookie, 1, filename_size, msg_buffer);
     const uint64_t sys_ramfs_cookie = result.value;
 
     if (result.result != SYSCALL_OK || !sys_ramfs_cookie) {
@@ -184,7 +187,7 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
         anos_kill_current_task();
     }
 
-    result = anos_send_message(sys_ramfs_cookie, SYS_VFS_TAG_GET_SIZE, 22, msg_buffer);
+    result = anos_send_message(sys_ramfs_cookie, SYS_VFS_TAG_GET_SIZE, filename_size, msg_buffer);
 
     const uint64_t exec_size = result.value;
 
@@ -197,6 +200,8 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
         if (entrypoint) {
             const ServerEntrypoint sep = (ServerEntrypoint)(entrypoint);
 
+            // unmap message buffer from above, and also the system data/bss sections
+            anos_unmap_virtual(MAX_IPC_BUFFER_SIZE, FS_BUFFER_ADDR_V);
             unmap_system_memory();
 
             restore_stack_and_jump(initial_sp, sep);
