@@ -32,9 +32,7 @@ typedef struct {
     void *page_area_ptr;
 } Fixture;
 
-void panic_sloc(char *str) {
-    munit_errorf("panic_sloc called in sleep_queue: %s\n", str);
-}
+void panic_sloc(char *str) { munit_errorf("panic_sloc called in sleep_queue: %s\n", str); }
 
 static void *test_setup(const MunitParameter params[], void *user_data) {
     void *page_area_ptr;
@@ -64,8 +62,7 @@ static void test_teardown(void *fixture_v) {
     mock_pmm_reset();
 }
 
-static MunitResult test_enqueue_single(const MunitParameter params[],
-                                       void *fixture_v) {
+static MunitResult test_enqueue_single(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -80,14 +77,12 @@ static MunitResult test_enqueue_single(const MunitParameter params[],
     munit_assert_ptr_equal(queue->head, queue->tail);
     munit_assert_uint64(queue->head->wake_at, ==, 100);
     munit_assert_ptr_equal(queue->head->task, &task);
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        initial_allocs + PAGES_PER_SLAB);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, initial_allocs + PAGES_PER_SLAB);
 
     return MUNIT_OK;
 }
 
-static MunitResult test_enqueue_multiple_ordered(const MunitParameter params[],
-                                                 void *fixture_v) {
+static MunitResult test_enqueue_multiple_ordered(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -103,19 +98,15 @@ static MunitResult test_enqueue_multiple_ordered(const MunitParameter params[],
     munit_assert_ptr_not_null(queue->tail);
     munit_assert_ptr_equal(queue->head->task, &task1);
     munit_assert_ptr_equal(queue->tail->task, &task2);
-    munit_assert_ptr_equal(((ListNode *)queue->head)->next,
-                           (ListNode *)queue->tail);
+    munit_assert_ptr_equal(((ListNode *)queue->head)->next, (ListNode *)queue->tail);
     munit_assert_uint64(queue->head->wake_at, ==, 100);
     munit_assert_uint64(queue->tail->wake_at, ==, 200);
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        initial_allocs + PAGES_PER_SLAB);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, initial_allocs + PAGES_PER_SLAB);
 
     return MUNIT_OK;
 }
 
-static MunitResult
-test_enqueue_multiple_unordered(const MunitParameter params[],
-                                void *fixture_v) {
+static MunitResult test_enqueue_multiple_unordered(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -133,14 +124,12 @@ test_enqueue_multiple_unordered(const MunitParameter params[],
     munit_assert_ptr_equal(queue->tail->task, &task1);
     munit_assert_uint64(queue->head->wake_at, ==, 100);
     munit_assert_uint64(queue->tail->wake_at, ==, 200);
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        initial_allocs + PAGES_PER_SLAB);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, initial_allocs + PAGES_PER_SLAB);
 
     return MUNIT_OK;
 }
 
-static MunitResult test_dequeue_none(const MunitParameter params[],
-                                     void *fixture_v) {
+static MunitResult test_dequeue_none(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -157,8 +146,7 @@ static MunitResult test_dequeue_none(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_dequeue_single(const MunitParameter params[],
-                                       void *fixture_v) {
+static MunitResult test_dequeue_single(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -183,8 +171,7 @@ static MunitResult test_dequeue_single(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_dequeue_multiple(const MunitParameter params[],
-                                         void *fixture_v) {
+static MunitResult test_dequeue_multiple(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -214,8 +201,7 @@ static MunitResult test_dequeue_multiple(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_dequeue_mult_all(const MunitParameter params[],
-                                         void *fixture_v) {
+static MunitResult test_dequeue_mult_all(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -232,8 +218,7 @@ static MunitResult test_dequeue_mult_all(const MunitParameter params[],
     munit_assert_ptr_not_null(result);
     munit_assert_ptr_equal(result, &task1);
     munit_assert_ptr_equal(((ListNode *)result)->next, (ListNode *)&task2);
-    munit_assert_ptr_equal(((ListNode *)result)->next->next,
-                           (ListNode *)&task3);
+    munit_assert_ptr_equal(((ListNode *)result)->next->next, (ListNode *)&task3);
     munit_assert_null(((ListNode *)result)->next->next->next);
 
     munit_assert_ptr_equal(queue->head, NULL);
@@ -246,8 +231,7 @@ static MunitResult test_dequeue_mult_all(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_enqueue_alloc_failure(const MunitParameter params[],
-                                              void *fixture_v) {
+static MunitResult test_enqueue_alloc_failure(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -269,8 +253,7 @@ static MunitResult test_enqueue_alloc_failure(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_enqueue_null_queue(const MunitParameter params[],
-                                           void *fixture_v) {
+static MunitResult test_enqueue_null_queue(const MunitParameter params[], void *fixture_v) {
     Task task = {0};
     uint32_t initial_allocs = mock_pmm_get_total_page_allocs();
 
@@ -282,8 +265,7 @@ static MunitResult test_enqueue_null_queue(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_enqueue_null_task(const MunitParameter params[],
-                                          void *fixture_v) {
+static MunitResult test_enqueue_null_task(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -299,9 +281,7 @@ static MunitResult test_enqueue_null_task(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_enqueue_single_zero_deadline(const MunitParameter params[],
-                                  void *fixture_v) {
+static MunitResult test_enqueue_single_zero_deadline(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -316,14 +296,12 @@ test_enqueue_single_zero_deadline(const MunitParameter params[],
     munit_assert_ptr_equal(queue->head, queue->tail);
     munit_assert_uint64(queue->head->wake_at, ==, 0);
     munit_assert_ptr_equal(queue->head->task, &task);
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        initial_allocs + PAGES_PER_SLAB);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, initial_allocs + PAGES_PER_SLAB);
 
     return MUNIT_OK;
 }
 
-static MunitResult test_dequeue_empty_queue(const MunitParameter params[],
-                                            void *fixture_v) {
+static MunitResult test_dequeue_empty_queue(const MunitParameter params[], void *fixture_v) {
     Fixture *fixture = (Fixture *)fixture_v;
     SleepQueue *queue = (SleepQueue *)fixture->queue;
 
@@ -338,35 +316,23 @@ static MunitResult test_dequeue_empty_queue(const MunitParameter params[],
 }
 
 static MunitTest sleep_queue_tests[] = {
-        {"/enqueue_one", test_enqueue_single, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/enqueue_mult_ordered", test_enqueue_multiple_ordered, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/enqueue_mult_unordered", test_enqueue_multiple_unordered, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/enqueue_alloc_failure", test_enqueue_alloc_failure, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/enqueue_null_queue", test_enqueue_null_queue, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/enqueue_null_task", test_enqueue_null_task, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/enqueue_zero_deadline", test_enqueue_single_zero_deadline,
-         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/dequeue_none", test_dequeue_none, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/dequeue_single", test_dequeue_single, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/dequeue_multiple", test_dequeue_multiple, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/dequeue_mult_all", test_dequeue_mult_all, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/dequeue_empty_queue", test_dequeue_empty_queue, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/enqueue_one", test_enqueue_single, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/enqueue_mult_ordered", test_enqueue_multiple_ordered, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/enqueue_mult_unordered", test_enqueue_multiple_unordered, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/enqueue_alloc_failure", test_enqueue_alloc_failure, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/enqueue_null_queue", test_enqueue_null_queue, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/enqueue_null_task", test_enqueue_null_task, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/enqueue_zero_deadline", test_enqueue_single_zero_deadline, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/dequeue_none", test_dequeue_none, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/dequeue_single", test_dequeue_single, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/dequeue_multiple", test_dequeue_multiple, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/dequeue_mult_all", test_dequeue_mult_all, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/dequeue_empty_queue", test_dequeue_empty_queue, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite sleep_queue_suite = {"/sleep_queue", sleep_queue_tests,
-                                             NULL, 1, MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite sleep_queue_suite = {"/sleep_queue", sleep_queue_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&sleep_queue_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&sleep_queue_suite, NULL, argc, argv); }

@@ -111,9 +111,7 @@ static void print_signature(const char *sig, const size_t len) {
 
 extern uint64_t __syscall_capabilities[];
 
-static ACPI_SDTHeader *find_acpi_table(const char *signature,
-                                       const uint32_t *entries,
-                                       const uint32_t entry_count) {
+static ACPI_SDTHeader *find_acpi_table(const char *signature, const uint32_t *entries, const uint32_t entry_count) {
 
     // The entries are 64-bit, but can be misaligned, on 4-byte boundaries.
     // so we'll read them as pairs of 32-bit values and combine to get
@@ -127,12 +125,10 @@ static ACPI_SDTHeader *find_acpi_table(const char *signature,
 
         const uintptr_t temp_base = USER_ACPI_BASE + 0x10000 + (i * 0x1000);
         const SyscallResult result =
-                anos_map_physical(table_phys_page, (void *)temp_base, 4096,
-                                  ANOS_MAP_PHYSICAL_FLAG_READ);
+                anos_map_physical(table_phys_page, (void *)temp_base, 4096, ANOS_MAP_PHYSICAL_FLAG_READ);
 
         if (result.result == SYSCALL_OK) {
-            ACPI_SDTHeader *table =
-                    (ACPI_SDTHeader *)((uint8_t *)temp_base + table_offset);
+            ACPI_SDTHeader *table = (ACPI_SDTHeader *)((uint8_t *)temp_base + table_offset);
 
             if (strncmp(table->signature, signature, 4) == 0) {
                 return table;
@@ -143,11 +139,8 @@ static ACPI_SDTHeader *find_acpi_table(const char *signature,
     return nullptr;
 }
 
-static int64_t spawn_process_via_system(const uint64_t stack_size,
-                                        const uint16_t capc,
-                                        const InitCapability *capabilities,
-                                        const uint16_t argc,
-                                        const char *argv[]) {
+static int64_t spawn_process_via_system(const uint64_t stack_size, const uint16_t capc,
+                                        const InitCapability *capabilities, const uint16_t argc, const char *argv[]) {
     const SyscallResult result = anos_find_named_channel("SYSTEM::PROCESS");
 
     const uint64_t system_process_channel = result.value;
@@ -166,16 +159,14 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
         }
     }
 
-    size_t total_size =
-            sizeof(ProcessSpawnRequest) + capabilities_size + argv_size;
+    size_t total_size = sizeof(ProcessSpawnRequest) + capabilities_size + argv_size;
 
     // Use page-aligned buffer for IPC (required by kernel)
     static char __attribute__((aligned(4096))) ipc_buffer[4096];
     char *buffer = ipc_buffer;
 
     if (total_size > sizeof(ipc_buffer)) {
-        printf("ERROR: Message too large (%zu > %zu)\n", total_size,
-               sizeof(ipc_buffer));
+        printf("ERROR: Message too large (%zu > %zu)\n", total_size, sizeof(ipc_buffer));
         return -2;
     }
 
@@ -206,8 +197,7 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
     printf("Sending process spawn request (total_size=%ld)\n", total_size);
 #endif
 
-    SyscallResult response = anos_send_message(
-            system_process_channel, PROCESS_SPAWN, total_size, buffer);
+    SyscallResult response = anos_send_message(system_process_channel, PROCESS_SPAWN, total_size, buffer);
 
     if (response.result == SYSCALL_OK) {
         return (int64_t)response.value;
@@ -218,9 +208,8 @@ static int64_t spawn_process_via_system(const uint64_t stack_size,
 
 static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
 #ifdef DEBUG_PCI
-    printf("Spawning PCI bus driver for segment %u, buses %u-%u...\n",
-           entry->pci_segment_group, entry->start_bus_number,
-           entry->end_bus_number);
+    printf("Spawning PCI bus driver for segment %u, buses %u-%u...\n", entry->pci_segment_group,
+           entry->start_bus_number, entry->end_bus_number);
 #endif
 
     // Prepare arguments for the PCI driver
@@ -231,94 +220,76 @@ static void spawn_pci_bus_driver(const MCFG_Entry *entry) {
 
     snprintf(ecam_base_str, sizeof(ecam_base_str), "%lx", entry->base_address);
     snprintf(segment_str, sizeof(segment_str), "%u", entry->pci_segment_group);
-    snprintf(bus_start_str, sizeof(bus_start_str), "%u",
-             entry->start_bus_number);
+    snprintf(bus_start_str, sizeof(bus_start_str), "%u", entry->start_bus_number);
     snprintf(bus_end_str, sizeof(bus_end_str), "%u", entry->end_bus_number);
 
-    const char *argv[] = {"boot:/pcidrv.elf", ecam_base_str, segment_str,
-                          bus_start_str, bus_end_str};
+    const char *argv[] = {"boot:/pcidrv.elf", ecam_base_str, segment_str, bus_start_str, bus_end_str};
 
     const InitCapability pci_caps[] = {
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
                     .capability_id = SYSCALL_ID_DEBUG_PRINT,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
                     .capability_id = SYSCALL_ID_DEBUG_CHAR,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_SLEEP],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_SLEEP],
                     .capability_id = SYSCALL_ID_SLEEP,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL],
                     .capability_id = SYSCALL_ID_MAP_PHYSICAL,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL],
                     .capability_id = SYSCALL_ID_MAP_VIRTUAL,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_ALLOC_PHYSICAL_PAGES],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_ALLOC_PHYSICAL_PAGES],
                     .capability_id = SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
                     .capability_id = SYSCALL_ID_SEND_MESSAGE,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE],
                     .capability_id = SYSCALL_ID_RECV_MESSAGE,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE],
                     .capability_id = SYSCALL_ID_REPLY_MESSAGE,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL],
                     .capability_id = SYSCALL_ID_CREATE_CHANNEL,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_FIND_NAMED_CHANNEL],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_FIND_NAMED_CHANNEL],
                     .capability_id = SYSCALL_ID_FIND_NAMED_CHANNEL,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_KILL_CURRENT_TASK],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK],
                     .capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_ALLOC_INTERRUPT_VECTOR],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_ALLOC_INTERRUPT_VECTOR],
                     .capability_id = SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT],
                     .capability_id = SYSCALL_ID_WAIT_INTERRUPT,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_CREATE_REGION],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_CREATE_REGION],
                     .capability_id = SYSCALL_ID_CREATE_REGION,
             },
     };
 
 #ifdef DEBUG_PCI
-    printf("  --> spawn: %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3],
-           argv[4]);
+    printf("  --> spawn: %s %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3], argv[4]);
 #endif
 
     int64_t pid = spawn_process_via_system(0x100000, 15, pci_caps, 5, argv);
@@ -377,8 +348,7 @@ static void parse_mcfg_table(ACPI_SDTHeader *mcfg_header) {
         printf("  PCI Segment Group: %u\n", entries[i].pci_segment_group);
         printf("  Start Bus Number: %u\n", entries[i].start_bus_number);
         printf("  End Bus Number: %u\n", entries[i].end_bus_number);
-        printf("  Bus Range: %u-%u (%u buses)\n", entries[i].start_bus_number,
-               entries[i].end_bus_number,
+        printf("  Bus Range: %u-%u (%u buses)\n", entries[i].start_bus_number, entries[i].end_bus_number,
                entries[i].end_bus_number - entries[i].start_bus_number + 1);
 #endif
         // Launch PCI bus driver for this host bridge
@@ -422,8 +392,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         table_addr = rsdp->rsdt_address;
         use_xsdt = false;
 #ifdef DEBUG_ACPI
-        printf("\nWill use RSDT at physical address 0x%08x\n",
-               (uint32_t)table_addr);
+        printf("\nWill use RSDT at physical address 0x%08x\n", (uint32_t)table_addr);
 #endif
     } else {
 #ifdef DEBUG_ACPI
@@ -437,27 +406,23 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
     const uint64_t table_offset = table_addr & 0xFFF;
 
 #ifdef DEBUG_ACPI
-    printf("Mapping physical page 0x%016lx to user address 0x%lx\n",
-           table_phys_page, USER_ACPI_BASE);
+    printf("Mapping physical page 0x%016lx to user address 0x%lx\n", table_phys_page, USER_ACPI_BASE);
 #endif
 
     // Map the physical page containing the table
     const SyscallResult result =
-            anos_map_physical(table_phys_page, (void *)USER_ACPI_BASE, 4096,
-                              ANOS_MAP_PHYSICAL_FLAG_READ);
+            anos_map_physical(table_phys_page, (void *)USER_ACPI_BASE, 4096, ANOS_MAP_PHYSICAL_FLAG_READ);
     if (result.result != SYSCALL_OK) {
         printf("Failed to map ACPI table! Error code: %ld\n", result.result);
         return;
     }
 
     // Access the table at the correct offset within the mapped page
-    ACPI_SDTHeader *table =
-            (ACPI_SDTHeader *)((uint8_t *)USER_ACPI_BASE + table_offset);
+    ACPI_SDTHeader *table = (ACPI_SDTHeader *)((uint8_t *)USER_ACPI_BASE + table_offset);
 
     if (use_xsdt) {
 #ifdef DEBUG_ACPI
-        printf("\nXSDT (64-bit system descriptor table) at 0x%lx:\n",
-               (uintptr_t)table);
+        printf("\nXSDT (64-bit system descriptor table) at 0x%lx:\n", (uintptr_t)table);
         printf("  Signature: ");
         print_signature(table->signature, 4);
         printf("\n  Length: %u bytes\n", table->length);
@@ -470,8 +435,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
 #endif
 
         // Count and display entries (64-bit pointers)
-        const uint32_t entry_count =
-                (table->length - sizeof(ACPI_SDTHeader)) / 8;
+        const uint32_t entry_count = (table->length - sizeof(ACPI_SDTHeader)) / 8;
 #ifdef DEBUG_ACPI
         printf("  Number of entries: %u\n", entry_count);
 #endif
@@ -484,8 +448,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         const uint32_t *entries = (uint32_t *)(table + 1);
 #ifdef DEBUG_ACPI
         for (uint32_t i = 0; i < (entry_count << 1) && i < 16; i += 2) {
-            printf("  Entry @ ofs %u: 0x%016lx\n", i,
-                   entries[i] | (uint64_t)entries[i + 1] << 32);
+            printf("  Entry @ ofs %u: 0x%016lx\n", i, entries[i] | (uint64_t)entries[i + 1] << 32);
         }
 #endif
 
@@ -493,11 +456,9 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
 #ifdef VERY_NOISY_ACPI
         if (entry_count > 0) {
             printf("\n--- Dumping first ACPI table ---\n");
-            const uint64_t first_table_addr = entries[0] | (uint64_t)entries[1]
-                                                                   << 32;
+            const uint64_t first_table_addr = entries[0] | (uint64_t)entries[1] << 32;
 
-            printf("Looking for first table at physical 0x%016lx\n",
-                   first_table_addr);
+            printf("Looking for first table at physical 0x%016lx\n", first_table_addr);
 
             // Map the first table using map_physical
             const uint64_t first_table_phys_page = first_table_addr & ~0xFFF;
@@ -509,17 +470,13 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
 
             // Map the first table (use a different base address)
             constexpr uintptr_t first_table_base = USER_ACPI_BASE + 0x1000;
-            const SyscallResult table_result = anos_map_physical(
-                    first_table_phys_page, (void *)first_table_base, 4096,
-                    ANOS_MAP_PHYSICAL_FLAG_READ);
+            const SyscallResult table_result = anos_map_physical(first_table_phys_page, (void *)first_table_base, 4096,
+                                                                 ANOS_MAP_PHYSICAL_FLAG_READ);
 
             if (table_result.result != SYSCALL_OK) {
-                printf("Failed to map first table! Error code: %ld\n",
-                       table_result.result);
+                printf("Failed to map first table! Error code: %ld\n", table_result.result);
             } else {
-                ACPI_SDTHeader *first_table =
-                        (ACPI_SDTHeader *)((uint8_t *)first_table_base +
-                                           first_table_offset);
+                ACPI_SDTHeader *first_table = (ACPI_SDTHeader *)((uint8_t *)first_table_base + first_table_offset);
 
                 printf("First table header:\n");
                 printf("  Signature: ");
@@ -532,13 +489,11 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
                 print_signature(first_table->oem_table_id, 8);
                 printf("\n  OEM Revision: 0x%x\n", first_table->oem_revision);
                 printf("  Creator ID: 0x%08x\n", first_table->creator_id);
-                printf("  Creator Revision: 0x%08x\n",
-                       first_table->creator_revision);
+                printf("  Creator Revision: 0x%08x\n", first_table->creator_revision);
 
                 // Dump first 64 bytes of table data (after header)
                 const uint8_t *table_data = (uint8_t *)(first_table + 1);
-                const uint32_t data_size =
-                        first_table->length - sizeof(ACPI_SDTHeader);
+                const uint32_t data_size = first_table->length - sizeof(ACPI_SDTHeader);
                 const uint32_t dump_size = data_size < 64 ? data_size : 64;
 
                 printf("\nFirst %u bytes of table data:\n", dump_size);
@@ -559,23 +514,18 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         // Dump all table signatures
         printf("\n--- All ACPI Table Signatures ---\n");
         for (uint32_t i = 0; i < (entry_count << 1); i += 2) {
-            uint64_t sig_table_addr = entries[i] | (uint64_t)entries[i + 1]
-                                                           << 32;
+            uint64_t sig_table_addr = entries[i] | (uint64_t)entries[i + 1] << 32;
 
             // Map each table to read its signature
             uint64_t sig_table_phys_page = sig_table_addr & ~0xFFF;
             uint64_t sig_table_offset = sig_table_addr & 0xFFF;
 
-            const uintptr_t sig_table_base =
-                    USER_ACPI_BASE + 0x2000 + (i * 0x1000);
-            const SyscallResult sig_result = anos_map_physical(
-                    sig_table_phys_page, (void *)sig_table_base, 4096,
-                    ANOS_MAP_PHYSICAL_FLAG_READ);
+            const uintptr_t sig_table_base = USER_ACPI_BASE + 0x2000 + (i * 0x1000);
+            const SyscallResult sig_result =
+                    anos_map_physical(sig_table_phys_page, (void *)sig_table_base, 4096, ANOS_MAP_PHYSICAL_FLAG_READ);
 
             if (sig_result.result == SYSCALL_OK) {
-                ACPI_SDTHeader *sig_table =
-                        (ACPI_SDTHeader *)((uint8_t *)sig_table_base +
-                                           sig_table_offset);
+                ACPI_SDTHeader *sig_table = (ACPI_SDTHeader *)((uint8_t *)sig_table_base + sig_table_offset);
                 printf("  Table @ ofs %u: ", i);
                 print_signature(sig_table->signature, 4);
                 printf("\n");
@@ -589,8 +539,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
 #endif
 
         // Look for and parse MCFG table
-        ACPI_SDTHeader *mcfg_table =
-                find_acpi_table("MCFG", entries, entry_count);
+        ACPI_SDTHeader *mcfg_table = find_acpi_table("MCFG", entries, entry_count);
 
         if (!mcfg_table) {
             printf("WARN: Failed to find PCIe advanced configuration "
@@ -601,8 +550,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         parse_mcfg_table(mcfg_table);
     } else {
 #ifdef DEBUG_ACPI
-        printf("\nRSDT (32-bit system descriptor table) at 0x%lx:\n",
-               (uintptr_t)table);
+        printf("\nRSDT (32-bit system descriptor table) at 0x%lx:\n", (uintptr_t)table);
         printf("  Signature: ");
         print_signature(table->signature, 4);
         printf("\n  Length: %u bytes\n", table->length);
@@ -614,8 +562,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
         printf("\n  OEM Revision: 0x%x\n", table->oem_revision);
 
         // Count and display entries (32-bit pointers)
-        const uint32_t entry_count =
-                (table->length - sizeof(ACPI_SDTHeader)) / 4;
+        const uint32_t entry_count = (table->length - sizeof(ACPI_SDTHeader)) / 4;
         printf("  Number of entries: %u\n", entry_count);
 
         uint32_t *entries = (uint32_t *)(table + 1);
@@ -671,8 +618,8 @@ static uint64_t register_device(const DeviceInfo *info) {
     device_count++;
 
 #ifdef DEBUG_DEVICE_REG
-    printf("Registered device: %s (ID: %lu, Type: %u, Driver: %s)\n",
-           info->name, device_id, info->device_type, info->driver_name);
+    printf("Registered device: %s (ID: %lu, Type: %u, Driver: %s)\n", info->name, device_id, info->device_type,
+           info->driver_name);
 #endif
 
     return device_id;
@@ -686,8 +633,7 @@ static bool unregister_device(const uint64_t device_id) {
     for (uint32_t i = 0; i < device_count; i++) {
         if (device_registry[i].device_id == device_id) {
 #ifdef DEBUG_DEVICE_REG
-            printf("Unregistered device: %s (ID: %lu)\\n",
-                   device_registry[i].name, device_id);
+            printf("Unregistered device: %s (ID: %lu)\\n", device_registry[i].name, device_id);
 #endif
 
             // Move last device to this slot
@@ -700,14 +646,11 @@ static bool unregister_device(const uint64_t device_id) {
 }
 
 #ifdef UNIT_TESTS
-uint32_t query_devices(const DeviceQueryType query_type,
-                       const DeviceType device_type, const uint64_t target_id,
+uint32_t query_devices(const DeviceQueryType query_type, const DeviceType device_type, const uint64_t target_id,
                        DeviceInfo *results, uint32_t max_results) {
 #else
-static uint32_t query_devices(const DeviceQueryType query_type,
-                              const DeviceType device_type,
-                              const uint64_t target_id, DeviceInfo *results,
-                              uint32_t max_results) {
+static uint32_t query_devices(const DeviceQueryType query_type, const DeviceType device_type, const uint64_t target_id,
+                              DeviceInfo *results, uint32_t max_results) {
 #endif
     uint32_t found = 0;
 
@@ -738,8 +681,7 @@ static uint32_t query_devices(const DeviceQueryType query_type,
     return found;
 }
 
-static void handle_device_message(const uint64_t msg_cookie, void *buffer,
-                                  const size_t buffer_size) {
+static void handle_device_message(const uint64_t msg_cookie, void *buffer, const size_t buffer_size) {
 
     if (buffer_size < sizeof(DeviceMessageType)) {
         anos_reply_message(msg_cookie, 0);
@@ -751,17 +693,14 @@ static void handle_device_message(const uint64_t msg_cookie, void *buffer,
 
     switch (*msg_type) {
     case DEVICE_MSG_REGISTER: {
-        const DeviceRegistrationMessage *reg_msg =
-                (DeviceRegistrationMessage *)buffer;
+        const DeviceRegistrationMessage *reg_msg = (DeviceRegistrationMessage *)buffer;
 
-        if (buffer_size >= sizeof(DeviceRegistrationMessage) &&
-            reg_msg->device_count > 0) {
+        if (buffer_size >= sizeof(DeviceRegistrationMessage) && reg_msg->device_count > 0) {
             const DeviceInfo *devices = (DeviceInfo *)reg_msg->data;
 
             // For now, register just the first device
             // TODO: Handle multiple device registration
-            if (buffer_size >=
-                sizeof(DeviceRegistrationMessage) + sizeof(DeviceInfo)) {
+            if (buffer_size >= sizeof(DeviceRegistrationMessage) + sizeof(DeviceInfo)) {
                 result = register_device(&devices[0]);
             }
         }
@@ -770,8 +709,7 @@ static void handle_device_message(const uint64_t msg_cookie, void *buffer,
 
     case DEVICE_MSG_UNREGISTER: {
         if (buffer_size >= sizeof(uint64_t) * 2) {
-            const uint64_t *device_id =
-                    (uint64_t *)((char *)buffer + sizeof(DeviceMessageType));
+            const uint64_t *device_id = (uint64_t *)((char *)buffer + sizeof(DeviceMessageType));
             result = unregister_device(*device_id) ? 1 : 0;
         }
         break;
@@ -782,15 +720,13 @@ static void handle_device_message(const uint64_t msg_cookie, void *buffer,
 
         if (buffer_size >= sizeof(DeviceQueryMessage)) {
             static DeviceInfo query_results[MAX_DEVICES];
-            const uint32_t found = query_devices(
-                    query_msg->query_type, query_msg->device_type,
-                    query_msg->device_id, query_results, MAX_DEVICES);
+            const uint32_t found = query_devices(query_msg->query_type, query_msg->device_type, query_msg->device_id,
+                                                 query_results, MAX_DEVICES);
 
             if (found > 0) {
                 // Copy device info to the buffer for return
                 const size_t data_size = found * sizeof(DeviceInfo);
-                const size_t required_size =
-                        sizeof(DeviceQueryResponse) + data_size;
+                const size_t required_size = sizeof(DeviceQueryResponse) + data_size;
 
                 device_debugf("DEVMAN DEBUG: Found %u devices, data_size=%lu, "
                               "buffer_size=%lu, required=%lu\n",
@@ -798,11 +734,9 @@ static void handle_device_message(const uint64_t msg_cookie, void *buffer,
 
                 // Check against actual IPC buffer size, not incoming message size
                 if (required_size <= 4096) {
-                    device_debugf(
-                            "DEVMAN DEBUG: Returning structured response with "
-                            "device info\n");
-                    DeviceQueryResponse *response =
-                            (DeviceQueryResponse *)buffer;
+                    device_debugf("DEVMAN DEBUG: Returning structured response with "
+                                  "device info\n");
+                    DeviceQueryResponse *response = (DeviceQueryResponse *)buffer;
                     response->device_count = found;
                     response->error_code = 0;
 
@@ -811,10 +745,9 @@ static void handle_device_message(const uint64_t msg_cookie, void *buffer,
                     result = required_size;
                 } else {
                     // Too much data, just return count
-                    device_debugf(
-                            "DEVMAN DEBUG: Buffer too small, returning count "
-                            "only (%u)\n",
-                            found);
+                    device_debugf("DEVMAN DEBUG: Buffer too small, returning count "
+                                  "only (%u)\n",
+                                  found);
                     result = found;
                 }
             } else {
@@ -838,8 +771,7 @@ static void handle_device_message(const uint64_t msg_cookie, void *buffer,
 }
 
 int main(const int argc, char **argv) {
-    printf("\nDEVMAN System device manager #%s [libanos #%s]\n", VERSION,
-           libanos_version());
+    printf("\nDEVMAN System device manager #%s [libanos #%s]\n", VERSION, libanos_version());
 
     // Test the firmware table mapping
     const int result = map_and_init_acpi();
@@ -862,8 +794,7 @@ int main(const int argc, char **argv) {
     devman_channel = channel_result.value;
 
     // Register our channel with a well-known name
-    const SyscallResult register_result =
-            anos_register_channel_name(devman_channel, "DEVMAN");
+    const SyscallResult register_result = anos_register_channel_name(devman_channel, "DEVMAN");
     if (register_result.result != SYSCALL_OK) {
         printf("Failed to register DEVMAN channel\n");
         return 1;
@@ -878,8 +809,7 @@ int main(const int argc, char **argv) {
         size_t buffer_size = sizeof(ipc_buffer);
         uint64_t tag = 0;
 
-        const SyscallResult recv_result = anos_recv_message(
-                devman_channel, &tag, &buffer_size, ipc_buffer);
+        const SyscallResult recv_result = anos_recv_message(devman_channel, &tag, &buffer_size, ipc_buffer);
         const uint64_t msg_cookie = recv_result.value;
 
         if (recv_result.result == SYSCALL_OK && msg_cookie) {

@@ -29,8 +29,7 @@ void handle_exception_nc(const uint8_t vector, const uint64_t origin_addr) {
  *
  * For now, just panics.
  */
-void handle_exception_wc(const uint8_t vector, const uint64_t code,
-                         const uint64_t origin_addr) {
+void handle_exception_wc(const uint8_t vector, const uint64_t code, const uint64_t origin_addr) {
     uint64_t fault_addr;
 
     switch (vector) {

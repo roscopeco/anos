@@ -61,8 +61,7 @@
 
 #define INT_FLAG_ENABLED ((0x200))
 
-noreturn void kernel_thread_entrypoint(uintptr_t thread_entrypoint,
-                                       uintptr_t thread_stack) {
+noreturn void kernel_thread_entrypoint(uintptr_t thread_entrypoint, uintptr_t thread_stack) {
     // Scheduler will **always** be locked when we get here!
     sched_unlock_this_cpu(INT_FLAG_ENABLED);
 

@@ -42,12 +42,10 @@ uint64_t capability_cookie_generate(void) {
     const uint64_t hartid = 0; // TODO cpu_read_hartid();
 
     // Atomically increment per-hart counter
-    const uint64_t count =
-            __atomic_add_fetch(&hart_counters[hartid], 1, __ATOMIC_RELAXED);
+    const uint64_t count = __atomic_add_fetch(&hart_counters[hartid], 1, __ATOMIC_RELAXED);
 
     // Combine inputs
-    const uint64_t raw =
-            (cycle << 1) ^ (count << 3) ^ (hartid * 0x517cc1b727220a95ULL);
+    const uint64_t raw = (cycle << 1) ^ (count << 3) ^ (hartid * 0x517cc1b727220a95ULL);
 
     return mix64(raw);
 }

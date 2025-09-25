@@ -77,8 +77,7 @@ extern void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap);
 
 // Mock implementations for the functions used by vmm_init_direct_mapping
 MemoryRegion *physical_region;
-static uintptr_t
-        mock_allocated_pages[100]; // Store allocated pages for verification
+static uintptr_t mock_allocated_pages[100]; // Store allocated pages for verification
 static int mock_allocated_pages_count = 0;
 
 // Mock for page allocation
@@ -90,40 +89,25 @@ uintptr_t page_alloc(MemoryRegion *region) {
 }
 
 // Helper to convert from virt to phys and vice versa
-static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) {
-    return DIRECT_MAP_BASE + phys_addr;
-}
+static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) { return DIRECT_MAP_BASE + phys_addr; }
 
-static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
-    return virt_addr - DIRECT_MAP_BASE;
-}
+static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) { return virt_addr - DIRECT_MAP_BASE; }
 
 // Helper for page table entry conversions
-static inline uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys,
-                                                         uint64_t flags) {
+static inline uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys, uint64_t flags) {
     return ((phys & ~0xFFF) >> 2) | flags;
 }
 
-static inline uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry) {
-    return ((table_entry >> 10) << 12);
-}
+static inline uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry) { return ((table_entry >> 10) << 12); }
 
 // Helper functions for table indexing
-static inline uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 9 + 9 + 12)) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr) { return ((virt_addr >> (9 + 9 + 9 + 12)) & 0x1ff); }
 
-static inline uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 9 + 12)) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr) { return ((virt_addr >> (9 + 9 + 12)) & 0x1ff); }
 
-static inline uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 12)) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr) { return ((virt_addr >> (9 + 12)) & 0x1ff); }
 
-static inline uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr) {
-    return ((virt_addr >> 12) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr) { return ((virt_addr >> 12) & 0x1ff); }
 
 // Function to check if direct mapping would be created for a specific address
 bool is_direct_mapped(uintptr_t phys_addr) {
@@ -154,8 +138,7 @@ static void test_teardown(void *fixture) {
 }
 
 // Test for mapping a single usable memory region
-static MunitResult test_single_usable_region(const MunitParameter params[],
-                                             void *fixture) {
+static MunitResult test_single_usable_region(const MunitParameter params[], void *fixture) {
     // Create a simple memory map with one usable region
     Limine_MemMapEntry entry = {.base = 0x1000,
                                 .length = PAGE_SIZE * 10, // 10 pages
@@ -167,8 +150,7 @@ static MunitResult test_single_usable_region(const MunitParameter params[],
     Limine_MemMapEntry **entries = malloc(sizeof(Limine_MemMapEntry *));
     entries[0] = entry_ptr;
 
-    Limine_MemMap memmap = {
-            .revision = 1, .entry_count = 1, .entries = entries};
+    Limine_MemMap memmap = {.revision = 1, .entry_count = 1, .entries = entries};
 
     // Create a mock PML4 table
     uint64_t *pml4 = calloc(PAGE_TABLE_ENTRIES, sizeof(uint64_t));
@@ -198,24 +180,22 @@ static MunitResult test_single_usable_region(const MunitParameter params[],
 }
 
 // Test for mapping multiple memory regions of different types
-static MunitResult test_multiple_regions(const MunitParameter params[],
-                                         void *fixture) {
+static MunitResult test_multiple_regions(const MunitParameter params[], void *fixture) {
     // Create a memory map with different types of regions
-    Limine_MemMapEntry entries_data[4] = {
-            {.base = 0x1000,
-             .length = PAGE_SIZE * 5, // 5 pages
-             .type = LIMINE_MEMMAP_USABLE},
-            {
-                    .base = 0x10000,
-                    .length = PAGE_SIZE * 3,       // 3 pages
-                    .type = LIMINE_MEMMAP_RESERVED // Should be ignored
-            },
-            {.base = 0x20000,
-             .length = MEGA_PAGE_SIZE, // 1 megapage
-             .type = LIMINE_MEMMAP_ACPI_RECLAIMABLE},
-            {.base = 0x400000,
-             .length = GIGA_PAGE_SIZE, // 1 gigapage
-             .type = LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE}};
+    Limine_MemMapEntry entries_data[4] = {{.base = 0x1000,
+                                           .length = PAGE_SIZE * 5, // 5 pages
+                                           .type = LIMINE_MEMMAP_USABLE},
+                                          {
+                                                  .base = 0x10000,
+                                                  .length = PAGE_SIZE * 3,       // 3 pages
+                                                  .type = LIMINE_MEMMAP_RESERVED // Should be ignored
+                                          },
+                                          {.base = 0x20000,
+                                           .length = MEGA_PAGE_SIZE, // 1 megapage
+                                           .type = LIMINE_MEMMAP_ACPI_RECLAIMABLE},
+                                          {.base = 0x400000,
+                                           .length = GIGA_PAGE_SIZE, // 1 gigapage
+                                           .type = LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE}};
 
     Limine_MemMapEntry *entry_ptrs[4];
     for (int i = 0; i < 4; i++) {
@@ -228,8 +208,7 @@ static MunitResult test_multiple_regions(const MunitParameter params[],
         entries[i] = entry_ptrs[i];
     }
 
-    Limine_MemMap memmap = {
-            .revision = 1, .entry_count = 4, .entries = entries};
+    Limine_MemMap memmap = {.revision = 1, .entry_count = 4, .entries = entries};
 
     // Create a mock PML4 table
     uint64_t *pml4 = calloc(PAGE_TABLE_ENTRIES, sizeof(uint64_t));
@@ -247,8 +226,7 @@ static MunitResult test_multiple_regions(const MunitParameter params[],
     uintptr_t usable_virt = vmm_phys_to_virt(usable_phys);
     munit_assert_true(mock_vmm_is_page_mapped(usable_virt));
     uint16_t usable_flags = mock_vmm_get_flags_for_virt(usable_virt);
-    munit_assert_uint16(usable_flags & (PG_PRESENT | PG_READ | PG_WRITE), ==,
-                        (PG_PRESENT | PG_READ | PG_WRITE));
+    munit_assert_uint16(usable_flags & (PG_PRESENT | PG_READ | PG_WRITE), ==, (PG_PRESENT | PG_READ | PG_WRITE));
 
     // 2. Reserved region should not be mapped
     uintptr_t reserved_phys = 0x11000; // In the middle of reserved region
@@ -260,16 +238,14 @@ static MunitResult test_multiple_regions(const MunitParameter params[],
     uintptr_t acpi_virt = vmm_phys_to_virt(acpi_phys);
     munit_assert_true(mock_vmm_is_page_mapped(acpi_virt));
     uint16_t acpi_flags = mock_vmm_get_flags_for_virt(acpi_virt);
-    munit_assert_uint16(acpi_flags & (PG_PRESENT | PG_READ | PG_WRITE), ==,
-                        (PG_PRESENT | PG_READ | PG_WRITE));
+    munit_assert_uint16(acpi_flags & (PG_PRESENT | PG_READ | PG_WRITE), ==, (PG_PRESENT | PG_READ | PG_WRITE));
 
     // 4. Bootloader reclaimable should be mapped and writeable
     uintptr_t boot_phys = 0x800000; // In the middle of bootloader region
     uintptr_t boot_virt = vmm_phys_to_virt(boot_phys);
     munit_assert_true(mock_vmm_is_page_mapped(boot_virt));
     uint16_t boot_flags = mock_vmm_get_flags_for_virt(boot_virt);
-    munit_assert_uint16(boot_flags & (PG_PRESENT | PG_READ | PG_WRITE), ==,
-                        (PG_PRESENT | PG_READ | PG_WRITE));
+    munit_assert_uint16(boot_flags & (PG_PRESENT | PG_READ | PG_WRITE), ==, (PG_PRESENT | PG_READ | PG_WRITE));
 
     // Cleanup
     free(pml4);
@@ -282,8 +258,7 @@ static MunitResult test_multiple_regions(const MunitParameter params[],
 }
 
 // Test with different page sizes
-static MunitResult test_different_page_sizes(const MunitParameter params[],
-                                             void *fixture) {
+static MunitResult test_different_page_sizes(const MunitParameter params[], void *fixture) {
     // Create a memory map with regions naturally aligned to different page sizes
     Limine_MemMapEntry entries_data[3] = {{// Regular page-aligned region
                                            .base = PAGE_SIZE,
@@ -309,8 +284,7 @@ static MunitResult test_different_page_sizes(const MunitParameter params[],
         entries[i] = entry_ptrs[i];
     }
 
-    Limine_MemMap memmap = {
-            .revision = 1, .entry_count = 3, .entries = entries};
+    Limine_MemMap memmap = {.revision = 1, .entry_count = 3, .entries = entries};
 
     // Create a mock PML4 table
     uint64_t *pml4 = calloc(PAGE_TABLE_ENTRIES, sizeof(uint64_t));
@@ -324,8 +298,7 @@ static MunitResult test_different_page_sizes(const MunitParameter params[],
     munit_assert_true(mock_vmm_is_page_mapped(reg_page_virt));
 
     // 2. Verify megapage mapping
-    uintptr_t mega_page_phys =
-            MEGA_PAGE_SIZE * 1.5; // Middle of the megapage region
+    uintptr_t mega_page_phys = MEGA_PAGE_SIZE * 1.5; // Middle of the megapage region
     uintptr_t mega_page_virt = vmm_phys_to_virt(mega_page_phys);
     munit_assert_true(mock_vmm_is_page_mapped(mega_page_virt));
 
@@ -345,13 +318,10 @@ static MunitResult test_different_page_sizes(const MunitParameter params[],
 }
 
 // Test with an overflowing address (beyond MAX_PHYS_ADDR)
-static MunitResult test_address_overflow(const MunitParameter params[],
-                                         void *fixture) {
+static MunitResult test_address_overflow(const MunitParameter params[], void *fixture) {
     // Create a memory map with a region that extends beyond MAX_PHYS_ADDR
-    Limine_MemMapEntry entry = {.base = (127ULL * 1024 * 1024 * 1024 * 1024) -
-                                        PAGE_SIZE, // Just below MAX_PHYS_ADDR
-                                .length = PAGE_SIZE *
-                                          2, // Extends beyond MAX_PHYS_ADDR
+    Limine_MemMapEntry entry = {.base = (127ULL * 1024 * 1024 * 1024 * 1024) - PAGE_SIZE, // Just below MAX_PHYS_ADDR
+                                .length = PAGE_SIZE * 2, // Extends beyond MAX_PHYS_ADDR
                                 .type = LIMINE_MEMMAP_USABLE};
 
     Limine_MemMapEntry *entry_ptr = malloc(sizeof(Limine_MemMapEntry));
@@ -360,8 +330,7 @@ static MunitResult test_address_overflow(const MunitParameter params[],
     Limine_MemMapEntry **entries = malloc(sizeof(Limine_MemMapEntry *));
     entries[0] = entry_ptr;
 
-    Limine_MemMap memmap = {
-            .revision = 1, .entry_count = 1, .entries = entries};
+    Limine_MemMap memmap = {.revision = 1, .entry_count = 1, .entries = entries};
 
     // Create a mock PML4 table
     uint64_t *pml4 = calloc(PAGE_TABLE_ENTRIES, sizeof(uint64_t));
@@ -392,20 +361,13 @@ static MunitResult test_address_overflow(const MunitParameter params[],
 
 // Define the test suite
 static MunitTest test_suite_tests[] = {
-        {"/single_usable_region", test_single_usable_region, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/multiple_regions", test_multiple_regions, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/different_page_sizes", test_different_page_sizes, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/address_overflow", test_address_overflow, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/single_usable_region", test_single_usable_region, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/multiple_regions", test_multiple_regions, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/different_page_sizes", test_different_page_sizes, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/address_overflow", test_address_overflow, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/vmm/riscv64/direct_mapping",
-                                      test_suite_tests, NULL, 1,
+static const MunitSuite test_suite = {"/vmm/riscv64/direct_mapping", test_suite_tests, NULL, 1,
                                       MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
-    return munit_suite_main(&test_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) { return munit_suite_main(&test_suite, NULL, argc, argv); }

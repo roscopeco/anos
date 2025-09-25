@@ -49,8 +49,7 @@
 #define V_PRINTDEC(...)
 #endif
 
-MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
-                                     uint64_t managed_base, void *buffer,
+MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap, uint64_t managed_base, void *buffer,
                                      bool reclaim_exec_mods) {
     MemoryRegion *region = (MemoryRegion *)buffer;
     spinlock_init(&region->lock);
@@ -75,8 +74,7 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
             // i.e. ACPI tables are in ACPI_RESERVED?
             case LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE:
 
-                if (!reclaim_exec_mods &&
-                    entry->type == LIMINE_MEMMAP_EXECUTABLE_AND_MODULES) {
+                if (!reclaim_exec_mods && entry->type == LIMINE_MEMMAP_EXECUTABLE_AND_MODULES) {
                     C_DEBUGSTR(" ====> IGNORED available region ");
                     C_PRINTHEX64(entry->base, debugchar);
                     C_DEBUGSTR(" of length ");
@@ -103,8 +101,7 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
                 uint64_t start = entry->base & 0xFFFFFFFFFFFFF000;
 
                 // Grab end, and align that too
-                uint64_t end =
-                        (entry->base + entry->length) & 0xFFFFFFFFFFFFF000;
+                uint64_t end = (entry->base + entry->length) & 0xFFFFFFFFFFFFF000;
 
                 // Is the aligned base below the actual base for this block?
                 if (entry->base > start) {
@@ -117,8 +114,7 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
                     if (end <= managed_base) {
                         // This block is entirely below the managed base, just skip
                         // it
-                        C_DEBUGSTR(
-                                " ==== ----> Ignoring, entirely below base\n");
+                        C_DEBUGSTR(" ==== ----> Ignoring, entirely below base\n");
                         continue;
                     } else {
                         // This block extends beyond the managed base, so adjust the
@@ -143,9 +139,7 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
                 // Stack this block
                 region->sp++;
                 region->sp->base = start;
-                region->sp->size =
-                        total_bytes >>
-                        VM_PAGE_LINEAR_SHIFT; // size is pages, not bytes...
+                region->sp->size = total_bytes >> VM_PAGE_LINEAR_SHIFT; // size is pages, not bytes...
 
                 break;
             }
@@ -163,9 +157,7 @@ MemoryRegion *page_alloc_init_limine(Limine_MemMap *memmap,
     return region;
 }
 
-static inline bool stack_empty(MemoryRegion *region) {
-    return region->sp < ((MemoryBlock *)(region + 1));
-}
+static inline bool stack_empty(MemoryRegion *region) { return region->sp < ((MemoryBlock *)(region + 1)); }
 
 uintptr_t page_alloc_m(MemoryRegion *region, uint64_t count) {
     uint64_t lock_flags = spinlock_lock_irqsave(&region->lock);
@@ -179,8 +171,7 @@ uintptr_t page_alloc_m(MemoryRegion *region, uint64_t count) {
 
     hprintf("\n\nBlock: %p\n", region);
     while (ptr >= ((MemoryBlock *)(region + 1))) {
-        hprintf("Check block %p - 0x%016x : 0x%016x\n", ptr, ptr->base,
-                ptr->size);
+        hprintf("Check block %p - 0x%016x : 0x%016x\n", ptr, ptr->base, ptr->size);
         if (ptr->size > count) {
             // Block is more than enough, just split it and return
             uint64_t page = ptr->base;

@@ -45,8 +45,7 @@ void debug_madt(ACPI_RSDT *rsdt);
 static ACPI_RSDT *acpi_root_table;
 static ACPI_RSDP *acpi_rsdp_pointer;
 
-static uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt,
-                                        const uint8_t cpu_num) {
+static uint32_t volatile *init_this_cpu(ACPI_RSDT *rsdt, const uint8_t cpu_num) {
     cpu_init_this();
     cpu_debug_info(cpu_num);
 
@@ -151,8 +150,7 @@ noreturn void ap_kernel_entrypoint(uint64_t ap_num) {
 static bool wait_for_ap_basic_init_to_complete(void) {
     KernelTimer volatile *hpet = hpet_as_timer();
 
-    uint64_t end = hpet->current_ticks() +
-                   (AP_CPUINIT_TIMEOUT / hpet->nanos_per_tick());
+    uint64_t end = hpet->current_ticks() + (AP_CPUINIT_TIMEOUT / hpet->nanos_per_tick());
 
     while (hpet->current_ticks() < end) {
         __asm__ __volatile__("pause" : : : "memory");

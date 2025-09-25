@@ -18,9 +18,7 @@ static uint32_t mock_pci_config_space[64] = {0}; // 256 bytes
 #define TEST_PCI_BASE ((uint64_t)mock_pci_config_space)
 
 // Reset mock PCI config space
-static void reset_mock_pci_config() {
-    memset(mock_pci_config_space, 0, sizeof(mock_pci_config_space));
-}
+static void reset_mock_pci_config() { memset(mock_pci_config_space, 0, sizeof(mock_pci_config_space)); }
 
 // Set up a typical AHCI controller config space
 static void setup_typical_ahci_config() {
@@ -30,9 +28,8 @@ static void setup_typical_ahci_config() {
     mock_pci_config_space[13] = 0x40;      // Capabilities pointer at 0x40
 
     // MSI capability at offset 0x40
-    mock_pci_config_space[16] = 0x00050005; // Next cap at 0x00, MSI cap ID 0x05
-    mock_pci_config_space[16] |=
-            (0x0080 << 16); // MSI control: 64-bit capable, disabled
+    mock_pci_config_space[16] = 0x00050005;      // Next cap at 0x00, MSI cap ID 0x05
+    mock_pci_config_space[16] |= (0x0080 << 16); // MSI control: 64-bit capable, disabled
 }
 
 static void *setup(const MunitParameter params[], void *user_data) {
@@ -47,8 +44,7 @@ static void *setup(const MunitParameter params[], void *user_data) {
 // PCI CONFIG READ TESTS
 // ============================================================================
 
-static MunitResult test_pci_read_config32_basic(const MunitParameter params[],
-                                                void *data) {
+static MunitResult test_pci_read_config32_basic(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -60,9 +56,7 @@ static MunitResult test_pci_read_config32_basic(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_read_config16_alignment_offset_0(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_pci_read_config16_alignment_offset_0(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -74,9 +68,7 @@ test_pci_read_config16_alignment_offset_0(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_read_config16_alignment_offset_2(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_pci_read_config16_alignment_offset_2(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -88,9 +80,7 @@ test_pci_read_config16_alignment_offset_2(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_read_config8_all_alignments(const MunitParameter params[],
-                                     void *data) {
+static MunitResult test_pci_read_config8_all_alignments(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -104,9 +94,7 @@ test_pci_read_config8_all_alignments(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_read_config_cross_dword_boundary(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_pci_read_config_cross_dword_boundary(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -122,9 +110,7 @@ test_pci_read_config_cross_dword_boundary(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_read_config_boundary_offset_255(const MunitParameter params[],
-                                         void *data) {
+static MunitResult test_pci_read_config_boundary_offset_255(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -144,8 +130,7 @@ test_pci_read_config_boundary_offset_255(const MunitParameter params[],
 // PCI CONFIG WRITE TESTS
 // ============================================================================
 
-static MunitResult test_pci_write_config32_basic(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_pci_write_config32_basic(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -160,9 +145,7 @@ static MunitResult test_pci_write_config32_basic(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_write_config16_preserve_other_bits(const MunitParameter params[],
-                                            void *data) {
+static MunitResult test_pci_write_config16_preserve_other_bits(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -180,9 +163,7 @@ test_pci_write_config16_preserve_other_bits(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_write_config16_offset_alignment(const MunitParameter params[],
-                                         void *data) {
+static MunitResult test_pci_write_config16_offset_alignment(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -199,9 +180,7 @@ test_pci_write_config16_offset_alignment(const MunitParameter params[],
 // MSI CAPABILITY DISCOVERY TESTS
 // ============================================================================
 
-static MunitResult
-test_pci_find_msi_capability_no_caps_support(const MunitParameter params[],
-                                             void *data) {
+static MunitResult test_pci_find_msi_capability_no_caps_support(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -214,9 +193,7 @@ test_pci_find_msi_capability_no_caps_support(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_find_msi_capability_null_pointer(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_pci_find_msi_capability_null_pointer(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -230,8 +207,7 @@ test_pci_find_msi_capability_null_pointer(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_pci_find_msi_capability_not_found_empty_chain(
-        const MunitParameter params[], void *data) {
+static MunitResult test_pci_find_msi_capability_not_found_empty_chain(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -239,8 +215,7 @@ static MunitResult test_pci_find_msi_capability_not_found_empty_chain(
     mock_pci_config_space[13] = 0x40;      // Caps pointer at 0x40
 
     // Single capability that's not MSI, chain ends
-    mock_pci_config_space[16] =
-            0x00010001; // Next at 0x00 (end), Power Management cap
+    mock_pci_config_space[16] = 0x00010001; // Next at 0x00 (end), Power Management cap
 
     const uint8_t result = pci_find_msi_capability(TEST_PCI_BASE);
     munit_assert_uint8(0, ==, result);
@@ -248,9 +223,7 @@ static MunitResult test_pci_find_msi_capability_not_found_empty_chain(
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_find_msi_capability_found_first_in_chain(const MunitParameter params[],
-                                                  void *data) {
+static MunitResult test_pci_find_msi_capability_found_first_in_chain(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -262,9 +235,7 @@ test_pci_find_msi_capability_found_first_in_chain(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_find_msi_capability_found_later_in_chain(const MunitParameter params[],
-                                                  void *data) {
+static MunitResult test_pci_find_msi_capability_found_later_in_chain(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -281,9 +252,7 @@ test_pci_find_msi_capability_found_later_in_chain(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_find_msi_capability_malformed_pointer(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_pci_find_msi_capability_malformed_pointer(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -301,9 +270,7 @@ test_pci_find_msi_capability_malformed_pointer(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_find_msi_capability_unaligned_pointer(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_pci_find_msi_capability_unaligned_pointer(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -323,69 +290,54 @@ test_pci_find_msi_capability_unaligned_pointer(const MunitParameter params[],
 // MSI CONFIGURATION TESTS
 // ============================================================================
 
-static MunitResult
-test_pci_configure_msi_invalid_offset(const MunitParameter params[],
-                                      void *data) {
+static MunitResult test_pci_configure_msi_invalid_offset(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
-    const bool result =
-            pci_configure_msi(TEST_PCI_BASE, 0, 0xFEE00000ULL, 0x4000);
+    const bool result = pci_configure_msi(TEST_PCI_BASE, 0, 0xFEE00000ULL, 0x4000);
     munit_assert_false(result);
 
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_configure_msi_32bit_addressing(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_pci_configure_msi_32bit_addressing(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
     // MSI control: 32-bit addressing (bit 7 clear)
-    mock_pci_config_space[16] = 0x00050005; // MSI cap
-    mock_pci_config_space[16] |=
-            (0x0000 << 16); // MSI control: 32-bit, disabled
+    mock_pci_config_space[16] = 0x00050005;      // MSI cap
+    mock_pci_config_space[16] |= (0x0000 << 16); // MSI control: 32-bit, disabled
 
-    const bool result =
-            pci_configure_msi(TEST_PCI_BASE, 0x40, 0xFEE00000ULL, 0x4000);
+    const bool result = pci_configure_msi(TEST_PCI_BASE, 0x40, 0xFEE00000ULL, 0x4000);
     munit_assert_true(result);
 
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_configure_msi_64bit_addressing(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_pci_configure_msi_64bit_addressing(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
     // MSI control: 64-bit addressing (bit 7 set)
-    mock_pci_config_space[16] = 0x00050005; // MSI cap
-    mock_pci_config_space[16] |=
-            (0x0080 << 16); // MSI control: 64-bit, disabled
+    mock_pci_config_space[16] = 0x00050005;      // MSI cap
+    mock_pci_config_space[16] |= (0x0080 << 16); // MSI control: 64-bit, disabled
 
-    const bool result =
-            pci_configure_msi(TEST_PCI_BASE, 0x40, 0x1FEE00000ULL, 0x4000);
+    const bool result = pci_configure_msi(TEST_PCI_BASE, 0x40, 0x1FEE00000ULL, 0x4000);
     munit_assert_true(result);
 
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_configure_msi_address_splitting_32bit(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_pci_configure_msi_address_splitting_32bit(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
     // Test that 64-bit address is correctly split for 32-bit MSI
     // High 32 bits should be ignored
 
-    mock_pci_config_space[16] =
-            0x00050005; // MSI cap, 32-bit (no 64-bit capability)
+    mock_pci_config_space[16] = 0x00050005; // MSI cap, 32-bit (no 64-bit capability)
 
-    const bool result = pci_configure_msi(TEST_PCI_BASE, 0x40,
-                                          0x123456789ABCDEF0ULL, 0x4000);
+    const bool result = pci_configure_msi(TEST_PCI_BASE, 0x40, 0x123456789ABCDEF0ULL, 0x4000);
     munit_assert_true(result);
 
     // Verify that only low 32 bits (0x9ABCDEF0) were written to address register
@@ -399,9 +351,7 @@ test_pci_configure_msi_address_splitting_32bit(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_configure_msi_address_splitting_64bit(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_pci_configure_msi_address_splitting_64bit(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -410,8 +360,7 @@ test_pci_configure_msi_address_splitting_64bit(const MunitParameter params[],
     mock_pci_config_space[16] = 0x00050005;      // MSI cap
     mock_pci_config_space[16] |= (0x0080 << 16); // 64-bit capable
 
-    const bool result = pci_configure_msi(TEST_PCI_BASE, 0x40,
-                                          0x123456789ABCDEF0ULL, 0x4000);
+    const bool result = pci_configure_msi(TEST_PCI_BASE, 0x40, 0x123456789ABCDEF0ULL, 0x4000);
     munit_assert_true(result);
 
     // Verify address splitting for 64-bit MSI:
@@ -430,9 +379,7 @@ test_pci_configure_msi_address_splitting_64bit(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_configure_msi_enable_disable_sequence(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_pci_configure_msi_enable_disable_sequence(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -443,13 +390,11 @@ test_pci_configure_msi_enable_disable_sequence(const MunitParameter params[],
 
     // Verify MSI is initially enabled
     const uint16_t initial_control = pci_read_config16(TEST_PCI_BASE, 0x42);
-    munit_assert_uint16(
-            0x0085, ==,
-            initial_control); // Adjust based on actual MSI control layout
+    munit_assert_uint16(0x0085, ==,
+                        initial_control);        // Adjust based on actual MSI control layout
     munit_assert_true(initial_control & 0x0001); // MSI Enable bit set
 
-    const bool result =
-            pci_configure_msi(TEST_PCI_BASE, 0x40, 0xFEE00000ULL, 0x4000);
+    const bool result = pci_configure_msi(TEST_PCI_BASE, 0x40, 0xFEE00000ULL, 0x4000);
     munit_assert_true(result);
 
     // Verify final state: MSI should be enabled with new configuration
@@ -470,9 +415,7 @@ test_pci_configure_msi_enable_disable_sequence(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_pci_configure_msi_data_offset_32bit_vs_64bit(const MunitParameter params[],
-                                                  void *data) {
+static MunitResult test_pci_configure_msi_data_offset_32bit_vs_64bit(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -495,8 +438,7 @@ test_pci_configure_msi_data_offset_32bit_vs_64bit(const MunitParameter params[],
 // EDGE CASE AND ERROR HANDLING TESTS
 // ============================================================================
 
-static MunitResult test_pci_config_maximum_offset(const MunitParameter params[],
-                                                  void *data) {
+static MunitResult test_pci_config_maximum_offset(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -510,8 +452,7 @@ static MunitResult test_pci_config_maximum_offset(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_msi_capability_chain_limit(const MunitParameter params[], void *data) {
+static MunitResult test_msi_capability_chain_limit(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -541,76 +482,55 @@ test_msi_capability_chain_limit(const MunitParameter params[], void *data) {
 
 static MunitTest test_suite_tests[] = {
         // PCI config read tests
-        {"/mem/read32_basic", test_pci_read_config32_basic, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/mem/read16_offset0", test_pci_read_config16_alignment_offset_0,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/mem/read16_offset2", test_pci_read_config16_alignment_offset_2,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/mem/read8_all_alignments", test_pci_read_config8_all_alignments,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/mem/read_cross_boundary", test_pci_read_config_cross_dword_boundary,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/mem/read_max_offset", test_pci_read_config_boundary_offset_255,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/mem/read32_basic", test_pci_read_config32_basic, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/mem/read16_offset0", test_pci_read_config16_alignment_offset_0, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/mem/read16_offset2", test_pci_read_config16_alignment_offset_2, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/mem/read8_all_alignments", test_pci_read_config8_all_alignments, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/mem/read_cross_boundary", test_pci_read_config_cross_dword_boundary, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/mem/read_max_offset", test_pci_read_config_boundary_offset_255, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         // PCI config write tests
-        {"/mem/write32_basic", test_pci_write_config32_basic, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/mem/write16_preserve_bits",
-         test_pci_write_config16_preserve_other_bits, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/mem/write16_alignment", test_pci_write_config16_offset_alignment,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/mem/write32_basic", test_pci_write_config32_basic, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/mem/write16_preserve_bits", test_pci_write_config16_preserve_other_bits, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/mem/write16_alignment", test_pci_write_config16_offset_alignment, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         // MSI capability discovery tests
-        {"/msi/find_no_caps", test_pci_find_msi_capability_no_caps_support,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/find_null_pointer", test_pci_find_msi_capability_null_pointer,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/find_not_found",
-         test_pci_find_msi_capability_not_found_empty_chain, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/find_first", test_pci_find_msi_capability_found_first_in_chain,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/find_later", test_pci_find_msi_capability_found_later_in_chain,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/find_malformed", test_pci_find_msi_capability_malformed_pointer,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/find_unaligned", test_pci_find_msi_capability_unaligned_pointer,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/msi/find_no_caps", test_pci_find_msi_capability_no_caps_support, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/msi/find_null_pointer", test_pci_find_msi_capability_null_pointer, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/msi/find_not_found", test_pci_find_msi_capability_not_found_empty_chain, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/msi/find_first", test_pci_find_msi_capability_found_first_in_chain, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/msi/find_later", test_pci_find_msi_capability_found_later_in_chain, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/msi/find_malformed", test_pci_find_msi_capability_malformed_pointer, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/msi/find_unaligned", test_pci_find_msi_capability_unaligned_pointer, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
 
         // MSI configuration tests
-        {"/msi/config_invalid_offset", test_pci_configure_msi_invalid_offset,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/config_32bit", test_pci_configure_msi_32bit_addressing, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/config_64bit", test_pci_configure_msi_64bit_addressing, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/address_split_32bit",
-         test_pci_configure_msi_address_splitting_32bit, setup, NULL,
+        {"/msi/config_invalid_offset", test_pci_configure_msi_invalid_offset, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/msi/config_32bit", test_pci_configure_msi_32bit_addressing, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/msi/config_64bit", test_pci_configure_msi_64bit_addressing, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/msi/address_split_32bit", test_pci_configure_msi_address_splitting_32bit, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/address_split_64bit",
-         test_pci_configure_msi_address_splitting_64bit, setup, NULL,
+        {"/msi/address_split_64bit", test_pci_configure_msi_address_splitting_64bit, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/enable_disable_sequence",
-         test_pci_configure_msi_enable_disable_sequence, setup, NULL,
+        {"/msi/enable_disable_sequence", test_pci_configure_msi_enable_disable_sequence, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/msi/data_offset_modes",
-         test_pci_configure_msi_data_offset_32bit_vs_64bit, setup, NULL,
+        {"/msi/data_offset_modes", test_pci_configure_msi_data_offset_32bit_vs_64bit, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
 
         // Edge case tests
-        {"/edge/max_offset", test_pci_config_maximum_offset, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/edge/long_cap_chain", test_msi_capability_chain_limit, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/edge/max_offset", test_pci_config_maximum_offset, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/edge/long_cap_chain", test_msi_capability_chain_limit, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/ahci/pci", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {"/ahci/pci", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&test_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&test_suite, NULL, argc, argv); }

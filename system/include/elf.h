@@ -56,10 +56,8 @@ typedef struct {
     off_t current_page_offset;
 } ElfPagedReader;
 
-typedef bool (*ProgramHeaderHandler)(const ElfPagedReader *reader,
-                                     const Elf64ProgramHeader *, uint64_t);
+typedef bool (*ProgramHeaderHandler)(const ElfPagedReader *reader, const Elf64ProgramHeader *, uint64_t);
 
-uintptr_t elf_map_elf64(ElfPagedReader *reader, ProgramHeaderHandler handler,
-                        uint64_t data);
+uintptr_t elf_map_elf64(ElfPagedReader *reader, ProgramHeaderHandler handler, uint64_t data);
 
 #endif

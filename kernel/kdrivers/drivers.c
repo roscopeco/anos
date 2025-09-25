@@ -13,8 +13,7 @@
 #include "vmm/vmconfig.h"
 #include "x86_64/kdrivers/hpet.h"
 
-#define KERNEL_DRIVER_VADDR_END                                                \
-    ((KERNEL_DRIVER_VADDR_BASE + KERNEL_DRIVER_VADDR_SIZE))
+#define KERNEL_DRIVER_VADDR_END ((KERNEL_DRIVER_VADDR_BASE + KERNEL_DRIVER_VADDR_SIZE))
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
@@ -50,7 +49,5 @@ void *kernel_drivers_alloc_pages(const uint64_t count) {
 }
 
 #ifdef UNIT_TESTS
-void kernel_drivers_alloc_pages_reset(void) {
-    next_page = (DriverPage *)KERNEL_DRIVER_VADDR_BASE;
-}
+void kernel_drivers_alloc_pages_reset(void) { next_page = (DriverPage *)KERNEL_DRIVER_VADDR_BASE; }
 #endif

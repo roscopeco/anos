@@ -17,8 +17,7 @@
 // We allow up to 33 pages (128KiB) at the top of the stack for initial
 // arg values etc.
 #define INIT_STACK_ARG_PAGES_COUNT ((33))
-#define MAX_STACK_VALUE_COUNT                                                  \
-    ((INIT_STACK_ARG_PAGES_COUNT - 1) * VM_PAGE_SIZE / (sizeof(uintptr_t)))
+#define MAX_STACK_VALUE_COUNT ((INIT_STACK_ARG_PAGES_COUNT - 1) * VM_PAGE_SIZE / (sizeof(uintptr_t)))
 
 typedef struct {
     uintptr_t start;
@@ -52,10 +51,7 @@ bool address_space_init(void);
  * 
  * Returns the physical address of the new PML4.
  */
-uintptr_t address_space_create(uintptr_t init_stack_vaddr,
-                               size_t init_stack_len, int region_count,
-                               AddressSpaceRegion regions[],
-                               int stack_value_count,
-                               const uint64_t *stack_values);
+uintptr_t address_space_create(uintptr_t init_stack_vaddr, size_t init_stack_len, int region_count,
+                               AddressSpaceRegion regions[], int stack_value_count, const uint64_t *stack_values);
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_PROCESS_ADDRESS_SPACE_H

@@ -70,8 +70,7 @@ static void log_location(const SourceLocation *location) {
     debugstr("\n");
 }
 
-void __ubsan_handle_type_mismatch_v1(const TypeMismatchInfo *type_mismatch,
-                                     const uintptr_t pointer) {
+void __ubsan_handle_type_mismatch_v1(const TypeMismatchInfo *type_mismatch, const uintptr_t pointer) {
     const uintptr_t alignment = (uintptr_t)1ULL << type_mismatch->alignment;
 
     if (!pointer) {
@@ -93,9 +92,7 @@ void __ubsan_handle_type_mismatch_v1(const TypeMismatchInfo *type_mismatch,
     conditional_panic("[BUG] Undefined behaviour encountered");
 }
 
-void __ubsan_handle_shift_out_of_bounds(const OutOfBoundsInfo *oob_info,
-                                        const uint64_t lhs,
-                                        const uint64_t rhs) {
+void __ubsan_handle_shift_out_of_bounds(const OutOfBoundsInfo *oob_info, const uint64_t lhs, const uint64_t rhs) {
     debugstr("!!!!! UBSAN: Shift out-of-bounds: ");
     printhex64(lhs, debugchar);
     debugstr(" << ");
@@ -125,9 +122,8 @@ void __ubsan_handle_mul_overflow(void) {
 }
 
 void __ubsan_handle_divrem_overflow(void) {
-    conditional_panic(
-            "[BUG] Undefined behaviour encountered (divrem_overflow: debug not "
-            "yet implemented)");
+    conditional_panic("[BUG] Undefined behaviour encountered (divrem_overflow: debug not "
+                      "yet implemented)");
 }
 
 void __ubsan_handle_negate_overflow(void) {
@@ -148,21 +144,18 @@ void __ubsan_handle_pointer_overflow(void) {
 }
 
 void __ubsan_handle_builtin_unreachable(void) {
-    conditional_panic(
-            "[BUG] Undefined behaviour encountered (builtin_unreachable: debug "
-            "not yet implemented)");
+    conditional_panic("[BUG] Undefined behaviour encountered (builtin_unreachable: debug "
+                      "not yet implemented)");
 }
 
 void __ubsan_handle_load_invalid_value(void) {
-    conditional_panic(
-            "[BUG] Undefined behaviour encountered (load_invalid_value: debug "
-            "not yet implemented)");
+    conditional_panic("[BUG] Undefined behaviour encountered (load_invalid_value: debug "
+                      "not yet implemented)");
 }
 
 void __ubsan_handle_invalid_builtin(void) {
-    conditional_panic(
-            "[BUG] Undefined behaviour encountered (invalid_builtin: debug not "
-            "yet implemented)");
+    conditional_panic("[BUG] Undefined behaviour encountered (invalid_builtin: debug not "
+                      "yet implemented)");
 }
 
 void __ubsan_handle_vla_bound_not_positive(void) {

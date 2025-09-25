@@ -132,23 +132,17 @@ typedef struct {
     struct Limine_InternalModule **internal_modules;
 } __attribute__((packed)) Limine_ModuleRequest;
 
-#define LIMINE_BASE_REVISION(N)                                                \
-    static volatile __attribute__((                                            \
-            __aligned__(8))) uint64_t limine_base_revision[3] = {              \
-            0xf9562b2d5c95a6c8, 0x6a7b384944536bdc, N};
+#define LIMINE_BASE_REVISION(N)                                                                                        \
+    static volatile __attribute__((__aligned__(8))) uint64_t limine_base_revision[3] = {0xf9562b2d5c95a6c8,            \
+                                                                                        0x6a7b384944536bdc, N};
 
 #define LIMINE_COMMON_MAGIC 0xc7b1dd30df4c8b88, 0x0a82e883a194f07b
 
-#define LIMINE_MEMMAP_REQUEST                                                  \
-    {LIMINE_COMMON_MAGIC, 0x67cf3d9d378a806f, 0xe304acdfc50c3c62}
-#define LIMINE_RSDP_REQUEST                                                    \
-    {LIMINE_COMMON_MAGIC, 0xc5e77b6b397e7b43, 0x27637845accdcf3c}
-#define LIMINE_FRAMEBUFFER_REQUEST                                             \
-    {LIMINE_COMMON_MAGIC, 0x9d5827dcd881dd75, 0xa3148604f6fab11b}
-#define LIMINE_HHDM_REQUEST                                                    \
-    {LIMINE_COMMON_MAGIC, 0x48dcf1cb8ad2b852, 0x63984e959a98244b}
-#define LIMINE_MODULE_REQUEST                                                  \
-    {LIMINE_COMMON_MAGIC, 0x3e7e279702be32af, 0xca1c4f3bd1280cee}
+#define LIMINE_MEMMAP_REQUEST {LIMINE_COMMON_MAGIC, 0x67cf3d9d378a806f, 0xe304acdfc50c3c62}
+#define LIMINE_RSDP_REQUEST {LIMINE_COMMON_MAGIC, 0xc5e77b6b397e7b43, 0x27637845accdcf3c}
+#define LIMINE_FRAMEBUFFER_REQUEST {LIMINE_COMMON_MAGIC, 0x9d5827dcd881dd75, 0xa3148604f6fab11b}
+#define LIMINE_HHDM_REQUEST {LIMINE_COMMON_MAGIC, 0x48dcf1cb8ad2b852, 0x63984e959a98244b}
+#define LIMINE_MODULE_REQUEST {LIMINE_COMMON_MAGIC, 0x3e7e279702be32af, 0xca1c4f3bd1280cee}
 
 #define LIMINE_MEDIA_TYPE_GENERIC 0
 #define LIMINE_MEDIA_TYPE_OPTICAL 1

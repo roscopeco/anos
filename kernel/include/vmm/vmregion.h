@@ -17,8 +17,7 @@
 // Region flags
 #define VM_REGION_AUTOMAP ((0x01))
 
-static inline Region *vm_region_find_in_process(const Process *process,
-                                                const uintptr_t vaddr) {
+static inline Region *vm_region_find_in_process(const Process *process, const uintptr_t vaddr) {
     return region_tree_lookup(process->meminfo->regions, vaddr);
 }
 

@@ -79,8 +79,7 @@ bool mutex_free(Mutex *mutex) {
     return true;
 }
 
-bool mutex_init(Mutex *mutex, SpinLock *spin_lock,
-                TaskPriorityQueue *wait_queue) {
+bool mutex_init(Mutex *mutex, SpinLock *spin_lock, TaskPriorityQueue *wait_queue) {
     if (!mutex) {
         return false;
     }

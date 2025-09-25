@@ -49,8 +49,8 @@ typedef enum {
     IPWI_TYPE_LIMIT
 } IpwiType;
 
-typedef void (*IpwiRemoteFunc)(uint64_t arg0, uint64_t arg1, uint64_t arg2,
-                               uint64_t arg3, uint64_t arg4, uint64_t arg5);
+typedef void (*IpwiRemoteFunc)(uint64_t arg0, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4,
+                               uint64_t arg5);
 
 typedef struct {
     IpwiRemoteFunc func;

@@ -49,8 +49,7 @@ static MunitResult test_insert_tail(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult test_head_tail_access(const MunitParameter params[],
-                                         void *data) {
+static MunitResult test_head_tail_access(const MunitParameter params[], void *data) {
     ShiftToMiddleArray arr;
     munit_assert_true(shift_array_init(&arr, sizeof(int), 2));
 
@@ -71,8 +70,7 @@ static MunitResult test_head_tail_access(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_remove_behavior(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_remove_behavior(const MunitParameter params[], void *data) {
     ShiftToMiddleArray arr;
     munit_assert_true(shift_array_init(&arr, sizeof(int), 4));
 
@@ -98,20 +96,12 @@ static MunitResult test_remove_behavior(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitTest tests[] = {
-        {"/insert_head", test_insert_head, NULL, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {"/insert_tail", test_insert_tail, NULL, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {"/head_tail_access", test_head_tail_access, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/remove_behavior", test_remove_behavior, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
+static MunitTest tests[] = {{"/insert_head", test_insert_head, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {"/insert_tail", test_insert_tail, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {"/head_tail_access", test_head_tail_access, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {"/remove_behavior", test_remove_behavior, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite suite = {"/shift_array", tests, NULL, 1,
-                                 MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite suite = {"/shift_array", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&suite, NULL, argc, argv); }

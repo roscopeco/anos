@@ -60,16 +60,12 @@ extern AnosRAMFSHeader _system_ramfs_start;
 
 extern uint64_t __syscall_capabilities[];
 
-static char __attribute__((aligned(
-        VM_PAGE_SIZE))) ramfs_driver_thread_stack[DRIVER_THREAD_STACK_SIZE];
-static char __attribute__((aligned(
-        VM_PAGE_SIZE))) process_manager_thread_stack[DRIVER_THREAD_STACK_SIZE];
-static char __attribute__((aligned(VM_PAGE_SIZE)))
-filesystem_starter_thread_stack[DRIVER_THREAD_STACK_SIZE];
+static char __attribute__((aligned(VM_PAGE_SIZE))) ramfs_driver_thread_stack[DRIVER_THREAD_STACK_SIZE];
+static char __attribute__((aligned(VM_PAGE_SIZE))) process_manager_thread_stack[DRIVER_THREAD_STACK_SIZE];
+static char __attribute__((aligned(VM_PAGE_SIZE))) filesystem_starter_thread_stack[DRIVER_THREAD_STACK_SIZE];
 
 #ifdef TEST_THREAD_KILL
-static char __attribute__((
-        aligned(VM_PAGE_SIZE))) kamikaze_thread_stack[VM_PAGE_SIZE];
+static char __attribute__((aligned(VM_PAGE_SIZE))) kamikaze_thread_stack[VM_PAGE_SIZE];
 #endif
 
 static uint64_t ramfs_channel;
@@ -85,8 +81,7 @@ static const InitCapability *global_fs_caps = nullptr;
 static uint16_t global_fs_cap_count = 0;
 
 static inline void banner() {
-    printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION,
-           libanos_version());
+    printf("\n\nSYSTEM User-mode Supervisor #%s [libanos #%s]\n", VERSION, libanos_version());
 }
 
 #ifdef DEBUG_INIT_RAMFS
@@ -124,9 +119,7 @@ static void dump_fs(AnosRAMFSHeader *ramfs) {
 #define dump_fs(...)
 #endif
 
-static void handle_file_size_query(const uint64_t message_cookie,
-                                   const size_t message_size,
-                                   char *message_buffer) {
+static void handle_file_size_query(const uint64_t message_cookie, const size_t message_size, char *message_buffer) {
     char *mount_point, *path;
 
     // Refuse oversized messages...
@@ -141,13 +134,11 @@ static void handle_file_size_query(const uint64_t message_cookie,
             path++;
         }
 
-        const AnosRAMFSFileHeader *target =
-                ramfs_find_file(&_system_ramfs_start, path);
+        const AnosRAMFSFileHeader *target = ramfs_find_file(&_system_ramfs_start, path);
 
         if (target) {
 #ifdef DEBUG_SYS_IPC
-            printf("    -> %s found: %ld byte(s)\n", target->file_name,
-                   target->file_length);
+            printf("    -> %s found: %ld byte(s)\n", target->file_name, target->file_length);
 #endif
             anos_reply_message(message_cookie, target->file_length);
         } else {
@@ -162,8 +153,7 @@ static void handle_file_size_query(const uint64_t message_cookie,
     }
 }
 
-static void handle_file_load_page_query(const uint64_t message_cookie,
-                                        const size_t message_size,
+static void handle_file_load_page_query(const uint64_t message_cookie, const size_t message_size,
                                         void *message_buffer) {
     char *mount_point, *path;
     FileLoadPageQuery *pq = message_buffer;
@@ -179,8 +169,7 @@ static void handle_file_load_page_query(const uint64_t message_cookie,
             path++;
         }
 
-        AnosRAMFSFileHeader *target =
-                ramfs_find_file((AnosRAMFSHeader *)&_system_ramfs_start, path);
+        AnosRAMFSFileHeader *target = ramfs_find_file((AnosRAMFSHeader *)&_system_ramfs_start, path);
 
         if (target) {
             // figure out size to copy
@@ -208,8 +197,7 @@ static void handle_file_load_page_query(const uint64_t message_cookie,
     }
 }
 
-static void handle_process_spawn_request(const uint64_t message_cookie,
-                                         const size_t message_size,
+static void handle_process_spawn_request(const uint64_t message_cookie, const size_t message_size,
                                          void *message_buffer) {
 
     ProcessSpawnRequest *spawn_req = (ProcessSpawnRequest *)message_buffer;
@@ -257,8 +245,7 @@ static void handle_process_spawn_request(const uint64_t message_cookie,
 
             argv[i] = str_data + str_offset;
 
-            while (str_offset < remaining_size &&
-                   str_data[str_offset] != '\0') {
+            while (str_offset < remaining_size && str_data[str_offset] != '\0') {
                 str_offset++;
             }
 
@@ -280,9 +267,8 @@ static void handle_process_spawn_request(const uint64_t message_cookie,
     }
 #endif
 
-    const int64_t pid = create_server_process(stack_size, capc,
-                                              capc > 0 ? capabilities : nullptr,
-                                              argc, argc > 0 ? argv : nullptr);
+    const int64_t pid =
+            create_server_process(stack_size, capc, capc > 0 ? capabilities : nullptr, argc, argc > 0 ? argv : nullptr);
 
     anos_reply_message(message_cookie, pid);
 }
@@ -293,20 +279,17 @@ static noreturn void process_manager_thread(void) {
         size_t message_size;
         char *message_buffer = (char *)0xc0000000;
 
-        const SyscallResult result = anos_recv_message(
-                process_manager_channel, &tag, &message_size, message_buffer);
+        const SyscallResult result = anos_recv_message(process_manager_channel, &tag, &message_size, message_buffer);
 
         uint64_t message_cookie = result.value;
 
         if (result.result == SYSCALL_OK && message_cookie) {
 #ifdef DEBUG_SYS_IPC
-            printf("SYSTEM::PROCESS received [0x%016lx] 0x%016lx (%ld bytes)\n",
-                   message_cookie, tag, message_size);
+            printf("SYSTEM::PROCESS received [0x%016lx] 0x%016lx (%ld bytes)\n", message_cookie, tag, message_size);
 #endif
             switch (tag) {
             case PROCESS_SPAWN:
-                handle_process_spawn_request(message_cookie, message_size,
-                                             message_buffer);
+                handle_process_spawn_request(message_cookie, message_size, message_buffer);
                 break;
             default:
 #ifdef DEBUG_SYS_IPC
@@ -331,8 +314,7 @@ static noreturn void ramfs_driver_thread(void) {
         size_t message_size;
         char *message_buffer = (char *)0xb0000000;
 
-        const SyscallResult result = anos_recv_message(
-                ramfs_channel, &tag, &message_size, message_buffer);
+        const SyscallResult result = anos_recv_message(ramfs_channel, &tag, &message_size, message_buffer);
 
         uint64_t message_cookie = result.value;
 
@@ -344,12 +326,10 @@ static noreturn void ramfs_driver_thread(void) {
 #endif
             switch (tag) {
             case FS_QUERY_OBJECT_SIZE:
-                handle_file_size_query(message_cookie, message_size,
-                                       message_buffer);
+                handle_file_size_query(message_cookie, message_size, message_buffer);
                 break;
             case FS_LOAD_OBJECT_PAGE:
-                handle_file_load_page_query(message_cookie, message_size,
-                                            message_buffer);
+                handle_file_load_page_query(message_cookie, message_size, message_buffer);
                 break;
             default:
 #ifdef DEBUG_SYS_IPC
@@ -368,8 +348,7 @@ static noreturn void ramfs_driver_thread(void) {
     }
 }
 
-static void start_filesystem_drivers(const InitCapability *caps,
-                                     uint16_t cap_count);
+static void start_filesystem_drivers(const InitCapability *caps, uint16_t cap_count);
 
 static noreturn void filesystem_starter_thread(void) {
     // TODO this isn't very fucking robust...
@@ -392,8 +371,7 @@ static void kamikaze_thread(void) {
 #endif
 
 // VFS filesystem management functions
-static bool register_filesystem_driver(const char *mount_prefix,
-                                       const uint64_t fs_channel) {
+static bool register_filesystem_driver(const char *mount_prefix, const uint64_t fs_channel) {
 
     if (filesystem_mount_count >= MAX_VFS_FILESYSTEMS) {
         return false; // Registry full
@@ -401,23 +379,19 @@ static bool register_filesystem_driver(const char *mount_prefix,
 
     // Check if mount prefix already exists
     for (uint32_t i = 0; i < filesystem_mount_count; i++) {
-        if (strncmp(filesystem_mounts[i].mount_prefix, mount_prefix,
-                    sizeof(filesystem_mounts[i].mount_prefix)) == 0) {
+        if (strncmp(filesystem_mounts[i].mount_prefix, mount_prefix, sizeof(filesystem_mounts[i].mount_prefix)) == 0) {
             return false; // Mount prefix already registered
         }
     }
 
-    strncpy(filesystem_mounts[filesystem_mount_count].mount_prefix,
-            mount_prefix,
+    strncpy(filesystem_mounts[filesystem_mount_count].mount_prefix, mount_prefix,
             sizeof(filesystem_mounts[filesystem_mount_count].mount_prefix) - 1);
-    filesystem_mounts[filesystem_mount_count].mount_prefix
-            [sizeof(filesystem_mounts[filesystem_mount_count].mount_prefix) -
-             1] = '\0';
+    filesystem_mounts[filesystem_mount_count]
+            .mount_prefix[sizeof(filesystem_mounts[filesystem_mount_count].mount_prefix) - 1] = '\0';
     filesystem_mounts[filesystem_mount_count].fs_driver_channel = fs_channel;
     filesystem_mount_count++;
 
-    printf("VFS: Registered filesystem driver for mount prefix '%s'",
-           mount_prefix);
+    printf("VFS: Registered filesystem driver for mount prefix '%s'", mount_prefix);
     fs_debugf(" (channel: 0x%016lx)", fs_channel);
     printf("\n");
 
@@ -443,8 +417,7 @@ static uint64_t find_filesystem_driver_by_path(const char *path) {
 
     // Find filesystem driver for this mount prefix
     for (uint32_t i = 0; i < filesystem_mount_count; i++) {
-        if (strncmp(filesystem_mounts[i].mount_prefix, mount_prefix,
-                    sizeof(filesystem_mounts[i].mount_prefix)) == 0) {
+        if (strncmp(filesystem_mounts[i].mount_prefix, mount_prefix, sizeof(filesystem_mounts[i].mount_prefix)) == 0) {
             return filesystem_mounts[i].fs_driver_channel;
         }
     }
@@ -452,31 +425,24 @@ static uint64_t find_filesystem_driver_by_path(const char *path) {
     return 0; // No filesystem driver found
 }
 
-static bool spawn_filesystem_driver(const char *driver_name,
-                                    const char *mount_prefix,
-                                    const InitCapability *caps,
+static bool spawn_filesystem_driver(const char *driver_name, const char *mount_prefix, const InitCapability *caps,
                                     const uint16_t cap_count) {
     char driver_path[64];
     snprintf(driver_path, sizeof(driver_path), "boot:/%s.elf", driver_name);
 
     const char *fs_argv[] = {driver_path, mount_prefix};
-    const int64_t fs_pid =
-            create_server_process(0x100000, cap_count, caps, 2, fs_argv);
+    const int64_t fs_pid = create_server_process(0x100000, cap_count, caps, 2, fs_argv);
 
     if (fs_pid < 0) {
-        fs_debugf("Warning: Failed to create %s filesystem driver for %s\n",
-                  driver_name, mount_prefix);
+        fs_debugf("Warning: Failed to create %s filesystem driver for %s\n", driver_name, mount_prefix);
         return false;
     }
 
-    fs_debugf("Started %s filesystem driver (PID: %ld) for mount: %s\n",
-              driver_name, fs_pid, mount_prefix);
+    fs_debugf("Started %s filesystem driver (PID: %ld) for mount: %s\n", driver_name, fs_pid, mount_prefix);
     return true;
 }
 
-static uint32_t query_storage_devices(const uint64_t devman_channel,
-                                      DeviceInfo *devices_out,
-                                      uint32_t max_devices) {
+static uint32_t query_storage_devices(const uint64_t devman_channel, DeviceInfo *devices_out, uint32_t max_devices) {
 
     static char __attribute__((aligned(4096))) query_buffer[4096];
 
@@ -487,21 +453,18 @@ static uint32_t query_storage_devices(const uint64_t devman_channel,
     query->device_type = DEVICE_TYPE_STORAGE;
     query->device_id = 0;
 
-    const SyscallResult query_result = anos_send_message(
-            devman_channel, 0, sizeof(DeviceQueryMessage), query_buffer);
+    const SyscallResult query_result = anos_send_message(devman_channel, 0, sizeof(DeviceQueryMessage), query_buffer);
 
     if (query_result.result == SYSCALL_OK && query_result.value > 0) {
-        fs_debugf("DEBUG: DEVMAN query returned %lu bytes\n",
-                  query_result.value);
+        fs_debugf("DEBUG: DEVMAN query returned %lu bytes\n", query_result.value);
 
         // Check if we got a structured response with device info
         if (query_result.value > sizeof(DeviceQueryResponse)) {
 
-            const DeviceQueryResponse *response =
-                    (DeviceQueryResponse *)query_buffer;
+            const DeviceQueryResponse *response = (DeviceQueryResponse *)query_buffer;
 
-            fs_debugf("DEBUG: Structured response - count=%u, error=%u\n",
-                      response->device_count, response->error_code);
+            fs_debugf("DEBUG: Structured response - count=%u, error=%u\n", response->device_count,
+                      response->error_code);
 
             if (response->device_count > 0 && response->error_code == 0) {
                 // Copy device info to output array
@@ -522,8 +485,7 @@ static uint32_t query_storage_devices(const uint64_t devman_channel,
     return 0;
 }
 
-static void start_filesystem_drivers(const InitCapability *caps,
-                                     uint16_t cap_count) {
+static void start_filesystem_drivers(const InitCapability *caps, uint16_t cap_count) {
     fs_debugf("Waiting for DEVMAN to become available...\n");
 
     // Wait for DEVMAN to be available
@@ -539,8 +501,7 @@ static void start_filesystem_drivers(const InitCapability *caps,
 
             break;
         }
-        fs_debugf("  DEVMAN not found yet, waiting... (attempt %d/10)\n",
-                  retry + 1);
+        fs_debugf("  DEVMAN not found yet, waiting... (attempt %d/10)\n", retry + 1);
         anos_task_sleep_current_secs(1);
     }
 
@@ -556,16 +517,12 @@ static void start_filesystem_drivers(const InitCapability *caps,
     printf("Waiting for storage device discovery...\n");
 
     for (int retry = 0; retry < 15; retry++) {
-        storage_device_count =
-                query_storage_devices(devman_channel, storage_devices, 8);
+        storage_device_count = query_storage_devices(devman_channel, storage_devices, 8);
         if (storage_device_count > 0) {
-            fs_debugf("Found %u storage devices after %d seconds\n",
-                      storage_device_count, retry + 1);
+            fs_debugf("Found %u storage devices after %d seconds\n", storage_device_count, retry + 1);
             break;
         }
-        fs_debugf(
-                "  No storage devices found yet, waiting... (attempt %d/15)\n",
-                retry + 1);
+        fs_debugf("  No storage devices found yet, waiting... (attempt %d/15)\n", retry + 1);
         anos_task_sleep_current_secs(1);
     }
 
@@ -578,12 +535,10 @@ static void start_filesystem_drivers(const InitCapability *caps,
 
 #ifdef DEBUG_FS_INIT
             DeviceInfo *device = &storage_devices[i];
-            fs_debugf(
-                    "  Device %u: ID=%lu, Name='%s', Driver='%s', Channel=%lu, "
-                    "Type=%u, HW=%u, Caps=0x%x\n",
-                    i, device->device_id, device->name, device->driver_name,
-                    device->driver_channel, device->device_type,
-                    device->hardware_type, device->capabilities);
+            fs_debugf("  Device %u: ID=%lu, Name='%s', Driver='%s', Channel=%lu, "
+                      "Type=%u, HW=%u, Caps=0x%x\n",
+                      i, device->device_id, device->name, device->driver_name, device->driver_channel,
+                      device->device_type, device->hardware_type, device->capabilities);
 #endif
         }
 
@@ -593,16 +548,12 @@ static void start_filesystem_drivers(const InitCapability *caps,
 
             // Verify this is a real, functional storage device
             if (device->driver_channel == 0) {
-                fs_debugf("  Skipping device '%s' - no driver channel\n",
-                          device->name);
+                fs_debugf("  Skipping device '%s' - no driver channel\n", device->name);
                 continue;
             }
 
-            if (!(device->capabilities &
-                  (DEVICE_CAP_READ | DEVICE_CAP_WRITE))) {
-                fs_debugf(
-                        "  Skipping device '%s' - no read/write capabilities\n",
-                        device->name);
+            if (!(device->capabilities & (DEVICE_CAP_READ | DEVICE_CAP_WRITE))) {
+                fs_debugf("  Skipping device '%s' - no read/write capabilities\n", device->name);
                 continue;
             }
 
@@ -620,8 +571,7 @@ static void start_filesystem_drivers(const InitCapability *caps,
 
             fs_debugf("  Starting filesystem driver for device '%s' (ID: %lu, "
                       "Driver: %s) -> %s\n",
-                      device->name, device->device_id, device->driver_name,
-                      mount_prefix);
+                      device->name, device->device_id, device->driver_name, mount_prefix);
 
             spawn_filesystem_driver("fat32drv", mount_prefix, caps, cap_count);
         }
@@ -635,9 +585,8 @@ int main(int argc, char **argv) {
     banner();
 
 #ifdef TEST_THREAD_KILL
-    const SyscallResult create_kill_result = anos_create_thread(
-            kamikaze_thread,
-            (uintptr_t)kamikaze_thread_stack + VM_PAGE_SIZE - 8);
+    const SyscallResult create_kill_result =
+            anos_create_thread(kamikaze_thread, (uintptr_t)kamikaze_thread_stack + VM_PAGE_SIZE - 8);
 
     if (create_kill_result.result != SYSCALL_OK) {
         printf("Failed to create kamikaze thread...\n");
@@ -646,8 +595,7 @@ int main(int argc, char **argv) {
 
     AnosMemInfo meminfo;
     if (anos_get_mem_info(&meminfo).result == SYSCALL_OK) {
-        printf("%ld / %ld bytes used / free\n",
-               meminfo.physical_total - meminfo.physical_avail,
+        printf("%ld / %ld bytes used / free\n", meminfo.physical_total - meminfo.physical_avail,
                meminfo.physical_avail);
     } else {
         printf("WARN: Get mem info failed\n");
@@ -660,99 +608,80 @@ int main(int argc, char **argv) {
 
     const InitCapability new_process_caps[] = {
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_DEBUG_PRINT],
                     .capability_id = SYSCALL_ID_DEBUG_PRINT,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_DEBUG_CHAR],
                     .capability_id = SYSCALL_ID_DEBUG_CHAR,
             },
             // N.B! malloc (via sbrk) in the stdlib needs create region cap!
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_CREATE_REGION],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_CREATE_REGION],
                     .capability_id = SYSCALL_ID_CREATE_REGION,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_SLEEP],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_SLEEP],
                     .capability_id = SYSCALL_ID_SLEEP,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_MAP_FIRMWARE_TABLES],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_FIRMWARE_TABLES],
                     .capability_id = SYSCALL_ID_MAP_FIRMWARE_TABLES,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_PHYSICAL],
                     .capability_id = SYSCALL_ID_MAP_PHYSICAL,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_MAP_VIRTUAL],
                     .capability_id = SYSCALL_ID_MAP_VIRTUAL,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_ALLOC_PHYSICAL_PAGES],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_ALLOC_PHYSICAL_PAGES],
                     .capability_id = SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_SEND_MESSAGE],
                     .capability_id = SYSCALL_ID_SEND_MESSAGE,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_FIND_NAMED_CHANNEL],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_FIND_NAMED_CHANNEL],
                     .capability_id = SYSCALL_ID_FIND_NAMED_CHANNEL,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_KILL_CURRENT_TASK],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_KILL_CURRENT_TASK],
                     .capability_id = SYSCALL_ID_KILL_CURRENT_TASK,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_ALLOC_INTERRUPT_VECTOR],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_ALLOC_INTERRUPT_VECTOR],
                     .capability_id = SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_WAIT_INTERRUPT],
                     .capability_id = SYSCALL_ID_WAIT_INTERRUPT,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_RECV_MESSAGE],
                     .capability_id = SYSCALL_ID_RECV_MESSAGE,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_REPLY_MESSAGE],
                     .capability_id = SYSCALL_ID_REPLY_MESSAGE,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_CREATE_CHANNEL],
                     .capability_id = SYSCALL_ID_CREATE_CHANNEL,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_REGISTER_NAMED_CHANNEL],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_REGISTER_NAMED_CHANNEL],
                     .capability_id = SYSCALL_ID_REGISTER_NAMED_CHANNEL,
             },
             {
-                    .capability_cookie =
-                            __syscall_capabilities[SYSCALL_ID_READ_KERNEL_LOG],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_READ_KERNEL_LOG],
                     .capability_id = SYSCALL_ID_READ_KERNEL_LOG,
             },
             {
-                    .capability_cookie = __syscall_capabilities
-                            [SYSCALL_ID_GET_FRAMEBUFFER_PHYS],
+                    .capability_cookie = __syscall_capabilities[SYSCALL_ID_GET_FRAMEBUFFER_PHYS],
                     .capability_id = SYSCALL_ID_GET_FRAMEBUFFER_PHYS,
             },
     };
@@ -766,24 +695,17 @@ int main(int argc, char **argv) {
     const SyscallResult create_process_manager_result = anos_create_channel();
     process_manager_channel = create_process_manager_result.value;
 
-    const bool all_created_ok =
-            create_vfs_result.result == SYSCALL_OK &&
-            create_ramfs_result.result == SYSCALL_OK &&
-            create_process_manager_result.result == SYSCALL_OK;
+    const bool all_created_ok = create_vfs_result.result == SYSCALL_OK && create_ramfs_result.result == SYSCALL_OK &&
+                                create_process_manager_result.result == SYSCALL_OK;
 
-    if (all_created_ok && vfs_channel && ramfs_channel &&
-        process_manager_channel) {
-        if (anos_register_channel_name(vfs_channel, "SYSTEM::VFS").result ==
-            SYSCALL_OK) {
-            if (anos_register_channel_name(process_manager_channel,
-                                           "SYSTEM::PROCESS")
-                        .result != SYSCALL_OK) {
+    if (all_created_ok && vfs_channel && ramfs_channel && process_manager_channel) {
+        if (anos_register_channel_name(vfs_channel, "SYSTEM::VFS").result == SYSCALL_OK) {
+            if (anos_register_channel_name(process_manager_channel, "SYSTEM::PROCESS").result != SYSCALL_OK) {
                 printf("Failed to register SYSTEM::PROCESS channel!\n");
             }
             // set up RAMFS driver thread
             SyscallResult create_thread_result = anos_create_thread(
-                    ramfs_driver_thread, (uintptr_t)ramfs_driver_thread_stack +
-                                                 DRIVER_THREAD_STACK_SIZE - 8);
+                    ramfs_driver_thread, (uintptr_t)ramfs_driver_thread_stack + DRIVER_THREAD_STACK_SIZE - 8);
 
             if (create_thread_result.result != SYSCALL_OK) {
                 printf("Failed to create RAMFS driver thread!\n");
@@ -792,10 +714,8 @@ int main(int argc, char **argv) {
                 register_filesystem_driver("boot:", ramfs_channel);
             }
 
-            create_thread_result =
-                    anos_create_thread(process_manager_thread,
-                                       (uintptr_t)process_manager_thread_stack +
-                                               DRIVER_THREAD_STACK_SIZE - 8);
+            create_thread_result = anos_create_thread(process_manager_thread, (uintptr_t)process_manager_thread_stack +
+                                                                                      DRIVER_THREAD_STACK_SIZE - 8);
 
             // set up process manager thread
             if (create_thread_result.result != SYSCALL_OK) {
@@ -803,24 +723,19 @@ int main(int argc, char **argv) {
             }
 
 #ifdef TEST_BEEP_BOOP
-            const char *test_server_argv[] = {"boot:/test_server.elf",
-                                              "Hello, world!"};
+            const char *test_server_argv[] = {"boot:/test_server.elf", "Hello, world!"};
 
-            const int64_t test_server_pid = create_server_process(
-                    0x100000, 4, new_process_caps, 2, test_server_argv);
+            const int64_t test_server_pid = create_server_process(0x100000, 4, new_process_caps, 2, test_server_argv);
             if (test_server_pid < 0) {
-                printf("%s: Failed to create server process\n",
-                       "boot:/test_server.elf");
+                printf("%s: Failed to create server process\n", "boot:/test_server.elf");
             }
 #endif
 
             const char *devman_argv[] = {"boot:/devman.elf"};
 
-            const int64_t devman_pid = create_server_process(
-                    0x100000, 18, new_process_caps, 1, devman_argv);
+            const int64_t devman_pid = create_server_process(0x100000, 18, new_process_caps, 1, devman_argv);
             if (devman_pid < 0) {
-                printf("%s: Failed to create server process\n",
-                       "boot:/devman.elf");
+                printf("%s: Failed to create server process\n", "boot:/devman.elf");
             } else {
                 fs_debugf("DEVMAN started (PID: %ld), starting filesystem "
                           "starter "
@@ -829,11 +744,9 @@ int main(int argc, char **argv) {
             }
 
             const char *kterm_argv[] = {"boot:/kterminal.elf"};
-            const int64_t kterm_pid = create_server_process(
-                    0x200000, 19, new_process_caps, 1, kterm_argv);
+            const int64_t kterm_pid = create_server_process(0x200000, 19, new_process_caps, 1, kterm_argv);
             if (kterm_pid < 0) {
-                printf("%s: Failed to create kernel terminal process\n",
-                       "boot:/kterminal.elf");
+                printf("%s: Failed to create kernel terminal process\n", "boot:/kterminal.elf");
             } else {
                 fs_debugf("Kernel terminal started (PID: %ld)\n", kterm_pid);
             }
@@ -844,10 +757,9 @@ int main(int argc, char **argv) {
                 global_fs_cap_count = 18;
 
                 // Start filesystem starter thread
-                const SyscallResult fs_thread_result = anos_create_thread(
-                        filesystem_starter_thread,
-                        (uintptr_t)filesystem_starter_thread_stack +
-                                DRIVER_THREAD_STACK_SIZE - 8);
+                const SyscallResult fs_thread_result =
+                        anos_create_thread(filesystem_starter_thread,
+                                           (uintptr_t)filesystem_starter_thread_stack + DRIVER_THREAD_STACK_SIZE - 8);
 
                 if (fs_thread_result.result != SYSCALL_OK) {
                     printf("Failed to create filesystem starter thread!\n");
@@ -861,8 +773,7 @@ int main(int argc, char **argv) {
                 size_t message_size;
                 char *message_buffer = (char *)0xa0000000;
 
-                const SyscallResult result = anos_recv_message(
-                        vfs_channel, &tag, &message_size, message_buffer);
+                const SyscallResult result = anos_recv_message(vfs_channel, &tag, &message_size, message_buffer);
 
                 uint64_t message_cookie = result.value;
 
@@ -876,19 +787,16 @@ int main(int argc, char **argv) {
                     case VFS_FIND_FS_DRIVER: {
                         // find FS driver by path
                         const char *path = (const char *)message_buffer;
-                        uint64_t fs_channel =
-                                find_filesystem_driver_by_path(path);
+                        uint64_t fs_channel = find_filesystem_driver_by_path(path);
                         anos_reply_message(message_cookie, fs_channel);
                         break;
                     }
                     case VFS_REGISTER_FILESYSTEM: {
                         // Register a filesystem driver
                         if (message_size >= sizeof(VFSMountEntry)) {
-                            const VFSMountEntry *mount_entry =
-                                    (const VFSMountEntry *)message_buffer;
-                            bool success = register_filesystem_driver(
-                                    mount_entry->mount_prefix,
-                                    mount_entry->fs_driver_channel);
+                            const VFSMountEntry *mount_entry = (const VFSMountEntry *)message_buffer;
+                            bool success = register_filesystem_driver(mount_entry->mount_prefix,
+                                                                      mount_entry->fs_driver_channel);
                             anos_reply_message(message_cookie, success ? 1 : 0);
                         } else {
                             anos_reply_message(message_cookie, 0);

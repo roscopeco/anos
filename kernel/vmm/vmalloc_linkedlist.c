@@ -53,18 +53,13 @@ static void free_range(Range *r) {
 }
 
 // Helper: Align address up to page boundary
-static uint64_t align_up(uint64_t addr) {
-    return (addr + VM_PAGE_SIZE - 1) & ~((uint64_t)VM_PAGE_SIZE - 1);
-}
+static uint64_t align_up(uint64_t addr) { return (addr + VM_PAGE_SIZE - 1) & ~((uint64_t)VM_PAGE_SIZE - 1); }
 
 // Helper: Align address down to page boundary
-static uint64_t align_down(uint64_t addr) {
-    return addr & ~((uint64_t)VM_PAGE_SIZE - 1);
-}
+static uint64_t align_down(uint64_t addr) { return addr & ~((uint64_t)VM_PAGE_SIZE - 1); }
 
 // Initialize the VMM
-int vmm_init(void *metadata_start, uint64_t metadata_size,
-             uint64_t managed_start, uint64_t managed_size) {
+int vmm_init(void *metadata_start, uint64_t metadata_size, uint64_t managed_start, uint64_t managed_size) {
 
     kernel_guard_once();
 
@@ -211,8 +206,7 @@ int vmm_free_block(uint64_t address, uint64_t num_pages) {
     }
 
     // Coalesce with next range if adjacent
-    if (new_range->next &&
-        new_range->start + new_range->size == new_range->next->start) {
+    if (new_range->next && new_range->start + new_range->size == new_range->next->start) {
         new_range->size += new_range->next->size;
         Range *to_free = new_range->next;
         new_range->next = to_free->next;

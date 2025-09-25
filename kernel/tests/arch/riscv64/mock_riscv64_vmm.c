@@ -73,13 +73,9 @@ uintptr_t mock_vmm_get_last_page_unmap_pml4() { return last_page_unmap_pml4; }
 uintptr_t mock_vmm_get_last_page_unmap_virt() { return last_page_unmap_virt; }
 
 // Helper functions
-static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) {
-    return DIRECT_MAP_BASE + phys_addr;
-}
+static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) { return DIRECT_MAP_BASE + phys_addr; }
 
-static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
-    return virt_addr - DIRECT_MAP_BASE;
-}
+static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) { return virt_addr - DIRECT_MAP_BASE; }
 
 static inline uint64_t vmm_satp_to_root_table_phys(uint64_t satp) {
     // In RISC-V, the SATP register contains the physical address of the root page table
@@ -93,13 +89,10 @@ uint64_t cpu_read_satp() {
     return 0x8000000000000001; // Mode = Sv39 (8), ASID = 0, PPN = 1
 }
 
-uint64_t cpu_satp_to_root_table_phys(uint64_t satp) {
-    return vmm_satp_to_root_table_phys(satp);
-}
+uint64_t cpu_satp_to_root_table_phys(uint64_t satp) { return vmm_satp_to_root_table_phys(satp); }
 
 // VMM function implementations
-bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page,
-                     uint16_t flags) {
+bool vmm_map_page_in(void *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags) {
     // Record for testing
     last_page_map_paddr = page;
     last_page_map_vaddr = virt_addr;
@@ -137,8 +130,7 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
             // Remove by shifting the array (simple approach)
             if (i < mock_mappings_count - 1) {
                 memmove(&mock_mappings[i], &mock_mappings[i + 1],
-                        (mock_mappings_count - i - 1) *
-                                sizeof(MockPageMapping));
+                        (mock_mappings_count - i - 1) * sizeof(MockPageMapping));
             }
             mock_mappings_count--;
             break;
@@ -149,8 +141,7 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr) {
     return phys_addr;
 }
 
-bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
-                             uint16_t flags) {
+bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags) {
     return vmm_map_page(virt_addr, phys_addr & PAGE_ALIGN_MASK, flags);
 }
 

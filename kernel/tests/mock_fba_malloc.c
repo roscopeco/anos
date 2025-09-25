@@ -20,9 +20,7 @@ void mock_fba_reset(void) {
     fba_free_count = 0;
 }
 
-void mock_fba_set_should_fail(const bool should_fail) {
-    should_fba_alloc_fail = should_fail;
-}
+void mock_fba_set_should_fail(const bool should_fail) { should_fba_alloc_fail = should_fail; }
 
 bool mock_fba_get_should_fail(void) { return should_fba_alloc_fail; }
 

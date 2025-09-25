@@ -98,8 +98,7 @@ static MunitResult test_hpet_vendor(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult test_hpet_timer_count(const MunitParameter params[],
-                                         void *data) {
+static MunitResult test_hpet_timer_count(const MunitParameter params[], void *data) {
     uint64_t test_caps;
 
     // Max value (31 + 1 = 32 timers)
@@ -128,8 +127,7 @@ static MunitResult test_hpet_timer_count(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_hpet_is_64_bit(const MunitParameter params[],
-                                       void *data) {
+static MunitResult test_hpet_is_64_bit(const MunitParameter params[], void *data) {
     uint64_t test_caps;
 
     // Basic true case
@@ -147,8 +145,7 @@ static MunitResult test_hpet_is_64_bit(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_hpet_can_legacy(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_hpet_can_legacy(const MunitParameter params[], void *data) {
     uint64_t test_caps;
 
     // Basic true case
@@ -166,9 +163,7 @@ static MunitResult test_hpet_can_legacy(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static void *setup(const MunitParameter params[], void *user_data) {
-    return NULL;
-}
+static void *setup(const MunitParameter params[], void *user_data) { return NULL; }
 
 static void teardown(void *param) {
     mock_acpitables_reset();
@@ -176,26 +171,18 @@ static void teardown(void *param) {
 }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/init", test_init_null, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init", test_init_null, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
-        {"/hpet_period", test_hpet_period, NULL, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {"/hpet_vendor", test_hpet_vendor, NULL, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {"/hpet_timer_count", test_hpet_timer_count, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/hpet_is_64_bit", test_hpet_is_64_bit, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/hpet_can_legacy", test_hpet_can_legacy, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/hpet_period", test_hpet_period, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/hpet_vendor", test_hpet_vendor, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/hpet_timer_count", test_hpet_timer_count, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/hpet_is_64_bit", test_hpet_is_64_bit, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/hpet_can_legacy", test_hpet_can_legacy, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"/kdrivers/hpet",
-                                      test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"/kdrivers/hpet", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);

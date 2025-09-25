@@ -20,17 +20,11 @@ static Region *make_region(uintptr_t start, uintptr_t end) {
     static size_t used = 0;
     munit_assert(used < 128);
     Region *r = &pool[used++];
-    *r = (Region){.start = start,
-                  .end = end,
-                  .flags = 0,
-                  .left = NULL,
-                  .right = NULL,
-                  .height = 1};
+    *r = (Region){.start = start, .end = end, .flags = 0, .left = NULL, .right = NULL, .height = 1};
     return r;
 }
 
-static MunitResult test_insert_and_lookup(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_insert_and_lookup(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     Region *root = NULL;
@@ -57,8 +51,7 @@ static MunitResult test_resize(const MunitParameter params[], void *data) {
 
     munit_assert_true(region_tree_resize(r, 0x3000));
     munit_assert_ptr_not_null(region_tree_lookup(root, 0x2FFF));
-    munit_assert_false(
-            region_tree_resize(r, 0x8000000000001000ULL)); // exceeds limit
+    munit_assert_false(region_tree_resize(r, 0x8000000000001000ULL)); // exceeds limit
     return MUNIT_OK;
 }
 
@@ -78,8 +71,7 @@ static MunitResult test_remove(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_kernel_space_insert_blocked(const MunitParameter params[], void *data) {
+static MunitResult test_kernel_space_insert_blocked(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     Region *root = NULL;
@@ -91,8 +83,7 @@ test_kernel_space_insert_blocked(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult test_invalid_region_insert(const MunitParameter params[],
-                                              void *data) {
+static MunitResult test_invalid_region_insert(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     Region *root = NULL;
@@ -103,18 +94,14 @@ static MunitResult test_invalid_region_insert(const MunitParameter params[],
 }
 
 static MunitTest region_tree_tests[] = {
-        {"/insert_and_lookup", test_insert_and_lookup, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/insert_and_lookup", test_insert_and_lookup, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {"/resize", test_resize, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {"/remove", test_remove, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/kernel_blocked", test_kernel_space_insert_blocked, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/invalid_insert", test_invalid_region_insert, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/kernel_blocked", test_kernel_space_insert_blocked, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/invalid_insert", test_invalid_region_insert, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite region_tree_suite = {"/region_tree", region_tree_tests,
-                                             NULL, 1, MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite region_tree_suite = {"/region_tree", region_tree_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&region_tree_suite, NULL, argc, argv);

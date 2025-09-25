@@ -24,8 +24,7 @@
 #include "kprintf.h"
 #endif
 
-extern void *_binary_kernel_arch_x86_64_realmode_bin_start,
-        *_binary_kernel_arch_x86_64_realmode_bin_end;
+extern void *_binary_kernel_arch_x86_64_realmode_bin_start, *_binary_kernel_arch_x86_64_realmode_bin_end;
 
 // If you're changing any of these, you'll need to change the real-mode
 // link script as well...
@@ -38,31 +37,25 @@ extern void *_binary_kernel_arch_x86_64_realmode_bin_start,
 
 // All these are derived from the addresses above :)
 //
-#define AP_TRAMPOLINE_BASE_VADDR                                               \
-    (((void *)(0xffffffff80000000 | AP_TRAMPOLINE_RUN_PADDR)))
-#define AP_TRAMPOLINE_BSS_VADDR                                                \
-    (((void *)(0xffffffff80000000 | AP_TRAMPOLINE_BSS_PADDR)))
+#define AP_TRAMPOLINE_BASE_VADDR (((void *)(0xffffffff80000000 | AP_TRAMPOLINE_RUN_PADDR)))
+#define AP_TRAMPOLINE_BSS_VADDR (((void *)(0xffffffff80000000 | AP_TRAMPOLINE_BSS_PADDR)))
 
-#define AP_TRAMPOLINE_BIN_START                                                \
-    (((void *)&_binary_kernel_arch_x86_64_realmode_bin_start))
+#define AP_TRAMPOLINE_BIN_START (((void *)&_binary_kernel_arch_x86_64_realmode_bin_start))
 
-#define AP_TRAMPOLINE_BIN_LENGTH                                               \
-    (((((uintptr_t)&_binary_kernel_arch_x86_64_realmode_bin_end) -             \
+#define AP_TRAMPOLINE_BIN_LENGTH                                                                                       \
+    (((((uintptr_t)&_binary_kernel_arch_x86_64_realmode_bin_end) -                                                     \
        ((uintptr_t)&_binary_kernel_arch_x86_64_realmode_bin_start))))
 
 #define AP_TRAMPOLINE_BSS_LENGTH ((0x1000))
 
 #define AP_TRAMPOLINE_BSS_UID_VADDR ((AP_TRAMPOLINE_BSS_VADDR + 0x00))
-#define AP_TRAMPOLINE_BSS_UID                                                  \
-    (((uint64_t volatile *)(AP_TRAMPOLINE_BSS_UID_VADDR)))
+#define AP_TRAMPOLINE_BSS_UID (((uint64_t volatile *)(AP_TRAMPOLINE_BSS_UID_VADDR)))
 
 #define AP_TRAMPOLINE_BSS_PML4_VADDR ((AP_TRAMPOLINE_BSS_VADDR + 0x08))
-#define AP_TRAMPOLINE_BSS_PML4                                                 \
-    (((uint64_t volatile *)(AP_TRAMPOLINE_BSS_PML4_VADDR)))
+#define AP_TRAMPOLINE_BSS_PML4 (((uint64_t volatile *)(AP_TRAMPOLINE_BSS_PML4_VADDR)))
 
 #define AP_TRAMPOLINE_BSS_FLAG_VADDR ((AP_TRAMPOLINE_BSS_VADDR + 0x10))
-#define AP_TRAMPOLINE_BSS_FLAG                                                 \
-    (((uint64_t volatile *)(AP_TRAMPOLINE_BSS_FLAG_VADDR)))
+#define AP_TRAMPOLINE_BSS_FLAG (((uint64_t volatile *)(AP_TRAMPOLINE_BSS_FLAG_VADDR)))
 
 #define AP_TRAMPOLINE_BSS_GDT_VADDR ((AP_TRAMPOLINE_BSS_VADDR + 0x18))
 #define AP_TRAMPOLINE_BSS_GDT (((GDTR *)(AP_TRAMPOLINE_BSS_GDT_VADDR)))
@@ -103,8 +96,7 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
     hpet->delay_nanos(POST_INIT_DELAY);
 
     // Wait for the "alive" flag
-    uint64_t end = hpet->current_ticks() +
-                   (FIRST_SIPI_TIMEOUT / hpet->nanos_per_tick());
+    uint64_t end = hpet->current_ticks() + (FIRST_SIPI_TIMEOUT / hpet->nanos_per_tick());
 
     while (hpet->current_ticks() < end) {
         if (*AP_TRAMPOLINE_BSS_FLAG) {
@@ -118,8 +110,7 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
         *(REG_LAPIC_ICR_HIGH(lapic)) = ap_id << 24;
         *(REG_LAPIC_ICR_LOW(lapic)) = 0x4600 | (AP_TRAMPOLINE_RUN_PADDR >> 12);
 
-        uint64_t end = hpet->current_ticks() +
-                       (SECOND_SIPI_TIMEOUT / hpet->nanos_per_tick());
+        uint64_t end = hpet->current_ticks() + (SECOND_SIPI_TIMEOUT / hpet->nanos_per_tick());
 
         while (hpet->current_ticks() < end) {
             if (*AP_TRAMPOLINE_BSS_FLAG) {
@@ -138,12 +129,10 @@ static void smp_bsp_start_ap(uint8_t ap_id, uint32_t volatile *lapic) {
 #endif
 }
 
-__attribute__((no_sanitize(
-        "alignment"))) // we have to go byte-wise through the ACPI tables...
+__attribute__((no_sanitize("alignment"))) // we have to go byte-wise through the ACPI tables...
 void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
     // copy the AP trampoline code to a fixed address in low conventional memory
-    memcpy(AP_TRAMPOLINE_BASE_VADDR, AP_TRAMPOLINE_BIN_START,
-           AP_TRAMPOLINE_BIN_LENGTH);
+    memcpy(AP_TRAMPOLINE_BASE_VADDR, AP_TRAMPOLINE_BIN_START, AP_TRAMPOLINE_BIN_LENGTH);
 
     // Clear the AP code BSS
     memclr(AP_TRAMPOLINE_BSS_VADDR, AP_TRAMPOLINE_BSS_LENGTH);
@@ -155,8 +144,7 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
 
     // Placed return address to ap_kernel_entrypoint on each stack
     for (uintptr_t i = AP_TRAMPOLINE_STK_PADDR + AP_TRAMPOLINE_CPU_STK_SIZE - 8;
-         i < (AP_TRAMPOLINE_STK_PADDR + AP_TRAMPOLINE_STK_TOTAL_SIZE);
-         i += AP_TRAMPOLINE_CPU_STK_SIZE) {
+         i < (AP_TRAMPOLINE_STK_PADDR + AP_TRAMPOLINE_STK_TOTAL_SIZE); i += AP_TRAMPOLINE_CPU_STK_SIZE) {
         *((uintptr_t *)i) = (uintptr_t)&ap_kernel_entrypoint;
     }
 
@@ -192,8 +180,7 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
                 kprintf("ACPI : CPU ID 0x%02x\n", cpu_id);
 #endif
 
-                if (lapic_id != bsp_local_apic_id &&
-                    (flags & 1) ^ ((flags >> 1) & 1)) {
+                if (lapic_id != bsp_local_apic_id && (flags & 1) ^ ((flags >> 1) & 1)) {
                     // can enable!
 #ifdef DEBUG_SMP_STARTUP
 #ifdef VERY_NOISY_SMP_STARTUP
@@ -215,8 +202,7 @@ void smp_bsp_start_aps(ACPI_RSDT *rsdt, uint32_t volatile *lapic) {
 #ifdef DEBUG_SMP_STARTUP
 #ifdef VERY_NOISY_SMP_STARTUP
                     if (lapic_id == bsp_local_apic_id) {
-                        kprintf("Skipping CPU ID 0x%02x - it is the BSP\n",
-                                cpu_id);
+                        kprintf("Skipping CPU ID 0x%02x - it is the BSP\n", cpu_id);
                     } else {
                         kprintf("Cannot enable CPU ID 0x%02x [LAPIC 0x%02x; "
                                 "Flags: 0x%08x]\n",

@@ -170,16 +170,12 @@ typedef struct {
     bool msi_enabled;
 } AHCIPort;
 
-bool ahci_controller_init(volatile AHCIController *ctrl, uint64_t ahci_base,
-                          uint64_t pci_config_base);
+bool ahci_controller_init(volatile AHCIController *ctrl, uint64_t ahci_base, uint64_t pci_config_base);
 void ahci_controller_cleanup(volatile AHCIController *ctrl);
-bool ahci_port_init(volatile AHCIPort *port, volatile AHCIController *ctrl,
-                    uint8_t port_num);
+bool ahci_port_init(volatile AHCIPort *port, volatile AHCIController *ctrl, uint8_t port_num);
 void ahci_port_cleanup(volatile AHCIPort *port);
 bool ahci_port_identify(volatile AHCIPort *port);
-bool ahci_port_read(volatile AHCIPort *port, uint64_t lba, uint16_t count,
-                    void *buffer);
-bool ahci_port_write(volatile AHCIPort *port, uint64_t lba, uint16_t count,
-                     const void *buffer);
+bool ahci_port_read(volatile AHCIPort *port, uint64_t lba, uint16_t count, void *buffer);
+bool ahci_port_write(volatile AHCIPort *port, uint64_t lba, uint16_t count, const void *buffer);
 
 #endif

@@ -61,8 +61,7 @@ extern MemoryRegion *physical_region;
 extern uintptr_t kernel_zero_page;
 
 // Handle page faults before we have SMP and tasking up...
-void early_page_fault_handler(const uint64_t code, const uint64_t fault_addr,
-                              const uint64_t origin_addr) {
+void early_page_fault_handler(const uint64_t code, const uint64_t fault_addr, const uint64_t origin_addr) {
     panic_page_fault(origin_addr, fault_addr, code);
 }
 
@@ -79,25 +78,20 @@ static uintptr_t alloc_phys_appropriately(Process *current_process) {
     return phys;
 }
 
-static void copy_page_safely(const uintptr_t src_virt_page,
-                             const uintptr_t dest_phys_page) {
+static void copy_page_safely(const uintptr_t src_virt_page, const uintptr_t dest_phys_page) {
     vdebugf("SAFE COPY PAGE\n");
     const uint64_t int_flags = save_disable_interrupts();
     const PerCPUState *state = state_get_for_this_cpu();
-    const uintptr_t per_cpu_temp_page =
-            vmm_per_cpu_temp_page_addr(state->cpu_id);
+    const uintptr_t per_cpu_temp_page = vmm_per_cpu_temp_page_addr(state->cpu_id);
 
-    vdebugf("    * Using TEMP PAGE for CPU %d = 0x%016lx\n", state->cpu_id,
-            per_cpu_temp_page);
+    vdebugf("    * Using TEMP PAGE for CPU %d = 0x%016lx\n", state->cpu_id, per_cpu_temp_page);
 
-    vmm_map_page(per_cpu_temp_page, dest_phys_page,
-                 PG_PRESENT | PG_READ | PG_WRITE);
+    vmm_map_page(per_cpu_temp_page, dest_phys_page, PG_PRESENT | PG_READ | PG_WRITE);
 
     const uint64_t *src_page = (uint64_t *)src_virt_page;
     uint64_t *dest_page = (uint64_t *)per_cpu_temp_page;
 
-    vdebugf("    * Mapped SRC @ 0x%016lx : DEST @ 0x%016lx\n",
-            (uintptr_t)src_page, (uintptr_t)dest_page);
+    vdebugf("    * Mapped SRC @ 0x%016lx : DEST @ 0x%016lx\n", (uintptr_t)src_page, (uintptr_t)dest_page);
 
     memcpy(dest_page, src_page, VM_PAGE_SIZE);
 
@@ -108,8 +102,7 @@ static void copy_page_safely(const uintptr_t src_virt_page,
 }
 
 // The full handler, replaces early once tasking and system is up
-void page_fault_handler(const uint64_t code, const uint64_t fault_addr,
-                        const uint64_t origin_addr) {
+void page_fault_handler(const uint64_t code, const uint64_t fault_addr, const uint64_t origin_addr) {
 
     tdebug("PAGEFAULT: 0x");
     tdbgx64(fault_addr);
@@ -125,8 +118,7 @@ void page_fault_handler(const uint64_t code, const uint64_t fault_addr,
         current_process = current_task->owner;
     }
 
-    vdebug("PF for 0x%016lx (current phys 0x%016lx)\n", fault_addr_page,
-           current_phys_addr);
+    vdebug("PF for 0x%016lx (current phys 0x%016lx)\n", fault_addr_page, current_phys_addr);
 
     // COW & automap only works for pages mapped present in
     // userspace - we want to fail fast in kernel space!
@@ -153,9 +145,7 @@ void page_fault_handler(const uint64_t code, const uint64_t fault_addr,
                         // other referees are gone. So we can just make it
                         // writeable, no need to copy.
                         vmm_map_page(fault_addr_page, pte & PAGE_ALIGN_MASK,
-                                     (vmm_table_entry_to_page_flags(pte) &
-                                      ~(PG_COPY_ON_WRITE)) |
-                                             PG_WRITE);
+                                     (vmm_table_entry_to_page_flags(pte) & ~(PG_COPY_ON_WRITE)) | PG_WRITE);
 
                         // That's all we need!
                         return;
@@ -165,8 +155,7 @@ void page_fault_handler(const uint64_t code, const uint64_t fault_addr,
                 // This is the zero page, or there are still references to this
                 // page elsewhere, so we need to copy it...
                 //
-                const uintptr_t phys =
-                        alloc_phys_appropriately(current_process);
+                const uintptr_t phys = alloc_phys_appropriately(current_process);
 
                 if (phys & 0xff) {
                     // phys alloc failed - panic anyway
@@ -177,9 +166,7 @@ void page_fault_handler(const uint64_t code, const uint64_t fault_addr,
                 copy_page_safely(fault_addr_page, phys);
 
                 vmm_map_page(fault_addr_page, phys,
-                             (vmm_table_entry_to_page_flags(pte) &
-                              ~(PG_COPY_ON_WRITE)) |
-                                     PG_WRITE);
+                             (vmm_table_entry_to_page_flags(pte) & ~(PG_COPY_ON_WRITE)) | PG_WRITE);
 
                 return;
             }
@@ -190,8 +177,7 @@ void page_fault_handler(const uint64_t code, const uint64_t fault_addr,
     vdebug("CHECK REGION\n");
     if (current_process) {
 
-        const Region *region =
-                vm_region_find_in_process(current_process, fault_addr);
+        const Region *region = vm_region_find_in_process(current_process, fault_addr);
 
 #ifdef VERY_NOISY_PAGEFAULT
         if (!region) {
@@ -206,16 +192,14 @@ void page_fault_handler(const uint64_t code, const uint64_t fault_addr,
                 // First access to an automap region, it's a write, so just
                 // allocate a page and zero it.
                 //
-                const uintptr_t phys =
-                        alloc_phys_appropriately(current_process);
+                const uintptr_t phys = alloc_phys_appropriately(current_process);
 
                 if (phys & 0xff) {
                     // phys alloc failed - panic anyway
                     panic_page_fault(origin_addr, fault_addr, code);
                 }
 
-                vmm_map_page(fault_addr_page, phys,
-                             PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
+                vmm_map_page(fault_addr_page, phys, PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
                 uint64_t *mapped_page = (uint64_t *)fault_addr_page;
 
                 memclr(mapped_page, VM_PAGE_SIZE);
@@ -224,8 +208,7 @@ void page_fault_handler(const uint64_t code, const uint64_t fault_addr,
             }
 
             // first access, it's a read, so just map the zero page COW...
-            vmm_map_page(fault_addr_page, kernel_zero_page,
-                         PG_USER | PG_READ | PG_PRESENT | PG_COPY_ON_WRITE);
+            vmm_map_page(fault_addr_page, kernel_zero_page, PG_USER | PG_READ | PG_PRESENT | PG_COPY_ON_WRITE);
             return;
         }
     }

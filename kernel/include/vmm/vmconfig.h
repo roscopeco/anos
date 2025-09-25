@@ -26,7 +26,6 @@
 
 #define MAX_PHYS_ADDR (((size_t)127 * 1024 * 1024 * 1024 * 1024)) // 127 TiB
 
-static_assert(VM_PAGE_SIZE >> VM_PAGE_LINEAR_SHIFT == 1,
-              "Page shift not constant");
+static_assert(VM_PAGE_SIZE >> VM_PAGE_LINEAR_SHIFT == 1, "Page shift not constant");
 
 #endif //__ANOS_KERNEL_VM_CONFIG_H

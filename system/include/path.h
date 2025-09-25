@@ -14,7 +14,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-bool parse_file_path(char *input, size_t input_len, char **mount_point,
-                     char **path);
+bool parse_file_path(char *input, size_t input_len, char **mount_point, char **path);
 
 #endif //__ANOS_SYSTEM_PATH_H

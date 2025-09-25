@@ -9,9 +9,8 @@
 
 KernelFramebufferInfo kernel_framebuffer = {0};
 
-void framebuffer_set_info(const uintptr_t phys_addr, const uintptr_t virt_addr,
-                          const uint32_t width, const uint32_t height,
-                          const uint32_t bpp) {
+void framebuffer_set_info(const uintptr_t phys_addr, const uintptr_t virt_addr, const uint32_t width,
+                          const uint32_t height, const uint32_t bpp) {
 
     kernel_framebuffer.physical_address = phys_addr;
     kernel_framebuffer.virtual_address = virt_addr;

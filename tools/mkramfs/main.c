@@ -33,8 +33,7 @@ static void pad_to_alignment(FILE *out, size_t alignment) {
         fputc(0, out);
 }
 
-static void write_filesystem(const char *out_path, InputFile *files,
-                             size_t file_count) {
+static void write_filesystem(const char *out_path, InputFile *files, size_t file_count) {
     FILE *out = fopen(out_path, "wb");
     if (!out) {
         perror("fopen");
@@ -47,16 +46,14 @@ static void write_filesystem(const char *out_path, InputFile *files,
                               .file_count = file_count,
                               .reserved = {0}};
 
-    AnosRAMFSFileHeader *file_headers =
-            calloc(file_count, sizeof(AnosRAMFSFileHeader));
+    AnosRAMFSFileHeader *file_headers = calloc(file_count, sizeof(AnosRAMFSFileHeader));
     if (!file_headers) {
         perror("calloc");
         exit(1);
     }
 
     // Header + all file headers padded to page boundary
-    size_t headers_raw =
-            sizeof(header) + file_count * sizeof(AnosRAMFSFileHeader);
+    size_t headers_raw = sizeof(header) + file_count * sizeof(AnosRAMFSFileHeader);
     size_t headers_padded = (headers_raw + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 
     // Write zero-filled space for header and headers
@@ -78,12 +75,9 @@ static void write_filesystem(const char *out_path, InputFile *files,
         size_t file_size = ftell(f);
         fseek(f, 0, SEEK_SET);
 
-        file_headers[i].file_start =
-                current_offset -
-                (sizeof(AnosRAMFSHeader) + i * sizeof(AnosRAMFSFileHeader));
+        file_headers[i].file_start = current_offset - (sizeof(AnosRAMFSHeader) + i * sizeof(AnosRAMFSFileHeader));
         file_headers[i].file_length = file_size;
-        strncpy(file_headers[i].file_name, files[i].name,
-                sizeof(file_headers[i].file_name) - 1);
+        strncpy(file_headers[i].file_name, files[i].name, sizeof(file_headers[i].file_name) - 1);
 
         // Copy file data
         char buf[4096];
@@ -136,8 +130,7 @@ static void dump_fs(const char *filename) {
     AnosRAMFSHeader *buf = malloc(stat_buf.st_size);
 
     if (!buf) {
-        printf("dump_fs: Failed to allocate %lld bytes for fs\n",
-               stat_buf.st_size);
+        printf("dump_fs: Failed to allocate %lld bytes for fs\n", stat_buf.st_size);
         fclose(fs);
         return;
     }
@@ -183,8 +176,7 @@ static void dump_fs(const char *filename) {
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        fprintf(stderr, "Usage: %s <output.img> <input1> [input2] ...\n",
-                argv[0]);
+        fprintf(stderr, "Usage: %s <output.img> <input1> [input2] ...\n", argv[0]);
         return 1;
     }
 
@@ -207,9 +199,7 @@ int main(int argc, char **argv) {
 
         const char *base = basename(path_copy);
         if (strlen(base) >= 16) {
-            fprintf(stderr,
-                    "Filename '%s' too long for AnosRAMFS (max 15 chars)\n",
-                    base);
+            fprintf(stderr, "Filename '%s' too long for AnosRAMFS (max 15 chars)\n", base);
             return 1;
         }
 

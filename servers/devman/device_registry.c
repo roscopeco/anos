@@ -47,8 +47,7 @@ bool unregister_device(const uint64_t device_id) {
     return false;
 }
 
-uint32_t query_devices(const DeviceQueryType query_type,
-                       const DeviceType device_type, const uint64_t target_id,
+uint32_t query_devices(const DeviceQueryType query_type, const DeviceType device_type, const uint64_t target_id,
                        DeviceInfo *results, uint32_t max_results) {
     uint32_t found = 0;
 

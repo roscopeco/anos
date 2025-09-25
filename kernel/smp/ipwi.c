@@ -67,9 +67,7 @@ bool ipwi_enqueue_all_except_current(IpwiWorkItem *item) {
     return true;
 }
 
-void ipwi_notify_all_except_current(void) {
-    arch_ipwi_notify_all_except_current();
-}
+void ipwi_notify_all_except_current(void) { arch_ipwi_notify_all_except_current(); }
 
 bool ipwi_dequeue_this_cpu(IpwiWorkItem *out_item) {
     PerCPUState *this_state = state_get_for_this_cpu();
@@ -79,8 +77,7 @@ bool ipwi_dequeue_this_cpu(IpwiWorkItem *out_item) {
         return result;
     }
 
-    const uint64_t flags =
-            spinlock_lock_irqsave(&this_state->ipwi_queue_lock_this_cpu);
+    const uint64_t flags = spinlock_lock_irqsave(&this_state->ipwi_queue_lock_this_cpu);
     const IpwiWorkItem *item = shift_array_get_head(&this_state->ipwi_queue);
 
     if (item) {
@@ -109,12 +106,9 @@ void ipwi_ipi_handler(void) {
 
             if (payload->target_pid == task_current()->owner->pid ||
                 payload->target_pml4 == task_current()->owner->pml4) {
-                const uintptr_t page_limit =
-                        payload->start_vaddr +
-                        (payload->page_count * VM_PAGE_SIZE);
+                const uintptr_t page_limit = payload->start_vaddr + (payload->page_count * VM_PAGE_SIZE);
 
-                for (uintptr_t addr = payload->start_vaddr; addr < page_limit;
-                     addr += VM_PAGE_SIZE) {
+                for (uintptr_t addr = payload->start_vaddr; addr < page_limit; addr += VM_PAGE_SIZE) {
                     vmm_invalidate_page(addr);
                 }
             }

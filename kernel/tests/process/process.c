@@ -34,9 +34,7 @@ void init_managed_resource(ManagedResource *mr) {
 // Mock spinlock_init
 void spinlock_init(SpinLock *lock) { lock->lock = 0; }
 
-void managed_resources_free_all(ManagedResource *head) {
-    freed_resources_head = head;
-}
+void managed_resources_free_all(ManagedResource *head) { freed_resources_head = head; }
 
 void platform_cleanup_process(uint64_t pid) {
     // nothing
@@ -45,8 +43,7 @@ void platform_cleanup_process(uint64_t pid) {
 extern _Atomic volatile uint64_t next_pid;
 
 // Tests
-static MunitResult test_process_init_and_create(const MunitParameter params[],
-                                                void *data) {
+static MunitResult test_process_init_and_create(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -70,8 +67,7 @@ static MunitResult test_process_init_and_create(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_process_create_failures(const MunitParameter params[],
-                                                void *data) {
+static MunitResult test_process_create_failures(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -91,8 +87,7 @@ static MunitResult test_process_create_failures(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_process_destroy(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_process_destroy(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -110,8 +105,7 @@ static MunitResult test_process_destroy(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_add_single_resource(const MunitParameter params[],
-                                            void *data) {
+static MunitResult test_add_single_resource(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     Process proc = {0};
@@ -129,8 +123,7 @@ static MunitResult test_add_single_resource(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_add_multiple_resources(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_add_multiple_resources(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     Process proc = {0};
@@ -155,8 +148,7 @@ static MunitResult test_add_multiple_resources(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_remove_only_element(const MunitParameter params[],
-                                            void *data) {
+static MunitResult test_remove_only_element(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     Process proc = {0};
@@ -175,8 +167,7 @@ static MunitResult test_remove_only_element(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_remove_head_middle_tail(const MunitParameter params[],
-                                                void *data) {
+static MunitResult test_remove_head_middle_tail(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     Process proc = {0};
@@ -210,8 +201,7 @@ static MunitResult test_remove_head_middle_tail(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_remove_nonexistent_resource(const MunitParameter params[], void *data) {
+static MunitResult test_remove_nonexistent_resource(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     Process proc = {0};
@@ -241,28 +231,17 @@ void *setup(const MunitParameter params[], void *user_data) {
 }
 
 static MunitTest tests[] = {
-        {"/init_create", test_process_init_and_create, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/create_failures", test_process_create_failures, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/destroy", test_process_destroy, setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
+        {"/init_create", test_process_init_and_create, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/create_failures", test_process_create_failures, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/destroy", test_process_destroy, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
-        {"/add_single", test_add_single_resource, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/add_multiple", test_add_multiple_resources, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/remove_only", test_remove_only_element, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/remove_head_middle_tail", test_remove_head_middle_tail, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/remove_nonexistent", test_remove_nonexistent_resource, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/add_single", test_add_single_resource, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/add_multiple", test_add_multiple_resources, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/remove_only", test_remove_only_element, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/remove_head_middle_tail", test_remove_head_middle_tail, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/remove_nonexistent", test_remove_nonexistent_resource, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite suite = {"/process", tests, NULL, 1,
-                                 MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite suite = {"/process", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&suite, NULL, argc, argv); }

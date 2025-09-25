@@ -324,8 +324,7 @@ static void panic_stop_all_processors(void) {
 
 void panic_notify_smp_started(void) { smp_is_up = true; }
 
-noreturn void panic_sloc(const char *msg, const char *filename,
-                         const uint64_t line) {
+noreturn void panic_sloc(const char *msg, const char *filename, const uint64_t line) {
     disable_interrupts();
     const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
@@ -343,10 +342,8 @@ noreturn void panic_sloc(const char *msg, const char *filename,
     halt_and_catch_fire();
 }
 
-noreturn void panic_page_fault_sloc(const uintptr_t origin_addr,
-                                    const uintptr_t fault_addr,
-                                    const uint64_t code, const char *filename,
-                                    const uint64_t line) {
+noreturn void panic_page_fault_sloc(const uintptr_t origin_addr, const uintptr_t fault_addr, const uint64_t code,
+                                    const char *filename, const uint64_t line) {
     disable_interrupts();
     const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
@@ -368,10 +365,8 @@ noreturn void panic_page_fault_sloc(const uintptr_t origin_addr,
     halt_and_catch_fire();
 }
 
-noreturn void panic_general_protection_fault_sloc(const uint64_t code,
-                                                  const uintptr_t origin_addr,
-                                                  const char *filename,
-                                                  const uint64_t line) {
+noreturn void panic_general_protection_fault_sloc(const uint64_t code, const uintptr_t origin_addr,
+                                                  const char *filename, const uint64_t line) {
     disable_interrupts();
     const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
@@ -391,9 +386,7 @@ noreturn void panic_general_protection_fault_sloc(const uint64_t code,
     halt_and_catch_fire();
 }
 
-noreturn void panic_double_fault_sloc(const uintptr_t origin_addr,
-                                      const char *filename,
-                                      const uint64_t line) {
+noreturn void panic_double_fault_sloc(const uintptr_t origin_addr, const char *filename, const uint64_t line) {
 
     // double fault is an IRQ handler, interrupts already disabled...
     //
@@ -412,11 +405,8 @@ noreturn void panic_double_fault_sloc(const uintptr_t origin_addr,
     halt_and_catch_fire();
 }
 
-noreturn void panic_exception_with_code_sloc(const uint8_t vector,
-                                             const uint64_t code,
-                                             const uintptr_t origin_addr,
-                                             const char *filename,
-                                             const uint64_t line) {
+noreturn void panic_exception_with_code_sloc(const uint8_t vector, const uint64_t code, const uintptr_t origin_addr,
+                                             const char *filename, const uint64_t line) {
     disable_interrupts();
     const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
@@ -436,9 +426,7 @@ noreturn void panic_exception_with_code_sloc(const uint8_t vector,
     halt_and_catch_fire();
 }
 
-noreturn void panic_exception_no_code_sloc(const uint8_t vector,
-                                           const uintptr_t origin_addr,
-                                           const char *filename,
+noreturn void panic_exception_no_code_sloc(const uint8_t vector, const uintptr_t origin_addr, const char *filename,
                                            const uint64_t line) {
     disable_interrupts();
     const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);

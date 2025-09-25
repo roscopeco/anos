@@ -79,8 +79,7 @@ static Entry **allocate_bucket_array(const uint64_t size, RefCountMap *map) {
             return NULL;
         }
 
-        current_block_ptrs = (ptrs_remaining < PTRS_PER_BLOCK) ? ptrs_remaining
-                                                               : PTRS_PER_BLOCK;
+        current_block_ptrs = (ptrs_remaining < PTRS_PER_BLOCK) ? ptrs_remaining : PTRS_PER_BLOCK;
         Entry **block_ptr = (Entry **)new_node->block;
         for (uint64_t i = 0; i < current_block_ptrs; i++) {
             block_ptr[i] = NULL;
@@ -163,8 +162,7 @@ static bool resize_map(RefCountMap *map) {
 
         while (entry) {
             Entry *next = entry->next;
-            const uint64_t new_idx =
-                    hash_address(entry->physical_addr, new_size);
+            const uint64_t new_idx = hash_address(entry->physical_addr, new_size);
             Entry **new_bucket = get_bucket_ptr(new_map, new_idx);
 
             entry->next = *new_bucket;

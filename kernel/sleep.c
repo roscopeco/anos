@@ -55,15 +55,13 @@ void check_sleepers() {
 #ifdef DEBUG_SLEEP
 #ifdef VERY_NOISY_SLEEP
     if (get_kernel_upticks() % 100 == 0) {
-        kprintf("check_sleepers(): Ticks now is 0x%016lx\n",
-                get_kernel_upticks());
+        kprintf("check_sleepers(): Ticks now is 0x%016lx\n", get_kernel_upticks());
     }
 #endif
 #endif
 
     PerCPUState *cpu_state = state_get_for_this_cpu();
-    Task *waker =
-            sleep_queue_dequeue(&cpu_state->sleep_queue, get_kernel_upticks());
+    Task *waker = sleep_queue_dequeue(&cpu_state->sleep_queue, get_kernel_upticks());
 
     while (waker) {
         Task *next = (Task *)waker->this.next;
@@ -73,8 +71,8 @@ void check_sleepers() {
         PerCPUState *target_cpu = sched_find_target_cpu();
 
 #ifdef DEBUG_SLEEP
-        kprintf("\n    => WAKE 0x%016lx (PID 0x%016lx) on CPU 0x%016lx\n",
-                (uintptr_t)waker, waker->sched->tid, target_cpu->cpu_id);
+        kprintf("\n    => WAKE 0x%016lx (PID 0x%016lx) on CPU 0x%016lx\n", (uintptr_t)waker, waker->sched->tid,
+                target_cpu->cpu_id);
 #endif
         if (target_cpu != cpu_state) {
             uint64_t lock_flags = sched_lock_any_cpu(target_cpu);

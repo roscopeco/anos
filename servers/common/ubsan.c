@@ -14,10 +14,10 @@
 
 #define is_aligned(value, alignment) !(value & (alignment - 1))
 
-#define ubsan_panic(msg)                                                       \
-    do {                                                                       \
-        printf("%s\n", msg);                                                   \
-        anos_kill_current_task();                                              \
+#define ubsan_panic(msg)                                                                                               \
+    do {                                                                                                               \
+        printf("%s\n", msg);                                                                                           \
+        anos_kill_current_task();                                                                                      \
     } while (0)
 
 typedef struct {
@@ -59,12 +59,10 @@ static char *type_check_kinds[] = {
 };
 
 static void log_location(const SourceLocation *location) {
-    printf("    file: %s\n    line: %d\n    column: %d\n", location->file,
-           location->line, location->column);
+    printf("    file: %s\n    line: %d\n    column: %d\n", location->file, location->line, location->column);
 }
 
-void __ubsan_handle_type_mismatch_v1(const TypeMismatchInfo *type_mismatch,
-                                     const uintptr_t pointer) {
+void __ubsan_handle_type_mismatch_v1(const TypeMismatchInfo *type_mismatch, const uintptr_t pointer) {
     const uintptr_t alignment = (uintptr_t)1ULL << type_mismatch->alignment;
 
     if (!pointer) {
@@ -74,8 +72,7 @@ void __ubsan_handle_type_mismatch_v1(const TypeMismatchInfo *type_mismatch,
     } else {
         printf("!!!!! UBSAN: type mismatch: %s address %016lx with "
                "insufficient space for object of type %s\n",
-               type_check_kinds[type_mismatch->type_check_kind], pointer,
-               type_mismatch->type->name);
+               type_check_kinds[type_mismatch->type_check_kind], pointer, type_mismatch->type->name);
     }
 
     log_location(&type_mismatch->location);
@@ -83,9 +80,7 @@ void __ubsan_handle_type_mismatch_v1(const TypeMismatchInfo *type_mismatch,
     ubsan_panic("[BUG] Undefined behaviour encountered");
 }
 
-void __ubsan_handle_shift_out_of_bounds(const OutOfBoundsInfo *oob_info,
-                                        const uint64_t lhs,
-                                        const uint64_t rhs) {
+void __ubsan_handle_shift_out_of_bounds(const OutOfBoundsInfo *oob_info, const uint64_t lhs, const uint64_t rhs) {
     printf("!!!!! UBSAN: Shift out-of-bounds: %016lx << 0x%016lx\n", lhs, rhs);
 
     log_location(&oob_info->location);
@@ -111,9 +106,8 @@ void __ubsan_handle_mul_overflow(void) {
 }
 
 void __ubsan_handle_divrem_overflow(void) {
-    ubsan_panic(
-            "[BUG] Undefined behaviour encountered (divrem_overflow: debug not "
-            "yet implemented)");
+    ubsan_panic("[BUG] Undefined behaviour encountered (divrem_overflow: debug not "
+                "yet implemented)");
 }
 
 void __ubsan_handle_negate_overflow(void) {
@@ -134,21 +128,18 @@ void __ubsan_handle_pointer_overflow(void) {
 }
 
 void __ubsan_handle_builtin_unreachable(void) {
-    ubsan_panic(
-            "[BUG] Undefined behaviour encountered (builtin_unreachable: debug "
-            "not yet implemented)");
+    ubsan_panic("[BUG] Undefined behaviour encountered (builtin_unreachable: debug "
+                "not yet implemented)");
 }
 
 void __ubsan_handle_load_invalid_value(void) {
-    ubsan_panic(
-            "[BUG] Undefined behaviour encountered (load_invalid_value: debug "
-            "not yet implemented)");
+    ubsan_panic("[BUG] Undefined behaviour encountered (load_invalid_value: debug "
+                "not yet implemented)");
 }
 
 void __ubsan_handle_invalid_builtin(void) {
-    ubsan_panic(
-            "[BUG] Undefined behaviour encountered (invalid_builtin: debug not "
-            "yet implemented)");
+    ubsan_panic("[BUG] Undefined behaviour encountered (invalid_builtin: debug not "
+                "yet implemented)");
 }
 
 void __ubsan_handle_vla_bound_not_positive(void) {

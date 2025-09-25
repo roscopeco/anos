@@ -25,8 +25,7 @@
 // metadata_size: Size of the region available for tracking data
 // managed_start: Start of the virtual address range to manage
 // managed_size: Size of the virtual address range to manage
-int vmm_init(void *metadata_start, uint64_t metadata_size,
-             uint64_t managed_start, uint64_t managed_size);
+int vmm_init(void *metadata_start, uint64_t metadata_size, uint64_t managed_start, uint64_t managed_size);
 
 // Allocate a block of contiguous pages
 // Returns the base address of the allocated block, or 0 on failure

@@ -72,13 +72,9 @@ static inline uint64_t cpu_swap_csr(int csr, uint64_t new_val) {
 }
 #endif
 
-static inline void cpu_clear_sie(uint64_t mask) {
-    __asm__ volatile("csrrc x0, %0, %1" ::"I"(CSR_SIE), "r"(mask));
-}
+static inline void cpu_clear_sie(uint64_t mask) { __asm__ volatile("csrrc x0, %0, %1" ::"I"(CSR_SIE), "r"(mask)); }
 
-static inline void cpu_clear_sip(uint64_t mask) {
-    __asm__ volatile("csrrc x0, %0, %1" ::"I"(CSR_SIP), "r"(mask));
-}
+static inline void cpu_clear_sip(uint64_t mask) { __asm__ volatile("csrrc x0, %0, %1" ::"I"(CSR_SIP), "r"(mask)); }
 
 static inline uint64_t cpu_read_satp(void) {
     uint64_t val;
@@ -105,32 +101,23 @@ static inline uint64_t cpu_read_sscratch() {
     return val;
 }
 
-static inline void cpu_set_tp(uint64_t val) {
-    __asm__ volatile("mv tp, %0" : : "r"(val));
-}
+static inline void cpu_set_tp(uint64_t val) { __asm__ volatile("mv tp, %0" : : "r"(val)); }
 
 static inline void cpu_set_sscratch(uint64_t scratch) {
     __asm__ volatile("csrw %0, %1" ::"I"(CSR_SSCRATCH), "r"(scratch));
 }
 
-static inline void cpu_invalidate_tlb_addr(uintptr_t addr) {
-    __asm__ volatile("sfence.vma %0" ::"r"(addr));
-}
+static inline void cpu_invalidate_tlb_addr(uintptr_t addr) { __asm__ volatile("sfence.vma %0" ::"r"(addr)); }
 
-static inline void cpu_invalidate_tlb_all(void) {
-    __asm__ volatile("sfence.vma");
-}
+static inline void cpu_invalidate_tlb_all(void) { __asm__ volatile("sfence.vma"); }
 
-static inline uint8_t cpu_satp_mode(const uint64_t satp) {
-    return ((satp & 0xF000000000000000) >> 60);
-}
+static inline uint8_t cpu_satp_mode(const uint64_t satp) { return ((satp & 0xF000000000000000) >> 60); }
 
 static inline uintptr_t cpu_satp_to_root_table_phys(const uint64_t satp) {
     return ((satp & 0xFFFFFFFFFFF) << VM_PAGE_LINEAR_SHIFT);
 }
 
-#define cpu_get_pagetable_root_phys                                            \
-    (cpu_satp_to_root_table_phys(cpu_read_satp()))
+#define cpu_get_pagetable_root_phys (cpu_satp_to_root_table_phys(cpu_read_satp()))
 
 static inline uint64_t cpu_read_rdcycle(void) {
     uint64_t val;

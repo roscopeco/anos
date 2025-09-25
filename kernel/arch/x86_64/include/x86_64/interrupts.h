@@ -32,18 +32,15 @@ typedef void(isr_dispatcher)(void);
 #define IDT_TYPE_IRQ 0x0E
 #define IDT_TYPE_TRAP 0x0F
 
-#define idt_attr(present, dpl, type)                                           \
-    (((((uint8_t)present) > 0 ? 0x80 : 0x00) | ((uint8_t)((dpl & 0x3) << 5)) | \
-      (((uint8_t)type) & 0xF)))
+#define idt_attr(present, dpl, type)                                                                                   \
+    (((((uint8_t)present) > 0 ? 0x80 : 0x00) | ((uint8_t)((dpl & 0x3) << 5)) | (((uint8_t)type) & 0xF)))
 
-void idt_entry(IdtEntry *target, isr_dispatcher *handler, uint16_t segment,
-               uint8_t ist_entry, uint8_t attr);
+void idt_entry(IdtEntry *target, isr_dispatcher *handler, uint16_t segment, uint8_t ist_entry, uint8_t attr);
 void idt_r(IDTR *target, uintptr_t base, uint16_t limit);
 
 void idt_install(uint16_t kernel_cs);
 
-void idt_install_isr(uint8_t vector, isr_dispatcher *dispatcher,
-                     uint8_t ist_entry, uint8_t dpl, uint8_t handler_type,
+void idt_install_isr(uint8_t vector, isr_dispatcher *dispatcher, uint8_t ist_entry, uint8_t dpl, uint8_t handler_type,
                      uint8_t present);
 
 #endif

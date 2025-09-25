@@ -24,27 +24,17 @@ static TaskClass last_create_new_class;
 
 void mock_task_set_curent(Task *new_current) { current_task = new_current; }
 
-Process *mock_task_get_last_create_new_owner(void) {
-    return last_create_new_owner;
-}
+Process *mock_task_get_last_create_new_owner(void) { return last_create_new_owner; }
 
 uintptr_t mock_task_get_last_create_new_sp(void) { return last_create_new_sp; }
 
-uintptr_t mock_task_get_last_create_new_sys_ssp(void) {
-    return last_create_new_sys_ssp;
-}
+uintptr_t mock_task_get_last_create_new_sys_ssp(void) { return last_create_new_sys_ssp; }
 
-uintptr_t mock_task_get_last_create_new_bootstrap(void) {
-    return last_create_new_bootstrap;
-}
+uintptr_t mock_task_get_last_create_new_bootstrap(void) { return last_create_new_bootstrap; }
 
-uintptr_t mock_task_get_last_create_new_func(void) {
-    return last_create_new_func;
-}
+uintptr_t mock_task_get_last_create_new_func(void) { return last_create_new_func; }
 
-TaskClass mock_task_get_last_create_new_class(void) {
-    return last_create_new_class;
-}
+TaskClass mock_task_get_last_create_new_class(void) { return last_create_new_class; }
 
 void task_init(void *tss) { /* noop */ }
 
@@ -63,8 +53,8 @@ void task_switch(Task *next) {
 static TaskSched new_task_sched;
 static Task new_task;
 
-Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
-                      uintptr_t bootstrap, uintptr_t func, TaskClass class) {
+Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp, uintptr_t bootstrap, uintptr_t func,
+                      TaskClass class) {
 
     last_create_new_owner = owner;
     last_create_new_sp = sp;

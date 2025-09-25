@@ -134,8 +134,7 @@ uintptr_t vmm_virt_to_phys_page(const uintptr_t virt_addr);
 
 PageTable *vmm_find_pml4();
 
-uint16_t vmm_virt_to_table_index(const uintptr_t virt_addr,
-                                 const uint8_t level);
+uint16_t vmm_virt_to_table_index(const uintptr_t virt_addr, const uint8_t level);
 
 uint16_t vmm_virt_to_pml4_index(const uintptr_t virt_addr);
 
@@ -149,8 +148,7 @@ uintptr_t vmm_table_entry_to_phys(const uintptr_t table_entry);
 
 uint16_t vmm_table_entry_to_page_flags(const uintptr_t table_entry);
 
-uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
-                                           const uint64_t flags);
+uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys, const uint64_t flags);
 
 // Convert virtual address to phys via table walk
 uintptr_t vmm_virt_to_phys(const uintptr_t virt_addr);

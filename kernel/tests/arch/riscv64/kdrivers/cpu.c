@@ -31,15 +31,11 @@ static MunitResult test_mhartid(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitTest tests[] = {
-        {"/rdcycle", test_rdcycle, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/rdtime", test_rdtime, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/mhartid", test_mhartid, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
+static MunitTest tests[] = {{"/rdcycle", test_rdcycle, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {"/rdtime", test_rdtime, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {"/mhartid", test_mhartid, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite suite = {"/riscv64/kdrivers/cpu", tests, NULL, 1,
-                                 MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite suite = {"/riscv64/kdrivers/cpu", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *const argv[]) {
-    return munit_suite_main(&suite, NULL, argc, argv);
-}
+int main(int argc, char *const argv[]) { return munit_suite_main(&suite, NULL, argc, argv); }

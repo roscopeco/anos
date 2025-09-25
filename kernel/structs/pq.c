@@ -84,8 +84,7 @@ void task_pq_push(TaskPriorityQueue *pq, Task *new_node) {
     }
 
     Task *current = pq->head;
-    while (current->this.next != NULL &&
-           ((Task *)current->this.next)->sched->prio <= new_node->sched->prio) {
+    while (current->this.next != NULL && ((Task *)current->this.next)->sched->prio <= new_node->sched->prio) {
         current = (Task *)current->this.next;
     }
 

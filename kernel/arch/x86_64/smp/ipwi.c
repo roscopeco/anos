@@ -18,7 +18,6 @@ void arch_ipwi_notify_all_except_current(void) {
         ;
 
     *(REG_LAPIC_ICR_HIGH(lapic)) = 0;
-    *(REG_LAPIC_ICR_LOW(lapic)) = LAPIC_ICR_LEVEL_ASSERT |
-                                  LAPIC_ICR_DELIVERY_MODE_NMI |
-                                  LAPIC_ICR_DEST_ALL_EXCLUDING_SELF;
+    *(REG_LAPIC_ICR_LOW(lapic)) =
+            LAPIC_ICR_LEVEL_ASSERT | LAPIC_ICR_DELIVERY_MODE_NMI | LAPIC_ICR_DEST_ALL_EXCLUDING_SELF;
 }

@@ -21,7 +21,6 @@ extern const char __cpuid_vendor[13];
 
 void init_cpuid(void);
 
-bool cpuid(uint32_t leaf, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
-           uint32_t *edx);
+bool cpuid(uint32_t leaf, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_CPUID_H

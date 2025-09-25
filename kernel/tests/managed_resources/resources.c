@@ -19,8 +19,7 @@ void init_managed_resource(ManagedResource *res) {
 
 // Tests
 
-static MunitResult test_free_no_resources(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_free_no_resources(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -32,8 +31,7 @@ static MunitResult test_free_no_resources(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_free_single_resource(const MunitParameter params[],
-                                             void *data) {
+static MunitResult test_free_single_resource(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -48,8 +46,7 @@ static MunitResult test_free_single_resource(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_free_multiple_resources(const MunitParameter params[],
-                                                void *data) {
+static MunitResult test_free_multiple_resources(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -72,18 +69,11 @@ static MunitResult test_free_multiple_resources(const MunitParameter params[],
 
 // Test suite setup
 
-static MunitTest tests[] = {
-        {"/free_none", test_free_no_resources, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/free_single", test_free_single_resource, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/free_multiple", test_free_multiple_resources, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
+static MunitTest tests[] = {{"/free_none", test_free_no_resources, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {"/free_single", test_free_single_resource, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {"/free_multiple", test_free_multiple_resources, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite suite = {"/managed_resources", tests, NULL, 1,
-                                 MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite suite = {"/managed_resources", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&suite, NULL, argc, argv); }

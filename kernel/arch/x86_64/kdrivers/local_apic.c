@@ -20,20 +20,17 @@
 
 #define NANOS_IN_20MS (((uint64_t)20000000))
 
-static void start_timer(uint32_t volatile *lapic, uint8_t mode,
-                        uint32_t init_count, uint8_t vector) {
+static void start_timer(uint32_t volatile *lapic, uint8_t mode, uint32_t init_count, uint8_t vector) {
     // Set up timer
     *REG_LAPIC_DIVIDE(lapic) = mode;
     *REG_LAPIC_INITIAL_COUNT(lapic) = init_count;
     *REG_LAPIC_LVT_TIMER(lapic) = 0x20000 | vector;
 }
 
-static uint64_t local_apic_calibrate_count(const KernelTimer *calibrated_timer,
-                                           const uint32_t desired_hz) {
+static uint64_t local_apic_calibrate_count(const KernelTimer *calibrated_timer, const uint32_t desired_hz) {
     uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_LAPIC);
 
-    const uint64_t calibrated_ticks_20ms =
-            NANOS_IN_20MS / calibrated_timer->nanos_per_tick();
+    const uint64_t calibrated_ticks_20ms = NANOS_IN_20MS / calibrated_timer->nanos_per_tick();
 
     volatile uint64_t calib_start = calibrated_timer->current_ticks();
     const uint64_t calib_end = calib_start + calibrated_ticks_20ms;
@@ -65,20 +62,17 @@ uint32_t volatile *init_local_apic(ACPI_MADT *madt, bool bsp) {
     uint32_t lapic_addr = madt->lapic_address;
 #ifdef DEBUG_LAPIC_INIT
     uint32_t *flags = (uint32_t *)((uintptr_t)lapic_addr) + 1;
-    kprintf("LAPIC address (phys : virt) = 0x%08x : 0x%016lx\n", lapic_addr,
-            KERNEL_HARDWARE_VADDR_LAPIC);
+    kprintf("LAPIC address (phys : virt) = 0x%08x : 0x%016lx\n", lapic_addr, KERNEL_HARDWARE_VADDR_LAPIC);
 #endif
 
     if (bsp) {
-        vmm_map_page(KERNEL_HARDWARE_VADDR_LAPIC, lapic_addr,
-                     PG_PRESENT | PG_WRITE);
+        vmm_map_page(KERNEL_HARDWARE_VADDR_LAPIC, lapic_addr, PG_PRESENT | PG_WRITE);
     }
 
     uint32_t volatile *lapic = (uint32_t *)(KERNEL_HARDWARE_VADDR_LAPIC);
 
 #ifdef DEBUG_LAPIC_INIT
-    kprintf("LAPIC ID: 0x%08x; Version: 0x%08x\n", *REG_LAPIC_ID(lapic),
-            *REG_LAPIC_VERSION(lapic));
+    kprintf("LAPIC ID: 0x%08x; Version: 0x%08x\n", *REG_LAPIC_ID(lapic), *REG_LAPIC_VERSION(lapic));
 #endif
 
     // Set spurious interrupt and enable

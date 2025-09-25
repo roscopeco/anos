@@ -61,11 +61,9 @@ static uint32_t const colors[] = {
         0x00eeeeee, // COLOR_BRIGHT_WHITE
 };
 
-static const uint8_t bit_masks[8] = {0x80, 0x40, 0x20, 0x10,
-                                     0x08, 0x04, 0x02, 0x01};
+static const uint8_t bit_masks[8] = {0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01};
 
-bool debugterm_init(void volatile *_fb, const uint16_t phys_width,
-                    const uint16_t phys_height) {
+bool debugterm_init(void volatile *_fb, const uint16_t phys_width, const uint16_t phys_height) {
     fb = _fb;
     fb_phys_width = phys_width;
     fb_phys_height = phys_height;
@@ -84,20 +82,16 @@ bool debugterm_init(void volatile *_fb, const uint16_t phys_width,
     return true;
 }
 
-#define WRITE_PIXEL(n)                                                         \
-    *fb_ptr++ = (font_byte & bit_masks[n]) ? fg_color : bg_color
+#define WRITE_PIXEL(n) *fb_ptr++ = (font_byte & bit_masks[n]) ? fg_color : bg_color
 
-static inline void paint_char(const uint8_t c, uint8_t attr,
-                              const int fb_x_base, const int fb_y_base) {
+static inline void paint_char(const uint8_t c, uint8_t attr, const int fb_x_base, const int fb_y_base) {
 
     const uint32_t fg_color = colors[attr & 0xf];
     const uint32_t bg_color = colors[attr >> 4];
 
-    const uint8_t *font_ptr =
-            ((uint8_t *)gdebugterm_font) + (c * gdebugterm_font_height);
+    const uint8_t *font_ptr = ((uint8_t *)gdebugterm_font) + (c * gdebugterm_font_height);
 
-    uint32_t volatile *fb_char_base =
-            &fb[fb_x_base + (fb_y_base * fb_phys_width)];
+    uint32_t volatile *fb_char_base = &fb[fb_x_base + (fb_y_base * fb_phys_width)];
 
     for (int dy = 0; dy < gdebugterm_font_height; dy++) {
         const uint8_t font_byte = *font_ptr++;
@@ -153,12 +147,10 @@ static uint16_t scroll() {
         backbuf[i + 1] = 0x07;
     }
 #else
-    memmove((void *)backbuf, (void *)&backbuf[line_width_bytes],
-            display_max - line_width_bytes);
+    memmove((void *)backbuf, (void *)&backbuf[line_width_bytes], display_max - line_width_bytes);
 
     uint64_t *p64 = (uint64_t *)(backbuf + display_max - line_width_bytes);
-    uint64_t fill64 = (uint64_t)(' ' | (0x08 << 8)) *
-                      0x0001000100010001ULL; // Repeat pattern
+    uint64_t fill64 = (uint64_t)(' ' | (0x08 << 8)) * 0x0001000100010001ULL; // Repeat pattern
 
     for (size_t i = 0; i < line_width_bytes / 8; ++i) {
         p64[i] = fill64;
@@ -190,8 +182,7 @@ void debugterm_putchar(const char chr) {
         backbuf[phys] = chr;
         backbuf[phys + 1] = attr;
 
-        paint_char(chr, attr, logical_x * gdebugterm_font_width,
-                   logical_y * gdebugterm_font_height);
+        paint_char(chr, attr, logical_x * gdebugterm_font_width, logical_y * gdebugterm_font_height);
 
         logical_x += 1;
         if (logical_x > col_count - 1) {

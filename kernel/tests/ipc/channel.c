@@ -22,9 +22,7 @@
 #include "structs/list.h"
 
 /* Dummy panic that aborts the test on failure */
-void panic_sloc(const char *msg, const char *filename, const uint64_t line) {
-    munit_errorf("%s", msg);
-}
+void panic_sloc(const char *msg, const char *filename, const uint64_t line) { munit_errorf("%s", msg); }
 
 /* Dummy capability cookie gen */
 uint64_t capability_cookie_generate(void) { return 0x1234567812345678; }
@@ -113,8 +111,7 @@ static void *test_setup(const MunitParameter params[], void *user_data) {
 /* --- Test Cases --- */
 
 /* Test that a channel can be created and then destroyed */
-static MunitResult test_channel_create_destroy(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_channel_create_destroy(const MunitParameter params[], void *data) {
     uint64_t channel_cookie = ipc_channel_create();
     munit_assert_int(channel_cookie, !=, 0);
 
@@ -137,8 +134,7 @@ uint64_t __attribute__((aligned(0x1000))) buf;
 
 /* Test ipc_channel_recv when a message is already queued.
     We manually allocate an IpcMessage and insert it into the channel queue. */
-static MunitResult test_recv_with_queued_message(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_recv_with_queued_message(const MunitParameter params[], void *data) {
 
     uint64_t channel_cookie = ipc_channel_create();
     munit_assert_int(channel_cookie, !=, 0);
@@ -212,8 +208,7 @@ static MunitResult test_reply(const MunitParameter params[], void *data) {
     munit_assert_int(msg->reply, ==, 999);
 
     /* Verify the message has been removed from the hash table */
-    IpcMessage *lookup_msg =
-            hash_table_lookup(in_flight_message_hash, msg->cookie);
+    IpcMessage *lookup_msg = hash_table_lookup(in_flight_message_hash, msg->cookie);
     munit_assert_null(lookup_msg);
 
     slab_free(msg);
@@ -221,23 +216,19 @@ static MunitResult test_reply(const MunitParameter params[], void *data) {
 }
 
 /* Test that sending on an invalid (non-existent) channel returns 0 */
-static MunitResult test_send_invalid_channel(const MunitParameter params[],
-                                             void *data) {
+static MunitResult test_send_invalid_channel(const MunitParameter params[], void *data) {
 
-    uint64_t ret = ipc_channel_send(99999, 1, 2,
-                                    (void *)3); /* Use an invalid cookie */
+    uint64_t ret = ipc_channel_send(99999, 1, 2, (void *)3); /* Use an invalid cookie */
     munit_assert_int(ret, ==, 0);
     return MUNIT_OK;
 }
 
 /* Test that receiving on an invalid channel returns 0 */
-static MunitResult test_recv_invalid_channel(const MunitParameter params[],
-                                             void *data) {
+static MunitResult test_recv_invalid_channel(const MunitParameter params[], void *data) {
 
     uint64_t tag, buf;
     size_t size;
-    uint64_t ret =
-            ipc_channel_recv(99999, &tag, &size, &buf); /* Invalid channel */
+    uint64_t ret = ipc_channel_recv(99999, &tag, &size, &buf); /* Invalid channel */
     munit_assert_int(ret, ==, 0);
     return MUNIT_OK;
 }
@@ -246,8 +237,7 @@ static MunitResult test_recv_invalid_channel(const MunitParameter params[],
     Here we manually add a waiting receiver to the channel and then
     call ipc_channel_send. The sender will notice the waiting receiver,
     unblock it, and eventually return (with no reply set, so 0 is returned). */
-static MunitResult
-test_send_when_receiver_waiting(const MunitParameter params[], void *data) {
+static MunitResult test_send_when_receiver_waiting(const MunitParameter params[], void *data) {
     uint64_t channel_cookie = ipc_channel_create();
     munit_assert_int(channel_cookie, !=, 0);
     IpcChannel *channel = hash_table_lookup(channel_hash, channel_cookie);
@@ -272,24 +262,16 @@ test_send_when_receiver_waiting(const MunitParameter params[], void *data) {
 
 /* --- Test Suite Registration --- */
 static MunitTest test_suite_tests[] = {
-        {"/create_destroy", test_channel_create_destroy, test_setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/recv_with_queued_message", test_recv_with_queued_message, test_setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/create_destroy", test_channel_create_destroy, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/recv_with_queued_message", test_recv_with_queued_message, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {"/reply", test_reply, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/send_invalid_channel", test_send_invalid_channel, test_setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/recv_invalid_channel", test_recv_invalid_channel, test_setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/send_receiver_waiting", test_send_when_receiver_waiting, test_setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/send_invalid_channel", test_send_invalid_channel, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/recv_invalid_channel", test_recv_invalid_channel, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/send_receiver_waiting", test_send_when_receiver_waiting, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/ipc/channel", test_suite_tests,
-                                      NULL, /* no suite-level setup */
-                                      1,    /* iterations */
+static const MunitSuite test_suite = {"/ipc/channel", test_suite_tests, NULL, /* no suite-level setup */
+                                      1,                                      /* iterations */
                                       MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&test_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&test_suite, NULL, argc, argv); }

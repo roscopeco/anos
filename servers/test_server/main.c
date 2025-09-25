@@ -10,9 +10,7 @@
 #include <anos/syscalls.h>
 #include <anos/types.h>
 
-__attribute__((constructor)) void testing_init(void) {
-    anos_kprint("Beep Boop process is up...\n");
-}
+__attribute__((constructor)) void testing_init(void) { anos_kprint("Beep Boop process is up...\n"); }
 
 int main(const int argc, char **argv) {
     for (int i = 0; i < argc; i++) {

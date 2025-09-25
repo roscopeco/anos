@@ -132,8 +132,7 @@ void spinlock_unlock_irqrestore(SpinLock *lock, uint64_t flags) {
     (void)flags;
     atomic_store_explicit(&lock->lock, 0, memory_order_release);
 }
-static MunitResult test_process_page_alloc_free(const MunitParameter params[],
-                                                void *data) {
+static MunitResult test_process_page_alloc_free(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     reset_fakes();
@@ -158,8 +157,7 @@ static MunitResult test_process_page_alloc_free(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_ownership_tracking(const MunitParameter params[],
-                                           void *data) {
+static MunitResult test_ownership_tracking(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     reset_fakes();
@@ -184,8 +182,7 @@ static MunitResult test_ownership_tracking(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_release_frees_all_pages(const MunitParameter params[],
-                                                void *data) {
+static MunitResult test_release_frees_all_pages(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     reset_fakes();
@@ -201,8 +198,7 @@ static MunitResult test_release_frees_all_pages(const MunitParameter params[],
     };
 
     for (int i = 0; i < 10; i++) {
-        munit_assert_uint64(process_page_alloc(&proc, &dummy_region), !=,
-                            0xFFFFFFFFFFFFFFFF);
+        munit_assert_uint64(process_page_alloc(&proc, &dummy_region), !=, 0xFFFFFFFFFFFFFFFF);
     }
 
     process_release_owned_pages(&proc);
@@ -214,8 +210,7 @@ static MunitResult test_release_frees_all_pages(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_shared_pages_refcounting(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_shared_pages_refcounting(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     reset_fakes();
@@ -245,8 +240,7 @@ static MunitResult test_shared_pages_refcounting(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_double_free_is_safe(const MunitParameter params[],
-                                            void *data) {
+static MunitResult test_double_free_is_safe(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     reset_fakes();
@@ -271,8 +265,7 @@ static MunitResult test_double_free_is_safe(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_alloc_failure_handling(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_alloc_failure_handling(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     reset_fakes();
@@ -298,8 +291,7 @@ static MunitResult test_alloc_failure_handling(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_block_expansion(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_block_expansion(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     reset_fakes();
@@ -316,8 +308,7 @@ static MunitResult test_block_expansion(const MunitParameter params[],
 
     const int count = 128;
     for (int i = 0; i < count; i++) {
-        munit_assert_uint64(process_page_alloc(&proc, &dummy_region), !=,
-                            0xFFFFFFFFFFFFFFFF);
+        munit_assert_uint64(process_page_alloc(&proc, &dummy_region), !=, 0xFFFFFFFFFFFFFFFF);
     }
 
     process_release_owned_pages(&proc);
@@ -329,8 +320,7 @@ static MunitResult test_block_expansion(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_concurrent_allocs(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_concurrent_allocs(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     reset_fakes();
@@ -361,9 +351,7 @@ static MunitResult test_concurrent_allocs(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_stress_concurrent_alloc_and_release(const MunitParameter params[],
-                                         void *data) {
+static MunitResult test_stress_concurrent_alloc_and_release(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
     reset_fakes();
@@ -399,30 +387,18 @@ test_stress_concurrent_alloc_and_release(const MunitParameter params[],
 }
 
 static MunitTest tests[] = {
-        {"/alloc_free", test_process_page_alloc_free, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ownership_tracking", test_ownership_tracking, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/release_frees_all", test_release_frees_all_pages, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/shared_refcount", test_shared_pages_refcounting, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/double_free", test_double_free_is_safe, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/alloc_failure", test_alloc_failure_handling, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/block_expansion", test_block_expansion, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/concurrent_allocs", test_concurrent_allocs, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/stress_concurrent_alloc_release",
-         test_stress_concurrent_alloc_and_release, NULL, NULL,
+        {"/alloc_free", test_process_page_alloc_free, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ownership_tracking", test_ownership_tracking, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/release_frees_all", test_release_frees_all_pages, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/shared_refcount", test_shared_pages_refcounting, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/double_free", test_double_free_is_safe, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/alloc_failure", test_alloc_failure_handling, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/block_expansion", test_block_expansion, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/concurrent_allocs", test_concurrent_allocs, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/stress_concurrent_alloc_release", test_stress_concurrent_alloc_and_release, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite suite = {"/process_memory", tests, NULL, 1,
-                                 MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite suite = {"/process_memory", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&suite, NULL, argc, argv); }

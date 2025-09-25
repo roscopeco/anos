@@ -37,11 +37,10 @@ typedef struct PerCPUState {
     char cpu_brand[49];
     uint8_t reserved1[15]; // takes us to 128 bytes
 
-    SpinLock
-            sched_lock_this_cpu; // 192 (keep this aligned on 64-byte for cache line!)
+    SpinLock sched_lock_this_cpu; // 192 (keep this aligned on 64-byte for cache line!)
 
     uint8_t irq_disable_count; // 193 TODO remove if EXPERIMENTAL_LOCK becomes permanent!
-    uint8_t reserved2[63]; // 256
+    uint8_t reserved2[63];     // 256
 
     uint8_t sched_data[STATE_SCHED_DATA_MAX]; // takes us to 928 bytes
     uint8_t task_data[STATE_TASK_DATA_MAX];   // takes us to 960 bytes
@@ -64,13 +63,9 @@ uint8_t __test_cpu_count = 4;
 #else
 extern PerCPUState __test_cpu_state[4];
 extern uint8_t __test_cpu_count;
-static inline PerCPUState *state_get_for_this_cpu(void) {
-    return &__test_cpu_state[0];
-}
+static inline PerCPUState *state_get_for_this_cpu(void) { return &__test_cpu_state[0]; }
 static inline uint8_t state_get_cpu_count(void) { return __test_cpu_count; }
-static inline PerCPUState *state_get_for_any_cpu(uint8_t cpu_num) {
-    return &__test_cpu_state[cpu_num];
-}
+static inline PerCPUState *state_get_for_any_cpu(uint8_t cpu_num) { return &__test_cpu_state[cpu_num]; }
 #endif
 #else
 

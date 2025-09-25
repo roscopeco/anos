@@ -58,26 +58,16 @@ void mock_syscalls_reset(void) {
 }
 
 // Mock failure control functions
-void mock_map_physical_set_fail(bool should_fail) {
-    mock_state.map_physical_should_fail = should_fail;
-}
+void mock_map_physical_set_fail(bool should_fail) { mock_state.map_physical_should_fail = should_fail; }
 
-void mock_map_virtual_set_fail(bool should_fail) {
-    mock_state.map_virtual_should_fail = should_fail;
-}
+void mock_map_virtual_set_fail(bool should_fail) { mock_state.map_virtual_should_fail = should_fail; }
 
-void mock_alloc_physical_set_fail(bool should_fail) {
-    mock_state.alloc_physical_should_fail = should_fail;
-}
+void mock_alloc_physical_set_fail(bool should_fail) { mock_state.alloc_physical_should_fail = should_fail; }
 
 // Getters for test verification
-uint64_t mock_get_last_physical_addr(void) {
-    return mock_state.last_physical_addr;
-}
+uint64_t mock_get_last_physical_addr(void) { return mock_state.last_physical_addr; }
 
-uint64_t mock_get_last_virtual_addr(void) {
-    return mock_state.last_virtual_addr;
-}
+uint64_t mock_get_last_virtual_addr(void) { return mock_state.last_virtual_addr; }
 
 size_t mock_get_last_size(void) { return mock_state.last_size; }
 
@@ -85,8 +75,7 @@ uint32_t mock_get_last_flags(void) { return mock_state.last_flags; }
 
 // Check if any allocation should fail
 bool mock_should_alloc_fail(void) {
-    return mock_state.map_virtual_should_fail ||
-           mock_state.alloc_physical_should_fail;
+    return mock_state.map_virtual_should_fail || mock_state.alloc_physical_should_fail;
 }
 
 static inline SyscallResult RESULT(uint64_t type, uint64_t val) {
@@ -95,8 +84,7 @@ static inline SyscallResult RESULT(uint64_t type, uint64_t val) {
 }
 
 // Mock syscall implementations
-SyscallResult anos_map_physical(const uint64_t physical_addr,
-                                void *virtual_addr, const size_t size,
+SyscallResult anos_map_physical(const uint64_t physical_addr, void *virtual_addr, const size_t size,
                                 const uint32_t flags) {
     mock_state.last_physical_addr = physical_addr;
     mock_state.last_virtual_addr = (uint64_t)virtual_addr;
@@ -114,8 +102,7 @@ SyscallResult anos_map_physical(const uint64_t physical_addr,
     return RESULT(SYSCALL_RESULT_OK, 0);
 }
 
-SyscallResult anos_map_virtual(void *virtual_addr, const size_t size,
-                               const uint32_t flags) {
+SyscallResult anos_map_virtual(void *virtual_addr, const size_t size, const uint32_t flags) {
     mock_state.last_virtual_addr = (uint64_t)virtual_addr;
     mock_state.last_size = size;
     mock_state.last_flags = flags;
@@ -151,25 +138,19 @@ SyscallResult anos_unmap_virtual(uint64_t virtual_addr, size_t size) {
 }
 
 // Basic channel syscalls for completeness
-SyscallResult anos_send_message(uint64_t channel_id, const void *message,
-                                size_t size) {
+SyscallResult anos_send_message(uint64_t channel_id, const void *message, size_t size) {
     return RESULT(SYSCALL_RESULT_OK, 0);
 }
 
-SyscallResult anos_recv_message(uint64_t channel_id, void *buffer,
-                                size_t buffer_size, size_t *actual_size) {
+SyscallResult anos_recv_message(uint64_t channel_id, void *buffer, size_t buffer_size, size_t *actual_size) {
     if (actual_size)
         *actual_size = 0;
     return RESULT(SYSCALL_RESULT_OK, 0);
 }
 
-SyscallResult anos_create_channel(void) {
-    return RESULT(SYSCALL_RESULT_OK, 123);
-}
+SyscallResult anos_create_channel(void) { return RESULT(SYSCALL_RESULT_OK, 123); }
 
-SyscallResult anos_task_sleep_current(uint32_t ms) {
-    return RESULT(SYSCALL_RESULT_OK, 0);
-}
+SyscallResult anos_task_sleep_current(uint32_t ms) { return RESULT(SYSCALL_RESULT_OK, 0); }
 
 SyscallResult anos_kprint(const char *message) {
     printf("[MOCK KPRINT] %s", message);
@@ -187,9 +168,7 @@ typedef struct {
     uint8_t value;
 } SyscallResultU8;
 
-SyscallResultU8 anos_alloc_interrupt_vector(uint32_t bus_device_func,
-                                            uint64_t *msi_address,
-                                            uint32_t *msi_data) {
+SyscallResultU8 anos_alloc_interrupt_vector(uint32_t bus_device_func, uint64_t *msi_address, uint32_t *msi_data) {
     // Return mock MSI configuration
     if (msi_address)
         *msi_address = 0xFEE00000ULL; // Standard MSI address
@@ -212,12 +191,8 @@ SyscallResult anos_find_named_channel(const char *name) {
     return RESULT(SYSCALL_RESULT_OK, 456); // Mock channel ID
 }
 
-SyscallResult anos_reply_message(uint64_t msg_cookie, size_t response_size) {
-    return RESULT(SYSCALL_RESULT_OK, 0);
-}
+SyscallResult anos_reply_message(uint64_t msg_cookie, size_t response_size) { return RESULT(SYSCALL_RESULT_OK, 0); }
 
-SyscallResult anos_task_sleep_current_secs(uint32_t seconds) {
-    return RESULT(SYSCALL_RESULT_OK, 0);
-}
+SyscallResult anos_task_sleep_current_secs(uint32_t seconds) { return RESULT(SYSCALL_RESULT_OK, 0); }
 
 const char *libanos_version(void) { return "test-mock-1.0"; }

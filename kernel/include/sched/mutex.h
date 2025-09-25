@@ -30,8 +30,7 @@ static_assert_sizeof(Mutex, ==, 64);
 Mutex *mutex_create(void);
 bool mutex_free(Mutex *mutex);
 
-bool mutex_init(Mutex *mutex, SpinLock *spin_lock,
-                TaskPriorityQueue *wait_queue);
+bool mutex_init(Mutex *mutex, SpinLock *spin_lock, TaskPriorityQueue *wait_queue);
 
 bool mutex_lock(Mutex *mutex);
 

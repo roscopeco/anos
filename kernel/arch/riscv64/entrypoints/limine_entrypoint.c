@@ -52,32 +52,28 @@ void debug_memmap_limine(Limine_MemMap *memmap);
 #define debug_memmap_limine(...)
 #endif
 
-static volatile Limine_MemMapRequest limine_memmap_request
-        __attribute__((__aligned__(8))) = {
-                .id = LIMINE_MEMMAP_REQUEST,
-                .revision = 3,
-                .memmap = nullptr,
+static volatile Limine_MemMapRequest limine_memmap_request __attribute__((__aligned__(8))) = {
+        .id = LIMINE_MEMMAP_REQUEST,
+        .revision = 3,
+        .memmap = nullptr,
 };
 
-static volatile Limine_FrameBufferRequest limine_framebuffer_request
-        __attribute__((__aligned__(8))) = {
-                .id = LIMINE_FRAMEBUFFER_REQUEST,
-                .revision = 3,
-                .response = nullptr,
+static volatile Limine_FrameBufferRequest limine_framebuffer_request __attribute__((__aligned__(8))) = {
+        .id = LIMINE_FRAMEBUFFER_REQUEST,
+        .revision = 3,
+        .response = nullptr,
 };
 
-static volatile Limine_HHDMRequest limine_hhdm_request
-        __attribute__((__aligned__(8))) = {
-                .id = LIMINE_HHDM_REQUEST,
-                .revision = 3,
-                .response = nullptr,
+static volatile Limine_HHDMRequest limine_hhdm_request __attribute__((__aligned__(8))) = {
+        .id = LIMINE_HHDM_REQUEST,
+        .revision = 3,
+        .response = nullptr,
 };
 
-static volatile Limine_ModuleRequest limine_module_request
-        __attribute__((__aligned__(8))) = {
-                .id = LIMINE_MODULE_REQUEST,
-                .revision = 3,
-                .internal_module_count = 0,
+static volatile Limine_ModuleRequest limine_module_request __attribute__((__aligned__(8))) = {
+        .id = LIMINE_MODULE_REQUEST,
+        .revision = 3,
+        .internal_module_count = 0,
 };
 
 /* Defined by the linker */
@@ -125,8 +121,7 @@ static Limine_MemMapEntry *static_memmap_pointers[MAX_MEMMAP_ENTRIES];
 static Limine_MemMapEntry static_memmap_entries[MAX_MEMMAP_ENTRIES];
 
 // Externals
-noreturn void bootstrap_trampoline(uint16_t fb_width, uint16_t fb_height,
-                                   uintptr_t new_stack, uintptr_t new_pt_phys,
+noreturn void bootstrap_trampoline(uint16_t fb_width, uint16_t fb_height, uintptr_t new_stack, uintptr_t new_pt_phys,
                                    void *boing);
 
 noreturn void bsp_kernel_entrypoint(uintptr_t platform_data);
@@ -160,36 +155,29 @@ static inline int vmm_page_size_to_level(const uint64_t page_size) {
     return (page_size == size) ? level : -1;
 }
 
-static inline bool vmm_table_walk_levels(const uintptr_t virt_addr,
-                                         const uint8_t table_levels,
-                                         const uintptr_t root_table_phys,
-                                         const uintptr_t direct_map_base,
+static inline bool vmm_table_walk_levels(const uintptr_t virt_addr, const uint8_t table_levels,
+                                         const uintptr_t root_table_phys, const uintptr_t direct_map_base,
                                          VmmPage *out) {
-    const uint64_t *current_table_virt =
-            (uint64_t *)(root_table_phys + direct_map_base);
+    const uint64_t *current_table_virt = (uint64_t *)(root_table_phys + direct_map_base);
 
-    vmm_vdebugf("vmm_table_walk_levels: PML4 virt: %p\n",
-                (void *)current_table_virt);
+    vmm_vdebugf("vmm_table_walk_levels: PML4 virt: %p\n", (void *)current_table_virt);
 
     uint8_t levels_remaining = table_levels;
 
     while (levels_remaining > 0) {
-        const uint16_t entry_index =
-                vmm_virt_to_table_index(virt_addr, levels_remaining);
+        const uint16_t entry_index = vmm_virt_to_table_index(virt_addr, levels_remaining);
 
         const uint64_t current_entry = current_table_virt[entry_index];
 
         if ((current_entry & PG_PRESENT) == 0) {
-            vmm_vdebugf("  * Level %d entry is not present\n",
-                        levels_remaining);
+            vmm_vdebugf("  * Level %d entry is not present\n", levels_remaining);
             return false;
         }
 
         if (current_entry & (PG_READ | PG_WRITE | PG_EXEC)) {
             vmm_vdebugf("vmm_table_walk_levels: Level %d entry %d represents a "
                         "%ld page at %p\n",
-                        levels_remaining, entry_index,
-                        vmm_level_page_size(levels_remaining),
+                        levels_remaining, entry_index, vmm_level_page_size(levels_remaining),
                         (void *)vmm_table_entry_to_phys(current_entry));
             out->phys_addr = vmm_table_entry_to_phys(current_entry);
             out->page_flags = vmm_table_entry_to_page_flags(current_entry);
@@ -197,11 +185,8 @@ static inline bool vmm_table_walk_levels(const uintptr_t virt_addr,
             return true;
         }
 
-        current_table_virt =
-                (uint64_t *)(vmm_table_entry_to_phys(current_entry) +
-                             direct_map_base);
-        vmm_vdebugf("  * Level %d entry points to level %d table at %p\n",
-                    levels_remaining, levels_remaining - 1,
+        current_table_virt = (uint64_t *)(vmm_table_entry_to_phys(current_entry) + direct_map_base);
+        vmm_vdebugf("  * Level %d entry points to level %d table at %p\n", levels_remaining, levels_remaining - 1,
                     (void *)vmm_table_entry_to_phys(current_entry));
         levels_remaining--;
     }
@@ -233,11 +218,8 @@ static inline int vmm_mmu_mode_to_table_levels(uint8_t mmu_mode) {
     }
 }
 
-static inline bool vmm_table_walk_mode(const uintptr_t virt_addr,
-                                       const uint8_t mmu_mode,
-                                       const uintptr_t root_table_phys,
-                                       const uintptr_t direct_map_base,
-                                       VmmPage *out) {
+static inline bool vmm_table_walk_mode(const uintptr_t virt_addr, const uint8_t mmu_mode,
+                                       const uintptr_t root_table_phys, const uintptr_t direct_map_base, VmmPage *out) {
     if (!out) {
         return false;
     }
@@ -257,15 +239,12 @@ static inline bool vmm_table_walk_mode(const uintptr_t virt_addr,
         return false;
     }
 
-    return vmm_table_walk_levels(virt_addr,
-                                 vmm_mmu_mode_to_table_levels(mmu_mode),
-                                 root_table_phys, direct_map_base, out);
+    return vmm_table_walk_levels(virt_addr, vmm_mmu_mode_to_table_levels(mmu_mode), root_table_phys, direct_map_base,
+                                 out);
 }
 
-static inline bool vmm_map_page_no_alloc(const uintptr_t virt_addr,
-                                         const uint8_t mmu_mode,
-                                         const uintptr_t root_table_phys,
-                                         const uintptr_t direct_map_base,
+static inline bool vmm_map_page_no_alloc(const uintptr_t virt_addr, const uint8_t mmu_mode,
+                                         const uintptr_t root_table_phys, const uintptr_t direct_map_base,
                                          VmmPage *page) {
     if (!page) {
         return false;
@@ -273,12 +252,10 @@ static inline bool vmm_map_page_no_alloc(const uintptr_t virt_addr,
 
     const int table_levels = vmm_mmu_mode_to_table_levels(mmu_mode);
 
-    vmm_vdebugf("vmm_map_page_no_alloc: mode %d, table levels %d\n", mmu_mode,
-                table_levels);
+    vmm_vdebugf("vmm_map_page_no_alloc: mode %d, table levels %d\n", mmu_mode, table_levels);
 
     if (unlikely(table_levels == 0)) {
-        vmm_vdebugf(
-                "vmm_map_page_no_alloc: No mapping required; returning true\n");
+        vmm_vdebugf("vmm_map_page_no_alloc: No mapping required; returning true\n");
         return true;
     }
 
@@ -290,8 +267,7 @@ static inline bool vmm_map_page_no_alloc(const uintptr_t virt_addr,
     // Calculate which level we need to map at based on the page size
     const int target_level = vmm_page_size_to_level(page->page_size);
     if (target_level < 0) {
-        vmm_vdebugf("vmm_map_page_no_alloc: Invalid page size %ld\n",
-                    page->page_size);
+        vmm_vdebugf("vmm_map_page_no_alloc: Invalid page size %ld\n", page->page_size);
         return false;
     }
 
@@ -307,14 +283,11 @@ static inline bool vmm_map_page_no_alloc(const uintptr_t virt_addr,
     uint8_t levels_remaining = table_levels;
     uint16_t entry_index;
 
-    vmm_vdebugf("vmm_map_page_no_alloc: direct_map_base is 0x%016lx\n",
-                direct_map_base);
-    vmm_vdebugf("vmm_map_page_no_alloc: Mapping no alloc in root table at %p\n",
-                (void *)current_table);
+    vmm_vdebugf("vmm_map_page_no_alloc: direct_map_base is 0x%016lx\n", direct_map_base);
+    vmm_vdebugf("vmm_map_page_no_alloc: Mapping no alloc in root table at %p\n", (void *)current_table);
     vmm_vdebugf("vmm_map_page_no_alloc: Attempting to map phys page %p at "
                 "level %d in %d level table at %p virtual\n",
-                (void *)page->phys_addr, target_level, levels_remaining,
-                (void *)virt_addr);
+                (void *)page->phys_addr, target_level, levels_remaining, (void *)virt_addr);
 
     // Walk through the page tables until we reach the target level
     while (levels_remaining > target_level + 1) {
@@ -323,39 +296,32 @@ static inline bool vmm_map_page_no_alloc(const uintptr_t virt_addr,
         uint64_t current_entry = current_table[entry_index];
         vmm_vdebugf("vmm_map_page_no_alloc: entry %d is 0x%016lx ( => P: "
                     "0x%016lx / V: 0x%016lx)\n",
-                    entry_index, current_entry,
-                    vmm_table_entry_to_phys(current_entry),
+                    entry_index, current_entry, vmm_table_entry_to_phys(current_entry),
                     vmm_table_entry_to_phys(current_entry) + direct_map_base);
 
         // If the entry is not present, we can't map the page
         if ((current_entry & PG_PRESENT) == 0) {
-            vmm_debugf("vmm_map_page_no_alloc: Level %d entry is not present\n",
-                       levels_remaining);
+            vmm_debugf("vmm_map_page_no_alloc: Level %d entry is not present\n", levels_remaining);
             return false;
         }
 
         // if the entry is a leaf page, we can't map the page because there won't be subtables
         if (current_entry & (PG_READ | PG_WRITE | PG_EXEC)) {
-            vmm_debugf("vmm_map_page_no_alloc: Level %d entry is a leaf page\n",
-                       levels_remaining);
+            vmm_debugf("vmm_map_page_no_alloc: Level %d entry is a leaf page\n", levels_remaining);
             return false;
         }
 
-        current_table = (uint64_t *)(vmm_table_entry_to_phys(current_entry) +
-                                     direct_map_base);
-        vmm_vdebugf("vmm_map_page_no_alloc: Move to level %d table at %p\n",
-                    levels_remaining - 1, current_table);
+        current_table = (uint64_t *)(vmm_table_entry_to_phys(current_entry) + direct_map_base);
+        vmm_vdebugf("vmm_map_page_no_alloc: Move to level %d table at %p\n", levels_remaining - 1, current_table);
         levels_remaining--;
     }
 
     // We've reached the target level, map the page
     entry_index = vmm_virt_to_table_index(virt_addr, target_level + 1);
-    current_table[entry_index] = vmm_phys_and_flags_to_table_entry(
-            page->phys_addr, page->page_flags | PG_PRESENT);
+    current_table[entry_index] = vmm_phys_and_flags_to_table_entry(page->phys_addr, page->page_flags | PG_PRESENT);
     cpu_invalidate_tlb_addr(virt_addr);
 
-    vmm_vdebugf("Target level %d entry %d is now 0x%016lx\n", target_level,
-                entry_index, current_table[entry_index]);
+    vmm_vdebugf("Target level %d entry %d is now 0x%016lx\n", target_level, entry_index, current_table[entry_index]);
     return true;
 }
 
@@ -366,16 +332,12 @@ noreturn void bsp_kernel_entrypoint_limine() {
 
     // Early init the debugterm since we need to be able to report errors early.
     // We'll reinit it later with the correct framebuffer in our usual kernel mappings.
-    if (limine_framebuffer_request.response &&
-        limine_framebuffer_request.response->framebuffer_count > 0) {
-        fb_phys =
-                (uintptr_t)limine_framebuffer_request.response->framebuffers[0]
-                        ->address -
-                limine_hhdm_request.response->offset;
+    if (limine_framebuffer_request.response && limine_framebuffer_request.response->framebuffer_count > 0) {
+        fb_phys = (uintptr_t)limine_framebuffer_request.response->framebuffers[0]->address -
+                  limine_hhdm_request.response->offset;
 
         fb_width = limine_framebuffer_request.response->framebuffers[0]->width;
-        fb_height =
-                limine_framebuffer_request.response->framebuffers[0]->height;
+        fb_height = limine_framebuffer_request.response->framebuffers[0]->height;
 
         debugterm_init((char *)fb_phys, fb_width, fb_height);
     } else {
@@ -407,12 +369,9 @@ noreturn void bsp_kernel_entrypoint_limine() {
 
     for (int i = 0; i < static_memmap.entry_count; i++) {
         static_memmap_pointers[i] = &static_memmap_entries[i];
-        static_memmap_entries[i].base =
-                limine_memmap_request.memmap->entries[i]->base;
-        static_memmap_entries[i].length =
-                limine_memmap_request.memmap->entries[i]->length;
-        static_memmap_entries[i].type =
-                limine_memmap_request.memmap->entries[i]->type;
+        static_memmap_entries[i].base = limine_memmap_request.memmap->entries[i]->base;
+        static_memmap_entries[i].length = limine_memmap_request.memmap->entries[i]->length;
+        static_memmap_entries[i].type = limine_memmap_request.memmap->entries[i]->type;
     }
 
     // Now, we need to set up our initial pagetables.
@@ -441,40 +400,35 @@ noreturn void bsp_kernel_entrypoint_limine() {
     // to get the physical addresses, just subtracting the HHDM offset from the virtual addresses
     // won't work...
     //
-    if (vmm_table_walk_mode((uintptr_t)new_pml4, cpu_satp_mode(satp),
-                            cpu_satp_to_root_table_phys(satp),
+    if (vmm_table_walk_mode((uintptr_t)new_pml4, cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
         pml4_phys = page.phys_addr;
     } else {
         kprintf("Failed to detemine PML4 physical address; Halting\n");
         halt_and_catch_fire();
     }
-    if (vmm_table_walk_mode((uintptr_t)new_pdpt, cpu_satp_mode(satp),
-                            cpu_satp_to_root_table_phys(satp),
+    if (vmm_table_walk_mode((uintptr_t)new_pdpt, cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
         pdpt_phys = page.phys_addr;
     } else {
         kprintf("Failed to detemine PDPT physical address; Halting\n");
         halt_and_catch_fire();
     }
-    if (vmm_table_walk_mode((uintptr_t)code_data_pd, cpu_satp_mode(satp),
-                            cpu_satp_to_root_table_phys(satp),
+    if (vmm_table_walk_mode((uintptr_t)code_data_pd, cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
         pd_phys = page.phys_addr;
     } else {
         kprintf("Failed to detemine PD physical address; Halting\n");
         halt_and_catch_fire();
     }
-    if (vmm_table_walk_mode((uintptr_t)code_data_pt_1, cpu_satp_mode(satp),
-                            cpu_satp_to_root_table_phys(satp),
+    if (vmm_table_walk_mode((uintptr_t)code_data_pt_1, cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
         pt_1_phys = page.phys_addr;
     } else {
         kprintf("Failed to detemine PT1 physical address; Halting\n");
         halt_and_catch_fire();
     }
-    if (vmm_table_walk_mode((uintptr_t)code_data_pt_2, cpu_satp_mode(satp),
-                            cpu_satp_to_root_table_phys(satp),
+    if (vmm_table_walk_mode((uintptr_t)code_data_pt_2, cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
         pt_2_phys = page.phys_addr;
     } else {
@@ -482,22 +436,17 @@ noreturn void bsp_kernel_entrypoint_limine() {
         halt_and_catch_fire();
     }
 
-    new_pml4[0x1ff] =
-            (pdpt_phys >> 2) | PG_PRESENT; // Set up the entries we need for
-    new_pdpt[0x1fe] =
-            (pd_phys >> 2) | PG_PRESENT; // the mappings in kernel space...
+    new_pml4[0x1ff] = (pdpt_phys >> 2) | PG_PRESENT; // Set up the entries we need for
+    new_pdpt[0x1fe] = (pd_phys >> 2) | PG_PRESENT;   // the mappings in kernel space...
     code_data_pd[0] = (pt_1_phys >> 2) | PG_PRESENT;
     code_data_pd[1] = (pt_2_phys >> 2) | PG_PRESENT;
 
     // map framebuffer, as four 2MiB large pages at 0xffffffff82000000 - 0xffffffff827fffff
     // TODO write-combining!
     code_data_pd[0x10] = (fb_phys >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
-    code_data_pd[0x11] =
-            ((fb_phys + 0x200000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
-    code_data_pd[0x12] =
-            ((fb_phys + 0x400000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
-    code_data_pd[0x13] =
-            ((fb_phys + 0x600000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+    code_data_pd[0x11] = ((fb_phys + 0x200000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+    code_data_pd[0x12] = ((fb_phys + 0x400000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+    code_data_pd[0x13] = ((fb_phys + 0x600000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
 
     // Find the phys address of the embedded SYSTEM image as well, we'll need
     // that later on when we come to map it in...
@@ -509,10 +458,8 @@ noreturn void bsp_kernel_entrypoint_limine() {
     }
 
     // TODO check name to make sure it's _actually_ our fucking module...
-    if (vmm_table_walk_mode(
-                (uintptr_t)limine_module_request.response->modules[0]->address,
-                cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
-                limine_hhdm_request.response->offset, &page)) {
+    if (vmm_table_walk_mode((uintptr_t)limine_module_request.response->modules[0]->address, cpu_satp_mode(satp),
+                            cpu_satp_to_root_table_phys(satp), limine_hhdm_request.response->offset, &page)) {
         _system_bin_start_phys = page.phys_addr;
         _system_bin_size = limine_module_request.response->modules[0]->size;
     } else {
@@ -523,24 +470,21 @@ noreturn void bsp_kernel_entrypoint_limine() {
     // setup PMM stack area and bootstrap page
     uintptr_t pmm_pd_phys, pmm_pt_phys, pmm_bootstrap_phys;
 
-    if (vmm_table_walk_mode((uintptr_t)pmm_pd, cpu_satp_mode(satp),
-                            cpu_satp_to_root_table_phys(satp),
+    if (vmm_table_walk_mode((uintptr_t)pmm_pd, cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
         pmm_pd_phys = page.phys_addr;
     } else {
         kprintf("Failed to detemine PMM PD physical address; Halting\n");
         halt_and_catch_fire();
     }
-    if (vmm_table_walk_mode((uintptr_t)pmm_pt, cpu_satp_mode(satp),
-                            cpu_satp_to_root_table_phys(satp),
+    if (vmm_table_walk_mode((uintptr_t)pmm_pt, cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
         pmm_pt_phys = page.phys_addr;
     } else {
         kprintf("Failed to detemine PMM PD physical address; Halting\n");
         halt_and_catch_fire();
     }
-    if (vmm_table_walk_mode((uintptr_t)pmm_bootstrap_page, cpu_satp_mode(satp),
-                            cpu_satp_to_root_table_phys(satp),
+    if (vmm_table_walk_mode((uintptr_t)pmm_bootstrap_page, cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
                             limine_hhdm_request.response->offset, &page)) {
         pmm_bootstrap_phys = page.phys_addr;
     } else {
@@ -556,16 +500,12 @@ noreturn void bsp_kernel_entrypoint_limine() {
     new_pdpt[0] = (pmm_pd_phys >> 2) | PG_PRESENT;
 
     // Copy BSS mappings....
-    for (uintptr_t page_virt = (uintptr_t)&_kernel_vma_start;
-         page_virt < (uintptr_t)&_bss_end; page_virt += 0x1000) {
-        if (vmm_table_walk_mode(page_virt, cpu_satp_mode(satp),
-                                cpu_satp_to_root_table_phys(satp),
+    for (uintptr_t page_virt = (uintptr_t)&_kernel_vma_start; page_virt < (uintptr_t)&_bss_end; page_virt += 0x1000) {
+        if (vmm_table_walk_mode(page_virt, cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
                                 limine_hhdm_request.response->offset, &page)) {
-            if (!vmm_map_page_no_alloc(page_virt, SATP_MODE_SV48, pml4_phys,
-                                       limine_hhdm_request.response->offset,
+            if (!vmm_map_page_no_alloc(page_virt, SATP_MODE_SV48, pml4_phys, limine_hhdm_request.response->offset,
                                        &page)) {
-                kprintf("Failed to map kernel data page %p; Halting\n",
-                        (void *)page_virt);
+                kprintf("Failed to map kernel data page %p; Halting\n", (void *)page_virt);
                 halt_and_catch_fire();
             }
         } else {
@@ -577,18 +517,14 @@ noreturn void bsp_kernel_entrypoint_limine() {
     }
 
     // Copy code mappings....
-    for (uintptr_t page_virt = (uintptr_t)&_code;
-         page_virt < (uintptr_t)&_kernel_vma_end; page_virt += 0x1000) {
+    for (uintptr_t page_virt = (uintptr_t)&_code; page_virt < (uintptr_t)&_kernel_vma_end; page_virt += 0x1000) {
 
-        if (vmm_table_walk_mode(page_virt, cpu_satp_mode(satp),
-                                cpu_satp_to_root_table_phys(satp),
+        if (vmm_table_walk_mode(page_virt, cpu_satp_mode(satp), cpu_satp_to_root_table_phys(satp),
                                 limine_hhdm_request.response->offset, &page)) {
 
-            if (!vmm_map_page_no_alloc(page_virt, SATP_MODE_SV48, pml4_phys,
-                                       limine_hhdm_request.response->offset,
+            if (!vmm_map_page_no_alloc(page_virt, SATP_MODE_SV48, pml4_phys, limine_hhdm_request.response->offset,
                                        &page)) {
-                kprintf("Failed to map kernel code page %p; Halting\n",
-                        (void *)page_virt);
+                kprintf("Failed to map kernel code page %p; Halting\n", (void *)page_virt);
                 halt_and_catch_fire();
             }
         } else {
@@ -600,12 +536,10 @@ noreturn void bsp_kernel_entrypoint_limine() {
     }
 
     bootstrap_trampoline(fb_width, fb_height, KERNEL_INIT_STACK_TOP,
-                         ((pml4_phys >> 12) | ((uint64_t)SATP_MODE_SV48 << 60)),
-                         bootstrap_continue);
+                         ((pml4_phys >> 12) | ((uint64_t)SATP_MODE_SV48 << 60)), bootstrap_continue);
 }
 
-static noreturn void bootstrap_continue(const uint16_t fb_width,
-                                        const uint16_t fb_height) {
+static noreturn void bootstrap_continue(const uint16_t fb_width, const uint16_t fb_height) {
     // We're now on our own pagetables, and have essentially the same setup as
     // we do on x86_64 at this point...
     //
@@ -616,8 +550,7 @@ static noreturn void bootstrap_continue(const uint16_t fb_width,
 
     if (_system_bin_size == 0) {
         // No system module passed, fail early for now.
-        debugstr(
-                "No system module loaded - check bootloader config. Halting\n");
+        debugstr("No system module loaded - check bootloader config. Halting\n");
         halt_and_catch_fire();
     }
 
@@ -625,8 +558,7 @@ static noreturn void bootstrap_continue(const uint16_t fb_width,
 
     debug_memmap_limine(&static_memmap);
 
-    physical_region = page_alloc_init_limine(&static_memmap, 0,
-                                             STATIC_PMM_VREGION, false);
+    physical_region = page_alloc_init_limine(&static_memmap, 0, STATIC_PMM_VREGION, false);
 
 #ifdef DEBUG_PMM
     kprintf("\n\nphysical_region allocated at %p : %ld bytes total / %ld bytes "
@@ -635,8 +567,7 @@ static noreturn void bootstrap_continue(const uint16_t fb_width,
 #endif
 
 #ifdef DEBUG_VMM
-    extern uint64_t vmm_direct_mapping_terapages_used,
-            vmm_direct_mapping_gigapages_used,
+    extern uint64_t vmm_direct_mapping_terapages_used, vmm_direct_mapping_gigapages_used,
             vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used;
 
     size_t pre_direct_free = physical_region->free;
@@ -647,10 +578,8 @@ static noreturn void bootstrap_continue(const uint16_t fb_width,
     kprintf("\nPage tables for VMM Direct Mapping: %ld bytes of physical "
             "memory\n",
             pre_direct_free - post_direct_free);
-    kprintf("    Mapping types: %ld tera; %ld giga; %ld mega; %ld small\n\n",
-            vmm_direct_mapping_terapages_used,
-            vmm_direct_mapping_gigapages_used,
-            vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used);
+    kprintf("    Mapping types: %ld tera; %ld giga; %ld mega; %ld small\n\n", vmm_direct_mapping_terapages_used,
+            vmm_direct_mapping_gigapages_used, vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used);
 #endif
 
     bsp_kernel_entrypoint(0);

@@ -43,8 +43,7 @@ static uint64_t devman_channel = 0;
 static uint64_t ahci_channel = 0;
 static uint64_t pci_parent_id = 0;
 
-static int ahci_initialize_driver(const uint64_t ahci_base,
-                                  const uint64_t pci_config_base) {
+static int ahci_initialize_driver(const uint64_t ahci_base, const uint64_t pci_config_base) {
 #ifdef DEBUG_AHCI_INIT
     printf("Initializing AHCI driver:\n");
     printf("  AHCI Base: 0x%016lx\n", ahci_base);
@@ -76,8 +75,7 @@ static int ahci_initialize_driver(const uint64_t ahci_base,
 #endif
                 } else {
 #ifdef DEBUG_AHCI_INIT
-                    printf("Warning: Failed to identify device on port %u\n",
-                           i);
+                    printf("Warning: Failed to identify device on port %u\n", i);
 #endif
                 }
             } else {
@@ -111,8 +109,7 @@ static bool register_with_devman(void) {
     static char __attribute__((aligned(4096))) reg_buffer[4096];
 
     // First, register the AHCI controller itself
-    DeviceRegistrationMessage *reg_msg =
-            (DeviceRegistrationMessage *)reg_buffer;
+    DeviceRegistrationMessage *reg_msg = (DeviceRegistrationMessage *)reg_buffer;
     reg_msg->msg_type = DEVICE_MSG_REGISTER;
     reg_msg->device_type = DEVICE_TYPE_STORAGE;
     reg_msg->device_count = 1;
@@ -125,22 +122,17 @@ static bool register_with_devman(void) {
     controller_info->capabilities = 0; // Controller itself doesn't do I/O
     controller_info->driver_channel = ahci_channel;
 
-    snprintf(controller_info->name, sizeof(controller_info->name),
-             "AHCI Controller");
-    snprintf(controller_info->driver_name, sizeof(controller_info->driver_name),
-             "ahcidrv");
+    snprintf(controller_info->name, sizeof(controller_info->name), "AHCI Controller");
+    snprintf(controller_info->driver_name, sizeof(controller_info->driver_name), "ahcidrv");
 
     size_t msg_size = sizeof(DeviceRegistrationMessage) + sizeof(DeviceInfo);
-    const SyscallResult controller_reg_result =
-            anos_send_message(devman_channel, 0, msg_size, reg_buffer);
+    const SyscallResult controller_reg_result = anos_send_message(devman_channel, 0, msg_size, reg_buffer);
 
     uint64_t ahci_controller_id = 0;
-    if (controller_reg_result.result == SYSCALL_OK &&
-        controller_reg_result.value > 0) {
+    if (controller_reg_result.result == SYSCALL_OK && controller_reg_result.value > 0) {
         ahci_controller_id = controller_reg_result.value;
 #ifdef DEBUG_AHCI_INIT
-        printf("Registered AHCI controller with DEVMAN (ID: %lu)\n",
-               ahci_controller_id);
+        printf("Registered AHCI controller with DEVMAN (ID: %lu)\n", ahci_controller_id);
 #endif
     } else {
         printf("Failed to register AHCI controller with DEVMAN\n");
@@ -155,36 +147,27 @@ static bool register_with_devman(void) {
             reg_msg->device_type = DEVICE_TYPE_STORAGE;
             reg_msg->device_count = 1;
 
-            StorageDeviceInfo *storage_info =
-                    (StorageDeviceInfo *)reg_msg->data;
-            storage_info->base.device_id = 0; // Will be assigned by DEVMAN
-            storage_info->base.parent_id =
-                    ahci_controller_id; // Parent is the AHCI controller
+            StorageDeviceInfo *storage_info = (StorageDeviceInfo *)reg_msg->data;
+            storage_info->base.device_id = 0;                  // Will be assigned by DEVMAN
+            storage_info->base.parent_id = ahci_controller_id; // Parent is the AHCI controller
             storage_info->base.device_type = DEVICE_TYPE_STORAGE;
             storage_info->base.hardware_type = STORAGE_HW_AHCI;
-            storage_info->base.capabilities =
-                    DEVICE_CAP_READ | DEVICE_CAP_WRITE;
+            storage_info->base.capabilities = DEVICE_CAP_READ | DEVICE_CAP_WRITE;
             storage_info->base.driver_channel = ahci_channel;
 
-            snprintf(storage_info->base.name, sizeof(storage_info->base.name),
-                     "AHCI Port %u", i);
-            snprintf(storage_info->base.driver_name,
-                     sizeof(storage_info->base.driver_name), "ahcidrv");
+            snprintf(storage_info->base.name, sizeof(storage_info->base.name), "AHCI Port %u", i);
+            snprintf(storage_info->base.driver_name, sizeof(storage_info->base.driver_name), "ahcidrv");
 
             storage_info->sector_count = ports[i].sector_count;
             storage_info->sector_size = ports[i].sector_size;
 
             // TODO: Extract model/serial from identify data
-            snprintf(storage_info->model, sizeof(storage_info->model),
-                     "Unknown Model");
-            snprintf(storage_info->serial, sizeof(storage_info->serial),
-                     "Unknown Serial");
+            snprintf(storage_info->model, sizeof(storage_info->model), "Unknown Model");
+            snprintf(storage_info->serial, sizeof(storage_info->serial), "Unknown Serial");
 
-            msg_size = sizeof(DeviceRegistrationMessage) +
-                       sizeof(StorageDeviceInfo);
+            msg_size = sizeof(DeviceRegistrationMessage) + sizeof(StorageDeviceInfo);
 
-            const SyscallResult reg_result =
-                    anos_send_message(devman_channel, 0, msg_size, reg_buffer);
+            const SyscallResult reg_result = anos_send_message(devman_channel, 0, msg_size, reg_buffer);
 
             if (reg_result.result == SYSCALL_OK && reg_result.value > 0) {
 #ifdef DEBUG_AHCI_INIT
@@ -201,8 +184,7 @@ static bool register_with_devman(void) {
     return true;
 }
 
-static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
-                                      void *buffer, const size_t buffer_size) {
+static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag, void *buffer, const size_t buffer_size) {
     if (buffer_size < sizeof(StorageIOMessage)) {
         ops_debugf("AHCI: Invalid storage I/O message size\n");
         anos_reply_message(msg_cookie, 0);
@@ -213,8 +195,7 @@ static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
 
     switch (io_msg->msg_type) {
     case STORAGE_MSG_READ_SECTORS: {
-        ops_vdebugf("AHCI: Read sectors request - LBA: %lu, Count: %u\n",
-                    io_msg->start_sector, io_msg->sector_count);
+        ops_vdebugf("AHCI: Read sectors request - LBA: %lu, Count: %u\n", io_msg->start_sector, io_msg->sector_count);
 
         // Find an active port to use (use first available)
         volatile AHCIPort *active_port = nullptr;
@@ -233,10 +214,9 @@ static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
 
         // Check sector count limit (4KB IPC buffer / 512 bytes = 8 sectors max)
         if (io_msg->sector_count > 8) {
-            ops_debugf(
-                    "AHCI: Requested %u sectors exceeds maximum of 8 sectors "
-                    "per IPC message\n",
-                    io_msg->sector_count);
+            ops_debugf("AHCI: Requested %u sectors exceeds maximum of 8 sectors "
+                       "per IPC message\n",
+                       io_msg->sector_count);
             anos_reply_message(msg_cookie, 0);
             return;
         }
@@ -245,12 +225,10 @@ static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
 
         // Read directly into caller's zero-copy mapped buffer
         // ahci_port_read handles DMA internally and copies from DMA buffer to our buffer
-        const bool success = ahci_port_read(active_port, io_msg->start_sector,
-                                            sectors_to_read, buffer);
+        const bool success = ahci_port_read(active_port, io_msg->start_sector, sectors_to_read, buffer);
 
         if (success) {
-            ops_vdebugf("AHCI: Successfully read %u sectors from LBA %lu\n",
-                        sectors_to_read, io_msg->start_sector);
+            ops_vdebugf("AHCI: Successfully read %u sectors from LBA %lu\n", sectors_to_read, io_msg->start_sector);
 
 #ifdef DEBUG_AHCI_OPS
 #ifdef VERY_NOISY_AHCI_OPS
@@ -280,8 +258,7 @@ static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
     }
 
     case STORAGE_MSG_WRITE_SECTORS: {
-        ops_vdebugf("AHCI: Write sectors request - LBA: %lu, Count: %u\n",
-                    io_msg->start_sector, io_msg->sector_count);
+        ops_vdebugf("AHCI: Write sectors request - LBA: %lu, Count: %u\n", io_msg->start_sector, io_msg->sector_count);
 
         // Find an active port to use
         volatile AHCIPort *active_port = NULL;
@@ -300,22 +277,19 @@ static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
 
         // Check sector count limit (4KB IPC buffer / 512 bytes = 8 sectors max)
         if (io_msg->sector_count > 8) {
-            ops_debugf(
-                    "AHCI: Write request for %u sectors exceeds maximum of 8 "
-                    "sectors per IPC message\n",
-                    io_msg->sector_count);
+            ops_debugf("AHCI: Write request for %u sectors exceeds maximum of 8 "
+                       "sectors per IPC message\n",
+                       io_msg->sector_count);
             anos_reply_message(msg_cookie, 0);
             return;
         }
 
         const uint32_t sectors_to_write = io_msg->sector_count;
 
-        const bool success = ahci_port_write(active_port, io_msg->start_sector,
-                                             sectors_to_write, io_msg->data);
+        const bool success = ahci_port_write(active_port, io_msg->start_sector, sectors_to_write, io_msg->data);
 
         if (success) {
-            ops_vdebugf("AHCI: Successfully wrote %u sectors to LBA %lu\n",
-                        sectors_to_write, io_msg->start_sector);
+            ops_vdebugf("AHCI: Successfully wrote %u sectors to LBA %lu\n", sectors_to_write, io_msg->start_sector);
             anos_reply_message(msg_cookie, sectors_to_write);
         } else {
             ops_debugf("AHCI: Failed to write sectors\n");
@@ -354,8 +328,7 @@ static void handle_storage_io_message(const uint64_t msg_cookie, uint64_t tag,
     }
 
     default:
-        ops_debugf("AHCI: Unknown storage I/O message type: %u\n",
-                   io_msg->msg_type);
+        ops_debugf("AHCI: Unknown storage I/O message type: %u\n", io_msg->msg_type);
         anos_reply_message(msg_cookie, 0);
         break;
     }
@@ -365,8 +338,7 @@ int main(const int argc, char **argv) {
     printf("\nAHCI Driver #%s [libanos #%s]", VERSION, libanos_version());
 
     if (argc < 4) {
-        printf("\n\nUsage: %s <ahci_base> <pci_config_base> <pci_parent_id>\n",
-               argv[0]);
+        printf("\n\nUsage: %s <ahci_base> <pci_config_base> <pci_parent_id>\n", argv[0]);
         printf("Arguments provided: %d\n", argc);
         for (int i = 0; i < argc; i++) {
             printf("  argv[%d]: %s\n", i, argv[i]);
@@ -398,17 +370,14 @@ int main(const int argc, char **argv) {
         size_t buffer_size = 4096;
         uint64_t tag = 0;
 
-        const SyscallResult recv_result =
-                anos_recv_message(ahci_channel, &tag, &buffer_size, ipc_buffer);
+        const SyscallResult recv_result = anos_recv_message(ahci_channel, &tag, &buffer_size, ipc_buffer);
         const uint64_t msg_cookie = recv_result.value;
 
         if (recv_result.result == SYSCALL_OK && msg_cookie) {
-            ops_vdebugf("AHCI: Received message with tag %lu, size %lu\n", tag,
-                        buffer_size);
+            ops_vdebugf("AHCI: Received message with tag %lu, size %lu\n", tag, buffer_size);
             handle_storage_io_message(msg_cookie, tag, ipc_buffer, buffer_size);
         } else {
-            ops_debugf("AHCI: Error receiving message [0x%016lx]\n",
-                       (uint64_t)recv_result.result);
+            ops_debugf("AHCI: Error receiving message [0x%016lx]\n", (uint64_t)recv_result.result);
 
             // Sleep briefly to avoid pegging the CPU if we're in an error loop
             anos_task_sleep_current_secs(1);

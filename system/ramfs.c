@@ -71,8 +71,7 @@ AnosRAMFSFileHeader *ramfs_find_file(AnosRAMFSHeader *fs, char *name) {
     AnosRAMFSFileHeader *current = (AnosRAMFSFileHeader *)(fs + 1);
 
     for (int i = 0; i < fs->file_count; i++, current++) {
-        if (current->file_name[0] != 0 &&
-            strncmp(name, current->file_name, 24) == 0) {
+        if (current->file_name[0] != 0 && strncmp(name, current->file_name, 24) == 0) {
             return current;
         }
     }

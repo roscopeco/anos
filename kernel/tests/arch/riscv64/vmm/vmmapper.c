@@ -72,14 +72,10 @@ typedef enum {
 
 // External functions from vmmapper.c we're testing
 bool is_leaf(uint64_t table_entry);
-uint64_t *ensure_tables(uint64_t *root_table, uintptr_t virt_addr,
-                        PagetableLevel to_level);
-extern bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
-                                       uint64_t phys_addr, uint16_t flags);
-extern bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
-                            uint16_t flags);
-extern bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
-                                    uint16_t flags);
+uint64_t *ensure_tables(uint64_t *root_table, uintptr_t virt_addr, PagetableLevel to_level);
+extern bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags);
+extern bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags);
+extern bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags);
 extern bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags);
 extern uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr);
 extern uintptr_t vmm_unmap_page(uintptr_t virt_addr);
@@ -89,8 +85,7 @@ extern void vmm_invalidate_page(uintptr_t virt_addr);
 MemoryRegion *physical_region;
 static SpinLock mock_spinlock;
 
-static uintptr_t
-        mock_allocated_pages[100]; // Store allocated pages for verification
+static uintptr_t mock_allocated_pages[100]; // Store allocated pages for verification
 static int mock_allocated_pages_count = 0;
 
 // Mock CPU functions
@@ -121,49 +116,31 @@ uintptr_t page_alloc(MemoryRegion *region) {
 }
 
 // Helper to convert from virt to phys and vice versa
-static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) {
-    return DIRECT_MAP_BASE + phys_addr;
-}
+static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) { return DIRECT_MAP_BASE + phys_addr; }
 
-static inline void *vmm_phys_to_virt_ptr(uintptr_t phys_addr) {
-    return (void *)vmm_phys_to_virt(phys_addr);
-}
+static inline void *vmm_phys_to_virt_ptr(uintptr_t phys_addr) { return (void *)vmm_phys_to_virt(phys_addr); }
 
-static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
-    return virt_addr - DIRECT_MAP_BASE;
-}
+static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) { return virt_addr - DIRECT_MAP_BASE; }
 
 // Helper for page table entry conversions
-static inline uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys,
-                                                         uint64_t flags) {
+static inline uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys, uint64_t flags) {
     return ((phys & ~0xFFF) >> 2) | flags;
 }
 
-static inline uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry) {
-    return ((table_entry >> 10) << 12);
-}
+static inline uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry) { return ((table_entry >> 10) << 12); }
 
 // Helper functions for table indexing
-static inline uint16_t vmm_virt_to_table_index(uintptr_t virt_addr,
-                                               uint8_t level) {
+static inline uint16_t vmm_virt_to_table_index(uintptr_t virt_addr, uint8_t level) {
     return ((virt_addr >> ((9 * (level - 1)) + 12)) & 0x1ff);
 }
 
-static inline uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 9 + 9 + 12)) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr) { return ((virt_addr >> (9 + 9 + 9 + 12)) & 0x1ff); }
 
-static inline uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 9 + 12)) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr) { return ((virt_addr >> (9 + 9 + 12)) & 0x1ff); }
 
-static inline uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 12)) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr) { return ((virt_addr >> (9 + 12)) & 0x1ff); }
 
-static inline uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr) {
-    return ((virt_addr >> 12) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr) { return ((virt_addr >> 12) & 0x1ff); }
 
 // Setup function for tests
 static void *test_setup(const MunitParameter params[], void *user_data) {
@@ -213,8 +190,7 @@ static MunitResult test_is_leaf(const MunitParameter params[], void *fixture) {
 }
 
 // Test for ensure_tables with valid inputs
-static MunitResult test_ensure_tables_valid(const MunitParameter params[],
-                                            void *fixture) {
+static MunitResult test_ensure_tables_valid(const MunitParameter params[], void *fixture) {
     // Create a mock PML4 table
     uint64_t *pml4 = calloc(PAGE_TABLE_ENTRIES, sizeof(uint64_t));
 
@@ -240,8 +216,7 @@ static MunitResult test_ensure_tables_valid(const MunitParameter params[],
 }
 
 // Test for ensure_tables with invalid level
-static MunitResult
-test_ensure_tables_invalid_level(const MunitParameter params[], void *fixture) {
+static MunitResult test_ensure_tables_invalid_level(const MunitParameter params[], void *fixture) {
     // Create a mock PML4 table
     uint64_t *pml4 = calloc(PAGE_TABLE_ENTRIES, sizeof(uint64_t));
 
@@ -260,8 +235,7 @@ test_ensure_tables_invalid_level(const MunitParameter params[], void *fixture) {
 }
 
 // Test for vmm_map_page_containing_in and vmm_map_page_in
-static MunitResult test_map_page_in(const MunitParameter params[],
-                                    void *fixture) {
+static MunitResult test_map_page_in(const MunitParameter params[], void *fixture) {
     // Create a mock PML4 table
     uint64_t *pml4 = calloc(PAGE_TABLE_ENTRIES, sizeof(uint64_t));
 
@@ -301,8 +275,7 @@ static MunitResult test_map_page_in(const MunitParameter params[],
 }
 
 // Test for vmm_unmap_page_in with different levels of pages
-static MunitResult test_unmap_page_in(const MunitParameter params[],
-                                      void *fixture) {
+static MunitResult test_unmap_page_in(const MunitParameter params[], void *fixture) {
     // Create a mock PML4 table
     uint64_t *pml4 = calloc(PAGE_TABLE_ENTRIES, sizeof(uint64_t));
 
@@ -311,8 +284,7 @@ static MunitResult test_unmap_page_in(const MunitParameter params[],
     uint16_t pml4_index = vmm_virt_to_pml4_index(virt_addr);
 
     // Test case 1: PML4 leaf entry (terapage)
-    pml4[pml4_index] =
-            vmm_phys_and_flags_to_table_entry(0x1000, PG_PRESENT | PG_READ);
+    pml4[pml4_index] = vmm_phys_and_flags_to_table_entry(0x1000, PG_PRESENT | PG_READ);
 
     uintptr_t result = vmm_unmap_page_in(pml4, virt_addr);
 
@@ -324,14 +296,12 @@ static MunitResult test_unmap_page_in(const MunitParameter params[],
 
     // Create nested tables for the next test
     uint64_t *pdpt = calloc(PAGE_TABLE_ENTRIES, sizeof(uint64_t));
-    pml4[pml4_index] =
-            vmm_phys_and_flags_to_table_entry((uintptr_t)pdpt, PG_PRESENT);
+    pml4[pml4_index] = vmm_phys_and_flags_to_table_entry((uintptr_t)pdpt, PG_PRESENT);
 
     uint16_t pdpt_index = vmm_virt_to_pdpt_index(virt_addr);
 
     // Test case 2: PDPT leaf entry (gigapage)
-    pdpt[pdpt_index] =
-            vmm_phys_and_flags_to_table_entry(0x2000, PG_PRESENT | PG_READ);
+    pdpt[pdpt_index] = vmm_phys_and_flags_to_table_entry(0x2000, PG_PRESENT | PG_READ);
 
     result = vmm_unmap_page_in(pml4, virt_addr);
 
@@ -349,8 +319,7 @@ static MunitResult test_unmap_page_in(const MunitParameter params[],
 }
 
 // Test vmm_map_page and vmm_unmap_page (the global functions)
-static MunitResult test_map_unmap_page_global(const MunitParameter params[],
-                                              void *fixture) {
+static MunitResult test_map_unmap_page_global(const MunitParameter params[], void *fixture) {
     // We'll use the mock VMM functions to verify calls
     uintptr_t virt_addr = 0xffff900000005000;
     uintptr_t phys_addr = 0x5000;
@@ -381,23 +350,15 @@ static MunitResult test_map_unmap_page_global(const MunitParameter params[],
 
 // Define the test suite
 static MunitTest test_suite_tests[] = {
-        {"/is_leaf", test_is_leaf, test_setup, test_teardown,
+        {"/is_leaf", test_is_leaf, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ensure_tables_valid", test_ensure_tables_valid, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ensure_tables_invalid_level", test_ensure_tables_invalid_level, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ensure_tables_valid", test_ensure_tables_valid, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ensure_tables_invalid_level", test_ensure_tables_invalid_level,
-         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/map_page_in", test_map_page_in, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/unmap_page_in", test_unmap_page_in, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/map_unmap_page_global", test_map_unmap_page_global, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/map_page_in", test_map_page_in, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/unmap_page_in", test_unmap_page_in, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/map_unmap_page_global", test_map_unmap_page_global, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/vmm/riscv64/vmmapper", test_suite_tests,
-                                      NULL, 1, MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {"/vmm/riscv64/vmmapper", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
-    return munit_suite_main(&test_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) { return munit_suite_main(&test_suite, NULL, argc, argv); }

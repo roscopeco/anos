@@ -46,8 +46,7 @@ static MunitResult test_init(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult test_init_fba_fail(const MunitParameter params[],
-                                      void *data) {
+static MunitResult test_init_fba_fail(const MunitParameter params[], void *data) {
     // Test FBA allocation failure
     mock_fba_set_should_fail(true);
     bool result = refcount_map_init();
@@ -60,8 +59,7 @@ static MunitResult test_init_fba_fail(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_init_slab_fail(const MunitParameter params[],
-                                       void *data) {
+static MunitResult test_init_slab_fail(const MunitParameter params[], void *data) {
     // Test slab allocation failure
     mock_slab_set_should_fail(true);
     bool result = refcount_map_init();
@@ -75,8 +73,7 @@ static MunitResult test_init_slab_fail(const MunitParameter params[],
 }
 
 // Test basic reference counting
-static MunitResult test_basic_refcount(const MunitParameter params[],
-                                       void *data) {
+static MunitResult test_basic_refcount(const MunitParameter params[], void *data) {
     refcount_map_init();
 
     uintptr_t addr = 0x3000;
@@ -107,8 +104,7 @@ static MunitResult test_basic_refcount(const MunitParameter params[],
 }
 
 // Test multiple addresses
-static MunitResult test_multiple_addresses(const MunitParameter params[],
-                                           void *data) {
+static MunitResult test_multiple_addresses(const MunitParameter params[], void *data) {
     refcount_map_init();
 
     uintptr_t addr1 = 0x3000;
@@ -136,8 +132,7 @@ static MunitResult test_multiple_addresses(const MunitParameter params[],
 }
 
 // Test allocation failures during operation
-static MunitResult test_allocation_failures(const MunitParameter params[],
-                                            void *data) {
+static MunitResult test_allocation_failures(const MunitParameter params[], void *data) {
     refcount_map_init();
 
     uintptr_t addr = 0x3000;
@@ -181,8 +176,7 @@ static MunitResult test_resize(const MunitParameter params[], void *data) {
 }
 
 // Test memory leaks
-static MunitResult test_memory_cleanup(const MunitParameter params[],
-                                       void *data) {
+static MunitResult test_memory_cleanup(const MunitParameter params[], void *data) {
     refcount_map_init();
 
     uint64_t initial_fba = mock_fba_get_alloc_count();
@@ -197,10 +191,8 @@ static MunitResult test_memory_cleanup(const MunitParameter params[],
     // Clean up and verify all memory is freed
     refcount_map_cleanup();
 
-    munit_assert_size(mock_fba_get_free_count(), ==,
-                      mock_fba_get_alloc_count());
-    munit_assert_size(mock_slab_get_free_count(), ==,
-                      mock_slab_get_alloc_count());
+    munit_assert_size(mock_fba_get_free_count(), ==, mock_fba_get_alloc_count());
+    munit_assert_size(mock_slab_get_free_count(), ==, mock_slab_get_alloc_count());
 
     return MUNIT_OK;
 }
@@ -245,29 +237,17 @@ static void *test_setup(const MunitParameter params[], void *user_data) {
 }
 
 static MunitTest refcount_map_tests[] = {
-        {"/init_okay", test_init, test_setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {"/init_fba_fail", test_init_fba_fail, test_setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/init_slab_fail", test_init_slab_fail, test_setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/basic_refcount", test_basic_refcount, test_setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/multiple_addresses", test_multiple_addresses, test_setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/allocation_failures", test_allocation_failures, test_setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/resize", test_resize, test_setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {"/memory_cleanup", test_memory_cleanup, test_setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/edge_cases", test_edge_cases, test_setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/init_okay", test_init, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/init_fba_fail", test_init_fba_fail, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/init_slab_fail", test_init_slab_fail, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/basic_refcount", test_basic_refcount, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/multiple_addresses", test_multiple_addresses, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/allocation_failures", test_allocation_failures, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/resize", test_resize, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/memory_cleanup", test_memory_cleanup, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/edge_cases", test_edge_cases, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, test_setup, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/refcount_map", refcount_map_tests, NULL,
-                                      1, MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {"/refcount_map", refcount_map_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&test_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&test_suite, NULL, argc, argv); }

@@ -43,8 +43,7 @@ typedef struct {
  * 
  * Locking is handled internally!
  */
-bool process_add_owned_page(Process *proc, MemoryRegion *region,
-                            uintptr_t phys_addr, bool shared);
+bool process_add_owned_page(Process *proc, MemoryRegion *region, uintptr_t phys_addr, bool shared);
 
 /*
  * Remove a page from the given Process' list

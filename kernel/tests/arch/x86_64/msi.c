@@ -56,15 +56,13 @@ static void teardown(void *ignored) {
     // nothing
 }
 
-static MunitResult test_msi_allocate_vector(const MunitParameter params[],
-                                            void *fixture) {
+static MunitResult test_msi_allocate_vector(const MunitParameter params[], void *fixture) {
     uint64_t msi_address;
     uint32_t msi_data;
     const uint32_t bus_device_func = 0x01020A; // Bus 1, Device 2, Function 2
     const uint64_t pid = 123;
 
-    const uint8_t vector =
-            msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
+    const uint8_t vector = msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
 
     // Should allocate a valid vector
     munit_assert_uint8(vector, >=, MSI_VECTOR_BASE);
@@ -79,9 +77,7 @@ static MunitResult test_msi_allocate_vector(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_msi_allocate_vector_exhaustion(const MunitParameter params[],
-                                    void *fixture) {
+static MunitResult test_msi_allocate_vector_exhaustion(const MunitParameter params[], void *fixture) {
     uint64_t msi_address;
     uint32_t msi_data;
     const uint32_t bus_device_func = 0x010000;
@@ -89,21 +85,18 @@ test_msi_allocate_vector_exhaustion(const MunitParameter params[],
 
     // Allocate all available vectors
     for (int i = 0; i < MSI_VECTOR_COUNT; i++) {
-        const uint8_t vector = msi_allocate_vector(bus_device_func + i, pid,
-                                                   &msi_address, &msi_data);
+        const uint8_t vector = msi_allocate_vector(bus_device_func + i, pid, &msi_address, &msi_data);
         munit_assert_uint8(vector, !=, 0); // Should succeed
     }
 
     // Next allocation should fail
-    const uint8_t vector = msi_allocate_vector(
-            bus_device_func + MSI_VECTOR_COUNT, pid, &msi_address, &msi_data);
+    const uint8_t vector = msi_allocate_vector(bus_device_func + MSI_VECTOR_COUNT, pid, &msi_address, &msi_data);
     munit_assert_uint8(vector, ==, 0); // Should fail
 
     return MUNIT_OK;
 }
 
-static MunitResult test_msi_cpu_load_balancing(const MunitParameter params[],
-                                               void *fixture) {
+static MunitResult test_msi_cpu_load_balancing(const MunitParameter params[], void *fixture) {
     uint64_t msi_addresses[4];
     uint32_t msi_data[4];
 
@@ -111,8 +104,7 @@ static MunitResult test_msi_cpu_load_balancing(const MunitParameter params[],
     for (int i = 0; i < 4; i++) {
         const uint64_t pid = 123;
         const uint32_t bus_device_func = 0x020000;
-        const uint8_t vector = msi_allocate_vector(
-                bus_device_func + i, pid, &msi_addresses[i], &msi_data[i]);
+        const uint8_t vector = msi_allocate_vector(bus_device_func + i, pid, &msi_addresses[i], &msi_data[i]);
         munit_assert_uint8(vector, !=, 0);
 
         // Extract APIC ID from MSI address (bits 19-12)
@@ -125,16 +117,14 @@ static MunitResult test_msi_cpu_load_balancing(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_msi_deallocate_vector(const MunitParameter params[],
-                                              void *fixture) {
+static MunitResult test_msi_deallocate_vector(const MunitParameter params[], void *fixture) {
     uint64_t msi_address;
     uint32_t msi_data;
     const uint32_t bus_device_func = 0x030000;
     const uint64_t pid = 123;
 
     // Allocate a vector
-    const uint8_t vector =
-            msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
+    const uint8_t vector = msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
     munit_assert_uint8(vector, !=, 0);
 
     // Deallocate it
@@ -142,15 +132,13 @@ static MunitResult test_msi_deallocate_vector(const MunitParameter params[],
     munit_assert_true(result);
 
     // Should be able to allocate a vector again (might not be the same vector due to hint system)
-    const uint8_t vector2 =
-            msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
+    const uint8_t vector2 = msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
     munit_assert_uint8(vector2, !=, 0); // Should get a valid vector
 
     return MUNIT_OK;
 }
 
-static MunitResult test_msi_verify_ownership(const MunitParameter params[],
-                                             void *fixture) {
+static MunitResult test_msi_verify_ownership(const MunitParameter params[], void *fixture) {
     uint64_t msi_address;
     uint32_t msi_data;
     const uint32_t bus_device_func = 0x040000;
@@ -158,8 +146,7 @@ static MunitResult test_msi_verify_ownership(const MunitParameter params[],
     const uint64_t pid2 = 456;
 
     // Allocate vector to PID1
-    const uint8_t vector =
-            msi_allocate_vector(bus_device_func, pid1, &msi_address, &msi_data);
+    const uint8_t vector = msi_allocate_vector(bus_device_func, pid1, &msi_address, &msi_data);
     munit_assert_uint8(vector, !=, 0);
 
     // PID1 should own it
@@ -175,16 +162,14 @@ static MunitResult test_msi_verify_ownership(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_msi_register_handler(const MunitParameter params[],
-                                             void *fixture) {
+static MunitResult test_msi_register_handler(const MunitParameter params[], void *fixture) {
     uint64_t msi_address;
     uint32_t msi_data;
     const uint32_t bus_device_func = 0x050000;
     const uint64_t pid = 123;
 
     // Allocate vector
-    const uint8_t vector =
-            msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
+    const uint8_t vector = msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
     munit_assert_uint8(vector, !=, 0);
 
     // Register handler should succeed for owner
@@ -200,16 +185,14 @@ static MunitResult test_msi_register_handler(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_msi_slow_consumer(const MunitParameter params[],
-                                          void *fixture) {
+static MunitResult test_msi_slow_consumer(const MunitParameter params[], void *fixture) {
     uint64_t msi_address;
     uint32_t msi_data;
     const uint32_t bus_device_func = 0x060000;
     const uint64_t pid = 123;
 
     // Allocate vector
-    const uint8_t vector =
-            msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
+    const uint8_t vector = msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
     munit_assert_uint8(vector, !=, 0);
 
     // Initially should not be slow consumer
@@ -233,16 +216,14 @@ static MunitResult test_msi_slow_consumer(const MunitParameter params[],
 }
 
 // Test msi_handle_interrupt
-static MunitResult test_msi_handle_interrupt(const MunitParameter params[],
-                                             void *fixture) {
+static MunitResult test_msi_handle_interrupt(const MunitParameter params[], void *fixture) {
     uint64_t msi_address;
     uint32_t msi_data;
     const uint32_t bus_device_func = 0x080000;
     const uint64_t pid = 123;
 
     // Allocate vector
-    const uint8_t vector =
-            msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
+    const uint8_t vector = msi_allocate_vector(bus_device_func, pid, &msi_address, &msi_data);
     munit_assert_uint8(vector, !=, 0);
 
     // Reset EOI counter before testing
@@ -287,14 +268,12 @@ static MunitResult test_msi_handle_interrupt(const MunitParameter params[],
     // Now send one more to trigger overflow
     msi_handle_interrupt(vector, 0xBADC0FFE);
     munit_assert_int(eoe_call_count, ==,
-                     MSI_QUEUE_SIZE +
-                             1); // EOI must still be called for overflow
+                     MSI_QUEUE_SIZE + 1); // EOI must still be called for overflow
 
     return MUNIT_OK;
 }
 
-static MunitResult test_msi_cleanup_process(const MunitParameter params[],
-                                            void *fixture) {
+static MunitResult test_msi_cleanup_process(const MunitParameter params[], void *fixture) {
     uint64_t msi_address;
     uint32_t msi_data;
     const uint64_t pid = 123;
@@ -303,8 +282,7 @@ static MunitResult test_msi_cleanup_process(const MunitParameter params[],
     uint8_t vectors[3];
     for (int i = 0; i < 3; i++) {
         const uint32_t bus_device_func = 0x070000;
-        vectors[i] = msi_allocate_vector(bus_device_func + i, pid, &msi_address,
-                                         &msi_data);
+        vectors[i] = msi_allocate_vector(bus_device_func + i, pid, &msi_address, &msi_data);
         munit_assert_uint8(vectors[i], !=, 0);
     }
 
@@ -325,28 +303,19 @@ static MunitResult test_msi_cleanup_process(const MunitParameter params[],
 }
 
 static MunitTest msi_tests[] = {
-        {"/allocate_vector", test_msi_allocate_vector, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/allocate_vector_exhaustion", test_msi_allocate_vector_exhaustion,
-         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/cpu_load_balancing", test_msi_cpu_load_balancing, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/deallocate_vector", test_msi_deallocate_vector, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/verify_ownership", test_msi_verify_ownership, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/register_handler", test_msi_register_handler, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/slow_consumer", test_msi_slow_consumer, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/handle_interrupt", test_msi_handle_interrupt, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/cleanup_process", test_msi_cleanup_process, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/allocate_vector", test_msi_allocate_vector, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/allocate_vector_exhaustion", test_msi_allocate_vector_exhaustion, setup, teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/cpu_load_balancing", test_msi_cpu_load_balancing, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/deallocate_vector", test_msi_deallocate_vector, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/verify_ownership", test_msi_verify_ownership, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/register_handler", test_msi_register_handler, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/slow_consumer", test_msi_slow_consumer, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/handle_interrupt", test_msi_handle_interrupt, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/cleanup_process", test_msi_cleanup_process, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/msi", msi_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {"/msi", msi_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(const int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, "µnit", argc, argv);

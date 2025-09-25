@@ -53,8 +53,7 @@ void slab_free(void *ptr) {
 
 // === Tests === //
 
-static MunitResult test_basic_lock_unlock(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_basic_lock_unlock(const MunitParameter params[], void *data) {
     Task *me = task_create_test("task1", 1);
     task_set_current(me);
     Mutex *m = mutex_create();
@@ -63,8 +62,7 @@ static MunitResult test_basic_lock_unlock(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_recursive_lock(const MunitParameter params[],
-                                       void *data) {
+static MunitResult test_recursive_lock(const MunitParameter params[], void *data) {
     Task *me = task_create_test("task2", 1);
     task_set_current(me);
     Mutex *m = mutex_create();
@@ -74,8 +72,7 @@ static MunitResult test_recursive_lock(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_wrong_owner_unlock_fails(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_wrong_owner_unlock_fails(const MunitParameter params[], void *data) {
     Task *t1 = task_create_test("task3", 1);
     Task *t2 = task_create_test("task4", 2);
     task_set_current(t1);
@@ -86,18 +83,11 @@ static MunitResult test_wrong_owner_unlock_fails(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitTest tests[] = {
-        {"/basic", test_basic_lock_unlock, NULL, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {"/recursive", test_recursive_lock, NULL, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {"/wrong_owner", test_wrong_owner_unlock_fails, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
+static MunitTest tests[] = {{"/basic", test_basic_lock_unlock, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {"/recursive", test_recursive_lock, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {"/wrong_owner", test_wrong_owner_unlock_fails, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                            {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite suite = {"/mutex", tests, NULL, 1,
-                                 MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite suite = {"/mutex", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&suite, NULL, argc, argv); }

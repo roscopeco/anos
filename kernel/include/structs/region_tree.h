@@ -68,8 +68,7 @@ Region *region_tree_remove(Region *root, uintptr_t start);
  * region_tree_visit_all - In-order traversal of all regions
  * Calls the provided function on each region.
  */
-void region_tree_visit_all(Region *node, void (*fn)(Region *, void *),
-                           void *data);
+void region_tree_visit_all(Region *node, void (*fn)(Region *, void *), void *data);
 
 /*
  * region_tree_resize - Update the end of an existing region

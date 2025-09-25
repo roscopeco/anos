@@ -31,8 +31,8 @@ static void *test_setup(const MunitParameter params[], void *user_data) {
     fixture->managed_size = 0x100000;        // 1MB
 
     // Initialize VMM
-    int result = vmm_init(fixture->metadata_region, fixture->metadata_size,
-                          fixture->managed_start, fixture->managed_size);
+    int result =
+            vmm_init(fixture->metadata_region, fixture->metadata_size, fixture->managed_start, fixture->managed_size);
     munit_assert_int(result, ==, VMM_SUCCESS);
 
     return fixture;
@@ -49,44 +49,38 @@ static MunitResult test_init(const MunitParameter params[], void *fixture) {
     vmm_fixture_t *f = (vmm_fixture_t *)fixture;
 
     // Test invalid parameters
-    int result =
-            vmm_init(NULL, f->metadata_size, f->managed_start, f->managed_size);
+    int result = vmm_init(NULL, f->metadata_size, f->managed_start, f->managed_size);
     munit_assert_int(result, ==, VMM_ERROR_INVALID_PARAMS);
 
     result = vmm_init(f->metadata_region, 0, f->managed_start, f->managed_size);
     munit_assert_int(result, ==, VMM_ERROR_INVALID_PARAMS);
 
-    result =
-            vmm_init(f->metadata_region, f->metadata_size, f->managed_start, 0);
+    result = vmm_init(f->metadata_region, f->metadata_size, f->managed_start, 0);
     munit_assert_int(result, ==, VMM_ERROR_INVALID_PARAMS);
 
     // Test successful initialization
-    result = vmm_init(f->metadata_region, f->metadata_size, f->managed_start,
-                      f->managed_size);
+    result = vmm_init(f->metadata_region, f->metadata_size, f->managed_start, f->managed_size);
     munit_assert_int(result, ==, VMM_SUCCESS);
 
     return MUNIT_OK;
 }
 
 // Allocation of zero pages
-static MunitResult test_alloc_zero(const MunitParameter params[],
-                                   void *fixture) {
+static MunitResult test_alloc_zero(const MunitParameter params[], void *fixture) {
     uint64_t addr = vmm_alloc_block(0);
     munit_assert_uint64(addr, ==, 0);
     return MUNIT_OK;
 }
 
 // Basic allocation
-static MunitResult test_alloc_basic(const MunitParameter params[],
-                                    void *fixture) {
+static MunitResult test_alloc_basic(const MunitParameter params[], void *fixture) {
     vmm_fixture_t *f = (vmm_fixture_t *)fixture;
 
     // Allocate a single page
     uint64_t addr1 = vmm_alloc_block(1);
     munit_assert_uint64(addr1, !=, 0);
     munit_assert_uint64(addr1, >=, f->managed_start);
-    munit_assert_uint64(addr1 + VM_PAGE_SIZE, <=,
-                        f->managed_start + f->managed_size);
+    munit_assert_uint64(addr1 + VM_PAGE_SIZE, <=, f->managed_start + f->managed_size);
 
     // Allocate another page
     uint64_t addr2 = vmm_alloc_block(1);
@@ -97,8 +91,7 @@ static MunitResult test_alloc_basic(const MunitParameter params[],
 }
 
 // Allocation until out of space
-static MunitResult test_alloc_exhaust(const MunitParameter params[],
-                                      void *fixture) {
+static MunitResult test_alloc_exhaust(const MunitParameter params[], void *fixture) {
     vmm_fixture_t *f = (vmm_fixture_t *)fixture;
 
     // Calculate number of pages in managed region
@@ -120,8 +113,7 @@ static MunitResult test_alloc_exhaust(const MunitParameter params[],
 }
 
 // Freeing blocks
-static MunitResult test_free_basic(const MunitParameter params[],
-                                   void *fixture) {
+static MunitResult test_free_basic(const MunitParameter params[], void *fixture) {
     // Allocate a page
     uint64_t addr = vmm_alloc_block(1);
     munit_assert_uint64(addr, !=, 0);
@@ -138,8 +130,7 @@ static MunitResult test_free_basic(const MunitParameter params[],
 }
 
 // Freeing with invalid parameters
-static MunitResult test_free_invalid(const MunitParameter params[],
-                                     void *fixture) {
+static MunitResult test_free_invalid(const MunitParameter params[], void *fixture) {
     // Try to free zero pages
     int result = vmm_free_block(0x1000, 0);
     munit_assert_int(result, ==, VMM_ERROR_INVALID_PARAMS);
@@ -180,8 +171,7 @@ static MunitResult test_coalesce(const MunitParameter params[], void *fixture) {
 }
 
 // Large allocations
-static MunitResult test_large_alloc(const MunitParameter params[],
-                                    void *fixture) {
+static MunitResult test_large_alloc(const MunitParameter params[], void *fixture) {
     vmm_fixture_t *f = (vmm_fixture_t *)fixture;
 
     // Try to allocate more pages than available
@@ -198,8 +188,7 @@ static MunitResult test_large_alloc(const MunitParameter params[],
 }
 
 // Fragmentation and reassembly
-static MunitResult test_fragmentation(const MunitParameter params[],
-                                      void *fixture) {
+static MunitResult test_fragmentation(const MunitParameter params[], void *fixture) {
     // Allocate 10 single pages
     uint64_t addrs[10];
     for (int i = 0; i < 10; i++) {
@@ -243,29 +232,17 @@ static MunitResult test_fragmentation(const MunitParameter params[],
 }
 
 static MunitTest vmm_tests[] = {
-        {"/init", test_init, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {"/alloc/zero", test_alloc_zero, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/alloc/basic", test_alloc_basic, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/alloc/exhaust", test_alloc_exhaust, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/alloc/large_alloc", test_large_alloc, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/alloc/fragmentation", test_fragmentation, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/free/basic", test_free_basic, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/free/invalid", test_free_invalid, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/free/coalesce", test_coalesce, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/init", test_init, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/alloc/zero", test_alloc_zero, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/alloc/basic", test_alloc_basic, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/alloc/exhaust", test_alloc_exhaust, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/alloc/large_alloc", test_large_alloc, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/alloc/fragmentation", test_fragmentation, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/free/basic", test_free_basic, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/free/invalid", test_free_invalid, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/free/coalesce", test_coalesce, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/vmm/alloc/rb", vmm_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {"/vmm/alloc/rb", vmm_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&test_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&test_suite, NULL, argc, argv); }

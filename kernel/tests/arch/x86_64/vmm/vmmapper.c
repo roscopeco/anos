@@ -12,8 +12,7 @@
 // must include after munit.h!
 #include "mock_pagetables.h"
 
-static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[],
-                                              void *param) {
+static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[], void *param) {
 
     currently_active_pml4 = &empty_pml4;
 
@@ -22,8 +21,7 @@ static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[],
     munit_assert_uint64(empty_pml4.entries[0], !=, 0);
 
     // pdpt was created and mapped
-    const uint64_t *pdpt =
-            (uint64_t *)(empty_pml4.entries[0] & 0xFFFFFFFFFFFFF000);
+    const uint64_t *pdpt = (uint64_t *)(empty_pml4.entries[0] & 0xFFFFFFFFFFFFF000);
     munit_assert_uint64(pdpt[0], !=, 0);
     for (int i = 1; i < 512; i++) {
         munit_assert_uint64(pdpt[i], ==, 0);
@@ -52,8 +50,7 @@ static MunitResult test_map_page_empty_pml4_0(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_map_page_empty_pml4_2M(const MunitParameter params[],
-                                               void *param) {
+static MunitResult test_map_page_empty_pml4_2M(const MunitParameter params[], void *param) {
 
     currently_active_pml4 = &empty_pml4;
 
@@ -96,8 +93,7 @@ static MunitResult test_map_page_empty_pml4_2M(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_map_page_empty_pml4_1G(const MunitParameter params[],
-                                               void *param) {
+static MunitResult test_map_page_empty_pml4_1G(const MunitParameter params[], void *param) {
 
     currently_active_pml4 = &empty_pml4;
     vmm_map_page_in(empty_pml4.entries, 0x40000000, 0x1000, 0);
@@ -141,8 +137,7 @@ static MunitResult test_map_page_empty_pml4_1G(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_map_page_empty_pml4_512G(const MunitParameter params[],
-                                                 void *param) {
+static MunitResult test_map_page_empty_pml4_512G(const MunitParameter params[], void *param) {
     vmm_map_page_in(empty_pml4.entries, 0x8000000000, 0x1000, 0);
 
     munit_assert_uint64(empty_pml4.entries[0], ==, 0);
@@ -184,8 +179,7 @@ static MunitResult test_map_page_empty_pml4_512G(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_map_page_complete_pml4_0(const MunitParameter params[],
-                                                 void *param) {
+static MunitResult test_map_page_complete_pml4_0(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
     vmm_map_page_in(complete_pml4.entries, 0x0, 0x1000, 0);
@@ -199,9 +193,7 @@ static MunitResult test_map_page_complete_pml4_0(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_map_page_complete_pml4_phys_4G(const MunitParameter params[],
-                                    void *param) {
+static MunitResult test_map_page_complete_pml4_phys_4G(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x100000000);
 
     vmm_map_page_in(complete_pml4.entries, 0x0, 0x100000000, 0);
@@ -215,12 +207,10 @@ test_map_page_complete_pml4_phys_4G(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_map_page_containing_already(const MunitParameter params[], void *param) {
+static MunitResult test_map_page_containing_already(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
-    bool result =
-            vmm_map_page_containing_in(complete_pml4.entries, 0x0, 0x1000, 0);
+    bool result = vmm_map_page_containing_in(complete_pml4.entries, 0x0, 0x1000, 0);
     munit_assert_true(result);
 
     // Correct page was mapped
@@ -229,12 +219,10 @@ test_map_page_containing_already(const MunitParameter params[], void *param) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_map_page_containing_within(const MunitParameter params[], void *param) {
+static MunitResult test_map_page_containing_within(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
-    bool result = vmm_map_page_containing_in((uint64_t *)&complete_pml4, 0x0,
-                                             0x1234, 0);
+    bool result = vmm_map_page_containing_in((uint64_t *)&complete_pml4, 0x0, 0x1234, 0);
     munit_assert_true(result);
 
     // Correct page was mapped
@@ -243,8 +231,7 @@ test_map_page_containing_within(const MunitParameter params[], void *param) {
     return MUNIT_OK;
 }
 
-static MunitResult test_unmap_page_empty_pml4_0(const MunitParameter params[],
-                                                void *param) {
+static MunitResult test_unmap_page_empty_pml4_0(const MunitParameter params[], void *param) {
     vmm_unmap_page_in((uint64_t *)&empty_pml4, 0x0);
 
     munit_assert_uint64(empty_pml4.entries[0], ==, 0);
@@ -252,8 +239,7 @@ static MunitResult test_unmap_page_empty_pml4_0(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_unmap_page_empty_pml4_2M(const MunitParameter params[],
-                                                 void *param) {
+static MunitResult test_unmap_page_empty_pml4_2M(const MunitParameter params[], void *param) {
     vmm_unmap_page_in((uint64_t *)&empty_pml4, 0x200000);
 
     munit_assert_uint64(empty_pml4.entries[0], ==, 0);
@@ -261,8 +247,7 @@ static MunitResult test_unmap_page_empty_pml4_2M(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_unmap_page_complete_pml4_0(const MunitParameter params[], void *param) {
+static MunitResult test_unmap_page_complete_pml4_0(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
     vmm_map_page_in(complete_pml4.entries, 0x0, 0x1000, PG_PRESENT);
@@ -270,16 +255,12 @@ test_unmap_page_complete_pml4_0(const MunitParameter params[], void *param) {
     // Correct page was mapped
     munit_assert_uint64(complete_pt.entries[0], ==, 0x1000 | PG_PRESENT);
 
-    uintptr_t unmapped_phys =
-            vmm_unmap_page_in((uint64_t *)&complete_pml4, 0x0);
+    uintptr_t unmapped_phys = vmm_unmap_page_in((uint64_t *)&complete_pml4, 0x0);
 
     // Higher-level tables are untouched
-    munit_assert_uint64(complete_pml4.entries[0], ==,
-                        (uint64_t)&complete_pdpt | PG_PRESENT);
-    munit_assert_uint64(complete_pdpt.entries[0], ==,
-                        (uint64_t)&complete_pd | PG_PRESENT);
-    munit_assert_uint64(complete_pd.entries[0], ==,
-                        (uint64_t)&complete_pt | PG_PRESENT);
+    munit_assert_uint64(complete_pml4.entries[0], ==, (uint64_t)&complete_pdpt | PG_PRESENT);
+    munit_assert_uint64(complete_pdpt.entries[0], ==, (uint64_t)&complete_pd | PG_PRESENT);
+    munit_assert_uint64(complete_pd.entries[0], ==, (uint64_t)&complete_pt | PG_PRESENT);
 
     // Correct page was unmapped in PT
     munit_assert_uint64(complete_pt.entries[0], ==, 0);
@@ -290,8 +271,7 @@ test_unmap_page_complete_pml4_0(const MunitParameter params[], void *param) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_unmap_page_complete_pml4_0_np(const MunitParameter params[], void *param) {
+static MunitResult test_unmap_page_complete_pml4_0_np(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
     vmm_map_page_in(complete_pml4.entries, 0x0, 0x1000, 0);
@@ -299,16 +279,12 @@ test_unmap_page_complete_pml4_0_np(const MunitParameter params[], void *param) {
     // Correct page was mapped
     munit_assert_uint64(complete_pt.entries[0], ==, 0x1000);
 
-    const uintptr_t unmapped_phys =
-            vmm_unmap_page_in(complete_pml4.entries, 0x0);
+    const uintptr_t unmapped_phys = vmm_unmap_page_in(complete_pml4.entries, 0x0);
 
     // Higher-level tables are untouched
-    munit_assert_uint64(complete_pml4.entries[0], ==,
-                        (uint64_t)&complete_pdpt | PG_PRESENT);
-    munit_assert_uint64(complete_pdpt.entries[0], ==,
-                        (uint64_t)&complete_pd | PG_PRESENT);
-    munit_assert_uint64(complete_pd.entries[0], ==,
-                        (uint64_t)&complete_pt | PG_PRESENT);
+    munit_assert_uint64(complete_pml4.entries[0], ==, (uint64_t)&complete_pdpt | PG_PRESENT);
+    munit_assert_uint64(complete_pdpt.entries[0], ==, (uint64_t)&complete_pd | PG_PRESENT);
+    munit_assert_uint64(complete_pd.entries[0], ==, (uint64_t)&complete_pt | PG_PRESENT);
 
     // Page was not unmapped in PT, as not present
     munit_assert_uint64(complete_pt.entries[0], ==, 0x1000);
@@ -319,26 +295,22 @@ test_unmap_page_complete_pml4_0_np(const MunitParameter params[], void *param) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_unmap_page_complete_pml4_2M(const MunitParameter params[], void *param) {
+static MunitResult test_unmap_page_complete_pml4_2M(const MunitParameter params[], void *param) {
     munit_assert_uint64(complete_pt.entries[0], !=, 0x1000);
 
     vmm_map_page_in(complete_pml4.entries, 0x200000, 0x1000, 0);
 
-    uint64_t *pdpt =
-            (uint64_t *)(complete_pml4.entries[0] & 0xFFFFFFFFFFFFF000);
+    uint64_t *pdpt = (uint64_t *)(complete_pml4.entries[0] & 0xFFFFFFFFFFFFF000);
     uint64_t *pd = (uint64_t *)(pdpt[0] & 0xFFFFFFFFFFFFF000);
     uint64_t *pt = (uint64_t *)(pd[1] & 0xFFFFFFFFFFFFF000);
 
     // Correct page was mapped
     munit_assert_uint64(pt[0], ==, 0x1000);
 
-    uintptr_t unmapped_phys =
-            vmm_unmap_page_in((uint64_t *)&complete_pml4, 0x200000);
+    uintptr_t unmapped_phys = vmm_unmap_page_in((uint64_t *)&complete_pml4, 0x200000);
 
     // Higher-level tables are untouched
-    munit_assert_uint64(complete_pml4.entries[0], ==,
-                        (uint64_t)pdpt | PG_PRESENT);
+    munit_assert_uint64(complete_pml4.entries[0], ==, (uint64_t)pdpt | PG_PRESENT);
     munit_assert_uint64(pdpt[0], ==, (uint64_t)pd | PG_PRESENT);
     munit_assert_uint64(pd[1], ==, (uint64_t)pt | PG_PRESENT);
 
@@ -371,32 +343,23 @@ static void *setup(const MunitParameter params[], void *user_data) {
 static void teardown(void *param) { mock_pmm_reset(); }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/map/empty_pml4_0M", test_map_page_empty_pml4_0, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/map/empty_pml4_2M", test_map_page_empty_pml4_2M, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/map/empty_pml4_1G", test_map_page_empty_pml4_1G, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/map/empty_pml4_512G", test_map_page_empty_pml4_512G, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/map/complete_pml4_0M", test_map_page_complete_pml4_0, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/map/complete_pml4_phys_4G",
-         test_map_page_complete_pml4_phys_4G, setup, teardown,
+        {(char *)"/map/empty_pml4_0M", test_map_page_empty_pml4_0, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/map/empty_pml4_2M", test_map_page_empty_pml4_2M, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/map/empty_pml4_1G", test_map_page_empty_pml4_1G, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/map/empty_pml4_512G", test_map_page_empty_pml4_512G, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/map/complete_pml4_0M", test_map_page_complete_pml4_0, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/map/complete_pml4_phys_4G", test_map_page_complete_pml4_phys_4G, setup, teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/map/containing_already", test_map_page_containing_already,
-         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/map/containing_within", test_map_page_containing_within,
-         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/map/containing_already", test_map_page_containing_already, setup, teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/map/containing_within", test_map_page_containing_within, setup, teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
 
-        {(char *)"/unmap/empty_pml4_0M", test_unmap_page_empty_pml4_0, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/unmap/empty_pml4_2M", test_unmap_page_empty_pml4_2M, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/unmap/complete_pml4_0M", test_unmap_page_complete_pml4_0,
-         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/unmap/complete_pml4_0M_np",
-         test_unmap_page_complete_pml4_0_np, setup, teardown,
+        {(char *)"/unmap/empty_pml4_0M", test_unmap_page_empty_pml4_0, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/unmap/empty_pml4_2M", test_unmap_page_empty_pml4_2M, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/unmap/complete_pml4_0M", test_unmap_page_complete_pml4_0, setup, teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/unmap/complete_pml4_0M_np", test_unmap_page_complete_pml4_0_np, setup, teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
 
         /* TODO fix this test
@@ -407,8 +370,7 @@ static MunitTest test_suite_tests[] = {
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"/vmm", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"/vmm", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);

@@ -13,6 +13,5 @@ static constexpr uint8_t PAGEFAULT_VECTOR = 0x0e;
 void page_fault_dispatcher(void);
 
 void pagefault_notify_smp_started(void) {
-    idt_install_isr(PAGEFAULT_VECTOR, page_fault_dispatcher, 0, 0,
-                    IDT_TYPE_TRAP, 1);
+    idt_install_isr(PAGEFAULT_VECTOR, page_fault_dispatcher, 0, 0, IDT_TYPE_TRAP, 1);
 }
