@@ -56,9 +56,7 @@ static Region *rotate_left(Region *x) {
     return y;
 }
 
-static int get_balance(Region *node) {
-    return node ? height(node->left) - height(node->right) : 0;
-}
+static int get_balance(Region *node) { return node ? height(node->left) - height(node->right) : 0; }
 
 Region *region_tree_insert(Region *node, Region *new_region) {
     if (!new_region || new_region->end <= new_region->start)
@@ -116,8 +114,7 @@ Region *region_tree_lookup(Region *node, uintptr_t addr) {
     return NULL; // not found
 }
 
-void region_tree_visit_all(Region *node, void (*fn)(Region *, void *),
-                           void *data) {
+void region_tree_visit_all(Region *node, void (*fn)(Region *, void *), void *data) {
     if (!node)
         return;
     region_tree_visit_all(node->left, fn, data);

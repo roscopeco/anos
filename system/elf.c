@@ -33,8 +33,7 @@ ssize_t load_page(ElfPagedReader *r, const off_t offset) {
 
         strcpy(r->page + sizeof(uint64_t), r->filename);
 
-        const SyscallResult result = anos_send_message(
-                r->fs_cookie, SYS_VFS_TAG_LOAD_PAGE, 26, r->page);
+        const SyscallResult result = anos_send_message(r->fs_cookie, SYS_VFS_TAG_LOAD_PAGE, 26, r->page);
 
         const uint64_t loaded_bytes = result.value;
 
@@ -75,8 +74,7 @@ static void *get_ptr(ElfPagedReader *r, const off_t offset, const size_t size) {
     return temp;
 }
 
-uintptr_t elf_map_elf64(ElfPagedReader *reader,
-                        const ProgramHeaderHandler handler, uint64_t data) {
+uintptr_t elf_map_elf64(ElfPagedReader *reader, const ProgramHeaderHandler handler, uint64_t data) {
 
     const Elf64Header *ehdr = get_ptr(reader, 0, sizeof(Elf64Header));
 
@@ -104,8 +102,7 @@ uintptr_t elf_map_elf64(ElfPagedReader *reader,
 
     for (int i = 0; i < ehdr->e_phnum; ++i) {
         const off_t ph_offset = ehdr->e_phoff + i * ehdr->e_phentsize;
-        const Elf64ProgramHeader *phdr =
-                get_ptr(reader, ph_offset, sizeof(Elf64ProgramHeader));
+        const Elf64ProgramHeader *phdr = get_ptr(reader, ph_offset, sizeof(Elf64ProgramHeader));
 
         if (phdr->p_type != PT_LOAD)
             continue;

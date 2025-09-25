@@ -47,8 +47,7 @@ uint64_t *test_fba_bitmap_end() { return _fba_bitmap_end; }
 
 extern MemoryRegion *physical_region;
 
-bool fba_init(uint64_t *pml4, const uintptr_t fba_begin,
-              const uint64_t fba_size_blocks) {
+bool fba_init(uint64_t *pml4, const uintptr_t fba_begin, const uint64_t fba_size_blocks) {
     if ((fba_begin & 0xfff) != 0) { // begin must be page aligned
         return false;
     }
@@ -116,8 +115,7 @@ static inline void *do_alloc(const uintptr_t block_address) {
         return NULL;
     }
 
-    vmm_map_page_in(_pml4, block_address, phys,
-                    PG_PRESENT | PG_READ | PG_WRITE);
+    vmm_map_page_in(_pml4, block_address, phys, PG_PRESENT | PG_READ | PG_WRITE);
 
     return (void *)block_address;
 }
@@ -127,9 +125,7 @@ static inline void *do_alloc(const uintptr_t block_address) {
 //
 // align_page_count must be a power of 2 and <= 64
 //
-static inline uint64_t find_unset_run(const uint64_t *bitmap,
-                                      const uint64_t num_quads,
-                                      const uint8_t align_page_count,
+static inline uint64_t find_unset_run(const uint64_t *bitmap, const uint64_t num_quads, const uint8_t align_page_count,
                                       const uint64_t n) {
     if (n == 0 || num_quads == 0)
         return 0;
@@ -149,8 +145,7 @@ static inline uint64_t find_unset_run(const uint64_t *bitmap,
                 if (consec_zeroes == 0) {
                     // Check alignment of potential start
                     const uint64_t current_bit = word_idx * 64;
-                    const uint64_t aligned_start =
-                            (current_bit + align_mask) & ~align_mask;
+                    const uint64_t aligned_start = (current_bit + align_mask) & ~align_mask;
                     if (aligned_start != current_bit) {
                         // Skip to next aligned position
                         consec_zeroes = 0;
@@ -171,8 +166,7 @@ static inline uint64_t find_unset_run(const uint64_t *bitmap,
                     if (!(word & ((uint64_t)(1) << bit_idx))) {
                         if (consec_zeroes == 0) {
                             // Check alignment
-                            const uint64_t aligned_start =
-                                    (current_bit + align_mask) & ~align_mask;
+                            const uint64_t aligned_start = (current_bit + align_mask) & ~align_mask;
                             if (aligned_start != current_bit) {
                                 // Skip to next aligned position
                                 continue;
@@ -199,8 +193,7 @@ static inline uint64_t find_unset_run(const uint64_t *bitmap,
             if (consec_zeroes == 0) {
                 // Check alignment of potential start
                 const uint64_t current_bit = word_idx * 64;
-                const uint64_t aligned_start =
-                        (current_bit + align_mask) & ~align_mask;
+                const uint64_t aligned_start = (current_bit + align_mask) & ~align_mask;
                 if (aligned_start != current_bit) {
                     // Skip to next aligned position
                     continue;
@@ -219,8 +212,7 @@ static inline uint64_t find_unset_run(const uint64_t *bitmap,
                 if (!(word & ((uint64_t)(1) << bit_idx))) {
                     if (consec_zeroes == 0) {
                         // Check alignment
-                        const uint64_t aligned_start =
-                                (current_bit + align_mask) & ~align_mask;
+                        const uint64_t aligned_start = (current_bit + align_mask) & ~align_mask;
                         if (aligned_start != current_bit) {
                             continue;
                         }
@@ -239,9 +231,7 @@ static inline uint64_t find_unset_run(const uint64_t *bitmap,
     return num_quads << 6;
 }
 
-void *fba_alloc_blocks(const uint32_t count) {
-    return fba_alloc_blocks_aligned(count, 1);
-}
+void *fba_alloc_blocks(const uint32_t count) { return fba_alloc_blocks_aligned(count, 1); }
 
 void *fba_alloc_blocks_aligned(uint32_t count, const uint8_t page_align) {
     tprintf("bmp     = %p\n", _fba_bitmap);
@@ -251,16 +241,14 @@ void *fba_alloc_blocks_aligned(uint32_t count, const uint8_t page_align) {
         return NULL;
     }
 
-    if (page_align == 0 || page_align > 64 ||
-        (page_align & (page_align - 1)) != 0) {
+    if (page_align == 0 || page_align > 64 || (page_align & (page_align - 1)) != 0) {
         // Align must be a power of two, 0 < page_align < 64
         return NULL;
     }
 
     const uint64_t lock_flags = spinlock_lock_irqsave(&fba_lock);
     uint64_t *bmp = _fba_bitmap;
-    const uint64_t bit =
-            find_unset_run(bmp, _fba_bitmap_size_quads, page_align, count);
+    const uint64_t bit = find_unset_run(bmp, _fba_bitmap_size_quads, page_align, count);
 
     if (bit == _fba_bitmap_size_bits) {
         tprintf("Unable to satisfy request for %d blocks\n", count);
@@ -270,13 +258,11 @@ void *fba_alloc_blocks_aligned(uint32_t count, const uint8_t page_align) {
 
     tprintf("Bit is %ld\n", bit);
 
-    const uintptr_t first_block_address =
-            _fba_begin + ((bmp - _fba_bitmap) * 64 + bit) * VM_PAGE_SIZE;
+    const uintptr_t first_block_address = _fba_begin + ((bmp - _fba_bitmap) * 64 + bit) * VM_PAGE_SIZE;
 
     for (int i = 0; i < count; i++) {
         bitmap_set(bmp, bit + i);
-        const uintptr_t block_address =
-                first_block_address + (i * VM_PAGE_SIZE);
+        const uintptr_t block_address = first_block_address + (i * VM_PAGE_SIZE);
 
         if (!do_alloc(block_address)) {
             // TODO we leak memory here if one fails - we should free whatever
@@ -306,16 +292,13 @@ static inline uint8_t first_set_bit_64(uint64_t nonzero_uint64) {
     return __builtin_ctzll(nonzero_uint64);
 #else
     // Otherwise, fallback to De Bruijn sequence...
-    static const int DeBruijnTable[64] = {
-            0,  1,  48, 2,  57, 49, 28, 3,  61, 58, 50, 42, 38, 29, 17, 4,
-            62, 55, 59, 36, 53, 51, 43, 22, 45, 39, 33, 30, 24, 18, 12, 5,
-            63, 47, 56, 27, 60, 41, 37, 16, 54, 35, 52, 21, 44, 32, 23, 11,
-            46, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9,  13, 8,  7,  6};
+    static const int DeBruijnTable[64] = {0,  1,  48, 2,  57, 49, 28, 3,  61, 58, 50, 42, 38, 29, 17, 4,
+                                          62, 55, 59, 36, 53, 51, 43, 22, 45, 39, 33, 30, 24, 18, 12, 5,
+                                          63, 47, 56, 27, 60, 41, 37, 16, 54, 35, 52, 21, 44, 32, 23, 11,
+                                          46, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9,  13, 8,  7,  6};
 
     // Isolate least significant set bit and multiply by De Bruijn constant
-    return DeBruijnTable[((nonzero_uint64 & -nonzero_uint64) *
-                          ((uint64_t)(0x03f79d71b4cb0a89))) >>
-                         58];
+    return DeBruijnTable[((nonzero_uint64 & -nonzero_uint64) * ((uint64_t)(0x03f79d71b4cb0a89))) >> 58];
 #endif
 }
 
@@ -341,8 +324,7 @@ void *fba_alloc_block() {
 
     const int bit = first_set_bit_64(~(*bmp));
     bitmap_set(bmp, bit);
-    const uintptr_t block_address =
-            _fba_begin + ((bmp - _fba_bitmap) * 64 + bit) * VM_PAGE_SIZE;
+    const uintptr_t block_address = _fba_begin + ((bmp - _fba_bitmap) * 64 + bit) * VM_PAGE_SIZE;
     spinlock_unlock_irqrestore(&fba_lock, lock_flags);
     return do_alloc(block_address);
 }
@@ -353,8 +335,7 @@ void fba_free(void *block) {
     }
 
     uintptr_t block_address = (uintptr_t)block;
-    if (block_address < _fba_begin ||
-        block_address >= _fba_begin + (_fba_size_blocks * VM_PAGE_SIZE)) {
+    if (block_address < _fba_begin || block_address >= _fba_begin + (_fba_size_blocks * VM_PAGE_SIZE)) {
         // Address is out of range
         return;
     }
@@ -393,8 +374,7 @@ void fba_free(void *block) {
 
 void fba_free_blocks(void *block, uint32_t count) {
     const uint8_t *end = ((uint8_t *)block) + (count * VM_PAGE_SIZE);
-    for (uint8_t *current = (uint8_t *)block; current < end;
-         current += VM_PAGE_SIZE) {
+    for (uint8_t *current = (uint8_t *)block; current < end; current += VM_PAGE_SIZE) {
         fba_free(current);
     }
 }

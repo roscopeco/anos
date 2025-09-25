@@ -29,7 +29,7 @@
 #define SBI_ERR_BAD_RANGE (-11)        // Bad (or invalid) range
 #define SBI_ERR_TIMEOUT (-12)          // Failed due to timeout
 #define SBI_ERR_IO (-13)               // Input/Output error
-#define SBI_ERR_DENIED_LOCKED (-14) // Denied or not allowed due to lock status
+#define SBI_ERR_DENIED_LOCKED (-14)    // Denied or not allowed due to lock status
 
 struct sbiret {
     int64_t error;
@@ -41,14 +41,11 @@ struct sbiret {
 
 void sbi_ecall_1(uint64_t eid, uint64_t fid, uint64_t arg0);
 void sbi_ecall_2(uint64_t eid, uint64_t fid, uint64_t arg0, uint64_t arg1);
-void sbi_ecall_3(uint64_t eid, uint64_t fid, uint64_t arg0, uint64_t arg1,
-                 uint64_t arg2);
-void sbi_ecall_4(uint64_t eid, uint64_t fid, uint64_t arg0, uint64_t arg1,
-                 uint64_t arg2, uint64_t arg3);
-void sbi_ecall_5(uint64_t eid, uint64_t fid, uint64_t arg0, uint64_t arg1,
-                 uint64_t arg2, uint64_t arg3, uint64_t arg4);
-void sbi_ecall_6(uint64_t eid, uint64_t fid, uint64_t arg0, uint64_t arg1,
-                 uint64_t arg2, uint64_t arg3, uint64_t arg4, uint64_t arg5);
+void sbi_ecall_3(uint64_t eid, uint64_t fid, uint64_t arg0, uint64_t arg1, uint64_t arg2);
+void sbi_ecall_4(uint64_t eid, uint64_t fid, uint64_t arg0, uint64_t arg1, uint64_t arg2, uint64_t arg3);
+void sbi_ecall_5(uint64_t eid, uint64_t fid, uint64_t arg0, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4);
+void sbi_ecall_6(uint64_t eid, uint64_t fid, uint64_t arg0, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t arg4,
+                 uint64_t arg5);
 
 void sbi_set_timer(const uint64_t stime_value);
 

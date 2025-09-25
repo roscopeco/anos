@@ -24,19 +24,11 @@ void mock_acpitables_reset(void) {
     find_result = NULL;
 }
 
-uint32_t mock_acpitables_get_acpi_tables_find_call_count(void) {
-    return find_call_count;
-}
-ACPI_RSDT *mock_acpitables_get_acpi_tables_get_last_find_rsdt(void) {
-    return last_find_rsdt;
-}
-char *mock_acpitables_get_acpi_tables_get_last_find_ident(void) {
-    return last_find_ident;
-}
+uint32_t mock_acpitables_get_acpi_tables_find_call_count(void) { return find_call_count; }
+ACPI_RSDT *mock_acpitables_get_acpi_tables_get_last_find_rsdt(void) { return last_find_rsdt; }
+char *mock_acpitables_get_acpi_tables_get_last_find_ident(void) { return last_find_ident; }
 
-void mock_acpitables_set_find_result(ACPI_SDTHeader *result) {
-    find_result = result;
-}
+void mock_acpitables_set_find_result(ACPI_SDTHeader *result) { find_result = result; }
 
 /* Interface */
 

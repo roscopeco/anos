@@ -129,9 +129,7 @@ static bool sched_enqueue_on(Task *task, PerCPUSchedState *cpu) {
     return true;
 }
 
-static bool sched_enqueue(Task *task) {
-    return sched_enqueue_on(task, get_this_cpu_sched_state());
-}
+static bool sched_enqueue(Task *task) { return sched_enqueue_on(task, get_this_cpu_sched_state()); }
 
 #ifdef UNIT_TESTS
 // TODO there's too much test code leaking into prod code...
@@ -182,8 +180,8 @@ Task *test_sched_prr_set_runnable_head(TaskClass level, Task *task) {
 #endif
 
 // This should only be called on the BSP
-bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
-                uintptr_t bootstrap_func, TaskClass task_class) {
+bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func, uintptr_t bootstrap_func,
+                TaskClass task_class) {
 
     if (sys_ssp == 0) {
         return false;
@@ -200,8 +198,7 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
         return false;
     }
 
-    Task *new_task = task_create_new(new_process, sys_sp, sys_ssp,
-                                     bootstrap_func, start_func, task_class);
+    Task *new_task = task_create_new(new_process, sys_sp, sys_ssp, bootstrap_func, start_func, task_class);
 
     // During init it's just us, no need to lock / unlock
     if (!sched_enqueue(new_task)) {
@@ -214,8 +211,7 @@ bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
     return true;
 }
 
-bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp,
-                     uintptr_t bootstrap_func) {
+bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp, uintptr_t bootstrap_func) {
 
     if (!system_process) {
         return false;
@@ -224,8 +220,7 @@ bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp,
     PerCPUSchedState *state = get_this_cpu_sched_state();
 
     Task *idle_task =
-            task_create_new(system_process, sp, sys_ssp, bootstrap_func,
-                            (uintptr_t)sched_idle_thread, TASK_CLASS_IDLE);
+            task_create_new(system_process, sp, sys_ssp, bootstrap_func, (uintptr_t)sched_idle_thread, TASK_CLASS_IDLE);
 
     if (!sched_enqueue(idle_task)) {
         task_destroy(idle_task);
@@ -238,8 +233,7 @@ bool sched_init_idle(uintptr_t sp, uintptr_t sys_ssp,
 #include "kprintf.h"
 
 static inline bool thread_to_be_killed(Task *task) {
-    return (task->sched->status_flags & TASK_SCHED_FLAG_KILLED) &&
-           !(task->sched->status_flags & TASK_SCHED_FLAG_DYING);
+    return (task->sched->status_flags & TASK_SCHED_FLAG_KILLED) && !(task->sched->status_flags & TASK_SCHED_FLAG_DYING);
 }
 
 void sched_schedule(void) {
@@ -302,8 +296,7 @@ void sched_schedule(void) {
             // scheduler anyway once it's killed.
             __builtin_unreachable();
 
-        } else if (current->sched->state != TASK_STATE_BLOCKED &&
-                   current->sched->ts_remain > 0 &&
+        } else if (current->sched->state != TASK_STATE_BLOCKED && current->sched->ts_remain > 0 &&
                    (candidate_next->sched->class <= current->sched->class ||
                     (candidate_next->sched->class == current->sched->class &&
                      candidate_next->sched->prio >= current->sched->prio))) {
@@ -351,8 +344,7 @@ PerCPUState *sched_find_target_cpu() {
             target_sched = (PerCPUSchedState *)target->sched_data;
         }
 
-        PerCPUSchedState *candidate_sched =
-                (PerCPUSchedState *)candidate->sched_data;
+        PerCPUSchedState *candidate_sched = (PerCPUSchedState *)candidate->sched_data;
 
 #ifdef CONSERVATIVE_BUILD
         if (candidate_sched == NULL) {
@@ -368,8 +360,7 @@ PerCPUState *sched_find_target_cpu() {
 #endif
 
 #ifdef TARGET_CPU_CONSIDER_SLEEPERS
-        if ((candidate_sched->all_queue_total + candidate->sleep_queue.count) ==
-            1) {
+        if ((candidate_sched->all_queue_total + candidate->sleep_queue.count) == 1) {
 #else
         if (candidate_sched->all_queue_total == 1) {
 #endif
@@ -389,8 +380,7 @@ PerCPUState *sched_find_target_cpu() {
             ((candidate_sched->all_queue_total + candidate->sleep_queue.count) <
              (target_sched->all_queue_total + candidate->sleep_queue.count))) {
 #else
-            (candidate_sched->all_queue_total <
-             target_sched->all_queue_total)) {
+            (candidate_sched->all_queue_total < target_sched->all_queue_total)) {
 #endif
             target = candidate;
         }
@@ -419,8 +409,7 @@ PerCPUState *sched_find_target_cpu() {
 
 void sched_unblock_on(Task *task, PerCPUState *target_cpu_state) {
     task->sched->state = TASK_STATE_READY;
-    bool result = sched_enqueue_on(
-            task, ((PerCPUSchedState *)target_cpu_state->sched_data));
+    bool result = sched_enqueue_on(task, ((PerCPUSchedState *)target_cpu_state->sched_data));
 
 #ifdef CONSERVATIVE_BUILD
     if (!result) {
@@ -434,8 +423,6 @@ void sched_unblock_on(Task *task, PerCPUState *target_cpu_state) {
 #endif
 }
 
-void sched_unblock(Task *task) {
-    sched_unblock_on(task, state_get_for_this_cpu());
-}
+void sched_unblock(Task *task) { sched_unblock_on(task, state_get_for_this_cpu()); }
 
 void sched_block(Task *task) { task->sched->state = TASK_STATE_BLOCKED; }

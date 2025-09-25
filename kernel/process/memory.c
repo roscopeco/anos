@@ -26,11 +26,9 @@
 #endif
 #endif
 
-#define PAGES_PER_BLOCK                                                        \
-    ((4096 - sizeof(struct ProcessPageBlock *)) / sizeof(ProcessPageEntry))
+#define PAGES_PER_BLOCK ((4096 - sizeof(struct ProcessPageBlock *)) / sizeof(ProcessPageEntry))
 
-bool process_add_owned_page(Process *proc, MemoryRegion *region,
-                            uintptr_t phys_addr, bool shared) {
+bool process_add_owned_page(Process *proc, MemoryRegion *region, uintptr_t phys_addr, bool shared) {
     if (!proc) {
         return false;
     }
@@ -66,8 +64,7 @@ bool process_add_owned_page(Process *proc, MemoryRegion *region,
         proc->meminfo->pages->head = blk;
     }
 
-    blk->pages[blk->count++] =
-            (ProcessPageEntry){.region = region, .addr = phys_addr};
+    blk->pages[blk->count++] = (ProcessPageEntry){.region = region, .addr = phys_addr};
     spinlock_unlock_irqrestore(proc->meminfo->pages_lock, flags);
     return true;
 }

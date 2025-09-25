@@ -59,35 +59,30 @@ void debug_memmap_limine(Limine_MemMap *memmap);
 //
 LIMINE_BASE_REVISION(2);
 
-static volatile Limine_MemMapRequest limine_memmap_request
-        __attribute__((__aligned__(8))) = {
-                .id = LIMINE_MEMMAP_REQUEST,
-                .revision = 3,
+static volatile Limine_MemMapRequest limine_memmap_request __attribute__((__aligned__(8))) = {
+        .id = LIMINE_MEMMAP_REQUEST,
+        .revision = 3,
 };
 
-static volatile Limine_RsdpRequest limine_rsdp_request
-        __attribute__((__aligned__(8))) = {
-                .id = LIMINE_RSDP_REQUEST,
-                .revision = 3,
+static volatile Limine_RsdpRequest limine_rsdp_request __attribute__((__aligned__(8))) = {
+        .id = LIMINE_RSDP_REQUEST,
+        .revision = 3,
 };
 
-static volatile Limine_FrameBufferRequest limine_framebuffer_request
-        __attribute__((__aligned__(8))) = {
-                .id = LIMINE_FRAMEBUFFER_REQUEST,
-                .revision = 3,
+static volatile Limine_FrameBufferRequest limine_framebuffer_request __attribute__((__aligned__(8))) = {
+        .id = LIMINE_FRAMEBUFFER_REQUEST,
+        .revision = 3,
 };
 
-static volatile Limine_HHDMRequest limine_hhdm_request
-        __attribute__((__aligned__(8))) = {
-                .id = LIMINE_HHDM_REQUEST,
-                .revision = 3,
+static volatile Limine_HHDMRequest limine_hhdm_request __attribute__((__aligned__(8))) = {
+        .id = LIMINE_HHDM_REQUEST,
+        .revision = 3,
 };
 
-static volatile Limine_ModuleRequest limine_module_request
-        __attribute__((__aligned__(8))) = {
-                .id = LIMINE_MODULE_REQUEST,
-                .revision = 3,
-                .internal_module_count = 0,
+static volatile Limine_ModuleRequest limine_module_request __attribute__((__aligned__(8))) = {
+        .id = LIMINE_MODULE_REQUEST,
+        .revision = 3,
+        .internal_module_count = 0,
 };
 
 extern uint64_t _kernel_vma_start;
@@ -123,13 +118,11 @@ static ACPI_RSDP static_rsdp;
 
 // Externals
 noreturn void bsp_kernel_entrypoint(uintptr_t rsdp_phys);
-noreturn void bootstrap_trampoline(size_t system_size, uint16_t fb_width,
-                                   uint16_t fb_height, uintptr_t new_stack,
+noreturn void bootstrap_trampoline(size_t system_size, uint16_t fb_width, uint16_t fb_height, uintptr_t new_stack,
                                    uintptr_t new_pt_phys, void *boing);
 
 // Forwards
-static noreturn void bootstrap_continue(size_t system_size, uint16_t fb_width,
-                                        uint16_t fb_height);
+static noreturn void bootstrap_continue(size_t system_size, uint16_t fb_width, uint16_t fb_height);
 
 noreturn void bsp_kernel_entrypoint_limine() {
     // grab stuff we need - memmap first. We'll copy it into a static buffer for ease...
@@ -142,24 +135,19 @@ noreturn void bsp_kernel_entrypoint_limine() {
 
     for (int i = 0; i < static_memmap.entry_count; i++) {
         static_memmap_pointers[i] = &static_memmap_entries[i];
-        static_memmap_entries[i].base =
-                limine_memmap_request.memmap->entries[i]->base;
-        static_memmap_entries[i].length =
-                limine_memmap_request.memmap->entries[i]->length;
-        static_memmap_entries[i].type =
-                limine_memmap_request.memmap->entries[i]->type;
+        static_memmap_entries[i].base = limine_memmap_request.memmap->entries[i]->base;
+        static_memmap_entries[i].length = limine_memmap_request.memmap->entries[i]->length;
+        static_memmap_entries[i].type = limine_memmap_request.memmap->entries[i]->type;
     }
 
     // framebuffer - assume it's direct mapped so we can just subtract the offset to get its phys...
-    g_fb_phys = (uintptr_t)limine_framebuffer_request.response->framebuffers[0]
-                        ->address -
+    g_fb_phys = (uintptr_t)limine_framebuffer_request.response->framebuffers[0]->address -
                 limine_hhdm_request.response->offset;
     g_fb_width = limine_framebuffer_request.response->framebuffers[0]->width;
     g_fb_height = limine_framebuffer_request.response->framebuffers[0]->height;
 
     // RSDP
-    const ACPI_RSDP *limine_rsdp =
-            (ACPI_RSDP *)limine_rsdp_request.rsdp->address;
+    const ACPI_RSDP *limine_rsdp = (ACPI_RSDP *)limine_rsdp_request.rsdp->address;
 
     for (int i = 0; i < 8; i++) {
         static_rsdp.signature[i] = limine_rsdp->signature[i];
@@ -180,18 +168,14 @@ noreturn void bsp_kernel_entrypoint_limine() {
     // about low phys memory...)
     //
     // BSS first...
-    uint64_t *new_base = (uint64_t *)(limine_hhdm_request.response->offset +
-                                      KERNEL_BSS_PHYS);
+    uint64_t *new_base = (uint64_t *)(limine_hhdm_request.response->offset + KERNEL_BSS_PHYS);
 
-    memcpy(new_base, &_kernel_vma_start,
-           ((uintptr_t)&_bss_end) - ((uintptr_t)&_kernel_vma_start));
+    memcpy(new_base, &_kernel_vma_start, ((uintptr_t)&_bss_end) - ((uintptr_t)&_kernel_vma_start));
 
     //
     // ... then code and data...
-    new_base = (uint64_t *)(limine_hhdm_request.response->offset +
-                            KERNEL_CODE_PHYS);
-    memcpy(new_base, &_code,
-           ((uintptr_t)&_kernel_vma_end) - ((uintptr_t)&_code));
+    new_base = (uint64_t *)(limine_hhdm_request.response->offset + KERNEL_CODE_PHYS);
+    memcpy(new_base, &_code, ((uintptr_t)&_kernel_vma_end) - ((uintptr_t)&_code));
 
     //
     // .. and finally the system/ramfs binary. This is expected to be
@@ -206,66 +190,46 @@ noreturn void bsp_kernel_entrypoint_limine() {
     if (module_count == 1) {
         // TODO check name to make sure it's our module / we only have one!
         //
-        if (limine_module_request.response->modules[0] &&
-            limine_module_request.response->modules[0]->address) {
+        if (limine_module_request.response->modules[0] && limine_module_request.response->modules[0]->address) {
             system_size = limine_module_request.response->modules[0]->size;
-            new_base = (uint64_t *)(((uintptr_t)new_base +
-                                     ((uintptr_t)&_system_bin_start) -
-                                     ((uintptr_t)&_code)));
+            new_base = (uint64_t *)(((uintptr_t)new_base + ((uintptr_t)&_system_bin_start) - ((uintptr_t)&_code)));
 
-            memcpy(new_base,
-                   limine_module_request.response->modules[0]->address,
-                   system_size);
+            memcpy(new_base, limine_module_request.response->modules[0]->address, system_size);
         }
     }
 
     // Set up the static pagetables the kernel expects to exist...
-    uint64_t volatile *new_pml4 =
-            (uint64_t *)(limine_hhdm_request.response->offset + PM4_START);
-    uint64_t volatile *new_pdpt =
-            (uint64_t *)(limine_hhdm_request.response->offset + PDP_START);
-    uint64_t volatile *new_pd =
-            (uint64_t *)(limine_hhdm_request.response->offset + PD_START);
-    uint64_t volatile *new_pt =
-            (uint64_t *)(limine_hhdm_request.response->offset + PT_START);
+    uint64_t volatile *new_pml4 = (uint64_t *)(limine_hhdm_request.response->offset + PM4_START);
+    uint64_t volatile *new_pdpt = (uint64_t *)(limine_hhdm_request.response->offset + PDP_START);
+    uint64_t volatile *new_pd = (uint64_t *)(limine_hhdm_request.response->offset + PD_START);
+    uint64_t volatile *new_pt = (uint64_t *)(limine_hhdm_request.response->offset + PT_START);
 
     // Set up the initial tables
     for (int i = 0; i < 512; i++) {
-        new_pml4[i] = 0; // zero out the PML4
-        new_pdpt[i] = 0; // ... and the PDPT
-        new_pd[i] = 0;   // ... as well as the PD
-        new_pt[i] = (i * VM_PAGE_SIZE) | PG_PRESENT |
-                    PG_WRITE; // ... and map low mem into the PT
+        new_pml4[i] = 0;                                        // zero out the PML4
+        new_pdpt[i] = 0;                                        // ... and the PDPT
+        new_pd[i] = 0;                                          // ... as well as the PD
+        new_pt[i] = (i * VM_PAGE_SIZE) | PG_PRESENT | PG_WRITE; // ... and map low mem into the PT
     }
-    new_pml4[0x1ff] =
-            PDP_START | PG_PRESENT | PG_WRITE; // Set up the entries we need for
-    new_pdpt[0x1fe] =
-            PD_START | PG_PRESENT | PG_WRITE; // the mappings in kernel space...
+    new_pml4[0x1ff] = PDP_START | PG_PRESENT | PG_WRITE; // Set up the entries we need for
+    new_pdpt[0x1fe] = PD_START | PG_PRESENT | PG_WRITE;  // the mappings in kernel space...
     new_pd[0] = PT_START | PG_PRESENT | PG_WRITE;
 
     // Initialize PAT with write-combining in upper 4 entries
-    cpu_write_pat(PAT_WRITE_BACK, PAT_WRITE_THROUGH, PAT_UNCACHED_MINUS,
-                  PAT_UNCACHEABLE, PAT_WRITE_COMBINING, PAT_WRITE_COMBINING,
-                  PAT_WRITE_COMBINING, PAT_WRITE_COMBINING);
+    cpu_write_pat(PAT_WRITE_BACK, PAT_WRITE_THROUGH, PAT_UNCACHED_MINUS, PAT_UNCACHEABLE, PAT_WRITE_COMBINING,
+                  PAT_WRITE_COMBINING, PAT_WRITE_COMBINING, PAT_WRITE_COMBINING);
 
     // map framebuffer, as four 2MiB large pages at 0xffffffff82000000 - 0xffffffff827fffff
     // Use PAT bit for write-combining (maps to PAT entry 4+ which we set to WC above)
-    new_pd[0x10] =
-            g_fb_phys | PG_PRESENT | PG_WRITE | PG_PAGESIZE | PG_PAT_LARGE;
-    new_pd[0x11] = (g_fb_phys + 0x200000) | PG_PRESENT | PG_WRITE |
-                   PG_PAGESIZE | PG_PAT_LARGE;
-    new_pd[0x12] = (g_fb_phys + 0x400000) | PG_PRESENT | PG_WRITE |
-                   PG_PAGESIZE | PG_PAT_LARGE;
-    new_pd[0x13] = (g_fb_phys + 0x600000) | PG_PRESENT | PG_WRITE |
-                   PG_PAGESIZE | PG_PAT_LARGE;
+    new_pd[0x10] = g_fb_phys | PG_PRESENT | PG_WRITE | PG_PAGESIZE | PG_PAT_LARGE;
+    new_pd[0x11] = (g_fb_phys + 0x200000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE | PG_PAT_LARGE;
+    new_pd[0x12] = (g_fb_phys + 0x400000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE | PG_PAT_LARGE;
+    new_pd[0x13] = (g_fb_phys + 0x600000) | PG_PRESENT | PG_WRITE | PG_PAGESIZE | PG_PAT_LARGE;
 
-    bootstrap_trampoline(system_size, g_fb_width, g_fb_height,
-                         KERNEL_INIT_STACK_TOP, PM4_START, bootstrap_continue);
+    bootstrap_trampoline(system_size, g_fb_width, g_fb_height, KERNEL_INIT_STACK_TOP, PM4_START, bootstrap_continue);
 }
 
-static noreturn void bootstrap_continue(const size_t system_size,
-                                        const uint16_t fb_width,
-                                        const uint16_t fb_height) {
+static noreturn void bootstrap_continue(const size_t system_size, const uint16_t fb_width, const uint16_t fb_height) {
     // We're now on our own pagetables, and have essentially the same setup as
     // we do on entry from STAGE2 when BIOS booting.
     //
@@ -279,8 +243,7 @@ static noreturn void bootstrap_continue(const size_t system_size,
     debugterm_init((char *)KERNEL_FRAMEBUFFER, g_fb_width, g_fb_height);
 
     // Store framebuffer info for syscalls
-    framebuffer_set_info(g_fb_phys, KERNEL_FRAMEBUFFER, g_fb_width, g_fb_height,
-                         32);
+    framebuffer_set_info(g_fb_phys, KERNEL_FRAMEBUFFER, g_fb_width, g_fb_height, 32);
 
     init_kernel_gdt();
     install_interrupts();
@@ -289,12 +252,10 @@ static noreturn void bootstrap_continue(const size_t system_size,
 
     debug_memmap_limine(&static_memmap);
 
-    physical_region = page_alloc_init_limine(&static_memmap, PMM_PHYS_BASE,
-                                             STATIC_PMM_VREGION, true);
+    physical_region = page_alloc_init_limine(&static_memmap, PMM_PHYS_BASE, STATIC_PMM_VREGION, true);
 
 #ifdef DEBUG_VMM
-    extern uint64_t vmm_direct_mapping_terapages_used,
-            vmm_direct_mapping_gigapages_used,
+    extern uint64_t vmm_direct_mapping_terapages_used, vmm_direct_mapping_gigapages_used,
             vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used;
 
     const size_t pre_direct_free = physical_region->free;
@@ -305,16 +266,13 @@ static noreturn void bootstrap_continue(const size_t system_size,
     kprintf("\nPage tables for VMM Direct Mapping: %ld bytes of physical "
             "memory\n",
             pre_direct_free - post_direct_free);
-    kprintf("    Mapping types: %ld tera; %ld giga; %ld mega; %ld small\n\n",
-            vmm_direct_mapping_terapages_used,
-            vmm_direct_mapping_gigapages_used,
-            vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used);
+    kprintf("    Mapping types: %ld tera; %ld giga; %ld mega; %ld small\n\n", vmm_direct_mapping_terapages_used,
+            vmm_direct_mapping_gigapages_used, vmm_direct_mapping_megapages_used, vmm_direct_mapping_pages_used);
 #endif
 
     if (system_size == 0) {
         // No system module passed, fail early for now.
-        debugstr(
-                "No system module loaded - check bootloader config. Halting\n");
+        debugstr("No system module loaded - check bootloader config. Halting\n");
         halt_and_catch_fire();
     }
 

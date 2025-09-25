@@ -29,13 +29,9 @@ static AddressMapping page_stack[64];
 static uint16_t page_stack_ptr;
 static uint64_t next_vaddr = ACPI_TABLES_VADDR_BASE;
 
-static inline uint32_t RSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
-    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 4);
-}
+static inline uint32_t RSDT_ENTRY_COUNT(ACPI_RSDT *sdt) { return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 4); }
 
-static inline uint32_t XSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
-    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 8);
-}
+static inline uint32_t XSDT_ENTRY_COUNT(ACPI_RSDT *sdt) { return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 8); }
 
 static bool checksum_rsdp(ACPI_RSDP *rsdp) {
 #ifdef DEBUG_ACPI
@@ -127,20 +123,13 @@ static uint64_t get_mapping_for(uint64_t phys) {
         // position and size relative to end of the page as we run through them...
         next_vaddr += 0x8000;
         vmm_map_page_containing(vaddr, phys, PG_PRESENT | PG_WRITE);
-        vmm_map_page_containing(vaddr + 0x1000, phys + 0x1000,
-                                PG_PRESENT | PG_WRITE);
-        vmm_map_page_containing(vaddr + 0x2000, phys + 0x3000,
-                                PG_PRESENT | PG_WRITE);
-        vmm_map_page_containing(vaddr + 0x3000, phys + 0x4000,
-                                PG_PRESENT | PG_WRITE);
-        vmm_map_page_containing(vaddr + 0x4000, phys + 0x5000,
-                                PG_PRESENT | PG_WRITE);
-        vmm_map_page_containing(vaddr + 0x5000, phys + 0x6000,
-                                PG_PRESENT | PG_WRITE);
-        vmm_map_page_containing(vaddr + 0x6000, phys + 0x7000,
-                                PG_PRESENT | PG_WRITE);
-        vmm_map_page_containing(vaddr + 0x7000, phys + 0x8000,
-                                PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x1000, phys + 0x1000, PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x2000, phys + 0x3000, PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x3000, phys + 0x4000, PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x4000, phys + 0x5000, PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x5000, phys + 0x6000, PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x6000, phys + 0x7000, PG_PRESENT | PG_WRITE);
+        vmm_map_page_containing(vaddr + 0x7000, phys + 0x8000, PG_PRESENT | PG_WRITE);
 
 #ifdef DEBUG_ACPI
 #ifdef VERY_NOISY_ACPI
@@ -227,8 +216,7 @@ static ACPI_SDTHeader *map_sdt(uint64_t phys_addr) {
 #endif
 
         for (int i = 0; i < entries; i++) {
-            *entry = (uint32_t)(((uint64_t)map_sdt((uint64_t)*entry)) &
-                                0xFFFFFFFF);
+            *entry = (uint32_t)(((uint64_t)map_sdt((uint64_t)*entry)) & 0xFFFFFFFF);
             entry++;
         }
     } else if (has_sig("XSDT", sdt)) {
@@ -289,8 +277,7 @@ ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdt, const char *ident) {
 #ifdef UNIT_TESTS
             ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(((uint64_t)*entry));
 #else
-            ACPI_SDTHeader *sdt =
-                    (ACPI_SDTHeader *)(*entry | 0xFFFFFFFF00000000);
+            ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(*entry | 0xFFFFFFFF00000000);
 #endif
 
 #ifdef DEBUG_ACPI
@@ -316,8 +303,7 @@ ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdt, const char *ident) {
 #ifdef UNIT_TESTS
             ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(((uint64_t)*entry));
 #else
-            ACPI_SDTHeader *sdt =
-                    (ACPI_SDTHeader *)(((uint64_t)*entry) | 0xFFFFFFFF00000000);
+            ACPI_SDTHeader *sdt = (ACPI_SDTHeader *)(((uint64_t)*entry) | 0xFFFFFFFF00000000);
 #endif
 
 #ifdef DEBUG_ACPI
@@ -337,8 +323,7 @@ ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdt, const char *ident) {
         }
     } else {
 #ifdef CONSERVATIVE_BUILD
-        debugstr(
-                "CONSERVATIVE: Non-RSDT passed to acpi_tables_find; Halting\n");
+        debugstr("CONSERVATIVE: Non-RSDT passed to acpi_tables_find; Halting\n");
         halt_and_catch_fire();
 #else
         debugstr("WARNING: Non-RSDT passed to acpi_tables_find!\n");

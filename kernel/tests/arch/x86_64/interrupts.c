@@ -60,8 +60,7 @@ static MunitResult test_idt_attr(const MunitParameter params[], void *param) {
     return MUNIT_OK;
 }
 
-static MunitResult test_idt_entry_addr(const MunitParameter params[],
-                                       void *param) {
+static MunitResult test_idt_entry_addr(const MunitParameter params[], void *param) {
     IdtEntry test_entry;
     idt_entry(&test_entry, (void *)0xA0A0A0A05555AAAA, 0x1, 0x2, 0x3);
 
@@ -75,8 +74,7 @@ static MunitResult test_idt_entry_addr(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_idt_entry_func(const MunitParameter params[],
-                                       void *param) {
+static MunitResult test_idt_entry_func(const MunitParameter params[], void *param) {
     uint64_t addr = (uint64_t)test_isr;
     uint16_t addr_low = addr & 0xFFFF;
     uint16_t addr_mid = (addr & 0xFFFF0000) >> 16;
@@ -106,19 +104,14 @@ static MunitResult test_idt_r(const MunitParameter params[], void *param) {
 }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/interrupts/test_idt_attr", test_idt_attr, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/interrupts/test_idt_entry_addr", test_idt_entry_addr, NULL,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/interrupts/test_idt_entry_func", test_idt_entry_func, NULL,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/interrupts/test_idt_r", test_idt_r, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/interrupts/test_idt_attr", test_idt_attr, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/interrupts/test_idt_entry_addr", test_idt_entry_addr, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/interrupts/test_idt_entry_func", test_idt_entry_func, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/interrupts/test_idt_r", test_idt_r, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);

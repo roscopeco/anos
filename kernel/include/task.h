@@ -107,16 +107,14 @@ void task_switch(Task *next);
  *
  * NOTE: sys_ssp may be 0, which will cause a new stack to be allocated.
  */
-Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
-                      uintptr_t bootstrap, uintptr_t func, TaskClass class);
+Task *task_create_new(Process *owner, uintptr_t sp, uintptr_t sys_ssp, uintptr_t bootstrap, uintptr_t func,
+                      TaskClass class);
 
 void task_destroy(Task *task);
 
-Task *task_create_user(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
-                       uintptr_t func, TaskClass class);
+Task *task_create_user(Process *owner, uintptr_t sp, uintptr_t sys_ssp, uintptr_t func, TaskClass class);
 
-Task *task_create_kernel(Process *owner, uintptr_t sp, uintptr_t sys_ssp,
-                         uintptr_t func, TaskClass class);
+Task *task_create_kernel(Process *owner, uintptr_t sp, uintptr_t sys_ssp, uintptr_t func, TaskClass class);
 
 void task_remove_from_process(Task *task);
 

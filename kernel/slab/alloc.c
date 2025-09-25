@@ -40,16 +40,13 @@ static inline uint8_t first_set_bit_64(uint64_t nonzero_uint64) {
     return __builtin_ctzll(nonzero_uint64);
 #else
     // Otherwise, fallback to De Bruijn sequence...
-    static const int DeBruijnTable[64] = {
-            0,  1,  48, 2,  57, 49, 28, 3,  61, 58, 50, 42, 38, 29, 17, 4,
-            62, 55, 59, 36, 53, 51, 43, 22, 45, 39, 33, 30, 24, 18, 12, 5,
-            63, 47, 56, 27, 60, 41, 37, 16, 54, 35, 52, 21, 44, 32, 23, 11,
-            46, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9,  13, 8,  7,  6};
+    static const int DeBruijnTable[64] = {0,  1,  48, 2,  57, 49, 28, 3,  61, 58, 50, 42, 38, 29, 17, 4,
+                                          62, 55, 59, 36, 53, 51, 43, 22, 45, 39, 33, 30, 24, 18, 12, 5,
+                                          63, 47, 56, 27, 60, 41, 37, 16, 54, 35, 52, 21, 44, 32, 23, 11,
+                                          46, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9,  13, 8,  7,  6};
 
     // Isolate least significant set bit and multiply by De Bruijn constant
-    return DeBruijnTable[((nonzero_uint64 & -nonzero_uint64) *
-                          ((uint64_t)(0x03f79d71b4cb0a89))) >>
-                         58];
+    return DeBruijnTable[((nonzero_uint64 & -nonzero_uint64) * ((uint64_t)(0x03f79d71b4cb0a89))) >> 58];
 #endif
 }
 
@@ -60,8 +57,7 @@ void *slab_alloc_block() {
 
     if (partial == NULL) {
         // No partial slabs - allocate a new one.
-        target = (Slab *)fba_alloc_blocks_aligned(FBA_BLOCKS_PER_SLAB,
-                                                  FBA_BLOCKS_PER_SLAB);
+        target = (Slab *)fba_alloc_blocks_aligned(FBA_BLOCKS_PER_SLAB, FBA_BLOCKS_PER_SLAB);
 
         if (target == NULL) {
             // alloc failed
@@ -101,10 +97,8 @@ void *slab_alloc_block() {
 
     bitmap_set(&target->bitmap0, free_block);
 
-    if (target->bitmap0 == 0xffffffffffffffff &&
-        target->bitmap1 == 0xffffffffffffffff &&
-        target->bitmap2 == 0xffffffffffffffff &&
-        target->bitmap3 == 0xffffffffffffffff) {
+    if (target->bitmap0 == 0xffffffffffffffff && target->bitmap1 == 0xffffffffffffffff &&
+        target->bitmap2 == 0xffffffffffffffff && target->bitmap3 == 0xffffffffffffffff) {
         // TODO probably ought to just implement push / pop (front) in list.c...
         partial = target->this.next;
         target->this.next = full;
@@ -142,10 +136,8 @@ void slab_free(void *block) {
 
     const uint64_t lock_flags = spinlock_lock_irqsave(&slab_lock);
 
-    if (slab->bitmap0 == 0xffffffffffffffff &&
-        slab->bitmap1 == 0xffffffffffffffff &&
-        slab->bitmap2 == 0xffffffffffffffff &&
-        slab->bitmap3 == 0xffffffffffffffff) {
+    if (slab->bitmap0 == 0xffffffffffffffff && slab->bitmap1 == 0xffffffffffffffff &&
+        slab->bitmap2 == 0xffffffffffffffff && slab->bitmap3 == 0xffffffffffffffff) {
 
         // This slab is in the full list, we need to find it and remove it
         // TODO this is stupid inefficient in the worst case if the lists get big...

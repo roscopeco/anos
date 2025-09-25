@@ -20,12 +20,8 @@ void mock_kernel_drivers_reset(void) {
     hpet_init_last_rsdt = ((void *)0);
 }
 
-ACPI_RSDT *mock_kernel_drivers_get_last_hpet_init_rsdt(void) {
-    return hpet_init_last_rsdt;
-}
-uint32_t mock_kernel_drivers_get_hpet_init_call_count(void) {
-    return hpet_init_call_count;
-}
+ACPI_RSDT *mock_kernel_drivers_get_last_hpet_init_rsdt(void) { return hpet_init_last_rsdt; }
+uint32_t mock_kernel_drivers_get_hpet_init_call_count(void) { return hpet_init_call_count; }
 
 /* Driver interfaces */
 

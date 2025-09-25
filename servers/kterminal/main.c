@@ -63,9 +63,8 @@ static bool init_framebuffer(void) {
 
     // map fb into our address space...
     const size_t fb_size = fb_info.height * fb_info.pitch;
-    const SyscallResult map_result = anos_map_physical(
-            fb_info.physical_address, (void *)FB_VIRT_ADDR, fb_size,
-            ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE);
+    const SyscallResult map_result = anos_map_physical(fb_info.physical_address, (void *)FB_VIRT_ADDR, fb_size,
+                                                       ANOS_MAP_PHYSICAL_FLAG_READ | ANOS_MAP_PHYSICAL_FLAG_WRITE);
 
     if (map_result.result != SYSCALL_OK) {
         printf("Failed to map real framebuffer memory\n");
@@ -82,8 +81,7 @@ static bool init_framebuffer(void) {
 static void poll_kernel_log(void) {
     static char __attribute__((__aligned__(0x1000))) log_buffer[0x1000];
 
-    const SyscallResult result =
-            anos_read_kernel_log(log_buffer, sizeof(log_buffer), 0);
+    const SyscallResult result = anos_read_kernel_log(log_buffer, sizeof(log_buffer), 0);
 
     if (result.result == SYSCALL_OK && result.value > 0) {
         debugterm_write(log_buffer, result.value);

@@ -49,9 +49,7 @@ void mock_machine_reset(void) {
     waited_for_interrupt = false;
 }
 
-inline bool mock_machine_outl_avail(uint16_t port) {
-    return out_buffer_read_ptr[port] != out_buffer_write_ptr[port];
-}
+inline bool mock_machine_outl_avail(uint16_t port) { return out_buffer_read_ptr[port] != out_buffer_write_ptr[port]; }
 
 uint32_t mock_machine_read_outl_buffer(uint16_t port) {
     if (!mock_machine_outl_avail(port)) {
@@ -65,8 +63,7 @@ uint32_t mock_machine_read_outl_buffer(uint16_t port) {
 
 bool mock_machine_write_outl_buffer(uint16_t port, uint32_t value) {
     if ((out_buffer_write_ptr[port] == out_buffer_read_ptr[port] - 1) ||
-        (in_buffer_write_ptr[port] == 0xffff &&
-         in_buffer_read_ptr[port] == 0)) {
+        (in_buffer_write_ptr[port] == 0xffff && in_buffer_read_ptr[port] == 0)) {
         return false;
     }
 
@@ -76,9 +73,7 @@ bool mock_machine_write_outl_buffer(uint16_t port, uint32_t value) {
     return true;
 }
 
-inline bool mock_machine_inl_avail(uint16_t port) {
-    return in_buffer_read_ptr[port] != in_buffer_write_ptr[port];
-}
+inline bool mock_machine_inl_avail(uint16_t port) { return in_buffer_read_ptr[port] != in_buffer_write_ptr[port]; }
 
 uint32_t mock_machine_read_inl_buffer(uint16_t port) {
     if (!mock_machine_inl_avail(port)) {
@@ -92,8 +87,7 @@ uint32_t mock_machine_read_inl_buffer(uint16_t port) {
 
 bool mock_machine_write_inl_buffer(uint16_t port, uint32_t value) {
     if ((in_buffer_write_ptr[port] == in_buffer_read_ptr[port] - 1) ||
-        (in_buffer_write_ptr[port] == 0xffff &&
-         in_buffer_read_ptr[port] == 0)) {
+        (in_buffer_write_ptr[port] == 0xffff && in_buffer_read_ptr[port] == 0)) {
         return false;
     }
 
@@ -159,8 +153,6 @@ void restore_saved_interrupts(uint64_t state) {
 
 uint32_t mock_machine_intr_disable_level() { return intr_disable_level; }
 
-uint32_t mock_machine_max_intr_disable_level() {
-    return max_intr_disable_level;
-}
+uint32_t mock_machine_max_intr_disable_level() { return max_intr_disable_level; }
 
 void wait_for_interrupt(void) { waited_for_interrupt = true; }

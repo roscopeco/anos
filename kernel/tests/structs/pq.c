@@ -31,8 +31,7 @@ static void *pq_setup(const MunitParameter params[], void *user_data) {
 static void pq_tear_down(void *fixture) { free(fixture); }
 
 // Test functions
-static MunitResult test_empty_queue(const MunitParameter params[],
-                                    void *fixture) {
+static MunitResult test_empty_queue(const MunitParameter params[], void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
     munit_assert_true(task_pq_empty(&f->pq));
@@ -42,8 +41,7 @@ static MunitResult test_empty_queue(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_single_element(const MunitParameter params[],
-                                       void *fixture) {
+static MunitResult test_single_element(const MunitParameter params[], void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
     f->nodes[0].sched->prio = 5;
@@ -60,8 +58,7 @@ static MunitResult test_single_element(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_priority_ordering(const MunitParameter params[],
-                                          void *fixture) {
+static MunitResult test_priority_ordering(const MunitParameter params[], void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
     // Insert in non-priority order
@@ -85,8 +82,7 @@ static MunitResult test_priority_ordering(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_duplicate_priorities(const MunitParameter params[],
-                                             void *fixture) {
+static MunitResult test_duplicate_priorities(const MunitParameter params[], void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
     f->nodes[0].sched->prio = 5;
@@ -108,8 +104,7 @@ static MunitResult test_duplicate_priorities(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_null_node(const MunitParameter params[],
-                                  void *fixture) {
+static MunitResult test_null_node(const MunitParameter params[], void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
     // Pushing NULL should be safe
@@ -119,8 +114,7 @@ static MunitResult test_null_node(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_reused_node(const MunitParameter params[],
-                                    void *fixture) {
+static MunitResult test_reused_node(const MunitParameter params[], void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
     f->nodes[0].sched->prio = 5;
@@ -141,8 +135,7 @@ static MunitResult test_reused_node(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_extreme_priorities(const MunitParameter params[],
-                                           void *fixture) {
+static MunitResult test_extreme_priorities(const MunitParameter params[], void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
     f->nodes[0].sched->prio = UINT8_MAX;
@@ -165,8 +158,7 @@ static MunitResult test_extreme_priorities(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_alternating_priorities(const MunitParameter params[],
-                                               void *fixture) {
+static MunitResult test_alternating_priorities(const MunitParameter params[], void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
     // Create alternating high/low priorities
@@ -190,8 +182,7 @@ static MunitResult test_alternating_priorities(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_empty_refill(const MunitParameter params[],
-                                     void *fixture) {
+static MunitResult test_empty_refill(const MunitParameter params[], void *fixture) {
     PQFixture *f = (PQFixture *)fixture;
 
     // Fill and empty multiple times
@@ -216,30 +207,18 @@ static MunitResult test_empty_refill(const MunitParameter params[],
 
 // Test suite
 static MunitTest tests[] = {
-        {"/empty_queue", test_empty_queue, pq_setup, pq_tear_down,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/single_element", test_single_element, pq_setup, pq_tear_down,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/priority_ordering", test_priority_ordering, pq_setup, pq_tear_down,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/duplicate_priorities", test_duplicate_priorities, pq_setup,
-         pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/null_node", test_null_node, pq_setup, pq_tear_down,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/reused_node", test_reused_node, pq_setup, pq_tear_down,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/extreme_priorities", test_extreme_priorities, pq_setup, pq_tear_down,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/alternating_priorities", test_alternating_priorities, pq_setup,
-         pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/empty_refill", test_empty_refill, pq_setup, pq_tear_down,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/empty_queue", test_empty_queue, pq_setup, pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/single_element", test_single_element, pq_setup, pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/priority_ordering", test_priority_ordering, pq_setup, pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/duplicate_priorities", test_duplicate_priorities, pq_setup, pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/null_node", test_null_node, pq_setup, pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/reused_node", test_reused_node, pq_setup, pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/extreme_priorities", test_extreme_priorities, pq_setup, pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/alternating_priorities", test_alternating_priorities, pq_setup, pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/empty_refill", test_empty_refill, pq_setup, pq_tear_down, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite suite = {"/pq", tests, NULL, 1,
-                                 MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite suite = {"/pq", tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&suite, NULL, argc, argv); }

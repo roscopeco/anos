@@ -49,8 +49,7 @@ static inline void *fba_calloc_blocks(size_t bytes) {
     return base;
 }
 
-bool shift_array_init(ShiftToMiddleArray *arr, const size_t elem_size,
-                      const int initial_capacity) {
+bool shift_array_init(ShiftToMiddleArray *arr, const size_t elem_size, const int initial_capacity) {
     arr->elem_size = elem_size;
     arr->capacity = initial_capacity;
     arr->data = fba_calloc_blocks(elem_size * initial_capacity);
@@ -66,8 +65,7 @@ bool shift_array_init(ShiftToMiddleArray *arr, const size_t elem_size,
 }
 
 void shift_array_free(const ShiftToMiddleArray *arr) {
-    const size_t blocks =
-            (arr->elem_size * arr->capacity + VM_PAGE_SIZE - 1) / VM_PAGE_SIZE;
+    const size_t blocks = (arr->elem_size * arr->capacity + VM_PAGE_SIZE - 1) / VM_PAGE_SIZE;
 
     for (size_t i = 0; i < blocks; ++i) {
         fba_free((char *)arr->data + i * VM_PAGE_SIZE);
@@ -108,8 +106,7 @@ bool shift_array_insert_head(ShiftToMiddleArray *arr, const void *value) {
     }
 
     arr->head--;
-    memcpy((char *)arr->data + arr->head * arr->elem_size, value,
-           arr->elem_size);
+    memcpy((char *)arr->data + arr->head * arr->elem_size, value, arr->elem_size);
 
     return true;
 }
@@ -119,8 +116,7 @@ bool shift_array_insert_tail(ShiftToMiddleArray *arr, const void *value) {
         return false;
     }
 
-    memcpy((char *)arr->data + arr->tail * arr->elem_size, value,
-           arr->elem_size);
+    memcpy((char *)arr->data + arr->tail * arr->elem_size, value, arr->elem_size);
     arr->tail++;
 
     return true;
@@ -154,6 +150,4 @@ void *shift_array_get_tail(const ShiftToMiddleArray *arr) {
     return NULL;
 }
 
-bool shift_array_is_empty(const ShiftToMiddleArray *arr) {
-    return arr->head == arr->tail;
-}
+bool shift_array_is_empty(const ShiftToMiddleArray *arr) { return arr->head == arr->tail; }

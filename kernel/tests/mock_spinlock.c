@@ -37,6 +37,4 @@ uint64_t spinlock_lock_irqsave(SpinLock *lock) {
     return 1234;
 }
 
-void spinlock_unlock_irqrestore(SpinLock *lock, uint64_t flags) {
-    ++unlock_count;
-}
+void spinlock_unlock_irqrestore(SpinLock *lock, uint64_t flags) { ++unlock_count; }

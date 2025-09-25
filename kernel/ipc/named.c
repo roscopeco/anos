@@ -37,9 +37,7 @@ static HashTable *name_table;
 // (This is especially important since currently there's no collision
 // support in the hash table, i.e. it doesn't bucket values by hash).
 
-void named_channel_init(void) {
-    name_table = hash_table_create(INITIAL_PAGE_COUNT);
-}
+void named_channel_init(void) { name_table = hash_table_create(INITIAL_PAGE_COUNT); }
 
 bool named_channel_register(const uint64_t cookie, char *name) {
     if (!ipc_channel_exists(cookie)) {

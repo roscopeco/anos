@@ -50,15 +50,11 @@ typedef struct {
 
 // Mock syscall function declarations
 SyscallResult anos_create_channel(void);
-SyscallResult anos_register_named_channel(const char *name,
-                                          uint64_t channel_id);
+SyscallResult anos_register_named_channel(const char *name, uint64_t channel_id);
 SyscallResult anos_find_named_channel(const char *name);
-SyscallResult anos_send_message(uint64_t channel_id, void *buffer,
-                                size_t msg_size, void *msg_buffer);
-SyscallResult anos_recv_message(uint64_t channel_id, void *buffer,
-                                size_t buffer_size, size_t *actual_size);
-SyscallResult anos_map_physical(uint64_t physical_addr, void *virtual_addr,
-                                size_t size, uint32_t flags);
+SyscallResult anos_send_message(uint64_t channel_id, void *buffer, size_t msg_size, void *msg_buffer);
+SyscallResult anos_recv_message(uint64_t channel_id, void *buffer, size_t buffer_size, size_t *actual_size);
+SyscallResult anos_map_physical(uint64_t physical_addr, void *virtual_addr, size_t size, uint32_t flags);
 SyscallResultA anos_alloc_physical_pages(size_t size);
 SyscallResult anos_unmap_virtual(uint64_t virtual_addr, size_t size);
 SyscallResult anos_task_sleep_current(uint32_t ms);

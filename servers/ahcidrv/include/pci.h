@@ -38,7 +38,6 @@ void pci_write_config16(uint64_t pci_base, uint16_t offset, uint16_t value);
 
 uint8_t pci_find_msi_capability(uint64_t pci_base);
 
-bool pci_configure_msi(uint64_t pci_base, uint8_t msi_offset,
-                       uint64_t msi_address, uint32_t msi_data);
+bool pci_configure_msi(uint64_t pci_base, uint8_t msi_offset, uint64_t msi_address, uint32_t msi_data);
 
 #endif

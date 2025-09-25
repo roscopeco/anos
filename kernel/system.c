@@ -30,8 +30,7 @@
 #define SYSTEM_USER_STACK_PAGE_COUNT 4
 
 #define SYSTEM_USER_STACK_BYTES ((SYSTEM_USER_STACK_PAGE_COUNT * VM_PAGE_SIZE))
-#define SYSTEM_KERNEL_STACK_BYTES                                              \
-    ((SYSTEM_KERNEL_STACK_PAGE_COUNT * VM_PAGE_SIZE))
+#define SYSTEM_KERNEL_STACK_BYTES ((SYSTEM_KERNEL_STACK_PAGE_COUNT * VM_PAGE_SIZE))
 
 #ifndef IDLE_STACKS_PER_BLOCK
 #define IDLE_STACKS_PER_BLOCK ((4))
@@ -44,11 +43,9 @@
 #define IDLE_STACK_BLOCKS 1
 #endif
 
-static_assert(IDLE_STACK_BLOCKS > 0,
-              "Must allocate at least one block for idle stacks");
+static_assert(IDLE_STACK_BLOCKS > 0, "Must allocate at least one block for idle stacks");
 
-#define IDLE_STACK_CPU_OFFSET                                                  \
-    (((KERNEL_FBA_BLOCK_SIZE / IDLE_STACKS_PER_BLOCK)))
+#define IDLE_STACK_CPU_OFFSET (((KERNEL_FBA_BLOCK_SIZE / IDLE_STACKS_PER_BLOCK)))
 
 extern MemoryRegion *physical_region;
 
@@ -100,8 +97,7 @@ noreturn void start_system_ap(uint8_t cpu_id) {
 
     // create a process and task for idle
     sched_init_idle((uintptr_t)idle_ustack_page + idle_stack_top(cpu_id),
-                    (uintptr_t)idle_sstack_page + idle_stack_top(cpu_id),
-                    (uintptr_t)kernel_thread_entrypoint);
+                    (uintptr_t)idle_sstack_page + idle_stack_top(cpu_id), (uintptr_t)kernel_thread_entrypoint);
 
     // We can just get away with disabling here, no need to save/restore flags
     // because we know we're currently the only thread on this CPU...
@@ -116,15 +112,13 @@ noreturn void start_system_ap(uint8_t cpu_id) {
 
 noreturn void start_system(void) {
     const uint64_t system_len_bytes = _system_bin_size;
-    const uint64_t system_len_pages =
-            (system_len_bytes + VM_PAGE_SIZE - 1) >> VM_PAGE_LINEAR_SHIFT;
+    const uint64_t system_len_pages = (system_len_bytes + VM_PAGE_SIZE - 1) >> VM_PAGE_LINEAR_SHIFT;
 
     // Map pages for the user code
     for (int i = 0; i < system_len_pages; i++) {
         constexpr uint64_t system_start_virt = 0x1000000;
 
-        vmm_map_page(system_start_virt + (i << 12),
-                     _system_bin_start_phys + (i << 12),
+        vmm_map_page(system_start_virt + (i << 12), _system_bin_start_phys + (i << 12),
                      PG_PRESENT | PG_READ | PG_EXEC | PG_USER);
     }
 
@@ -145,8 +139,7 @@ noreturn void start_system(void) {
     uint64_t user_stack = user_bss;
     for (int i = 0; i < SYSTEM_USER_STACK_PAGE_COUNT; i++) {
         user_stack -= VM_PAGE_SIZE;
-        vmm_map_page(user_stack, kernel_zero_page,
-                     PG_PRESENT | PG_READ | PG_USER | PG_COPY_ON_WRITE);
+        vmm_map_page(user_stack, kernel_zero_page, PG_PRESENT | PG_READ | PG_USER | PG_COPY_ON_WRITE);
     }
 
     // grant all syscall capabilities to SYSTEM...
@@ -160,22 +153,18 @@ noreturn void start_system(void) {
     // ... the FBA can give us a kernel stack... We'll allocate this, it's
     // small, and saves us weirdness when we pagefault during a interrupt/trap
     // mode switch...
-    void *kernel_stack =
-            fba_alloc_blocks(SYSTEM_KERNEL_STACK_PAGE_COUNT); // 16KiB
+    void *kernel_stack = fba_alloc_blocks(SYSTEM_KERNEL_STACK_PAGE_COUNT); // 16KiB
 
     // create a process and task for system
-    if (!sched_init((uintptr_t)user_starting_sp,
-                    (uintptr_t)kernel_stack + SYSTEM_KERNEL_STACK_BYTES,
-                    (uintptr_t)0x0000000001000000,
-                    (uintptr_t)user_thread_entrypoint, TASK_CLASS_NORMAL)) {
+    if (!sched_init((uintptr_t)user_starting_sp, (uintptr_t)kernel_stack + SYSTEM_KERNEL_STACK_BYTES,
+                    (uintptr_t)0x0000000001000000, (uintptr_t)user_thread_entrypoint, TASK_CLASS_NORMAL)) {
         panic("Scheduler initialisation failed");
     }
 
     // TODO check allocations...
 
     if (!sched_init_idle((uintptr_t)idle_ustack_page + idle_stack_top(0),
-                         (uintptr_t)idle_sstack_page + idle_stack_top(0),
-                         (uintptr_t)kernel_thread_entrypoint)) {
+                         (uintptr_t)idle_sstack_page + idle_stack_top(0), (uintptr_t)kernel_thread_entrypoint)) {
         panic("Scheduler idle thread initialisation failed");
     }
 

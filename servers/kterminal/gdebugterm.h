@@ -11,8 +11,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-bool debugterm_init(void volatile *_fb, uint16_t phys_width,
-                    uint16_t phys_height);
+bool debugterm_init(void volatile *_fb, uint16_t phys_width, uint16_t phys_height);
 
 void debugterm_clear(void);
 

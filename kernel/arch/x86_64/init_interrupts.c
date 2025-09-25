@@ -15,18 +15,16 @@
 #include "x86_64/kdrivers/msi.h"
 
 // This is a bit messy, but it works and is "good enough" for now 😅
-#define install_trap(N)                                                        \
-    do {                                                                       \
-        extern void(trap_dispatcher_##N)(void);                                \
-        idt_entry(idt + N, trap_dispatcher_##N, kernel_cs, 0,                  \
-                  idt_attr(1, 0, IDT_TYPE_TRAP));                              \
+#define install_trap(N)                                                                                                \
+    do {                                                                                                               \
+        extern void(trap_dispatcher_##N)(void);                                                                        \
+        idt_entry(idt + N, trap_dispatcher_##N, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_TRAP));                          \
     } while (0)
 
-#define install_trap_ist(N, ISTNUM)                                            \
-    do {                                                                       \
-        extern void(trap_dispatcher_##N)(void);                                \
-        idt_entry(idt + N, trap_dispatcher_##N, kernel_cs, ISTNUM,             \
-                  idt_attr(1, 0, IDT_TYPE_TRAP));                              \
+#define install_trap_ist(N, ISTNUM)                                                                                    \
+    do {                                                                                                               \
+        extern void(trap_dispatcher_##N)(void);                                                                        \
+        idt_entry(idt + N, trap_dispatcher_##N, kernel_cs, ISTNUM, idt_attr(1, 0, IDT_TYPE_TRAP));                     \
     } while (0)
 
 extern void pic_irq_handler(void);
@@ -83,47 +81,38 @@ void idt_install(uint16_t kernel_cs) {
     // Entries 0x20 - 0x2F are the PIC handlers - when disabled, they should
     // only ever be spurious (except NMI I suppose)...
     for (int i = 0x20; i < 0x30; i++) {
-        idt_entry(idt + i, pic_irq_handler, kernel_cs, 0,
-                  idt_attr(1, 0, IDT_TYPE_IRQ));
+        idt_entry(idt + i, pic_irq_handler, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
     }
 
     // Install MSI handlers for vector range 0x40-0xDF
     for (int i = MSI_VECTOR_BASE; i <= MSI_VECTOR_TOP; i++) {
         extern void (*msi_handler_table[])(void);
-        idt_entry(idt + i, msi_handler_table[i - MSI_VECTOR_BASE], kernel_cs, 0,
-                  idt_attr(1, 0, IDT_TYPE_IRQ));
+        idt_entry(idt + i, msi_handler_table[i - MSI_VECTOR_BASE], kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
     }
 
     // Fill remaining vectors with generic / unknown handlers
     for (int i = 0x30; i < MSI_VECTOR_BASE; i++) {
-        idt_entry(idt + i, unknown_interrupt_handler, kernel_cs, 0,
-                  idt_attr(1, 0, IDT_TYPE_IRQ));
+        idt_entry(idt + i, unknown_interrupt_handler, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
     }
     for (int i = MSI_VECTOR_TOP + 1; i < 0x100; i++) {
-        idt_entry(idt + i, unknown_interrupt_handler, kernel_cs, 0,
-                  idt_attr(1, 0, IDT_TYPE_IRQ));
+        idt_entry(idt + i, unknown_interrupt_handler, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
     }
 
     // double fault handler uses a separate IST to guarantee a good stack,
     // so pass 7 as IST for this dispatcher...
     //
     // We'll make it an IRQ as well because that'll kill interrupts for us.
-    idt_entry(idt + 8, double_fault_dispatcher, kernel_cs, 7,
-              idt_attr(1, 0, IDT_TYPE_IRQ));
+    idt_entry(idt + 8, double_fault_dispatcher, kernel_cs, 7, idt_attr(1, 0, IDT_TYPE_IRQ));
 
     // Set up the handlers for the LAPIC Timer vectors...
-    idt_entry(idt + LAPIC_TIMER_BSP_VECTOR, bsp_timer_interrupt_handler,
-              kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
-    idt_entry(idt + LAPIC_TIMER_AP_VECTOR, ap_timer_interrupt_handler,
-              kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
+    idt_entry(idt + LAPIC_TIMER_BSP_VECTOR, bsp_timer_interrupt_handler, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
+    idt_entry(idt + LAPIC_TIMER_AP_VECTOR, ap_timer_interrupt_handler, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
 
     // Set up the handler for the 0x69 syscall...
-    idt_entry(idt + SYSCALL_VECTOR, syscall_69_handler, kernel_cs, 0,
-              idt_attr(1, 3, IDT_TYPE_TRAP));
+    idt_entry(idt + SYSCALL_VECTOR, syscall_69_handler, kernel_cs, 0, idt_attr(1, 3, IDT_TYPE_TRAP));
 
     // Set up the handlers for kernel IPIs
-    idt_entry(idt + IPWI_IPI_VECTOR, ipwi_ipi_dispatcher, kernel_cs, 0,
-              idt_attr(1, 0, IDT_TYPE_IRQ));
+    idt_entry(idt + IPWI_IPI_VECTOR, ipwi_ipi_dispatcher, kernel_cs, 0, idt_attr(1, 0, IDT_TYPE_IRQ));
 
     // Setup the IDTR
     idt_r(&idtr, (uint64_t)idt, (uint16_t)sizeof(IdtEntry) * 256 - 1);
@@ -138,9 +127,7 @@ void idt_install(uint16_t kernel_cs) {
     __asm__ volatile("sti");
 }
 
-void idt_install_isr(const uint8_t vector, isr_dispatcher *dispatcher,
-                     const uint8_t ist_entry, const uint8_t dpl,
+void idt_install_isr(const uint8_t vector, isr_dispatcher *dispatcher, const uint8_t ist_entry, const uint8_t dpl,
                      const uint8_t handler_type, const uint8_t present) {
-    idt_entry(idt + vector, dispatcher, saved_kernel_cs, ist_entry,
-              idt_attr(present ? 1 : 0, dpl, handler_type));
+    idt_entry(idt + vector, dispatcher, saved_kernel_cs, ist_entry, idt_attr(present ? 1 : 0, dpl, handler_type));
 }

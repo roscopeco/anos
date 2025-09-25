@@ -51,8 +51,7 @@
 #define acpi_vdebugf(...)
 #endif
 
-static inline SyscallResult RESULT_TYPE_VALUE(const SyscallResultType type,
-                                              const uint64_t val) {
+static inline SyscallResult RESULT_TYPE_VALUE(const SyscallResultType type, const uint64_t val) {
     const SyscallResult result = {.type = type, .value = val};
     return result;
 }
@@ -82,13 +81,9 @@ static inline bool has_sig(const char *expect, const ACPI_SDTHeader *sdt) {
     return true;
 }
 
-static inline uint32_t RSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
-    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 4);
-}
+static inline uint32_t RSDT_ENTRY_COUNT(ACPI_RSDT *sdt) { return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 4); }
 
-static inline uint32_t XSDT_ENTRY_COUNT(ACPI_RSDT *sdt) {
-    return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 8);
-}
+static inline uint32_t XSDT_ENTRY_COUNT(ACPI_RSDT *sdt) { return ((sdt->header.length - sizeof(ACPI_SDTHeader)) / 8); }
 #endif
 
 #ifdef DEBUG_PROCESS_SYSCALLS
@@ -109,12 +104,9 @@ typedef void (*ThreadFunc)(void);
 extern MemoryRegion *physical_region;
 extern uintptr_t kernel_zero_page;
 
-#define SYSCALL_ARGS                                                           \
-    SyscallArg arg0, SyscallArg arg1, SyscallArg arg2, SyscallArg arg3,        \
-            SyscallArg arg4
+#define SYSCALL_ARGS SyscallArg arg0, SyscallArg arg1, SyscallArg arg2, SyscallArg arg3, SyscallArg arg4
 #define SYSCALL_NAME(name) handle_##name
-#define SYSCALL_HANDLER(name)                                                  \
-    static SyscallResult SYSCALL_NAME(name)(SYSCALL_ARGS)
+#define SYSCALL_HANDLER(name) static SyscallResult SYSCALL_NAME(name)(SYSCALL_ARGS)
 
 SYSCALL_HANDLER(debugprint) {
     char *message = (char *)arg0;
@@ -138,8 +130,7 @@ SYSCALL_HANDLER(create_thread) {
     const ThreadFunc func = (ThreadFunc)arg0;
     const uintptr_t user_stack = (uintptr_t)arg1;
 
-    Task *task = task_create_user(task_current()->owner, user_stack, 0,
-                                  (uintptr_t)func, TASK_CLASS_NORMAL);
+    Task *task = task_create_user(task_current()->owner, user_stack, 0, (uintptr_t)func, TASK_CLASS_NORMAL);
 
 #ifdef SYSCALL_SCHED_ONLY_THIS_CPU
     sched_lock_this_cpu();
@@ -180,15 +171,13 @@ SYSCALL_HANDLER(create_process) {
     ProcessCreateParams *process_create_params = (ProcessCreateParams *)arg0;
 
     // Validate process create is in userspace
-    if (!IS_USER_ADDRESS(process_create_params) ||
-        !(IS_USER_ADDRESS(process_create_params + 1))) {
+    if (!IS_USER_ADDRESS(process_create_params) || !(IS_USER_ADDRESS(process_create_params + 1))) {
         return RESULT_BADARGS();
     }
 
     // Validate stack arguments
     if (process_create_params->stack_base >= VM_KERNEL_SPACE_START ||
-        (process_create_params->stack_base +
-         process_create_params->stack_size) >= VM_KERNEL_SPACE_START) {
+        (process_create_params->stack_base + process_create_params->stack_size) >= VM_KERNEL_SPACE_START) {
         return RESULT_BADARGS();
     }
 
@@ -218,8 +207,7 @@ SYSCALL_HANDLER(create_process) {
             return RESULT_BADARGS();
         }
 
-        if (((uintptr_t)src_ptr) + sizeof(AddressSpaceRegion) >
-            VM_KERNEL_SPACE_START) {
+        if (((uintptr_t)src_ptr) + sizeof(AddressSpaceRegion) > VM_KERNEL_SPACE_START) {
             return RESULT_BADARGS();
         }
 
@@ -237,11 +225,8 @@ SYSCALL_HANDLER(create_process) {
     }
 
     uintptr_t new_pml4 = address_space_create(
-            process_create_params->stack_base,
-            process_create_params->stack_size,
-            process_create_params->region_count, ad_regions,
-            process_create_params->stack_value_count,
-            process_create_params->stack_values);
+            process_create_params->stack_base, process_create_params->stack_size, process_create_params->region_count,
+            ad_regions, process_create_params->stack_value_count, process_create_params->stack_values);
 
     if (!new_pml4) {
         debugstr("Failed to create address space\n");
@@ -256,14 +241,10 @@ SYSCALL_HANDLER(create_process) {
         return RESULT_FAILURE();
     }
 
-    Task *new_task =
-            task_create_user(new_process,
-                             process_create_params->stack_base +
-                                     process_create_params->stack_size -
-                                     (process_create_params->stack_value_count *
-                                      sizeof(uintptr_t)),
-                             0, (uintptr_t)process_create_params->entry_point,
-                             TASK_CLASS_NORMAL);
+    Task *new_task = task_create_user(new_process,
+                                      process_create_params->stack_base + process_create_params->stack_size -
+                                              (process_create_params->stack_value_count * sizeof(uintptr_t)),
+                                      0, (uintptr_t)process_create_params->entry_point, TASK_CLASS_NORMAL);
 
     if (!new_task) {
         // TODO LEAK address_space_destroy!
@@ -301,8 +282,7 @@ static inline uintptr_t page_align(const uintptr_t addr) {
 }
 
 #ifdef MAP_VIRT_SYSCALL_STATIC
-static inline void undo_partial_map(const uintptr_t virtual_base,
-                                    const uintptr_t virtual_last,
+static inline void undo_partial_map(const uintptr_t virtual_base, const uintptr_t virtual_last,
                                     const uintptr_t new_page) {
     if ((new_page & 0xff) == 0) {
         // we allocated a page, so must be failing because there's already a page
@@ -311,8 +291,7 @@ static inline void undo_partial_map(const uintptr_t virtual_base,
     }
 
     // Either way, we're failing, so need to undo what we've already done...
-    for (uintptr_t unmap_addr = virtual_base; unmap_addr < virtual_last;
-         unmap_addr += VM_PAGE_SIZE) {
+    for (uintptr_t unmap_addr = virtual_base; unmap_addr < virtual_last; unmap_addr += VM_PAGE_SIZE) {
         uintptr_t page = vmm_virt_to_phys_page(unmap_addr);
 
 #ifdef CONSERVATIVE_BUILD
@@ -355,12 +334,10 @@ SYSCALL_HANDLER(map_virtual) {
 
     // Let's try to map it in, just using small pages for now...
     const uintptr_t virtual_end = virtual_base + size;
-    for (uintptr_t addr = virtual_base; addr < virtual_end;
-         addr += VM_PAGE_SIZE) {
+    for (uintptr_t addr = virtual_base; addr < virtual_end; addr += VM_PAGE_SIZE) {
 
 #ifdef MAP_VIRT_SYSCALL_STATIC
-        const uintptr_t new_page =
-                process_page_alloc(task_current()->owner, physical_region);
+        const uintptr_t new_page = process_page_alloc(task_current()->owner, physical_region);
 
         if (new_page & 0xff || vmm_virt_to_phys_page(addr)) {
             undo_partial_map(virtual_base, addr, new_page);
@@ -396,8 +373,7 @@ SYSCALL_HANDLER(map_virtual) {
             //      mapped. so don't unmap pages that were fine before if
             //      we fail here...
 
-            for (uintptr_t unmap_addr = virtual_base; unmap_addr < addr;
-                 unmap_addr += VM_PAGE_SIZE) {
+            for (uintptr_t unmap_addr = virtual_base; unmap_addr < addr; unmap_addr += VM_PAGE_SIZE) {
                 vmm_unmap_page(addr);
             }
 #endif
@@ -448,8 +424,7 @@ SYSCALL_HANDLER(send_message) {
     void *buffer = (void *)arg3;
 
     if (IS_USER_ADDRESS(buffer) && IS_PAGE_ALIGNED(buffer)) {
-        const uint64_t result =
-                ipc_channel_send(channel_cookie, tag, size, buffer);
+        const uint64_t result = ipc_channel_send(channel_cookie, tag, size, buffer);
 
         if (result) {
             return RESULT_OK_VAL(result);
@@ -467,10 +442,8 @@ SYSCALL_HANDLER(recv_message) {
     size_t *size = (size_t *)arg2;
     void *buffer = (void *)arg3;
 
-    if (IS_USER_ADDRESS(tag) && IS_USER_ADDRESS(size) &&
-        IS_USER_ADDRESS(buffer) && IS_PAGE_ALIGNED(buffer)) {
-        const uint64_t result =
-                ipc_channel_recv(channel_cookie, tag, size, buffer);
+    if (IS_USER_ADDRESS(tag) && IS_USER_ADDRESS(size) && IS_USER_ADDRESS(buffer) && IS_PAGE_ALIGNED(buffer)) {
+        const uint64_t result = ipc_channel_recv(channel_cookie, tag, size, buffer);
 
         if (result) {
             return RESULT_OK_VAL(result);
@@ -577,8 +550,7 @@ SYSCALL_HANDLER(kill_current_task) {
  * allocator fragmentation.
  */
 
-static Region *region_tree_find_adjacent(Region *node, const uintptr_t start,
-                                         const uintptr_t end,
+static Region *region_tree_find_adjacent(Region *node, const uintptr_t start, const uintptr_t end,
                                          const uint64_t flags) {
     while (node) {
         if (end == node->start && flags == node->flags) {
@@ -598,8 +570,7 @@ static Region *region_tree_find_adjacent(Region *node, const uintptr_t start,
     return nullptr;
 }
 
-static bool region_tree_overlaps(const Region *node, const uintptr_t start,
-                                 const uintptr_t end) {
+static bool region_tree_overlaps(const Region *node, const uintptr_t start, const uintptr_t end) {
     while (node) {
         if (start < node->end && end > node->start) {
             return true;
@@ -626,8 +597,7 @@ SYSCALL_HANDLER(create_region) {
     debugstr("\n");
 #endif
 
-    if ((start & 0xFFF) || (end & 0xFFF) || end <= start ||
-        start >= USERSPACE_LIMIT || end > USERSPACE_LIMIT) {
+    if ((start & 0xFFF) || (end & 0xFFF) || end <= start || start >= USERSPACE_LIMIT || end > USERSPACE_LIMIT) {
         return RESULT_BADARGS();
     }
 
@@ -635,8 +605,7 @@ SYSCALL_HANDLER(create_region) {
 
     // Try coalescing with an adjacent region if one exists
     // TODO this is probably dangerous
-    Region *adj = region_tree_find_adjacent(proc->meminfo->regions, start, end,
-                                            flags);
+    Region *adj = region_tree_find_adjacent(proc->meminfo->regions, start, end, flags);
     if (adj) {
         if (end == adj->start) {
             adj->start = start;
@@ -687,8 +656,7 @@ SYSCALL_HANDLER(destroy_region) {
     return RESULT_OK();
 }
 
-__attribute__((
-        no_sanitize("alignment"))) // ACPI table entry pointers aren't aligned
+__attribute__((no_sanitize("alignment"))) // ACPI table entry pointers aren't aligned
 SYSCALL_HANDLER(map_firmware_tables) {
 #ifdef ARCH_X86_64
     static bool acpi_tables_handed_over = false;
@@ -711,15 +679,13 @@ SYSCALL_HANDLER(map_firmware_tables) {
     ACPI_RSDP *kernel_rsdp = platform_get_root_firmware_table();
     ACPI_RSDT *root_table = platform_get_acpi_root_table();
     if (!kernel_rsdp || !root_table) {
-        acpi_debugf("--> ACPI roots are NULL: 0x%016lx : 0x%016lx\n",
-                    (uintptr_t)kernel_rsdp, (uintptr_t)root_table);
+        acpi_debugf("--> ACPI roots are NULL: 0x%016lx : 0x%016lx\n", (uintptr_t)kernel_rsdp, (uintptr_t)root_table);
         return RESULT_FAILURE();
     }
 
     // Convert kernel virtual addresses back to physical addresses in the tables
     if (has_sig("XSDT", &root_table->header)) {
-        acpi_debugf("--> ACPI root is XSDT with %d entries\n",
-                    XSDT_ENTRY_COUNT(root_table));
+        acpi_debugf("--> ACPI root is XSDT with %d entries\n", XSDT_ENTRY_COUNT(root_table));
         const uint32_t entries = XSDT_ENTRY_COUNT(root_table);
         uint64_t *entry = ((uint64_t *)(root_table + 1));
 
@@ -727,8 +693,7 @@ SYSCALL_HANDLER(map_firmware_tables) {
             acpi_vdebugf("----> Entry %d = 0x%016lx", i, *entry);
             if (*entry) {
                 const ACPI_SDTHeader *header = ((ACPI_SDTHeader *)*entry);
-                acpi_vdebugf(" [%c%c%c%c]\n", header->signature[0],
-                             header->signature[1], header->signature[2],
+                acpi_vdebugf(" [%c%c%c%c]\n", header->signature[0], header->signature[1], header->signature[2],
                              header->signature[3]);
             } else {
                 acpi_vdebugf(" [????]\n");
@@ -739,8 +704,7 @@ SYSCALL_HANDLER(map_firmware_tables) {
                 // Convert kernel virtual address back to physical
                 const uintptr_t phys_addr = vmm_virt_to_phys(*entry);
                 if (phys_addr == 0) {
-                    acpi_debugf("--> Remapping XSDT failed: 0x%016lx\n",
-                                (uintptr_t)*entry);
+                    acpi_debugf("--> Remapping XSDT failed: 0x%016lx\n", (uintptr_t)*entry);
                     return RESULT_FAILURE();
                 }
                 acpi_vdebugf("--> Remapped to 0x%016lx\n", phys_addr);
@@ -751,18 +715,15 @@ SYSCALL_HANDLER(map_firmware_tables) {
             entry++;
         }
     } else if (has_sig("RSDT", &root_table->header)) {
-        acpi_debugf("--> ACPI root is RSDT with %d entries\n",
-                    RSDT_ENTRY_COUNT(root_table));
+        acpi_debugf("--> ACPI root is RSDT with %d entries\n", RSDT_ENTRY_COUNT(root_table));
         const uint32_t entries = RSDT_ENTRY_COUNT(root_table);
         uint32_t *entry = ((uint32_t *)(root_table + 1));
 
         for (int i = 0; i < entries; i++) {
             acpi_vdebugf("----> Entry %d = 0x%08x", i, *entry);
             if (*entry) {
-                const ACPI_SDTHeader *header =
-                        ((ACPI_SDTHeader *)*(uintptr_t *)entry);
-                acpi_vdebugf(" [%c%c%c%c]\n", header->signature[0],
-                             header->signature[1], header->signature[2],
+                const ACPI_SDTHeader *header = ((ACPI_SDTHeader *)*(uintptr_t *)entry);
+                acpi_vdebugf(" [%c%c%c%c]\n", header->signature[0], header->signature[1], header->signature[2],
                              header->signature[3]);
             } else {
                 acpi_vdebugf(" [????]\n");
@@ -771,11 +732,9 @@ SYSCALL_HANDLER(map_firmware_tables) {
             // On real hardware, entries are sometimes 0 for some reason...
             if (*entry) {
                 // Convert kernel virtual address back to physical
-                const uintptr_t phys_addr =
-                        vmm_virt_to_phys(*entry | 0xFFFFFFFF00000000);
+                const uintptr_t phys_addr = vmm_virt_to_phys(*entry | 0xFFFFFFFF00000000);
                 if (phys_addr == 0) {
-                    acpi_debugf("--> Remapping RSDT failed: 0x%016lx\n",
-                                (uintptr_t)*entry);
+                    acpi_debugf("--> Remapping RSDT failed: 0x%016lx\n", (uintptr_t)*entry);
                     return RESULT_FAILURE();
                 }
                 *entry = (uint32_t)phys_addr;
@@ -791,8 +750,7 @@ SYSCALL_HANDLER(map_firmware_tables) {
 
     // Copy the RSDP to userspace
     // Note: We need to copy the full RSDP structure size
-    const size_t rsdp_size = (kernel_rsdp->revision == 0) ? ACPI_R0_RSDP_SIZE
-                                                          : kernel_rsdp->length;
+    const size_t rsdp_size = (kernel_rsdp->revision == 0) ? ACPI_R0_RSDP_SIZE : kernel_rsdp->length;
 
     // Simple byte-by-byte copy to userspace
     const uint8_t *src = (uint8_t *)kernel_rsdp;
@@ -805,8 +763,7 @@ SYSCALL_HANDLER(map_firmware_tables) {
     constexpr uintptr_t acpi_virt_start = ACPI_TABLES_VADDR_BASE;
     constexpr uintptr_t acpi_virt_end = ACPI_TABLES_VADDR_LIMIT;
 
-    for (uintptr_t virt_addr = acpi_virt_start; virt_addr < acpi_virt_end;
-         virt_addr += VM_PAGE_SIZE) {
+    for (uintptr_t virt_addr = acpi_virt_start; virt_addr < acpi_virt_end; virt_addr += VM_PAGE_SIZE) {
         // Check if this virtual page is mapped and unmap it
         if (vmm_virt_to_phys_page(virt_addr) != 0) {
             vmm_unmap_page(virt_addr);
@@ -884,8 +841,7 @@ SYSCALL_HANDLER(map_physical) {
         // Map the physical page into userspace with specified permissions
         if (!vmm_map_page(target_user_vaddr, target_phys_addr, page_flags)) {
             // If mapping fails, unmap what we've already done
-            for (uintptr_t unmap_offset = 0; unmap_offset < offset;
-                 unmap_offset += VM_PAGE_SIZE) {
+            for (uintptr_t unmap_offset = 0; unmap_offset < offset; unmap_offset += VM_PAGE_SIZE) {
                 const uintptr_t unmap_user_vaddr = user_vaddr + unmap_offset;
                 vmm_unmap_page(unmap_user_vaddr);
             }
@@ -936,8 +892,7 @@ SYSCALL_HANDLER(alloc_interrupt_vector) {
 
     uint64_t msi_address;
     uint32_t msi_data;
-    const uint8_t allocated_vector = msi_allocate_vector(
-            bus_device_func, proc->pid, &msi_address, &msi_data);
+    const uint8_t allocated_vector = msi_allocate_vector(bus_device_func, proc->pid, &msi_address, &msi_data);
     if (allocated_vector == 0) {
         return RESULT_FAILURE();
     }
@@ -1026,9 +981,7 @@ SYSCALL_HANDLER(get_framebuffer_phys) {
     return RESULT_OK();
 }
 
-static uint64_t init_syscall_capability(CapabilityMap *map,
-                                        const SyscallId syscall_id,
-                                        const SyscallHandler handler) {
+static uint64_t init_syscall_capability(CapabilityMap *map, const SyscallId syscall_id, const SyscallHandler handler) {
     if (!map) {
         return 0;
     }
@@ -1068,73 +1021,47 @@ static uint64_t init_syscall_capability(CapabilityMap *map,
 #define debug_syscall_cap_assignment(...)
 #endif
 
-#define stack_syscall_capability_cookie(id, handler)                           \
-    do {                                                                       \
-        uint64_t cookie =                                                      \
-                init_syscall_capability(&global_capability_map, id, handler);  \
-        if (!cookie) {                                                         \
-            return nullptr;                                                    \
-        }                                                                      \
-        debug_syscall_cap_assignment("COOKIE %d = 0x%016lx\n", id, cookie);    \
-        *--current_stack = cookie;                                             \
-        *--current_stack = id;                                                 \
+#define stack_syscall_capability_cookie(id, handler)                                                                   \
+    do {                                                                                                               \
+        uint64_t cookie = init_syscall_capability(&global_capability_map, id, handler);                                \
+        if (!cookie) {                                                                                                 \
+            return nullptr;                                                                                            \
+        }                                                                                                              \
+        debug_syscall_cap_assignment("COOKIE %d = 0x%016lx\n", id, cookie);                                            \
+        *--current_stack = cookie;                                                                                     \
+        *--current_stack = id;                                                                                         \
     } while (0)
 
 uint64_t *syscall_init_capabilities(uint64_t *stack) {
     uint64_t *current_stack = stack;
 
     // Stack all syscall capability cookies...
-    stack_syscall_capability_cookie(SYSCALL_ID_DEBUG_PRINT,
-                                    SYSCALL_NAME(debugprint));
-    stack_syscall_capability_cookie(SYSCALL_ID_DEBUG_CHAR,
-                                    SYSCALL_NAME(debugchar));
-    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_THREAD,
-                                    SYSCALL_NAME(create_thread));
-    stack_syscall_capability_cookie(SYSCALL_ID_MEMSTATS,
-                                    SYSCALL_NAME(memstats));
+    stack_syscall_capability_cookie(SYSCALL_ID_DEBUG_PRINT, SYSCALL_NAME(debugprint));
+    stack_syscall_capability_cookie(SYSCALL_ID_DEBUG_CHAR, SYSCALL_NAME(debugchar));
+    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_THREAD, SYSCALL_NAME(create_thread));
+    stack_syscall_capability_cookie(SYSCALL_ID_MEMSTATS, SYSCALL_NAME(memstats));
     stack_syscall_capability_cookie(SYSCALL_ID_SLEEP, SYSCALL_NAME(sleep));
-    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_PROCESS,
-                                    SYSCALL_NAME(create_process));
-    stack_syscall_capability_cookie(SYSCALL_ID_MAP_VIRTUAL,
-                                    SYSCALL_NAME(map_virtual));
-    stack_syscall_capability_cookie(SYSCALL_ID_SEND_MESSAGE,
-                                    SYSCALL_NAME(send_message));
-    stack_syscall_capability_cookie(SYSCALL_ID_RECV_MESSAGE,
-                                    SYSCALL_NAME(recv_message));
-    stack_syscall_capability_cookie(SYSCALL_ID_REPLY_MESSAGE,
-                                    SYSCALL_NAME(reply_message));
-    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_CHANNEL,
-                                    SYSCALL_NAME(create_channel));
-    stack_syscall_capability_cookie(SYSCALL_ID_DESTROY_CHANNEL,
-                                    SYSCALL_NAME(destroy_channel));
-    stack_syscall_capability_cookie(SYSCALL_ID_REGISTER_NAMED_CHANNEL,
-                                    SYSCALL_NAME(register_named_channel));
-    stack_syscall_capability_cookie(SYSCALL_ID_DEREGISTER_NAMED_CHANNEL,
-                                    SYSCALL_NAME(deregister_named_channel));
-    stack_syscall_capability_cookie(SYSCALL_ID_FIND_NAMED_CHANNEL,
-                                    SYSCALL_NAME(find_named_channel));
-    stack_syscall_capability_cookie(SYSCALL_ID_KILL_CURRENT_TASK,
-                                    SYSCALL_NAME(kill_current_task));
-    stack_syscall_capability_cookie(SYSCALL_ID_UNMAP_VIRTUAL,
-                                    SYSCALL_NAME(unmap_virtual));
-    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_REGION,
-                                    SYSCALL_NAME(create_region));
-    stack_syscall_capability_cookie(SYSCALL_ID_DESTROY_REGION,
-                                    SYSCALL_NAME(destroy_region));
-    stack_syscall_capability_cookie(SYSCALL_ID_MAP_FIRMWARE_TABLES,
-                                    SYSCALL_NAME(map_firmware_tables));
-    stack_syscall_capability_cookie(SYSCALL_ID_MAP_PHYSICAL,
-                                    SYSCALL_NAME(map_physical));
-    stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_PHYSICAL_PAGES,
-                                    SYSCALL_NAME(alloc_physical_pages));
-    stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_INTERRUPT_VECTOR,
-                                    SYSCALL_NAME(alloc_interrupt_vector));
-    stack_syscall_capability_cookie(SYSCALL_ID_WAIT_INTERRUPT,
-                                    SYSCALL_NAME(wait_interrupt));
-    stack_syscall_capability_cookie(SYSCALL_ID_READ_KERNEL_LOG,
-                                    SYSCALL_NAME(read_kernel_log));
-    stack_syscall_capability_cookie(SYSCALL_ID_GET_FRAMEBUFFER_PHYS,
-                                    SYSCALL_NAME(get_framebuffer_phys));
+    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_PROCESS, SYSCALL_NAME(create_process));
+    stack_syscall_capability_cookie(SYSCALL_ID_MAP_VIRTUAL, SYSCALL_NAME(map_virtual));
+    stack_syscall_capability_cookie(SYSCALL_ID_SEND_MESSAGE, SYSCALL_NAME(send_message));
+    stack_syscall_capability_cookie(SYSCALL_ID_RECV_MESSAGE, SYSCALL_NAME(recv_message));
+    stack_syscall_capability_cookie(SYSCALL_ID_REPLY_MESSAGE, SYSCALL_NAME(reply_message));
+    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_CHANNEL, SYSCALL_NAME(create_channel));
+    stack_syscall_capability_cookie(SYSCALL_ID_DESTROY_CHANNEL, SYSCALL_NAME(destroy_channel));
+    stack_syscall_capability_cookie(SYSCALL_ID_REGISTER_NAMED_CHANNEL, SYSCALL_NAME(register_named_channel));
+    stack_syscall_capability_cookie(SYSCALL_ID_DEREGISTER_NAMED_CHANNEL, SYSCALL_NAME(deregister_named_channel));
+    stack_syscall_capability_cookie(SYSCALL_ID_FIND_NAMED_CHANNEL, SYSCALL_NAME(find_named_channel));
+    stack_syscall_capability_cookie(SYSCALL_ID_KILL_CURRENT_TASK, SYSCALL_NAME(kill_current_task));
+    stack_syscall_capability_cookie(SYSCALL_ID_UNMAP_VIRTUAL, SYSCALL_NAME(unmap_virtual));
+    stack_syscall_capability_cookie(SYSCALL_ID_CREATE_REGION, SYSCALL_NAME(create_region));
+    stack_syscall_capability_cookie(SYSCALL_ID_DESTROY_REGION, SYSCALL_NAME(destroy_region));
+    stack_syscall_capability_cookie(SYSCALL_ID_MAP_FIRMWARE_TABLES, SYSCALL_NAME(map_firmware_tables));
+    stack_syscall_capability_cookie(SYSCALL_ID_MAP_PHYSICAL, SYSCALL_NAME(map_physical));
+    stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_PHYSICAL_PAGES, SYSCALL_NAME(alloc_physical_pages));
+    stack_syscall_capability_cookie(SYSCALL_ID_ALLOC_INTERRUPT_VECTOR, SYSCALL_NAME(alloc_interrupt_vector));
+    stack_syscall_capability_cookie(SYSCALL_ID_WAIT_INTERRUPT, SYSCALL_NAME(wait_interrupt));
+    stack_syscall_capability_cookie(SYSCALL_ID_READ_KERNEL_LOG, SYSCALL_NAME(read_kernel_log));
+    stack_syscall_capability_cookie(SYSCALL_ID_GET_FRAMEBUFFER_PHYS, SYSCALL_NAME(get_framebuffer_phys));
 
     // Stack dummy argc/argv for now
     // TODO this needs refactoring, syscall init shouldn't be responsible
@@ -1152,15 +1079,12 @@ uint64_t *syscall_init_capabilities(uint64_t *stack) {
     return current_stack;
 }
 
-SyscallResult handle_syscall_69(const SyscallArg arg0, const SyscallArg arg1,
-                                const SyscallArg arg2, const SyscallArg arg3,
-                                const SyscallArg arg4,
-                                const SyscallArg capability_cookie) {
+SyscallResult handle_syscall_69(const SyscallArg arg0, const SyscallArg arg1, const SyscallArg arg2,
+                                const SyscallArg arg3, const SyscallArg arg4, const SyscallArg capability_cookie) {
 
     Process *proc = task_current()->owner;
 
-    const SyscallCapability *cap = capability_map_lookup(
-            &global_capability_map, (uint64_t)capability_cookie);
+    const SyscallCapability *cap = capability_map_lookup(&global_capability_map, (uint64_t)capability_cookie);
 
     if (cap && cap->handler) {
 #ifdef ENABLE_SYSCALL_THROTTLE_RESET

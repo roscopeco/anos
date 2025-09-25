@@ -109,8 +109,6 @@ ACPI_RSDT *acpi_tables_init(ACPI_RSDP *rsdp);
 
 ACPI_SDTHeader *acpi_tables_find(ACPI_RSDT *rsdt, const char *ident);
 
-static inline ACPI_MADT *acpi_tables_find_madt(ACPI_RSDT *rsdt) {
-    return (ACPI_MADT *)acpi_tables_find(rsdt, "APIC");
-}
+static inline ACPI_MADT *acpi_tables_find_madt(ACPI_RSDT *rsdt) { return (ACPI_MADT *)acpi_tables_find(rsdt, "APIC"); }
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_ACPITABLES_H

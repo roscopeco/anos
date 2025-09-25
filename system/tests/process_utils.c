@@ -29,8 +29,7 @@ static void *setup(const MunitParameter params[], void *user_data) {
 // PAGE SIZE ROUNDING TESTS
 // ============================================================================
 
-static MunitResult
-test_round_up_to_page_size_aligned(const MunitParameter params[], void *data) {
+static MunitResult test_round_up_to_page_size_aligned(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -41,9 +40,7 @@ test_round_up_to_page_size_aligned(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_round_up_to_page_size_unaligned(const MunitParameter params[],
-                                     void *data) {
+static MunitResult test_round_up_to_page_size_unaligned(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -54,8 +51,7 @@ test_round_up_to_page_size_unaligned(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_round_up_to_page_size_zero(const MunitParameter params[], void *data) {
+static MunitResult test_round_up_to_page_size_zero(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -66,8 +62,7 @@ test_round_up_to_page_size_zero(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_round_up_to_page_size_small(const MunitParameter params[], void *data) {
+static MunitResult test_round_up_to_page_size_small(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -78,9 +73,7 @@ test_round_up_to_page_size_small(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_round_up_to_page_size_multiple_pages(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_round_up_to_page_size_multiple_pages(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -95,9 +88,7 @@ test_round_up_to_page_size_multiple_pages(const MunitParameter params[],
 // MACHINE WORD SIZE ROUNDING TESTS
 // ============================================================================
 
-static MunitResult
-test_round_up_to_machine_word_size_aligned(const MunitParameter params[],
-                                           void *data) {
+static MunitResult test_round_up_to_machine_word_size_aligned(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -108,9 +99,7 @@ test_round_up_to_machine_word_size_aligned(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_round_up_to_machine_word_size_unaligned(const MunitParameter params[],
-                                             void *data) {
+static MunitResult test_round_up_to_machine_word_size_unaligned(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -121,9 +110,7 @@ test_round_up_to_machine_word_size_unaligned(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_round_up_to_machine_word_size_zero(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_round_up_to_machine_word_size_zero(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -134,9 +121,7 @@ test_round_up_to_machine_word_size_zero(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_round_up_to_machine_word_size_small(const MunitParameter params[],
-                                         void *data) {
+static MunitResult test_round_up_to_machine_word_size_small(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -147,15 +132,12 @@ test_round_up_to_machine_word_size_small(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_round_up_to_machine_word_size_multiple_words(const MunitParameter params[],
-                                                  void *data) {
+static MunitResult test_round_up_to_machine_word_size_multiple_words(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
     // Test with size requiring multiple words
-    unsigned int result =
-            round_up_to_machine_word_size(sizeof(uintptr_t) * 2 + 3);
+    unsigned int result = round_up_to_machine_word_size(sizeof(uintptr_t) * 2 + 3);
     munit_assert_uint32(result, ==, sizeof(uintptr_t) * 3);
 
     return MUNIT_OK;
@@ -164,44 +146,33 @@ test_round_up_to_machine_word_size_multiple_words(const MunitParameter params[],
 // Test array
 static MunitTest test_suite_tests[] = {
         // Page size rounding tests
-        {(char *)"/process_utils/round_up_to_page_size_aligned",
-         test_round_up_to_page_size_aligned, setup, NULL,
+        {(char *)"/process_utils/round_up_to_page_size_aligned", test_round_up_to_page_size_aligned, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/process_utils/round_up_to_page_size_unaligned",
-         test_round_up_to_page_size_unaligned, setup, NULL,
+        {(char *)"/process_utils/round_up_to_page_size_unaligned", test_round_up_to_page_size_unaligned, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/process_utils/round_up_to_page_size_zero",
-         test_round_up_to_page_size_zero, setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/process_utils/round_up_to_page_size_small",
-         test_round_up_to_page_size_small, setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/process_utils/round_up_to_page_size_multiple_pages",
-         test_round_up_to_page_size_multiple_pages, setup, NULL,
+        {(char *)"/process_utils/round_up_to_page_size_zero", test_round_up_to_page_size_zero, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/process_utils/round_up_to_page_size_small", test_round_up_to_page_size_small, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/process_utils/round_up_to_page_size_multiple_pages", test_round_up_to_page_size_multiple_pages,
+         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         // Machine word size rounding tests
-        {(char *)"/process_utils/round_up_to_machine_word_size_aligned",
-         test_round_up_to_machine_word_size_aligned, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/process_utils/round_up_to_machine_word_size_unaligned",
-         test_round_up_to_machine_word_size_unaligned, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/process_utils/round_up_to_machine_word_size_zero",
-         test_round_up_to_machine_word_size_zero, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/process_utils/round_up_to_machine_word_size_small",
-         test_round_up_to_machine_word_size_small, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/process_utils/round_up_to_machine_word_size_aligned", test_round_up_to_machine_word_size_aligned,
+         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/process_utils/round_up_to_machine_word_size_unaligned", test_round_up_to_machine_word_size_unaligned,
+         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/process_utils/round_up_to_machine_word_size_zero", test_round_up_to_machine_word_size_zero, setup,
+         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/process_utils/round_up_to_machine_word_size_small", test_round_up_to_machine_word_size_small, setup,
+         NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {(char *)"/process_utils/round_up_to_machine_word_size_multiple_words",
-         test_round_up_to_machine_word_size_multiple_words, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+         test_round_up_to_machine_word_size_multiple_words, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"process_utils", argc, argv);

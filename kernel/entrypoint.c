@@ -53,8 +53,7 @@ static bool zeropage_init() {
         return false;
     }
 
-    vmm_map_page(PER_CPU_TEMP_PAGE_BASE, kernel_zero_page,
-                 PG_READ | PG_WRITE | PG_PRESENT);
+    vmm_map_page(PER_CPU_TEMP_PAGE_BASE, kernel_zero_page, PG_READ | PG_WRITE | PG_PRESENT);
     uint64_t *temp_map = (uint64_t *)PER_CPU_TEMP_PAGE_BASE;
     memclr(temp_map, VM_PAGE_SIZE);
     vmm_unmap_page(PER_CPU_TEMP_PAGE_BASE);
@@ -64,8 +63,7 @@ static bool zeropage_init() {
 
 // Common entrypoint once bootloader-specific stuff is handled
 noreturn void bsp_kernel_entrypoint(const uintptr_t platform_data) {
-    if (!fba_init((uint64_t *)vmm_find_pml4(), KERNEL_FBA_BEGIN,
-                  KERNEL_FBA_SIZE_BLOCKS)) {
+    if (!fba_init((uint64_t *)vmm_find_pml4(), KERNEL_FBA_BEGIN, KERNEL_FBA_SIZE_BLOCKS)) {
         panic("FBA init failed");
     }
 

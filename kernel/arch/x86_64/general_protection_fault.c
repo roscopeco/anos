@@ -9,7 +9,6 @@
 
 #include "panic.h"
 
-void handle_general_protection_fault(const uint64_t code,
-                                     const uintptr_t origin_addr) {
+void handle_general_protection_fault(const uint64_t code, const uintptr_t origin_addr) {
     panic_general_protection_fault(code, origin_addr);
 }

@@ -69,8 +69,7 @@ static_assert_sizeof(GDTSystemEntry, ==, 16);
 GDTEntry *get_gdt_entry(const GDTR *gdtr, int index);
 
 // Update values in a GDT entry. Caller should disable interrupts!
-void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
-                    uint8_t access, uint8_t flags_limit_h);
+void init_gdt_entry(GDTEntry *entry, uint32_t base, uint32_t limit, uint8_t access, uint8_t flags_limit_h);
 
 // Get a TSS pointer from a TSS GDT entry
 void *gdt_entry_to_tss(const GDTSystemEntry *tss_entry);

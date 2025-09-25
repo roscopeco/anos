@@ -17,9 +17,7 @@
 
 uint32_t refcount_map_increment(uintptr_t addr) { return 1; }
 
-uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys, uint64_t flags) {
-    return ((phys & ~0xFFF) >> 2) | flags;
-}
+uint64_t vmm_phys_and_flags_to_table_entry(uintptr_t phys, uint64_t flags) { return ((phys & ~0xFFF) >> 2) | flags; }
 
 #define TEST_PML4_ADDR (((uint64_t *)0x100000))
 #define TEST_PAGE_COUNT ((32768))
@@ -35,8 +33,7 @@ static void test_teardown(void *page_area_ptr) {
     mock_pmm_reset();
 }
 
-static MunitResult test_init_success(const MunitParameter params[],
-                                     void *fixture) {
+static MunitResult test_init_success(const MunitParameter params[], void *fixture) {
     // Test successful initialization
     const bool result = address_space_init();
 
@@ -52,36 +49,27 @@ static MunitResult test_init_success(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_init_with_existing_entries(const MunitParameter params[], void *fixture) {
+static MunitResult test_init_with_existing_entries(const MunitParameter params[], void *fixture) {
     // Set up some pre-existing entries
     complete_pml4.entries[FIRST_KERNEL_PML4E + 3] = 0x1000 | PG_PRESENT;
-    complete_pml4.entries[FIRST_KERNEL_PML4E + 4] =
-            0x2000 | PG_PRESENT | PG_WRITE;
+    complete_pml4.entries[FIRST_KERNEL_PML4E + 4] = 0x2000 | PG_PRESENT | PG_WRITE;
 
     bool result = address_space_init();
     munit_assert_true(result);
 
     // Verify pre-existing entries weren't modified
-    munit_assert_uint64(complete_pml4.entries[FIRST_KERNEL_PML4E + 3], ==,
-                        0x1000 | PG_PRESENT);
-    munit_assert_uint64(complete_pml4.entries[FIRST_KERNEL_PML4E + 4], ==,
-                        0x2000 | PG_PRESENT | PG_WRITE);
+    munit_assert_uint64(complete_pml4.entries[FIRST_KERNEL_PML4E + 3], ==, 0x1000 | PG_PRESENT);
+    munit_assert_uint64(complete_pml4.entries[FIRST_KERNEL_PML4E + 4], ==, 0x2000 | PG_PRESENT | PG_WRITE);
 
     return MUNIT_OK;
 }
 
 static MunitTest test_suite_tests[] = {
-        {"/success", test_init_success, test_setup, test_teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/existing_entries", test_init_with_existing_entries, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/success", test_init_success, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/existing_entries", test_init_with_existing_entries, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/address_space/init", test_suite_tests,
-                                      NULL, 1, MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {"/address_space/init", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&test_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&test_suite, NULL, argc, argv); }

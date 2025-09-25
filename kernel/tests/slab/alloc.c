@@ -49,17 +49,14 @@ static MunitResult test_slab_init(const MunitParameter params[], void *param) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_slab_alloc_block_from_empty(const MunitParameter params[],
-                                 void *page_area_ptr) {
+static MunitResult test_slab_alloc_block_from_empty(const MunitParameter params[], void *page_area_ptr) {
     // one block allocated for FBA already
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 1);
 
     void *result = slab_alloc_block();
 
     // Slab allocated a block
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 1);
 
     // Block is at the base of the slab area, plus 64 bytes (Slab* is at the base)
     munit_assert_ptr_equal(result, slab_area_base(page_area_ptr) + 64);
@@ -79,8 +76,7 @@ test_slab_alloc_block_from_empty(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_slab_alloc_block_x63(const MunitParameter params[],
-                                             void *page_area_ptr) {
+static MunitResult test_slab_alloc_block_x63(const MunitParameter params[], void *page_area_ptr) {
     // one block allocated for FBA already
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 1);
 
@@ -91,13 +87,11 @@ static MunitResult test_slab_alloc_block_x63(const MunitParameter params[],
     }
 
     // Slab allocated a block
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 1);
 
     // Blocks are at the right location
     for (int i = 0; i < 63; i++) {
-        munit_assert_ptr_equal(results[i],
-                               slab_area_base(page_area_ptr) + 64 + (i * 64));
+        munit_assert_ptr_equal(results[i], slab_area_base(page_area_ptr) + 64 + (i * 64));
     }
 
     // Slab has been initialized correctly...
@@ -115,8 +109,7 @@ static MunitResult test_slab_alloc_block_x63(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_slab_alloc_block_x64(const MunitParameter params[],
-                                             void *page_area_ptr) {
+static MunitResult test_slab_alloc_block_x64(const MunitParameter params[], void *page_area_ptr) {
     // one block allocated for FBA already
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 1);
 
@@ -127,13 +120,11 @@ static MunitResult test_slab_alloc_block_x64(const MunitParameter params[],
     }
 
     // Slab allocated a block
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 1);
 
     // Blocks are at the right location
     for (int i = 0; i < 64; i++) {
-        munit_assert_ptr_equal(results[i],
-                               slab_area_base(page_area_ptr) + 64 + (i * 64));
+        munit_assert_ptr_equal(results[i], slab_area_base(page_area_ptr) + 64 + (i * 64));
     }
 
     // Slab has been initialized correctly...
@@ -151,8 +142,7 @@ static MunitResult test_slab_alloc_block_x64(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_slab_alloc_block_x255(const MunitParameter params[],
-                                              void *page_area_ptr) {
+static MunitResult test_slab_alloc_block_x255(const MunitParameter params[], void *page_area_ptr) {
     // one block allocated for FBA already
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 1);
 
@@ -163,13 +153,11 @@ static MunitResult test_slab_alloc_block_x255(const MunitParameter params[],
     }
 
     // Slab allocated a block of PAGES_PER_SLAB size from PMM (via FBA)
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 1);
 
     // Blocks are at the right location
     for (int i = 0; i < 255; i++) {
-        munit_assert_ptr_equal(results[i],
-                               slab_area_base(page_area_ptr) + 64 + (i * 64));
+        munit_assert_ptr_equal(results[i], slab_area_base(page_area_ptr) + 64 + (i * 64));
     }
 
     // Slab has been initialized correctly...
@@ -187,8 +175,7 @@ static MunitResult test_slab_alloc_block_x255(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_slab_alloc_block_x256(const MunitParameter params[],
-                                              void *page_area_ptr) {
+static MunitResult test_slab_alloc_block_x256(const MunitParameter params[], void *page_area_ptr) {
     // one block allocated for FBA already
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 1);
 
@@ -199,8 +186,7 @@ static MunitResult test_slab_alloc_block_x256(const MunitParameter params[],
     }
 
     // Slab allocated two block of PAGES_PER_SLAB size from PMM (via FBA)
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        (PAGES_PER_SLAB * 2) + 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, (PAGES_PER_SLAB * 2) + 1);
 
     Slab *first_slab = slab_base(results[0]);
     Slab *second_slab = slab_base(results[255]);
@@ -240,8 +226,7 @@ static MunitResult test_slab_alloc_block_x256(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_slab_alloc_block_x512(const MunitParameter params[],
-                                              void *page_area_ptr) {
+static MunitResult test_slab_alloc_block_x512(const MunitParameter params[], void *page_area_ptr) {
     // one block allocated for FBA already
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 1);
 
@@ -252,8 +237,7 @@ static MunitResult test_slab_alloc_block_x512(const MunitParameter params[],
     }
 
     // Slab allocated three block of PAGES_PER_SLAB size from PMM (via FBA)
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        (PAGES_PER_SLAB * 3) + 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, (PAGES_PER_SLAB * 3) + 1);
 
     Slab *first_slab = slab_base(results[0]);
     Slab *second_slab = slab_base(results[255]);
@@ -313,13 +297,11 @@ static MunitResult test_slab_alloc_block_x512(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_slab_free_not_allocated(const MunitParameter params[],
-                                                void *page_area_ptr) {
+static MunitResult test_slab_free_not_allocated(const MunitParameter params[], void *page_area_ptr) {
     void *test_block = slab_alloc_block();
 
     // Slab allocated an FBA block
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 1);
 
     // Slab has been initialized correctly...
     Slab *slab = (Slab *)slab_area_base(page_area_ptr);
@@ -341,13 +323,11 @@ static MunitResult test_slab_free_not_allocated(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_slab_free_bitmap(const MunitParameter params[],
-                                         void *page_area_ptr) {
+static MunitResult test_slab_free_bitmap(const MunitParameter params[], void *page_area_ptr) {
     void *test_block = slab_alloc_block();
 
     // Slab allocated an FBA block
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 1);
 
     // Slab has been initialized correctly...
     Slab *slab = (Slab *)slab_area_base(page_area_ptr);
@@ -369,13 +349,11 @@ static MunitResult test_slab_free_bitmap(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_slab_free_one(const MunitParameter params[],
-                                      void *page_area_ptr) {
+static MunitResult test_slab_free_one(const MunitParameter params[], void *page_area_ptr) {
     void *test_block = slab_alloc_block();
 
     // Slab allocated an FBA block
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 1);
 
     // Slab has been initialized correctly...
     Slab *slab = (Slab *)slab_area_base(page_area_ptr);
@@ -397,14 +375,12 @@ static MunitResult test_slab_free_one(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_slab_free_two(const MunitParameter params[],
-                                      void *page_area_ptr) {
+static MunitResult test_slab_free_two(const MunitParameter params[], void *page_area_ptr) {
     void *test_block_1 = slab_alloc_block();
     void *test_block_2 = slab_alloc_block();
 
     // Slab allocated two FBA blocks
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 1);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 1);
 
     // Slab has been initialized correctly...
     Slab *slab = (Slab *)slab_area_base(page_area_ptr);
@@ -434,8 +410,7 @@ static MunitResult test_slab_free_two(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_slab_free_from_full(const MunitParameter params[],
-                                            void *page_area_ptr) {
+static MunitResult test_slab_free_from_full(const MunitParameter params[], void *page_area_ptr) {
     // one block allocated for FBA already
     munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, 1);
 
@@ -478,38 +453,33 @@ static MunitResult test_slab_free_from_full(const MunitParameter params[],
 }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/init", test_slab_init, NULL, NULL, MUNIT_TEST_OPTION_NONE,
+        {(char *)"/init", test_slab_init, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+
+        {(char *)"/alloc/block_from_empty", test_slab_alloc_block_from_empty, test_setup, test_teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/block_x63", test_slab_alloc_block_x63, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/alloc/block_x64", test_slab_alloc_block_x64, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/alloc/block_x255", test_slab_alloc_block_x255, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/alloc/block_x256", test_slab_alloc_block_x256, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/alloc/block_x512", test_slab_alloc_block_x512, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
          NULL},
 
-        {(char *)"/alloc/block_from_empty", test_slab_alloc_block_from_empty,
-         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc/block_x63", test_slab_alloc_block_x63, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc/block_x64", test_slab_alloc_block_x64, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc/block_x255", test_slab_alloc_block_x255, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc/block_x256", test_slab_alloc_block_x256, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc/block_x512", test_slab_alloc_block_x512, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-
-        {(char *)"/alloc/free_not_alloc", test_slab_free_not_allocated,
-         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc/free_bitmap_nope", test_slab_free_bitmap, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc/free_one", test_slab_free_one, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc/free_two", test_slab_free_two, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc/free_two", test_slab_free_from_full, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/free_not_alloc", test_slab_free_not_allocated, test_setup, test_teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/free_bitmap_nope", test_slab_free_bitmap, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/alloc/free_one", test_slab_free_one, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/free_two", test_slab_free_two, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc/free_two", test_slab_free_from_full, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"/slab", test_suite_tests, NULL,
-                                      1, MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"/slab", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);

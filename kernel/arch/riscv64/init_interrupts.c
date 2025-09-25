@@ -11,10 +11,6 @@
 
 extern void supervisor_trap_dispatcher(void);
 
-void unknown_trap_handler(uintptr_t vector, uintptr_t origin) {
-    panic_exception_no_code(vector, origin);
-}
+void unknown_trap_handler(uintptr_t vector, uintptr_t origin) { panic_exception_no_code(vector, origin); }
 
-void install_interrupts(void) {
-    set_supervisor_trap_vector(supervisor_trap_dispatcher);
-}
+void install_interrupts(void) { set_supervisor_trap_vector(supervisor_trap_dispatcher); }

@@ -17,13 +17,13 @@ struct Task;
 
 // Kernel log buffer structure
 typedef struct {
-    char *buffer;          // Circular buffer storage
-    size_t size;           // Total buffer size
-    volatile size_t head;  // Write position (next char goes here)
-    volatile size_t tail;  // Read position (next char read from here)
-    volatile size_t count; // Number of unread bytes
-    SpinLock lock;         // Synchronization lock
-    bool dropped_messages; // True if messages were dropped due to overflow
+    char *buffer;                 // Circular buffer storage
+    size_t size;                  // Total buffer size
+    volatile size_t head;         // Write position (next char goes here)
+    volatile size_t tail;         // Read position (next char read from here)
+    volatile size_t count;        // Number of unread bytes
+    SpinLock lock;                // Synchronization lock
+    bool dropped_messages;        // True if messages were dropped due to overflow
     struct Task *waiting_readers; // Linked list of tasks waiting for data
 } KernelLogBuffer;
 

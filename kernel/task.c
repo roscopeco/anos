@@ -91,9 +91,7 @@ static inline PerCPUTaskState *init_cpu_task_state(void *tss) {
 }
 
 #ifdef UNIT_TESTS
-void task_do_switch(Task *next) {
-    get_cpu_task_state()->task_current_ptr = next;
-}
+void task_do_switch(Task *next) { get_cpu_task_state()->task_current_ptr = next; }
 #else
 // See task_switch.asm
 void task_do_switch(Task *next);
@@ -125,8 +123,7 @@ void task_switch(Task *next) {
     task_do_switch(next);
 }
 
-Task *task_create_new(Process *owner, const uintptr_t sp,
-                      const uintptr_t sys_ssp, const uintptr_t bootstrap,
+Task *task_create_new(Process *owner, const uintptr_t sp, const uintptr_t sys_ssp, const uintptr_t bootstrap,
                       const uintptr_t func, const TaskClass class) {
 
     Task *task = fba_alloc_block();
@@ -141,8 +138,7 @@ Task *task_create_new(Process *owner, const uintptr_t sp,
     task->data = &task->sdata;
     task->sched = &task->ssched;
 
-    tdebugf("sdata @ 0x%016lx; ssched @ 0x%016lx\n", (uintptr_t)&task->sdata,
-            (uintptr_t)&task->sched);
+    tdebugf("sdata @ 0x%016lx; ssched @ 0x%016lx\n", (uintptr_t)&task->sdata, (uintptr_t)&task->sched);
 
     task->sched->tid = next_tid++;
 
@@ -150,8 +146,7 @@ Task *task_create_new(Process *owner, const uintptr_t sp,
         task->rsp0 = task->ssp = sys_ssp;
     } else {
         task->rsp0 = task->ssp =
-                ((uintptr_t)fba_alloc_block()) +
-                0x1000; // default 4KiB kernel stack should be enough...?
+                ((uintptr_t)fba_alloc_block()) + 0x1000; // default 4KiB kernel stack should be enough...?
 
         vdebug("Created kernel stack for 0 thread @ ");
         vdbgx64(task->rsp0);
@@ -238,18 +233,14 @@ void task_destroy(Task *task) {
     }
 }
 
-Task *task_create_user(Process *owner, const uintptr_t sp,
-                       const uintptr_t sys_ssp, const uintptr_t func,
+Task *task_create_user(Process *owner, const uintptr_t sp, const uintptr_t sys_ssp, const uintptr_t func,
                        const TaskClass class) {
-    return task_create_new(owner, sp, sys_ssp,
-                           (uintptr_t)user_thread_entrypoint, func, class);
+    return task_create_new(owner, sp, sys_ssp, (uintptr_t)user_thread_entrypoint, func, class);
 }
 
-Task *task_create_kernel(Process *owner, const uintptr_t sp,
-                         const uintptr_t sys_ssp, const uintptr_t func,
+Task *task_create_kernel(Process *owner, const uintptr_t sp, const uintptr_t sys_ssp, const uintptr_t func,
                          const TaskClass class) {
-    return task_create_new(owner, sp, sys_ssp,
-                           (uintptr_t)kernel_thread_entrypoint, func, class);
+    return task_create_new(owner, sp, sys_ssp, (uintptr_t)kernel_thread_entrypoint, func, class);
 }
 
 void task_remove_from_process(Task *task) {
@@ -278,8 +269,7 @@ noreturn void task_current_exitpoint(void) {
     Task *task = task_current();
     Process *owner = task->owner;
 
-    tdebugf("Thread %ld (process %ld) is exiting..\n", task->sched->tid,
-            owner->pid);
+    tdebugf("Thread %ld (process %ld) is exiting..\n", task->sched->tid, owner->pid);
 
     task_remove_from_process(task);
 
@@ -293,8 +283,7 @@ noreturn void task_current_exitpoint(void) {
     // The scheduler **must** remain locked throughout obviously...
 
     if (owner->tasks == NULL) {
-        tdebugf("Last thread for process %ld exited, killing process\n",
-                owner->pid);
+        tdebugf("Last thread for process %ld exited, killing process\n", owner->pid);
         process_destroy(owner);
     }
 

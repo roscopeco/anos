@@ -24,8 +24,7 @@ typedef struct {
 extern KernelFramebufferInfo kernel_framebuffer;
 
 // Initialize framebuffer information
-void framebuffer_set_info(uintptr_t phys_addr, uintptr_t virt_addr,
-                          uint32_t width, uint32_t height, uint32_t bpp);
+void framebuffer_set_info(uintptr_t phys_addr, uintptr_t virt_addr, uint32_t width, uint32_t height, uint32_t bpp);
 
 // Get framebuffer information (for syscalls)
 bool framebuffer_get_info(KernelFramebufferInfo *info);

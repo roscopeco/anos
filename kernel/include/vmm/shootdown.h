@@ -21,71 +21,45 @@
 
 #include "process.h"
 
-bool vmm_shootdown_map_page_containing_in_process(const Process *process,
-                                                  uintptr_t virt_addr,
-                                                  uintptr_t phys_addr,
+bool vmm_shootdown_map_page_containing_in_process(const Process *process, uintptr_t virt_addr, uintptr_t phys_addr,
                                                   uintptr_t flags);
 
-bool vmm_shootdown_map_page_containing_in_pml4(uint64_t *pml4_virt,
-                                               uintptr_t virt_addr,
-                                               uintptr_t phys_addr,
+bool vmm_shootdown_map_page_containing_in_pml4(uint64_t *pml4_virt, uintptr_t virt_addr, uintptr_t phys_addr,
                                                uintptr_t flags);
 
-bool vmm_shootdown_map_pages_containing_in_process(const Process *process,
-                                                   uintptr_t virt_addr,
-                                                   uintptr_t phys_addr,
-                                                   uintptr_t flags,
-                                                   size_t num_pages);
+bool vmm_shootdown_map_pages_containing_in_process(const Process *process, uintptr_t virt_addr, uintptr_t phys_addr,
+                                                   uintptr_t flags, size_t num_pages);
 
-bool vmm_shootdown_map_pages_containing_in_pml4(uint64_t *pml4_virt,
-                                                uintptr_t virt_addr,
-                                                uintptr_t phys_addr,
-                                                uintptr_t flags,
-                                                size_t num_pages);
+bool vmm_shootdown_map_pages_containing_in_pml4(uint64_t *pml4_virt, uintptr_t virt_addr, uintptr_t phys_addr,
+                                                uintptr_t flags, size_t num_pages);
 
-bool vmm_shootdown_map_page_containing(uintptr_t virt_addr, uintptr_t phys_addr,
-                                       uintptr_t flags);
+bool vmm_shootdown_map_page_containing(uintptr_t virt_addr, uintptr_t phys_addr, uintptr_t flags);
 
-bool vmm_shootdown_map_page_in_process(const Process *process,
-                                       uintptr_t virt_addr, uintptr_t page,
-                                       uintptr_t flags);
+bool vmm_shootdown_map_page_in_process(const Process *process, uintptr_t virt_addr, uintptr_t page, uintptr_t flags);
 
-bool vmm_shootdown_map_page_in_pml4(uint64_t *pml4_virt, uintptr_t virt_addr,
-                                    uintptr_t page, uintptr_t flags);
+bool vmm_shootdown_map_page_in_pml4(uint64_t *pml4_virt, uintptr_t virt_addr, uintptr_t page, uintptr_t flags);
 
-bool vmm_shootdown_map_page(uintptr_t virt_addr, uintptr_t page,
-                            uintptr_t flags);
+bool vmm_shootdown_map_page(uintptr_t virt_addr, uintptr_t page, uintptr_t flags);
 
-bool vmm_shootdown_map_pages_containing(uintptr_t virt_addr,
-                                        uintptr_t phys_addr, uintptr_t flags,
+bool vmm_shootdown_map_pages_containing(uintptr_t virt_addr, uintptr_t phys_addr, uintptr_t flags, size_t num_pages);
+
+bool vmm_shootdown_map_pages_in_process(const Process *process, uintptr_t virt_addr, uintptr_t page, uintptr_t flags,
                                         size_t num_pages);
 
-bool vmm_shootdown_map_pages_in_process(const Process *process,
-                                        uintptr_t virt_addr, uintptr_t page,
-                                        uintptr_t flags, size_t num_pages);
-
-bool vmm_shootdown_map_pages_in_pml4(uint64_t *pml4_virt, uintptr_t virt_addr,
-                                     uintptr_t page, uintptr_t flags,
+bool vmm_shootdown_map_pages_in_pml4(uint64_t *pml4_virt, uintptr_t virt_addr, uintptr_t page, uintptr_t flags,
                                      size_t num_pages);
 
-bool vmm_shootdown_map_pages(uintptr_t virt_addr, uintptr_t page,
-                             uintptr_t flags, size_t num_pages);
+bool vmm_shootdown_map_pages(uintptr_t virt_addr, uintptr_t page, uintptr_t flags, size_t num_pages);
 
-uintptr_t vmm_shootdown_unmap_page_in_process(const Process *process,
-                                              uintptr_t virt_addr);
+uintptr_t vmm_shootdown_unmap_page_in_process(const Process *process, uintptr_t virt_addr);
 
-uintptr_t vmm_shootdown_unmap_page_in_pml4(uint64_t *pml4_virt,
-                                           uintptr_t virt_addr);
+uintptr_t vmm_shootdown_unmap_page_in_pml4(uint64_t *pml4_virt, uintptr_t virt_addr);
 
 uintptr_t vmm_shootdown_unmap_page(uintptr_t virt_addr);
 
-uintptr_t vmm_shootdown_unmap_pages_in_process(const Process *process,
-                                               uintptr_t virt_addr,
-                                               size_t num_pages);
+uintptr_t vmm_shootdown_unmap_pages_in_process(const Process *process, uintptr_t virt_addr, size_t num_pages);
 
-uintptr_t vmm_shootdown_unmap_pages_in_pml4(uint64_t *pml4_virt,
-                                            uintptr_t virt_addr,
-                                            size_t num_pages);
+uintptr_t vmm_shootdown_unmap_pages_in_pml4(uint64_t *pml4_virt, uintptr_t virt_addr, size_t num_pages);
 
 uintptr_t vmm_shootdown_unmap_pages(uintptr_t virt_addr, size_t num_pages);
 

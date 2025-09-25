@@ -72,9 +72,7 @@ inline void cpu_store_idtr(IDTR *idtr) {
     // noop
 }
 
-inline void cpu_invalidate_tlb_addr(uintptr_t virt_addr) {
-    mock_invlpg_count++;
-}
+inline void cpu_invalidate_tlb_addr(uintptr_t virt_addr) { mock_invlpg_count++; }
 
 inline void cpu_swapgs(void) {
     // noop

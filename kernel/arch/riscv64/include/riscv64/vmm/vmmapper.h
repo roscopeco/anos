@@ -67,52 +67,32 @@ typedef struct {
     uint64_t entries[PAGE_TABLE_ENTRIES];
 } PageTable;
 
-static inline uint16_t vmm_virt_to_table_index(uintptr_t virt_addr,
-                                               uint8_t level) {
+static inline uint16_t vmm_virt_to_table_index(uintptr_t virt_addr, uint8_t level) {
     return ((virt_addr >> ((9 * (level - 1)) + 12)) & 0x1ff);
 }
 
-static inline uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 9 + 9 + 12)) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pml4_index(uintptr_t virt_addr) { return ((virt_addr >> (9 + 9 + 9 + 12)) & 0x1ff); }
 
-static inline uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 9 + 12)) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pdpt_index(uintptr_t virt_addr) { return ((virt_addr >> (9 + 9 + 12)) & 0x1ff); }
 
-static inline uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 12)) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pd_index(uintptr_t virt_addr) { return ((virt_addr >> (9 + 12)) & 0x1ff); }
 
-static inline uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr) {
-    return ((virt_addr >> 12) & 0x1ff);
-}
+static inline uint16_t vmm_virt_to_pt_index(uintptr_t virt_addr) { return ((virt_addr >> 12) & 0x1ff); }
 
-static inline uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry) {
-    return ((table_entry >> 10) << 12);
-}
+static inline uintptr_t vmm_table_entry_to_phys(uintptr_t table_entry) { return ((table_entry >> 10) << 12); }
 
-static inline uint16_t vmm_table_entry_to_page_flags(uintptr_t table_entry) {
-    return (uint16_t)(table_entry & 0x3ff);
-}
+static inline uint16_t vmm_table_entry_to_page_flags(uintptr_t table_entry) { return (uint16_t)(table_entry & 0x3ff); }
 
-static inline uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
-                                                         const uint64_t flags) {
+static inline uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys, const uint64_t flags) {
     return ((phys & ~0xFFF) >> 2) | flags;
 }
 
-static inline size_t vmm_level_page_size(uint8_t level) {
-    return (VM_PAGE_SIZE << (9 * (level - 1)));
-}
+static inline size_t vmm_level_page_size(uint8_t level) { return (VM_PAGE_SIZE << (9 * (level - 1))); }
 
 // Convert physical address to direct-mapped virtual address
-static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) {
-    return DIRECT_MAP_BASE + phys_addr;
-}
+static inline uintptr_t vmm_phys_to_virt(uintptr_t phys_addr) { return DIRECT_MAP_BASE + phys_addr; }
 
-static inline void *vmm_phys_to_virt_ptr(uintptr_t phys_addr) {
-    return (void *)vmm_phys_to_virt(phys_addr);
-}
+static inline void *vmm_phys_to_virt_ptr(uintptr_t phys_addr) { return (void *)vmm_phys_to_virt(phys_addr); }
 
 uint64_t vmm_virt_to_pt_entry(uintptr_t virt_addr);
 
@@ -126,16 +106,13 @@ static inline uintptr_t vmm_virt_to_phys(uintptr_t virt_addr) {
 }
 
 static inline PageTable *vmm_find_pml4() {
-    return (PageTable *)vmm_phys_to_virt_ptr(
-            cpu_satp_to_root_table_phys(cpu_read_satp()));
+    return (PageTable *)vmm_phys_to_virt_ptr(cpu_satp_to_root_table_phys(cpu_read_satp()));
 }
 
 /*
  *  Find the per-CPU temporary page base for the given CPU.
  */
-static inline uintptr_t vmm_per_cpu_temp_page_addr(uint8_t cpu) {
-    return PER_CPU_TEMP_PAGE_BASE + (cpu << 12);
-}
+static inline uintptr_t vmm_per_cpu_temp_page_addr(uint8_t cpu) { return PER_CPU_TEMP_PAGE_BASE + (cpu << 12); }
 
 // Initialize the direct mapping for physical memory
 // This must be called during early boot, before SMP

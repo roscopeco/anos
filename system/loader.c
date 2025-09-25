@@ -52,8 +52,7 @@ const extern void *_bss_start;
 const extern void *_bss_end;
 
 // TODO we shouldn't have inline x86_64 in here!!!
-static noreturn void __attribute__((noinline))
-restore_stack_and_jump(void *stack_ptr, void (*target)(void)) {
+static noreturn void __attribute__((noinline)) restore_stack_and_jump(void *stack_ptr, void (*target)(void)) {
 #ifdef __x86_64__
     __asm__ volatile("mov %0, %%rsp\n"
                      "jmp *%1\n"
@@ -72,31 +71,26 @@ restore_stack_and_jump(void *stack_ptr, void (*target)(void)) {
     __builtin_unreachable();
 }
 
-static bool on_program_header(const ElfPagedReader *reader,
-                              const Elf64ProgramHeader *phdr,
+static bool on_program_header(const ElfPagedReader *reader, const Elf64ProgramHeader *phdr,
                               const uint64_t ramfs_cookie) {
     if ((phdr->p_offset & (VM_PAGE_SIZE - 1)) != 0) {
-        debugf("ERROR: %s: Segment file offset 0x%016lx not page aligned\n",
-               reader->filename, phdr->p_offset);
+        debugf("ERROR: %s: Segment file offset 0x%016lx not page aligned\n", reader->filename, phdr->p_offset);
         return false;
     }
 
     if ((phdr->p_vaddr & (VM_PAGE_SIZE - 1)) != 0) {
-        debugf("ERROR: %s Segment vaddr 0x%16lx not page aligned\n",
-               reader->filename, phdr->p_vaddr);
+        debugf("ERROR: %s Segment vaddr 0x%16lx not page aligned\n", reader->filename, phdr->p_vaddr);
         return false;
     }
 
     debugf("LOAD: %s: segment file=0x%016lx vaddr=0x%016lx filesz=0x%016lx "
            "memsz=0x%016lx\n",
-           reader->filename, phdr->p_offset, phdr->p_vaddr, phdr->p_filesz,
-           phdr->p_memsz);
+           reader->filename, phdr->p_offset, phdr->p_vaddr, phdr->p_filesz, phdr->p_memsz);
 
     // TODO support flags in syscall for RO / RW / NX etc...
-    const SyscallResultP result = anos_map_virtual(
-            phdr->p_memsz, phdr->p_vaddr,
-            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE |
-                    ANOS_MAP_VIRTUAL_FLAG_EXEC);
+    const SyscallResultP result =
+            anos_map_virtual(phdr->p_memsz, phdr->p_vaddr,
+                             ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE | ANOS_MAP_VIRTUAL_FLAG_EXEC);
 
     if (result.result != SYSCALL_OK) {
         return false;
@@ -118,8 +112,7 @@ static bool on_program_header(const ElfPagedReader *reader,
 
             strncpy(msg_buffer + sizeof(uint64_t), reader->filename, 1024);
 
-            const SyscallResult load_result = anos_send_message(
-                    ramfs_cookie, SYS_VFS_TAG_LOAD_PAGE, 26, msg_buffer);
+            const SyscallResult load_result = anos_send_message(ramfs_cookie, SYS_VFS_TAG_LOAD_PAGE, 26, msg_buffer);
 
             const uint64_t loaded_bytes = load_result.value;
 
@@ -163,9 +156,8 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
         anos_kill_current_task();
     }
 
-    const SyscallResultP map_result = anos_map_virtual(
-            0x1000, 0x1fff000,
-            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+    const SyscallResultP map_result =
+            anos_map_virtual(0x1000, 0x1fff000, ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
     char *msg_buffer = map_result.value;
 
@@ -184,19 +176,15 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
         anos_kill_current_task();
     }
 
-    result = anos_send_message(sys_ramfs_cookie, SYS_VFS_TAG_GET_SIZE, 22,
-                               msg_buffer);
+    result = anos_send_message(sys_ramfs_cookie, SYS_VFS_TAG_GET_SIZE, 22, msg_buffer);
 
     const uint64_t exec_size = result.value;
 
     if (result.result == SYSCALL_OK && exec_size) {
-        ElfPagedReader reader = {.current_page_offset = -1,
-                                 .fs_cookie = sys_ramfs_cookie,
-                                 .page = msg_buffer,
-                                 .filename = filename};
+        ElfPagedReader reader = {
+                .current_page_offset = -1, .fs_cookie = sys_ramfs_cookie, .page = msg_buffer, .filename = filename};
 
-        const uintptr_t entrypoint =
-                elf_map_elf64(&reader, on_program_header, sys_ramfs_cookie);
+        const uintptr_t entrypoint = elf_map_elf64(&reader, on_program_header, sys_ramfs_cookie);
 
         if (entrypoint) {
             const ServerEntrypoint sep = (ServerEntrypoint)(entrypoint);

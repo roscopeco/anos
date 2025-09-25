@@ -41,8 +41,7 @@ bool sleep_queue_enqueue(SleepQueue *queue, Task *task, uint64_t deadline) {
 
     Sleeper *current = (Sleeper *)queue;
 
-    while (current->this.next &&
-           sleeper->wake_at > ((Sleeper *)current->this.next)->wake_at) {
+    while (current->this.next && sleeper->wake_at > ((Sleeper *)current->this.next)->wake_at) {
         current = (Sleeper *)current->this.next;
     }
 

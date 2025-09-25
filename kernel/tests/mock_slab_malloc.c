@@ -20,9 +20,7 @@ void mock_slab_reset(void) {
     slab_free_count = 0;
 }
 
-void mock_slab_set_should_fail(bool should_fail) {
-    should_slab_alloc_fail = should_fail;
-}
+void mock_slab_set_should_fail(bool should_fail) { should_slab_alloc_fail = should_fail; }
 
 bool mock_slab_get_should_fail(void) { return should_slab_alloc_fail; }
 

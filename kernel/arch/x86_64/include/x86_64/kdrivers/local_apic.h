@@ -46,11 +46,10 @@
 #define LAPIC_TIMER_AP_VECTOR (((uint8_t)0x31))
 
 // Status bits
-#define LAPIC_ICR_DELIVERY_STATUS ((1 << 12)) // Delivery status bit
-#define LAPIC_ICR_LEVEL_ASSERT ((1 << 14))    // Level assert
-#define LAPIC_ICR_DEST_ALL_EXCLUDING_SELF                                      \
-    ((3 << 18)) // Destination shorthand for all except self
-#define LAPIC_ICR_DELIVERY_MODE_NMI ((4 << 8)) // Delivery mode for NMI
+#define LAPIC_ICR_DELIVERY_STATUS ((1 << 12))         // Delivery status bit
+#define LAPIC_ICR_LEVEL_ASSERT ((1 << 14))            // Level assert
+#define LAPIC_ICR_DEST_ALL_EXCLUDING_SELF ((3 << 18)) // Destination shorthand for all except self
+#define LAPIC_ICR_DELIVERY_MODE_NMI ((4 << 8))        // Delivery mode for NMI
 
 typedef struct {
     uint64_t base_address;

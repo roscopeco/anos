@@ -50,10 +50,8 @@ bool build_new_process_init_values(const uintptr_t stack_top_addr,
 static bool
 build_new_process_init_values(const uintptr_t stack_top_addr,
 #endif
-                                   const uint16_t cap_count,
-                                   const InitCapability *capabilities,
-                                   const uint16_t argc, const char *argv[],
-                                   InitStackValues *out_init_values) {
+                                   const uint16_t cap_count, const InitCapability *capabilities, const uint16_t argc,
+                                   const char *argv[], InitStackValues *out_init_values) {
     if (!out_init_values) {
         return false;
     }
@@ -73,11 +71,9 @@ build_new_process_init_values(const uintptr_t stack_top_addr,
     }
 
     // round up to machine words and convert to value count
-    const uint64_t total_argv_words =
-            round_up_to_machine_word_size(total_argv_len) / sizeof(uintptr_t);
+    const uint64_t total_argv_words = round_up_to_machine_word_size(total_argv_len) / sizeof(uintptr_t);
 
-    const uint64_t value_count = total_argv_words + (cap_count * 2) + argc +
-                                 INIT_STACK_STATIC_VALUE_COUNT;
+    const uint64_t value_count = total_argv_words + (cap_count * 2) + argc + INIT_STACK_STATIC_VALUE_COUNT;
 
     if (value_count > MAX_STACK_VALUE_COUNT) {
         return false;
@@ -96,13 +92,11 @@ build_new_process_init_values(const uintptr_t stack_top_addr,
     //      allocator in userspace, or even just malloc two pages and use
     //      an aligned address within them...
     //
-    const uintptr_t unique_addr_base =
-            0x3000000 + ((uintptr_t)&argv & 0xFFF000);
+    const uintptr_t unique_addr_base = 0x3000000 + ((uintptr_t)&argv & 0xFFF000);
 
     // Allocate argv pointers buffer at a unique address
-    const SyscallResultP argv_result = anos_map_virtual(
-            VM_PAGE_SIZE, unique_addr_base,
-            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+    const SyscallResultP argv_result =
+            anos_map_virtual(VM_PAGE_SIZE, unique_addr_base, ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
     if (argv_result.result != SYSCALL_OK) {
         return false;
@@ -119,9 +113,8 @@ build_new_process_init_values(const uintptr_t stack_top_addr,
 
     // Allocate new stack buffer at a different unique address
     const uintptr_t stack_addr = unique_addr_base + VM_PAGE_SIZE;
-    const SyscallResultP stack_result = anos_map_virtual(
-            VM_PAGE_SIZE, stack_addr,
-            ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
+    const SyscallResultP stack_result =
+            anos_map_virtual(VM_PAGE_SIZE, stack_addr, ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE);
 
     if (stack_result.result != SYSCALL_OK) {
         anos_unmap_virtual(VM_PAGE_SIZE, unique_addr_base);
@@ -130,24 +123,20 @@ build_new_process_init_values(const uintptr_t stack_top_addr,
 
     uintptr_t *new_stack = (uintptr_t *)stack_result.value;
 
-    const uintptr_t stack_bottom_addr =
-            stack_top_addr - (sizeof(uintptr_t) * aligned_value_count);
+    const uintptr_t stack_bottom_addr = stack_top_addr - (sizeof(uintptr_t) * aligned_value_count);
 
     // copy string data first...
-    uint8_t *str_data_ptr =
-            (uint8_t *)new_stack + value_count * sizeof(uintptr_t);
+    uint8_t *str_data_ptr = (uint8_t *)new_stack + value_count * sizeof(uintptr_t);
 
     for (int i = argc - 1; i >= 0; i--) {
         if (argv[i]) {
             const int len = strnlen(argv[i], MAX_ARG_LENGTH - 1);
 
-            *--str_data_ptr =
-                    '\0'; // ensure null term because strncpy doesn't...
+            *--str_data_ptr = '\0'; // ensure null term because strncpy doesn't...
             str_data_ptr -= len;
             strncpy((char *)str_data_ptr, argv[i], len);
 
-            argv_pointers[i] = stack_bottom_addr +
-                               ((uintptr_t)str_data_ptr - (uintptr_t)new_stack);
+            argv_pointers[i] = stack_bottom_addr + ((uintptr_t)str_data_ptr - (uintptr_t)new_stack);
         } else {
             str_data_ptr -= 1;
             *str_data_ptr = 0;
@@ -169,20 +158,16 @@ build_new_process_init_values(const uintptr_t stack_top_addr,
         }
     }
 
-    const uintptr_t cap_ptr =
-            (cap_count > 0 && capabilities)
-                    ? stack_bottom_addr + ((uintptr_t)long_data_pointer -
-                                           (uintptr_t)new_stack)
-                    : 0;
+    const uintptr_t cap_ptr = (cap_count > 0 && capabilities)
+                                      ? stack_bottom_addr + ((uintptr_t)long_data_pointer - (uintptr_t)new_stack)
+                                      : 0;
 
     // copy argv array
     for (int i = argc - 1; i >= 0; i--) {
         *--long_data_pointer = argv_pointers[i];
     }
 
-    const uintptr_t argv_ptr =
-            stack_bottom_addr +
-            ((uintptr_t)long_data_pointer - (uintptr_t)new_stack);
+    const uintptr_t argv_ptr = stack_bottom_addr + ((uintptr_t)long_data_pointer - (uintptr_t)new_stack);
 
     // set up argv / argc
     *--long_data_pointer = argv_ptr;
@@ -201,9 +186,8 @@ build_new_process_init_values(const uintptr_t stack_top_addr,
     return true;
 }
 
-int64_t create_server_process(const uint64_t stack_size, const uint16_t capc,
-                              const InitCapability *capv, const uint16_t argc,
-                              const char *argv[]) {
+int64_t create_server_process(const uint64_t stack_size, const uint16_t capc, const InitCapability *capv,
+                              const uint16_t argc, const char *argv[]) {
     // We need to map in SYSTEM's code and BSS segments temporarily,
     // so that the initial_server_loader (loader.c) can do its thing
     // in the new process - it needs our capabilities etc to be
@@ -216,20 +200,17 @@ int64_t create_server_process(const uint64_t stack_size, const uint16_t capc,
     ProcessMemoryRegion regions[2] = {
             {
                     .start = (uintptr_t)&_code_start,
-                    .len_bytes = round_up_to_page_size((uintptr_t)&_code_end -
-                                                       (uintptr_t)&_code_start),
+                    .len_bytes = round_up_to_page_size((uintptr_t)&_code_end - (uintptr_t)&_code_start),
             },
             {
                     .start = (uintptr_t)&_bss_start,
-                    .len_bytes = round_up_to_page_size((uintptr_t)&_bss_end -
-                                                       (uintptr_t)&_bss_start),
+                    .len_bytes = round_up_to_page_size((uintptr_t)&_bss_end - (uintptr_t)&_bss_start),
             },
     };
 
     InitStackValues init_stack_values;
 
-    if (!build_new_process_init_values(STACK_TOP, capc, capv, argc, argv,
-                                       &init_stack_values)) {
+    if (!build_new_process_init_values(STACK_TOP, capc, capv, argc, argv, &init_stack_values)) {
         // failed to init stack...
         return 0;
     }
@@ -248,12 +229,10 @@ int64_t create_server_process(const uint64_t stack_size, const uint16_t capc,
 
     // Clean up allocated buffers
     if (init_stack_values.argv_buffer) {
-        anos_unmap_virtual(VM_PAGE_SIZE,
-                           (uintptr_t)init_stack_values.argv_buffer);
+        anos_unmap_virtual(VM_PAGE_SIZE, (uintptr_t)init_stack_values.argv_buffer);
     }
     if (init_stack_values.stack_buffer) {
-        anos_unmap_virtual(VM_PAGE_SIZE,
-                           (uintptr_t)init_stack_values.stack_buffer);
+        anos_unmap_virtual(VM_PAGE_SIZE, (uintptr_t)init_stack_values.stack_buffer);
     }
 
     if (result.result == SYSCALL_OK) {

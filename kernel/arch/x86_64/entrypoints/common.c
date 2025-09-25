@@ -23,18 +23,14 @@ void init_kernel_gdt(void) {
     GDTEntry *user_data = get_gdt_entry(&gdtr, 3);
     GDTEntry *user_code = get_gdt_entry(&gdtr, 4);
 
-    init_gdt_entry(
-            user_code, 0, 0,
-            GDT_ENTRY_ACCESS_PRESENT | GDT_ENTRY_ACCESS_DPL(3) |
-                    GDT_ENTRY_ACCESS_NON_SYSTEM | GDT_ENTRY_ACCESS_EXECUTABLE |
-                    GDT_ENTRY_ACCESS_READ_WRITE | GDT_ENTRY_ACCESS_ACCESSED,
-            GDT_ENTRY_FLAGS_64BIT);
+    init_gdt_entry(user_code, 0, 0,
+                   GDT_ENTRY_ACCESS_PRESENT | GDT_ENTRY_ACCESS_DPL(3) | GDT_ENTRY_ACCESS_NON_SYSTEM |
+                           GDT_ENTRY_ACCESS_EXECUTABLE | GDT_ENTRY_ACCESS_READ_WRITE | GDT_ENTRY_ACCESS_ACCESSED,
+                   GDT_ENTRY_FLAGS_64BIT);
 
     init_gdt_entry(user_data, 0, 0,
-                   GDT_ENTRY_ACCESS_PRESENT | GDT_ENTRY_ACCESS_DPL(3) |
-                           GDT_ENTRY_ACCESS_NON_SYSTEM |
-                           GDT_ENTRY_ACCESS_READ_WRITE |
-                           GDT_ENTRY_ACCESS_ACCESSED,
+                   GDT_ENTRY_ACCESS_PRESENT | GDT_ENTRY_ACCESS_DPL(3) | GDT_ENTRY_ACCESS_NON_SYSTEM |
+                           GDT_ENTRY_ACCESS_READ_WRITE | GDT_ENTRY_ACCESS_ACCESSED,
                    GDT_ENTRY_FLAGS_64BIT);
 }
 

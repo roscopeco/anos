@@ -80,8 +80,7 @@ typedef struct {
 
 static_assert_sizeof(ProcessCreateParams, ==, 64);
 
-typedef SyscallResult (*SyscallHandler)(SyscallArg, SyscallArg, SyscallArg,
-                                        SyscallArg, SyscallArg);
+typedef SyscallResult (*SyscallHandler)(SyscallArg, SyscallArg, SyscallArg, SyscallArg, SyscallArg);
 
 typedef enum {
     SYSCALL_ID_INVALID = 0,
@@ -126,8 +125,7 @@ typedef struct {
 
 static_assert_sizeof(SyscallCapability, ==, 64);
 
-#define VALID_SYSCALL_ID(id)                                                   \
-    (((id > SYSCALL_ID_INVALID) && (id < SYSCALL_ID_COUNT)))
+#define VALID_SYSCALL_ID(id) (((id > SYSCALL_ID_INVALID) && (id < SYSCALL_ID_COUNT)))
 
 constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_READ = 0x1;
 constexpr uint64_t ANOS_MAP_VIRTUAL_FLAG_WRITE = 0x2;

@@ -49,8 +49,7 @@ static void *setup(const MunitParameter params[], void *user_data) {
 // SPRINTF BASIC TESTS
 // ============================================================================
 
-static MunitResult test_sprintf_string(const MunitParameter params[],
-                                       void *data) {
+static MunitResult test_sprintf_string(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -62,8 +61,7 @@ static MunitResult test_sprintf_string(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_integer(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_sprintf_integer(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -75,8 +73,7 @@ static MunitResult test_sprintf_integer(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_negative_integer(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_sprintf_negative_integer(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -88,8 +85,7 @@ static MunitResult test_sprintf_negative_integer(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_unsigned_integer(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_sprintf_unsigned_integer(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -101,8 +97,7 @@ static MunitResult test_sprintf_unsigned_integer(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_hex_lowercase(const MunitParameter params[],
-                                              void *data) {
+static MunitResult test_sprintf_hex_lowercase(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -114,8 +109,7 @@ static MunitResult test_sprintf_hex_lowercase(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_hex_uppercase(const MunitParameter params[],
-                                              void *data) {
+static MunitResult test_sprintf_hex_uppercase(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -127,8 +121,7 @@ static MunitResult test_sprintf_hex_uppercase(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_octal(const MunitParameter params[],
-                                      void *data) {
+static MunitResult test_sprintf_octal(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -140,8 +133,7 @@ static MunitResult test_sprintf_octal(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_pointer(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_sprintf_pointer(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -155,8 +147,7 @@ static MunitResult test_sprintf_pointer(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_character(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_sprintf_character(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -168,8 +159,7 @@ static MunitResult test_sprintf_character(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_percent_literal(const MunitParameter params[],
-                                                void *data) {
+static MunitResult test_sprintf_percent_literal(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -185,8 +175,7 @@ static MunitResult test_sprintf_percent_literal(const MunitParameter params[],
 // SPRINTF WIDTH AND PADDING TESTS
 // ============================================================================
 
-static MunitResult test_sprintf_width_right_align(const MunitParameter params[],
-                                                  void *data) {
+static MunitResult test_sprintf_width_right_align(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -198,8 +187,7 @@ static MunitResult test_sprintf_width_right_align(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_width_left_align(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_sprintf_width_left_align(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -211,8 +199,7 @@ static MunitResult test_sprintf_width_left_align(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_width_zero_pad(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_sprintf_width_zero_pad(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -224,8 +211,7 @@ static MunitResult test_sprintf_width_zero_pad(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_sprintf_width_hex_zero_pad(const MunitParameter params[], void *data) {
+static MunitResult test_sprintf_width_hex_zero_pad(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -241,8 +227,7 @@ test_sprintf_width_hex_zero_pad(const MunitParameter params[], void *data) {
 // SPRINTF PRECISION TESTS
 // ============================================================================
 
-static MunitResult test_sprintf_string_precision(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_sprintf_string_precision(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -254,8 +239,7 @@ static MunitResult test_sprintf_string_precision(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_integer_precision(const MunitParameter params[],
-                                                  void *data) {
+static MunitResult test_sprintf_integer_precision(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -271,8 +255,7 @@ static MunitResult test_sprintf_integer_precision(const MunitParameter params[],
 // SNPRINTF TESTS (BUFFER LIMITING)
 // ============================================================================
 
-static MunitResult test_snprintf_exact_fit(const MunitParameter params[],
-                                           void *data) {
+static MunitResult test_snprintf_exact_fit(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -285,8 +268,7 @@ static MunitResult test_snprintf_exact_fit(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_snprintf_truncation(const MunitParameter params[],
-                                            void *data) {
+static MunitResult test_snprintf_truncation(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -299,8 +281,7 @@ static MunitResult test_snprintf_truncation(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_snprintf_zero_size(const MunitParameter params[],
-                                           void *data) {
+static MunitResult test_snprintf_zero_size(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -317,8 +298,7 @@ static MunitResult test_snprintf_zero_size(const MunitParameter params[],
 // FCTPRINTF TESTS (CUSTOM OUTPUT FUNCTION)
 // ============================================================================
 
-static MunitResult test_fctprintf_basic(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_fctprintf_basic(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -330,8 +310,7 @@ static MunitResult test_fctprintf_basic(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_fctprintf_multiple_calls(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_fctprintf_multiple_calls(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -347,8 +326,7 @@ static MunitResult test_fctprintf_multiple_calls(const MunitParameter params[],
 // EDGE CASE TESTS
 // ============================================================================
 
-static MunitResult test_sprintf_null_string(const MunitParameter params[],
-                                            void *data) {
+static MunitResult test_sprintf_null_string(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -360,8 +338,7 @@ static MunitResult test_sprintf_null_string(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_empty_format(const MunitParameter params[],
-                                             void *data) {
+static MunitResult test_sprintf_empty_format(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -373,8 +350,7 @@ static MunitResult test_sprintf_empty_format(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_sprintf_no_format_specifiers(const MunitParameter params[], void *data) {
+static MunitResult test_sprintf_no_format_specifiers(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -386,8 +362,7 @@ test_sprintf_no_format_specifiers(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult test_sprintf_long_integers(const MunitParameter params[],
-                                              void *data) {
+static MunitResult test_sprintf_long_integers(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -399,13 +374,11 @@ static MunitResult test_sprintf_long_integers(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_sprintf_multiple_specifiers(const MunitParameter params[], void *data) {
+static MunitResult test_sprintf_multiple_specifiers(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
-    int result = sprintf_(test_buffer, "Int: %d, Hex: %x, String: %s", 42, 255,
-                          "test");
+    int result = sprintf_(test_buffer, "Int: %d, Hex: %x, String: %s", 42, 255, "test");
 
     munit_assert_int(result, ==, 30);
     munit_assert_string_equal(test_buffer, "Int: 42, Hex: ff, String: test");
@@ -416,85 +389,62 @@ test_sprintf_multiple_specifiers(const MunitParameter params[], void *data) {
 // Test array
 static MunitTest test_suite_tests[] = {
         // Basic sprintf tests
-        {(char *)"/printf/sprintf_string", test_sprintf_string, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_integer", test_sprintf_integer, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_negative_integer",
-         test_sprintf_negative_integer, setup, NULL, MUNIT_TEST_OPTION_NONE,
+        {(char *)"/printf/sprintf_string", test_sprintf_string, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/sprintf_integer", test_sprintf_integer, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/sprintf_negative_integer", test_sprintf_negative_integer, setup, NULL, MUNIT_TEST_OPTION_NONE,
          NULL},
-        {(char *)"/printf/sprintf_unsigned_integer",
-         test_sprintf_unsigned_integer, setup, NULL, MUNIT_TEST_OPTION_NONE,
+        {(char *)"/printf/sprintf_unsigned_integer", test_sprintf_unsigned_integer, setup, NULL, MUNIT_TEST_OPTION_NONE,
          NULL},
-        {(char *)"/printf/sprintf_hex_lowercase", test_sprintf_hex_lowercase,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_hex_uppercase", test_sprintf_hex_uppercase,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_octal", test_sprintf_octal, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_pointer", test_sprintf_pointer, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_character", test_sprintf_character, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_percent_literal",
-         test_sprintf_percent_literal, setup, NULL, MUNIT_TEST_OPTION_NONE,
+        {(char *)"/printf/sprintf_hex_lowercase", test_sprintf_hex_lowercase, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/printf/sprintf_hex_uppercase", test_sprintf_hex_uppercase, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/printf/sprintf_octal", test_sprintf_octal, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/sprintf_pointer", test_sprintf_pointer, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/sprintf_character", test_sprintf_character, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/sprintf_percent_literal", test_sprintf_percent_literal, setup, NULL, MUNIT_TEST_OPTION_NONE,
          NULL},
 
         // Width and padding tests
-        {(char *)"/printf/sprintf_width_right_align",
-         test_sprintf_width_right_align, setup, NULL, MUNIT_TEST_OPTION_NONE,
+        {(char *)"/printf/sprintf_width_right_align", test_sprintf_width_right_align, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/sprintf_width_left_align", test_sprintf_width_left_align, setup, NULL, MUNIT_TEST_OPTION_NONE,
          NULL},
-        {(char *)"/printf/sprintf_width_left_align",
-         test_sprintf_width_left_align, setup, NULL, MUNIT_TEST_OPTION_NONE,
+        {(char *)"/printf/sprintf_width_zero_pad", test_sprintf_width_zero_pad, setup, NULL, MUNIT_TEST_OPTION_NONE,
          NULL},
-        {(char *)"/printf/sprintf_width_zero_pad", test_sprintf_width_zero_pad,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_width_hex_zero_pad",
-         test_sprintf_width_hex_zero_pad, setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
+        {(char *)"/printf/sprintf_width_hex_zero_pad", test_sprintf_width_hex_zero_pad, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
 
         // Precision tests
-        {(char *)"/printf/sprintf_string_precision",
-         test_sprintf_string_precision, setup, NULL, MUNIT_TEST_OPTION_NONE,
+        {(char *)"/printf/sprintf_string_precision", test_sprintf_string_precision, setup, NULL, MUNIT_TEST_OPTION_NONE,
          NULL},
-        {(char *)"/printf/sprintf_integer_precision",
-         test_sprintf_integer_precision, setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
+        {(char *)"/printf/sprintf_integer_precision", test_sprintf_integer_precision, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
 
         // snprintf tests
-        {(char *)"/printf/snprintf_exact_fit", test_snprintf_exact_fit, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/snprintf_truncation", test_snprintf_truncation, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/snprintf_zero_size", test_snprintf_zero_size, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/snprintf_exact_fit", test_snprintf_exact_fit, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/snprintf_truncation", test_snprintf_truncation, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/snprintf_zero_size", test_snprintf_zero_size, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         // fctprintf tests
-        {(char *)"/printf/fctprintf_basic", test_fctprintf_basic, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/fctprintf_multiple_calls",
-         test_fctprintf_multiple_calls, setup, NULL, MUNIT_TEST_OPTION_NONE,
+        {(char *)"/printf/fctprintf_basic", test_fctprintf_basic, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/fctprintf_multiple_calls", test_fctprintf_multiple_calls, setup, NULL, MUNIT_TEST_OPTION_NONE,
          NULL},
 
         // Edge case tests
-        {(char *)"/printf/sprintf_null_string", test_sprintf_null_string, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_empty_format", test_sprintf_empty_format,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_no_format_specifiers",
-         test_sprintf_no_format_specifiers, setup, NULL, MUNIT_TEST_OPTION_NONE,
+        {(char *)"/printf/sprintf_null_string", test_sprintf_null_string, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/sprintf_empty_format", test_sprintf_empty_format, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/sprintf_no_format_specifiers", test_sprintf_no_format_specifiers, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/printf/sprintf_long_integers", test_sprintf_long_integers, setup, NULL, MUNIT_TEST_OPTION_NONE,
          NULL},
-        {(char *)"/printf/sprintf_long_integers", test_sprintf_long_integers,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/printf/sprintf_multiple_specifiers",
-         test_sprintf_multiple_specifiers, setup, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
+        {(char *)"/printf/sprintf_multiple_specifiers", test_sprintf_multiple_specifiers, setup, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"printf", argc, argv);

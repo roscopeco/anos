@@ -68,8 +68,7 @@
 #error Need a platform-specific INT_FLAGS_ENABLED in task_kernel_entrypoint.c
 #endif
 
-noreturn void kernel_thread_entrypoint(uintptr_t thread_entrypoint,
-                                       uintptr_t thread_stack) {
+noreturn void kernel_thread_entrypoint(uintptr_t thread_entrypoint, uintptr_t thread_stack) {
     // Scheduler will **always** be locked when we get here!
     sched_unlock_this_cpu(INT_FLAG_ENABLED);
 
@@ -77,13 +76,12 @@ noreturn void kernel_thread_entrypoint(uintptr_t thread_entrypoint,
     tdbgx64(thread_entrypoint);
     tdebug("\n");
 
-    __asm__ volatile(
-            "mv sp, %0\n\t" // Set the stack pointer
-            "mv ra, zero\n\t" // Clear return address: if entrypoint returns, we trap
-            "jr %1\n\t"       // Jump to thread entrypoint
-            :
-            : "r"(thread_stack), "r"(thread_entrypoint)
-            : "memory");
+    __asm__ volatile("mv sp, %0\n\t"   // Set the stack pointer
+                     "mv ra, zero\n\t" // Clear return address: if entrypoint returns, we trap
+                     "jr %1\n\t"       // Jump to thread entrypoint
+                     :
+                     : "r"(thread_stack), "r"(thread_entrypoint)
+                     : "memory");
 
     halt_and_catch_fire();
 }

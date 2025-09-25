@@ -128,8 +128,7 @@ void process_destroy(Process *process) {
     slab_free(process);
 }
 
-bool process_add_managed_resource(Process *process,
-                                  ManagedResource *managed_resource) {
+bool process_add_managed_resource(Process *process, ManagedResource *managed_resource) {
     if (!process || !managed_resource) {
         return false;
     }
@@ -148,8 +147,7 @@ bool process_add_managed_resource(Process *process,
     return true;
 }
 
-bool process_remove_managed_resource(Process *process,
-                                     ManagedResource *managed_resource) {
+bool process_remove_managed_resource(Process *process, ManagedResource *managed_resource) {
     if (!process || !managed_resource) {
         return false;
     }

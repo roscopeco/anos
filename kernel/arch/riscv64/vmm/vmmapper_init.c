@@ -73,36 +73,28 @@ static inline void *per_cpu_temp_base_vptr_for_pt_index(uint16_t index) {
     return (void *)per_cpu_temp_base_vaddr_for_pt_index(index);
 }
 
-static inline void map_readwrite_and_flush_offs(uint64_t *table,
-                                                uint16_t table_index,
-                                                uintptr_t base_paddr,
-                                                uintptr_t base_vaddr,
-                                                uintptr_t base_offs) {
+static inline void map_readwrite_and_flush_offs(uint64_t *table, uint16_t table_index, uintptr_t base_paddr,
+                                                uintptr_t base_vaddr, uintptr_t base_offs) {
 
     vdebugf("map_readwrite_and_flush: table @ 0x%016lx[%d]: vaddr: "
             "0x%016lx+0x%016lx => paddr: 0x%016lx\n",
             (uintptr_t)table, table_index, base_vaddr, base_offs, base_paddr);
 
-    table[table_index] = vmm_phys_and_flags_to_table_entry(
-            base_paddr, PG_READ | PG_WRITE | PG_PRESENT);
+    table[table_index] = vmm_phys_and_flags_to_table_entry(base_paddr, PG_READ | PG_WRITE | PG_PRESENT);
     cpu_invalidate_tlb_addr(base_vaddr + base_offs);
     vdebugf("map_readwrite_and_flush: done, and done\n");
 }
 
-static inline void map_readwrite_and_flush(uint64_t *table,
-                                           uint16_t table_index,
-                                           uintptr_t paddr, uintptr_t vaddr) {
+static inline void map_readwrite_and_flush(uint64_t *table, uint16_t table_index, uintptr_t paddr, uintptr_t vaddr) {
     map_readwrite_and_flush_offs(table, table_index, paddr, vaddr, 0);
 }
 
-static inline void unmap_and_flush(uint64_t *table, uint16_t table_index,
-                                   uintptr_t vaddr) {
+static inline void unmap_and_flush(uint64_t *table, uint16_t table_index, uintptr_t vaddr) {
     table[table_index] = 0;
     cpu_invalidate_tlb_addr(vaddr);
 }
 
-static void vmm_init_map_terapage(uint64_t *pml4, uintptr_t base,
-                                  uint8_t flags) {
+static void vmm_init_map_terapage(uint64_t *pml4, uintptr_t base, uint8_t flags) {
     vdebugf("vmm_init_map_terapage: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, TERA_PAGE_SIZE, (uintptr_t)pml4);
@@ -121,8 +113,7 @@ static void vmm_init_map_terapage(uint64_t *pml4, uintptr_t base,
     uint64_t pml4e = pml4[pml4_index];
 
     if (pml4e & PG_PRESENT) {
-        debugf("WARN [BUG]: PML4 for terapage at 0x%016lx is already mapped\n",
-               vaddr);
+        debugf("WARN [BUG]: PML4 for terapage at 0x%016lx is already mapped\n", vaddr);
     }
 
     pml4[pml4e] = vmm_phys_and_flags_to_table_entry(base, flags);
@@ -131,20 +122,15 @@ static void vmm_init_map_terapage(uint64_t *pml4, uintptr_t base,
     vdebugf("vmm_init_map_terapage: Region mapped successfully\n");
 }
 
-static uint64_t *const ensure_direct_table_map(uint64_t *table,
-                                               uint16_t table_index,
-                                               uint64_t *temp_mapping_pt,
+static uint64_t *const ensure_direct_table_map(uint64_t *table, uint16_t table_index, uint64_t *temp_mapping_pt,
                                                uint16_t temp_mapping_pt_index) {
     vdebugf("ensure_direct_table_map: table 0x%016lx[%d] into temp mapping "
             "0x%016lx[%d]\n",
-            (uintptr_t)table, table_index, (uintptr_t)temp_mapping_pt,
-            temp_mapping_pt_index);
+            (uintptr_t)table, table_index, (uintptr_t)temp_mapping_pt, temp_mapping_pt_index);
     const uint64_t table_entry = table[table_index];
 
-    const uintptr_t new_table_vaddr =
-            per_cpu_temp_base_vaddr_for_pt_index(temp_mapping_pt_index);
-    uint64_t *const new_table =
-            per_cpu_temp_base_vptr_for_pt_index(temp_mapping_pt_index);
+    const uintptr_t new_table_vaddr = per_cpu_temp_base_vaddr_for_pt_index(temp_mapping_pt_index);
+    uint64_t *const new_table = per_cpu_temp_base_vptr_for_pt_index(temp_mapping_pt_index);
 
     if ((table_entry & PG_PRESENT) == 0) {
         vdebugf("  -> adding a new child table at at index %d\n", table_index);
@@ -155,8 +141,7 @@ static uint64_t *const ensure_direct_table_map(uint64_t *table,
                   "mapping");
         }
 
-        map_readwrite_and_flush(temp_mapping_pt, temp_mapping_pt_index,
-                                new_table_paddr, new_table_vaddr);
+        map_readwrite_and_flush(temp_mapping_pt, temp_mapping_pt_index, new_table_paddr, new_table_vaddr);
 
         vdebugf("  -> New table is mapped; Clearing...");
 
@@ -164,20 +149,17 @@ static uint64_t *const ensure_direct_table_map(uint64_t *table,
             new_table[i] = 0;
         }
 
-        table[table_index] =
-                vmm_phys_and_flags_to_table_entry(new_table_paddr, PG_PRESENT);
+        table[table_index] = vmm_phys_and_flags_to_table_entry(new_table_paddr, PG_PRESENT);
     } else {
         vdebugf("  -> table already present, mapping...\n");
-        map_readwrite_and_flush(temp_mapping_pt, temp_mapping_pt_index,
-                                vmm_table_entry_to_phys(table_entry),
+        map_readwrite_and_flush(temp_mapping_pt, temp_mapping_pt_index, vmm_table_entry_to_phys(table_entry),
                                 new_table_vaddr);
     }
 
     return new_table;
 }
 
-static void vmm_init_map_gigapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
-                                  uintptr_t base, uint8_t flags) {
+static void vmm_init_map_gigapage(uint64_t *pml4, uint64_t *temp_mapping_pt, uintptr_t base, uint8_t flags) {
     vdebugf("vmm_init_map_gigapage: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, GIGA_PAGE_SIZE, (uintptr_t)pml4);
@@ -194,8 +176,7 @@ static void vmm_init_map_gigapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
 
     // ## PDPT
     const uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
-    uint64_t *const pdpt =
-            ensure_direct_table_map(pml4, pml4_index, temp_mapping_pt, 0);
+    uint64_t *const pdpt = ensure_direct_table_map(pml4, pml4_index, temp_mapping_pt, 0);
 
     const uint16_t pdpt_index = vmm_virt_to_pdpt_index(vaddr);
 
@@ -213,8 +194,7 @@ static void vmm_init_map_gigapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
     vdebugf("vmm_init_map_gigapage: Region mapped successfully\n");
 }
 
-static void vmm_init_map_megapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
-                                  uintptr_t base, uint8_t flags) {
+static void vmm_init_map_megapage(uint64_t *pml4, uint64_t *temp_mapping_pt, uintptr_t base, uint8_t flags) {
     vdebugf("vmm_init_map_megapage: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, MEGA_PAGE_SIZE, (uintptr_t)pml4);
@@ -231,13 +211,11 @@ static void vmm_init_map_megapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
 
     // ## PDPT
     const uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
-    uint64_t *const pdpt =
-            ensure_direct_table_map(pml4, pml4_index, temp_mapping_pt, 0);
+    uint64_t *const pdpt = ensure_direct_table_map(pml4, pml4_index, temp_mapping_pt, 0);
 
     // ## PD
     const uint16_t pdpt_index = vmm_virt_to_pdpt_index(vaddr);
-    uint64_t *const pd =
-            ensure_direct_table_map(pdpt, pdpt_index, temp_mapping_pt, 1);
+    uint64_t *const pd = ensure_direct_table_map(pdpt, pdpt_index, temp_mapping_pt, 1);
 
     uint16_t pd_index = vmm_virt_to_pd_index(vaddr);
 
@@ -256,8 +234,7 @@ static void vmm_init_map_megapage(uint64_t *pml4, uint64_t *temp_mapping_pt,
     vdebugf("vmm_init_map_megapage: Region mapped successfully\n");
 }
 
-static void vmm_init_map_page(uint64_t *pml4, uint64_t *temp_mapping_pt,
-                              uintptr_t base, uint8_t flags) {
+static void vmm_init_map_page(uint64_t *pml4, uint64_t *temp_mapping_pt, uintptr_t base, uint8_t flags) {
     vdebugf("vmm_init_map_page: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             base, PAGE_SIZE, (uintptr_t)pml4);
@@ -274,18 +251,15 @@ static void vmm_init_map_page(uint64_t *pml4, uint64_t *temp_mapping_pt,
 
     // ## PDPT
     const uint16_t pml4_index = vmm_virt_to_pml4_index(vaddr);
-    uint64_t *const pdpt =
-            ensure_direct_table_map(pml4, pml4_index, temp_mapping_pt, 0);
+    uint64_t *const pdpt = ensure_direct_table_map(pml4, pml4_index, temp_mapping_pt, 0);
 
     // ## PD
     const uint16_t pdpt_index = vmm_virt_to_pdpt_index(vaddr);
-    uint64_t *const pd =
-            ensure_direct_table_map(pdpt, pdpt_index, temp_mapping_pt, 1);
+    uint64_t *const pd = ensure_direct_table_map(pdpt, pdpt_index, temp_mapping_pt, 1);
 
     // ## PT
     const uint16_t pd_index = vmm_virt_to_pd_index(vaddr);
-    uint64_t *const pt =
-            ensure_direct_table_map(pd, pd_index, temp_mapping_pt, 2);
+    uint64_t *const pt = ensure_direct_table_map(pd, pd_index, temp_mapping_pt, 2);
 
     uint16_t pt_index = vmm_virt_to_pt_index(vaddr);
 
@@ -306,13 +280,11 @@ static void vmm_init_map_page(uint64_t *pml4, uint64_t *temp_mapping_pt,
     vdebugf("vmm_init_map_page: Region mapped successfully\n");
 }
 
-static void vmm_init_map_region(uint64_t *pml4, uint64_t *temp_mapping_pt,
-                                Limine_MemMapEntry *entry, bool writeable) {
+static void vmm_init_map_region(uint64_t *pml4, uint64_t *temp_mapping_pt, Limine_MemMapEntry *entry, bool writeable) {
     vdebugf("vmm_init_map_region: Mapping phys 0x%016lx with length %ld into "
             "PML4 @ 0x%016lx\n",
             entry->base, entry->length, (uintptr_t)pml4);
-    uint8_t flags =
-            PG_PRESENT | PG_GLOBAL | PG_READ | (writeable ? PG_WRITE : 0);
+    uint8_t flags = PG_PRESENT | PG_GLOBAL | PG_READ | (writeable ? PG_WRITE : 0);
     uintptr_t base = entry->base;
     uintptr_t length = entry->length;
 
@@ -352,13 +324,9 @@ static void vmm_init_map_region(uint64_t *pml4, uint64_t *temp_mapping_pt,
 
 #define TERAPAGE_ALIGN_MASK (~(TERA_PAGE_SIZE - 1))
 
-static inline uintptr_t round_down_to_terapage(uintptr_t addr) {
-    return addr & TERAPAGE_ALIGN_MASK;
-}
+static inline uintptr_t round_down_to_terapage(uintptr_t addr) { return addr & TERAPAGE_ALIGN_MASK; }
 
-static inline uintptr_t offset_in_terapage(uintptr_t addr) {
-    return addr & (TERA_PAGE_SIZE - 1);
-}
+static inline uintptr_t offset_in_terapage(uintptr_t addr) { return addr & (TERA_PAGE_SIZE - 1); }
 
 // this next bit is already hard enough to follow, so don't let clang-format
 // mess up the formatting...
@@ -639,17 +607,14 @@ static void cleanup_temp_page_tables(uint64_t *const pml4) {
 }
 
 void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap) {
-    vdebugf("vmm_init_direct_mapping: init with %ld entries at pml4 0x%016lx\n",
-            memmap->entry_count, (uintptr_t)pml4);
+    vdebugf("vmm_init_direct_mapping: init with %ld entries at pml4 0x%016lx\n", memmap->entry_count, (uintptr_t)pml4);
 
-    uint64_t *temp_pt =
-            ensure_temp_page_tables(pml4, vmm_per_cpu_temp_page_addr(0));
+    uint64_t *temp_pt = ensure_temp_page_tables(pml4, vmm_per_cpu_temp_page_addr(0));
 
     vdebugf("ensure tables returns 0x%016lx\n", (uintptr_t)temp_pt);
 
-    vmm_direct_mapping_terapages_used = vmm_direct_mapping_gigapages_used =
-            vmm_direct_mapping_megapages_used = vmm_direct_mapping_pages_used =
-                    0;
+    vmm_direct_mapping_terapages_used = vmm_direct_mapping_gigapages_used = vmm_direct_mapping_megapages_used =
+            vmm_direct_mapping_pages_used = 0;
 
     for (int i = 0; i < memmap->entry_count; i++) {
         switch (memmap->entries[i]->type) {
@@ -663,8 +628,7 @@ void vmm_init_direct_mapping(uint64_t *pml4, Limine_MemMap *memmap) {
             vmm_init_map_region(pml4, temp_pt, memmap->entries[i], false);
             break;
         default:
-            vdebugf("vmm_init_direct_mapping: ignored region with type %ld\n",
-                    memmap->entries[i]->type);
+            vdebugf("vmm_init_direct_mapping: ignored region with type %ld\n", memmap->entries[i]->type);
         }
     }
 

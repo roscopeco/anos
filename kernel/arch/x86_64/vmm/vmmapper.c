@@ -45,8 +45,7 @@
 #define ENTRY_TO_V(entry) ((uint64_t *)(entry & PAGE_ALIGN_MASK))
 #else
 #define PAGE_TO_V(page) ((uint64_t *)(page | STATIC_KERNEL_SPACE))
-#define ENTRY_TO_V(entry)                                                      \
-    ((uint64_t *)((entry | STATIC_KERNEL_SPACE) & PAGE_ALIGN_MASK))
+#define ENTRY_TO_V(entry) ((uint64_t *)((entry | STATIC_KERNEL_SPACE) & PAGE_ALIGN_MASK))
 #endif
 
 #if (__STDC_VERSION__ < 202000)
@@ -77,9 +76,7 @@ static SpinLock vmm_map_lock;
  * Returns true if the given entry is a large-sized leaf, i.e.
  * has the PAGE_SIZE flag set.
  */
-STATIC_EXCEPT_TESTS bool is_pagesize_leaf(const uint64_t table_entry) {
-    return table_entry & (PG_PAGESIZE);
-}
+STATIC_EXCEPT_TESTS bool is_pagesize_leaf(const uint64_t table_entry) { return table_entry & (PG_PAGESIZE); }
 
 /*
  * Ensure tables are mapped to the specified level.
@@ -96,10 +93,8 @@ STATIC_EXCEPT_TESTS bool is_pagesize_leaf(const uint64_t table_entry) {
  *
  * Must be called with VMM locked!
  */
-STATIC_EXCEPT_TESTS uint64_t *ensure_tables(const uint64_t *root_table,
-                                            const uintptr_t virt_addr,
-                                            const PagetableLevel to_level,
-                                            const uint16_t flags) {
+STATIC_EXCEPT_TESTS uint64_t *ensure_tables(const uint64_t *root_table, const uintptr_t virt_addr,
+                                            const PagetableLevel to_level, const uint16_t flags) {
 
     if (to_level < 1 || to_level > 4) {
         return nullptr;
@@ -109,8 +104,7 @@ STATIC_EXCEPT_TESTS uint64_t *ensure_tables(const uint64_t *root_table,
     uint64_t *current_table = (uint64_t *)root_table;
 
     while (levels_remain) {
-        const uint16_t current_index =
-                vmm_virt_to_table_index(virt_addr, levels_remain + 1);
+        const uint16_t current_index = vmm_virt_to_table_index(virt_addr, levels_remain + 1);
         const uint64_t current_entry = current_table[current_index];
 
         if ((current_entry & PG_PRESENT) == 0) {
@@ -126,8 +120,7 @@ STATIC_EXCEPT_TESTS uint64_t *ensure_tables(const uint64_t *root_table,
             memclr(new_ptr, VM_PAGE_SIZE);
 
             current_table[current_index] = vmm_phys_and_flags_to_table_entry(
-                    new_table, PG_PRESENT | (flags & PG_WRITE ? PG_WRITE : 0) |
-                                       (flags & PG_USER ? PG_USER : 0));
+                    new_table, PG_PRESENT | (flags & PG_WRITE ? PG_WRITE : 0) | (flags & PG_USER ? PG_USER : 0));
 
             current_table = new_ptr;
         } else {
@@ -140,13 +133,11 @@ STATIC_EXCEPT_TESTS uint64_t *ensure_tables(const uint64_t *root_table,
             // x86_64 requires writeable leaf pages have write set on
             // all parent pages, because why wouldn't it 🙄
             current_table[current_index] = vmm_phys_and_flags_to_table_entry(
-                    vmm_table_entry_to_phys(current_entry),
-                    vmm_table_entry_to_page_flags(current_entry) |
-                            (flags & PG_WRITE ? PG_WRITE : 0) |
-                            (flags & PG_USER ? PG_USER : 0));
+                    vmm_table_entry_to_phys(current_entry), vmm_table_entry_to_page_flags(current_entry) |
+                                                                    (flags & PG_WRITE ? PG_WRITE : 0) |
+                                                                    (flags & PG_USER ? PG_USER : 0));
 
-            current_table = vmm_phys_to_virt_ptr(
-                    vmm_table_entry_to_phys(current_entry));
+            current_table = vmm_phys_to_virt_ptr(vmm_table_entry_to_phys(current_entry));
         }
 
         levels_remain -= 1;
@@ -155,13 +146,9 @@ STATIC_EXCEPT_TESTS uint64_t *ensure_tables(const uint64_t *root_table,
     return current_table;
 }
 
-inline void vmm_invalidate_page(const uintptr_t virt_addr) {
-    cpu_invalidate_tlb_addr(virt_addr);
-}
+inline void vmm_invalidate_page(const uintptr_t virt_addr) { cpu_invalidate_tlb_addr(virt_addr); }
 
-static bool nolock_vmm_map_page_containing_in(uint64_t *pml4,
-                                              const uintptr_t virt_addr,
-                                              const uint64_t phys_addr,
+static bool nolock_vmm_map_page_containing_in(uint64_t *pml4, const uintptr_t virt_addr, const uint64_t phys_addr,
                                               const uint16_t flags) {
     const uintptr_t aligned_virt_addr = virt_addr & PAGE_ALIGN_MASK;
 
@@ -171,51 +158,40 @@ static bool nolock_vmm_map_page_containing_in(uint64_t *pml4,
         return false;
     }
 
-    pt[vmm_virt_to_pt_index(virt_addr)] =
-            vmm_phys_and_flags_to_table_entry(phys_addr, flags);
+    pt[vmm_virt_to_pt_index(virt_addr)] = vmm_phys_and_flags_to_table_entry(phys_addr, flags);
 
     vmm_invalidate_page(virt_addr);
 
     return true;
 }
 
-inline bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
-                                       const uint64_t phys_addr,
+inline bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr, const uint64_t phys_addr,
                                        const uint16_t flags) {
     const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
-    const bool result = nolock_vmm_map_page_containing_in(pml4, virt_addr,
-                                                          phys_addr, flags);
+    const bool result = nolock_vmm_map_page_containing_in(pml4, virt_addr, phys_addr, flags);
     spinlock_unlock_irqrestore(&vmm_map_lock, lock_flags);
     return result;
 }
 
-inline bool vmm_map_page_containing(const uintptr_t virt_addr,
-                                    const uint64_t phys_addr,
-                                    const uint16_t flags) {
-    return vmm_map_page_containing_in(vmm_phys_to_virt_ptr(cpu_read_cr3()),
-                                      virt_addr, phys_addr, flags);
+inline bool vmm_map_page_containing(const uintptr_t virt_addr, const uint64_t phys_addr, const uint16_t flags) {
+    return vmm_map_page_containing_in(vmm_phys_to_virt_ptr(cpu_read_cr3()), virt_addr, phys_addr, flags);
 }
 
-inline bool vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr,
-                            const uint64_t page, const uint16_t flags) {
+inline bool vmm_map_page_in(uint64_t *pml4, const uintptr_t virt_addr, const uint64_t page, const uint16_t flags) {
     return vmm_map_page_containing_in(pml4, virt_addr, page, flags);
 }
 
-inline bool vmm_map_page(const uintptr_t virt_addr, const uint64_t page,
-                         const uint16_t flags) {
+inline bool vmm_map_page(const uintptr_t virt_addr, const uint64_t page, const uint16_t flags) {
     return vmm_map_page_containing(virt_addr, page, flags);
 }
 
-inline bool vmm_map_pages_containing_in(uint64_t *pml4, uintptr_t virt_addr,
-                                        const uint64_t phys_addr,
-                                        const uint16_t flags,
-                                        const size_t num_pages) {
+inline bool vmm_map_pages_containing_in(uint64_t *pml4, uintptr_t virt_addr, const uint64_t phys_addr,
+                                        const uint16_t flags, const size_t num_pages) {
 
     uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
     for (int i = 0; i < num_pages; i++) {
-        if (!nolock_vmm_map_page_containing_in(
-                    pml4, virt_addr + (i << VM_PAGE_LINEAR_SHIFT),
-                    phys_addr + (i << VM_PAGE_LINEAR_SHIFT), flags)) {
+        if (!nolock_vmm_map_page_containing_in(pml4, virt_addr + (i << VM_PAGE_LINEAR_SHIFT),
+                                               phys_addr + (i << VM_PAGE_LINEAR_SHIFT), flags)) {
             return false;
         }
     }
@@ -223,28 +199,22 @@ inline bool vmm_map_pages_containing_in(uint64_t *pml4, uintptr_t virt_addr,
     return true;
 }
 
-inline bool vmm_map_pages_containing(const uintptr_t virt_addr,
-                                     const uint64_t phys_addr,
-                                     const uint16_t flags,
+inline bool vmm_map_pages_containing(const uintptr_t virt_addr, const uint64_t phys_addr, const uint16_t flags,
                                      const size_t num_pages) {
 
-    return vmm_map_pages_containing_in(vmm_phys_to_virt_ptr(cpu_read_cr3()),
-                                       virt_addr, phys_addr, flags, num_pages);
+    return vmm_map_pages_containing_in(vmm_phys_to_virt_ptr(cpu_read_cr3()), virt_addr, phys_addr, flags, num_pages);
 }
 
-bool vmm_map_pages_in(uint64_t *pml4, const uintptr_t virt_addr,
-                      const uint64_t page, const uint16_t flags,
+bool vmm_map_pages_in(uint64_t *pml4, const uintptr_t virt_addr, const uint64_t page, const uint16_t flags,
                       const size_t num_pages) {
     return vmm_map_pages_containing_in(pml4, virt_addr, page, flags, num_pages);
 }
 
-bool vmm_map_pages(const uintptr_t virt_addr, const uint64_t page,
-                   const uint16_t flags, const size_t num_pages) {
+bool vmm_map_pages(const uintptr_t virt_addr, const uint64_t page, const uint16_t flags, const size_t num_pages) {
     return vmm_map_pages_containing(virt_addr, page, flags, num_pages);
 }
 
-static uintptr_t nolock_vmm_unmap_page_in(uint64_t *pml4,
-                                          const uintptr_t virt_addr) {
+static uintptr_t nolock_vmm_unmap_page_in(uint64_t *pml4, const uintptr_t virt_addr) {
     const uint16_t pml4_index = vmm_virt_to_pml4_index(virt_addr);
     const uint64_t pml4e = pml4[pml4_index];
 
@@ -285,8 +255,7 @@ static uintptr_t nolock_vmm_unmap_page_in(uint64_t *pml4,
                     return vmm_table_entry_to_phys(pde);
                 }
 
-                uint64_t *pt =
-                        vmm_phys_to_virt_ptr(vmm_table_entry_to_phys(pde));
+                uint64_t *pt = vmm_phys_to_virt_ptr(vmm_table_entry_to_phys(pde));
                 const uint16_t pt_index = vmm_virt_to_pt_index(virt_addr);
                 const uint64_t pte = pt[pt_index];
 
@@ -316,8 +285,7 @@ inline uintptr_t vmm_unmap_page(const uintptr_t virt_addr) {
     return vmm_unmap_page_in(vmm_phys_to_virt_ptr(cpu_read_cr3()), virt_addr);
 }
 
-inline uintptr_t vmm_unmap_pages_in(uint64_t *pml4, const uintptr_t virt_addr,
-                                    const size_t num_pages) {
+inline uintptr_t vmm_unmap_pages_in(uint64_t *pml4, const uintptr_t virt_addr, const size_t num_pages) {
     const uint64_t lock_flags = spinlock_lock_irqsave(&vmm_map_lock);
     const uintptr_t result = nolock_vmm_unmap_page_in(pml4, virt_addr);
 
@@ -330,69 +298,44 @@ inline uintptr_t vmm_unmap_pages_in(uint64_t *pml4, const uintptr_t virt_addr,
 }
 
 uintptr_t vmm_unmap_pages(const uintptr_t virt_addr, const size_t num_pages) {
-    return vmm_unmap_pages_in(vmm_phys_to_virt_ptr(cpu_read_cr3()), virt_addr,
-                              num_pages);
+    return vmm_unmap_pages_in(vmm_phys_to_virt_ptr(cpu_read_cr3()), virt_addr, num_pages);
 }
 
 /*
  *  Find the per-CPU temporary page base for the given CPU.
  */
-inline uintptr_t vmm_per_cpu_temp_page_addr(const uint8_t cpu) {
-    return PER_CPU_TEMP_PAGE_BASE + (cpu << 12);
-}
+inline uintptr_t vmm_per_cpu_temp_page_addr(const uint8_t cpu) { return PER_CPU_TEMP_PAGE_BASE + (cpu << 12); }
 
 // Convert physical address to direct-mapped virtual address
-inline uintptr_t vmm_phys_to_virt(const uintptr_t phys_addr) {
-    return DIRECT_MAP_BASE + phys_addr;
-}
+inline uintptr_t vmm_phys_to_virt(const uintptr_t phys_addr) { return DIRECT_MAP_BASE + phys_addr; }
 
-inline void *vmm_phys_to_virt_ptr(const uintptr_t phys_addr) {
-    return (void *)vmm_phys_to_virt(phys_addr);
-}
+inline void *vmm_phys_to_virt_ptr(const uintptr_t phys_addr) { return (void *)vmm_phys_to_virt(phys_addr); }
 
 inline uintptr_t vmm_virt_to_phys_page(const uintptr_t virt_addr) {
     return vmm_table_entry_to_phys(vmm_virt_to_pt_entry(virt_addr));
 }
 
-uintptr_t vmm_virt_to_phys(const uintptr_t virt_addr) {
-    return vmm_virt_to_phys_page(virt_addr) + (virt_addr & 0xfff);
-}
+uintptr_t vmm_virt_to_phys(const uintptr_t virt_addr) { return vmm_virt_to_phys_page(virt_addr) + (virt_addr & 0xfff); }
 
-inline PageTable *vmm_find_pml4() {
-    return (PageTable *)vmm_phys_to_virt_ptr(cpu_read_cr3());
-}
+inline PageTable *vmm_find_pml4() { return (PageTable *)vmm_phys_to_virt_ptr(cpu_read_cr3()); }
 
-inline uint16_t vmm_virt_to_table_index(const uintptr_t virt_addr,
-                                        const uint8_t level) {
+inline uint16_t vmm_virt_to_table_index(const uintptr_t virt_addr, const uint8_t level) {
     return ((virt_addr >> ((9 * (level - 1)) + 12)) & 0x1ff);
 }
 
-inline uint16_t vmm_virt_to_pml4_index(const uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 9 + 9 + 12)) & 0x1ff);
-}
+inline uint16_t vmm_virt_to_pml4_index(const uintptr_t virt_addr) { return ((virt_addr >> (9 + 9 + 9 + 12)) & 0x1ff); }
 
-inline uint16_t vmm_virt_to_pdpt_index(const uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 9 + 12)) & 0x1ff);
-}
+inline uint16_t vmm_virt_to_pdpt_index(const uintptr_t virt_addr) { return ((virt_addr >> (9 + 9 + 12)) & 0x1ff); }
 
-inline uint16_t vmm_virt_to_pd_index(const uintptr_t virt_addr) {
-    return ((virt_addr >> (9 + 12)) & 0x1ff);
-}
+inline uint16_t vmm_virt_to_pd_index(const uintptr_t virt_addr) { return ((virt_addr >> (9 + 12)) & 0x1ff); }
 
-inline uint16_t vmm_virt_to_pt_index(const uintptr_t virt_addr) {
-    return ((virt_addr >> 12) & 0x1ff);
-}
+inline uint16_t vmm_virt_to_pt_index(const uintptr_t virt_addr) { return ((virt_addr >> 12) & 0x1ff); }
 
-inline uintptr_t vmm_table_entry_to_phys(const uintptr_t table_entry) {
-    return (table_entry & 0x0000fffffffff000);
-}
+inline uintptr_t vmm_table_entry_to_phys(const uintptr_t table_entry) { return (table_entry & 0x0000fffffffff000); }
 
-inline uint16_t vmm_table_entry_to_page_flags(const uintptr_t table_entry) {
-    return (uint16_t)(table_entry & 0x3ff);
-}
+inline uint16_t vmm_table_entry_to_page_flags(const uintptr_t table_entry) { return (uint16_t)(table_entry & 0x3ff); }
 
-inline uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
-                                                  const uint64_t flags) {
+inline uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys, const uint64_t flags) {
     return ((phys & ~0xfff)) | flags;
 }
 
@@ -404,22 +347,16 @@ inline uint64_t vmm_phys_and_flags_to_table_entry(const uintptr_t phys,
  * with this (and that's by design!)
  */
 uint64_t vmm_virt_to_pt_entry(const uintptr_t virt_addr) {
-    const uint64_t pml4e =
-            vmm_find_pml4()->entries[vmm_virt_to_pml4_index(virt_addr)];
+    const uint64_t pml4e = vmm_find_pml4()->entries[vmm_virt_to_pml4_index(virt_addr)];
     if (pml4e & PG_PRESENT) {
-        const uint64_t pdpte =
-                ((PageTable *)vmm_phys_to_virt(vmm_table_entry_to_phys(pml4e)))
-                        ->entries[vmm_virt_to_pdpt_index(virt_addr)];
+        const uint64_t pdpte = ((PageTable *)vmm_phys_to_virt(vmm_table_entry_to_phys(pml4e)))
+                                       ->entries[vmm_virt_to_pdpt_index(virt_addr)];
         if (pdpte & PG_PRESENT) {
-            const uint64_t pde =
-                    ((PageTable *)vmm_phys_to_virt(
-                             vmm_table_entry_to_phys(pdpte)))
-                            ->entries[vmm_virt_to_pd_index(virt_addr)];
+            const uint64_t pde = ((PageTable *)vmm_phys_to_virt(vmm_table_entry_to_phys(pdpte)))
+                                         ->entries[vmm_virt_to_pd_index(virt_addr)];
             if (pde & PG_PRESENT) {
-                const uint64_t pte =
-                        ((PageTable *)vmm_phys_to_virt(
-                                 vmm_table_entry_to_phys(pde)))
-                                ->entries[vmm_virt_to_pt_index(virt_addr)];
+                const uint64_t pte = ((PageTable *)vmm_phys_to_virt(vmm_table_entry_to_phys(pde)))
+                                             ->entries[vmm_virt_to_pt_index(virt_addr)];
                 if (pte & PG_PRESENT) {
                     return pte;
                 }
@@ -430,8 +367,6 @@ uint64_t vmm_virt_to_pt_entry(const uintptr_t virt_addr) {
     return 0;
 }
 
-size_t vmm_level_page_size(const uint8_t level) {
-    return (VM_PAGE_SIZE << (9 * (level - 1)));
-}
+size_t vmm_level_page_size(const uint8_t level) { return (VM_PAGE_SIZE << (9 * (level - 1))); }
 
 uintptr_t vmm_get_pagetable_root_phys() { return cpu_read_cr3(); }

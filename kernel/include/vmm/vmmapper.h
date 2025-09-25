@@ -65,8 +65,7 @@ static constexpr uintptr_t DIRECT_MAP_BASE = 0xffff800000000000;
  *
  * This function invalidates the local TLB automatically.
  */
-bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
-                     uint16_t flags);
+bool vmm_map_page_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags);
 
 /*
  * Map the given page-aligned physical address into virtual memory 
@@ -87,8 +86,7 @@ bool vmm_map_page(uintptr_t virt_addr, uint64_t page, uint16_t flags);
  * Simple wrapper around `map_page` - see documentation for that function
  * for specifics.
  */
-bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
-                             uint16_t flags);
+bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags);
 
 /*
  * Map the page containing the given physical address into virtual memory
@@ -97,8 +95,7 @@ bool vmm_map_page_containing(uintptr_t virt_addr, uint64_t phys_addr,
  * Simple wrapper around `map_page` - see documentation for that function
  * for specifics.
  */
-bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
-                                uint64_t phys_addr, uint16_t flags);
+bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags);
 
 /*
  * Map the given number of contiguous pages, starting at the given
@@ -112,8 +109,7 @@ bool vmm_map_page_containing_in(uint64_t *pml4, uintptr_t virt_addr,
  *
  * This function invalidates the local TLB automatically.
  */
-bool vmm_map_pages_containing_in(uint64_t *pml4, uintptr_t virt_addr,
-                                 uint64_t phys_addr, uint16_t flags,
+bool vmm_map_pages_containing_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags,
                                  size_t num_pages);
 
 /*
@@ -128,8 +124,7 @@ bool vmm_map_pages_containing_in(uint64_t *pml4, uintptr_t virt_addr,
  *
  * This function invalidates the local TLB automatically.
  */
-bool vmm_map_pages_containing(uintptr_t virt_addr, uint64_t phys_addr,
-                              uint16_t flags, size_t num_pages);
+bool vmm_map_pages_containing(uintptr_t virt_addr, uint64_t phys_addr, uint16_t flags, size_t num_pages);
 
 /*
  * Map the given number of contiguous pages, starting at the given
@@ -139,8 +134,7 @@ bool vmm_map_pages_containing(uintptr_t virt_addr, uint64_t phys_addr,
  * Simple wrapper around `map_pages_containing_in` - see documentation for that function
  * for specifics.
  */
-bool vmm_map_pages_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
-                      uint16_t flags, size_t num_pages);
+bool vmm_map_pages_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page, uint16_t flags, size_t num_pages);
 
 /*
  * Map the given number of contiguous pages, starting at the given
@@ -151,8 +145,7 @@ bool vmm_map_pages_in(uint64_t *pml4, uintptr_t virt_addr, uint64_t page,
  * Simple wrapper around `map_pages_containing_in` - see documentation for that function
  * for specifics.
  */
-bool vmm_map_pages(uintptr_t virt_addr, uint64_t page, uint16_t flags,
-                   size_t num_pages);
+bool vmm_map_pages(uintptr_t virt_addr, uint64_t page, uint16_t flags, size_t num_pages);
 
 /*
  * Unmap the given virtual page from virtual memory with the current
@@ -217,8 +210,7 @@ uintptr_t vmm_unmap_page_in(uint64_t *pml4, uintptr_t virt_addr);
  * Returns the physical address that was previously mapped
  * at the beginning of the area, or 0 for none.
  */
-uintptr_t vmm_unmap_pages_in(uint64_t *pml4, uintptr_t virt_addr,
-                             size_t num_pages);
+uintptr_t vmm_unmap_pages_in(uint64_t *pml4, uintptr_t virt_addr, size_t num_pages);
 
 /*
  * Invalidate the TLB for the page containing the given virtual address.

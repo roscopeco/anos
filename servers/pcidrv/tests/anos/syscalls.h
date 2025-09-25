@@ -34,7 +34,6 @@ typedef struct {
 
 // Mock syscall function declarations
 SyscallResult anos_find_named_channel(const char *name);
-SyscallResult anos_send_message(uint64_t channel_id, void *buffer,
-                                size_t msg_size, void *msg_buffer);
+SyscallResult anos_send_message(uint64_t channel_id, void *buffer, size_t msg_size, void *msg_buffer);
 
 #endif /* __ANOS_SYSCALLS_H */

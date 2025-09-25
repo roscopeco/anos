@@ -70,38 +70,25 @@ typedef struct {
     size_t mapped_size;
 } PCIBusDriver;
 
-uint32_t pci_config_read32(const PCIBusDriver *bus_driver, uint8_t bus,
-                           uint8_t device, uint8_t function, uint8_t offset);
+uint32_t pci_config_read32(const PCIBusDriver *bus_driver, uint8_t bus, uint8_t device, uint8_t function,
+                           uint8_t offset);
 
-uint16_t pci_config_read16(const PCIBusDriver *bus_driver, uint8_t bus,
-                           uint8_t device, uint8_t function, uint8_t offset);
+uint16_t pci_config_read16(const PCIBusDriver *bus_driver, uint8_t bus, uint8_t device, uint8_t function,
+                           uint8_t offset);
 
-uint8_t pci_config_read8(const PCIBusDriver *bus_driver, uint8_t bus,
-                         uint8_t device, uint8_t function, uint8_t offset);
+uint8_t pci_config_read8(const PCIBusDriver *bus_driver, uint8_t bus, uint8_t device, uint8_t function, uint8_t offset);
 
 /* Register part bitmaps */
-static inline uint16_t pci_reg_get_high_word(const uint32_t value) {
-    return ((((value) & 0xFFFF0000) >> 16));
-}
+static inline uint16_t pci_reg_get_high_word(const uint32_t value) { return ((((value) & 0xFFFF0000) >> 16)); }
 
-static inline uint16_t pci_reg_get_low_word(const uint32_t value) {
-    return (((value) & 0x0000FFFF));
-}
+static inline uint16_t pci_reg_get_low_word(const uint32_t value) { return (((value) & 0x0000FFFF)); }
 
-static inline uint8_t pci_reg_get_upper_upper_byte(const uint32_t value) {
-    return ((((value) & 0xFF000000) >> 24));
-}
+static inline uint8_t pci_reg_get_upper_upper_byte(const uint32_t value) { return ((((value) & 0xFF000000) >> 24)); }
 
-static inline uint8_t pci_reg_get_upper_middle_byte(const uint32_t value) {
-    return ((((value) & 0x00FF0000) >> 16));
-}
+static inline uint8_t pci_reg_get_upper_middle_byte(const uint32_t value) { return ((((value) & 0x00FF0000) >> 16)); }
 
-static inline uint8_t pci_reg_get_lower_middle_byte(const uint32_t value) {
-    return ((((value) & 0x0000FF00) >> 8));
-}
+static inline uint8_t pci_reg_get_lower_middle_byte(const uint32_t value) { return ((((value) & 0x0000FF00) >> 8)); }
 
-static inline uint8_t pci_reg_get_lower_lower_byte(const uint32_t value) {
-    return (((value) & 0x000000FF));
-}
+static inline uint8_t pci_reg_get_lower_lower_byte(const uint32_t value) { return (((value) & 0x000000FF)); }
 
 #endif

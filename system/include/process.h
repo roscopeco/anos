@@ -31,8 +31,7 @@ typedef struct {
  *
  * Returns negative on failure.
  */
-int64_t create_server_process(uint64_t stack_size, uint16_t capc,
-                              const InitCapability *capv, uint16_t argc,
+int64_t create_server_process(uint64_t stack_size, uint16_t capc, const InitCapability *capv, uint16_t argc,
                               const char *argv[]);
 
 #endif //__ANOS_SYSTEM_PROCESS_H

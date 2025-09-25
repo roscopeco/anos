@@ -21,10 +21,8 @@ void ipc_channel_destroy(uint64_t channel);
 
 bool ipc_channel_exists(uint64_t cookie);
 
-uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
-                          void *buffer);
-uint64_t ipc_channel_send(uint64_t cookie, uint64_t tag, size_t buffer_size,
-                          void *buffer);
+uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size, void *buffer);
+uint64_t ipc_channel_send(uint64_t cookie, uint64_t tag, size_t buffer_size, void *buffer);
 uint64_t ipc_channel_reply(uint64_t message_cookie, uint64_t result);
 
 #endif //__ANOS_KERNEL_IPC_CHANNEL_H

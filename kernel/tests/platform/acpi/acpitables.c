@@ -28,12 +28,11 @@ static ACPI_RSDP rsdp_good_checksum = {
         .rsdt_address = 0x9999,
 };
 
-static ACPI_RSDT rsdt_good_empty = {
-        .header = {.signature = {'R', 'S', 'D', 'T'},
-                   .checksum = 123,
-                   .oem_id = {'A', 'N', 'O', 'E', 'M', 0},
-                   .revision = 0,
-                   .length = sizeof(ACPI_SDTHeader)}};
+static ACPI_RSDT rsdt_good_empty = {.header = {.signature = {'R', 'S', 'D', 'T'},
+                                               .checksum = 123,
+                                               .oem_id = {'A', 'N', 'O', 'E', 'M', 0},
+                                               .revision = 0,
+                                               .length = sizeof(ACPI_SDTHeader)}};
 
 static ACPI_MADT madt_good = {
         .header = {.signature = {'M', 'A', 'D', 'T'},
@@ -71,8 +70,7 @@ static MunitResult test_init_null(const MunitParameter params[], void *param) {
     return MUNIT_OK;
 }
 
-static MunitResult test_init_bad_checksum_r0(const MunitParameter params[],
-                                             void *param) {
+static MunitResult test_init_bad_checksum_r0(const MunitParameter params[], void *param) {
 
     ACPI_RSDT *result = acpi_tables_init(&rsdp_bad_checksum);
 
@@ -81,8 +79,7 @@ static MunitResult test_init_bad_checksum_r0(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_init_good_checksum_r0(const MunitParameter params[],
-                                              void *param) {
+static MunitResult test_init_good_checksum_r0(const MunitParameter params[], void *param) {
 
     ACPI_RSDT *result = acpi_tables_init(&rsdp_good_checksum);
 
@@ -90,14 +87,12 @@ static MunitResult test_init_good_checksum_r0(const MunitParameter params[],
 
     munit_assert_uint32(mock_vmm_get_total_page_maps(), ==, 1);
     munit_assert_uint64(mock_vmm_get_last_page_map_paddr(), ==, 0x9000);
-    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==,
-                        ACPI_TABLES_VADDR_BASE);
+    munit_assert_uint64(mock_vmm_get_last_page_map_vaddr(), ==, ACPI_TABLES_VADDR_BASE);
 
     return MUNIT_OK;
 }
 
-static MunitResult test_find_null_rsdt(const MunitParameter params[],
-                                       void *param) {
+static MunitResult test_find_null_rsdt(const MunitParameter params[], void *param) {
 
     ACPI_SDTHeader *result = acpi_tables_find(NULL, "MADT");
 
@@ -106,8 +101,7 @@ static MunitResult test_find_null_rsdt(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_find_null_ident(const MunitParameter params[],
-                                        void *param) {
+static MunitResult test_find_null_ident(const MunitParameter params[], void *param) {
 
     ACPI_SDTHeader *result = acpi_tables_find(&rsdt_good_madt, NULL);
 
@@ -116,8 +110,7 @@ static MunitResult test_find_null_ident(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_find_good_empty(const MunitParameter params[],
-                                        void *param) {
+static MunitResult test_find_good_empty(const MunitParameter params[], void *param) {
 
     ACPI_SDTHeader *result = acpi_tables_find(&rsdt_good_empty, "MADT");
 
@@ -126,8 +119,7 @@ static MunitResult test_find_good_empty(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_find_good_only_madt(const MunitParameter params[],
-                                            void *param) {
+static MunitResult test_find_good_only_madt(const MunitParameter params[], void *param) {
 
     // TODO Can't really do much more useful testing, because currently ACPI tables
     //      are limited to 32-bit (due to qemu support for >r0 tables not being there).
@@ -205,8 +197,7 @@ static MunitTest test_suite_tests[] = {
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);

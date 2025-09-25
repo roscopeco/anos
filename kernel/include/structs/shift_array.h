@@ -35,8 +35,7 @@ typedef struct {
 
 static_assert_sizeof(ShiftToMiddleArray, ==, 64);
 
-bool shift_array_init(ShiftToMiddleArray *arr, size_t elem_size,
-                      int initial_capacity);
+bool shift_array_init(ShiftToMiddleArray *arr, size_t elem_size, int initial_capacity);
 
 void shift_array_free(const ShiftToMiddleArray *arr);
 

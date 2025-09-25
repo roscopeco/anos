@@ -50,17 +50,14 @@ void ipc_channel_init(void) {
 
     channel_hash = hash_table_create(INITIAL_CHANNEL_HASH_PAGE_COUNT);
 
-    in_flight_message_hash =
-            hash_table_create(INITIAL_IN_FLIGHT_MESSAGE_HASH_PAGE_COUNT);
+    in_flight_message_hash = hash_table_create(INITIAL_IN_FLIGHT_MESSAGE_HASH_PAGE_COUNT);
 
     if (!channel_hash) {
         panic("Failed to initialise IPC channel hash");
     }
 }
 
-bool ipc_channel_exists(uint64_t cookie) {
-    return hash_table_lookup(channel_hash, cookie) != NULL;
-}
+bool ipc_channel_exists(uint64_t cookie) { return hash_table_lookup(channel_hash, cookie) != NULL; }
 
 uint64_t ipc_channel_create(void) {
     IpcChannel *channel = slab_alloc_block();
@@ -170,8 +167,7 @@ static inline unsigned int round_up_to_page_size(size_t size) {
     return (size + VM_PAGE_SIZE - 1) & ~(VM_PAGE_SIZE - 1);
 }
 
-uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
-                          void *buffer) {
+uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size, void *buffer) {
     if ((uintptr_t)buffer & PAGE_RELATIVE_MASK) {
         // buffer must be page aligned
         return 0;
@@ -204,8 +200,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
             }
 
             if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
-                vmm_map_page((uintptr_t)buffer, (uint64_t)msg->arg_buf_phys,
-                             PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
+                vmm_map_page((uintptr_t)buffer, (uint64_t)msg->arg_buf_phys, PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
             } else {
                 msg->arg_buf_phys = 0;
             }
@@ -272,8 +267,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
             }
 
             if (buffer && msg->arg_buf_phys && msg->arg_buf_size) {
-                vmm_map_page((uintptr_t)buffer, msg->arg_buf_phys,
-                             PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
+                vmm_map_page((uintptr_t)buffer, msg->arg_buf_phys, PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
             } else {
                 msg->arg_buf_phys = 0;
             }
@@ -292,8 +286,7 @@ uint64_t ipc_channel_recv(uint64_t cookie, uint64_t *tag, size_t *buffer_size,
     return 0;
 }
 
-static bool init_message(IpcMessage *message, uint64_t tag, size_t size,
-                         void *buffer, Task *current_task) {
+static bool init_message(IpcMessage *message, uint64_t tag, size_t size, void *buffer, Task *current_task) {
 
     if (size > VM_PAGE_SIZE) {
         size = VM_PAGE_SIZE;
@@ -313,8 +306,7 @@ static bool init_message(IpcMessage *message, uint64_t tag, size_t size,
     return true;
 }
 
-uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, size_t size,
-                          void *buffer) {
+uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, size_t size, void *buffer) {
     if ((uintptr_t)buffer & PAGE_RELATIVE_MASK) {
         // buffer must be page aligned
         return 0;

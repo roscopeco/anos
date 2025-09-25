@@ -51,9 +51,7 @@ size_t read_sectors(uint8_t *buffer, uint32_t start, size_t count, FILE *f) {
     return fread(buffer, SECT_SIZE, count, f);
 }
 
-size_t clusterToSector(size_t cluster, uint16_t sectorsPerCluster) {
-    return (cluster - 2) * sectorsPerCluster;
-}
+size_t clusterToSector(size_t cluster, uint16_t sectorsPerCluster) { return (cluster - 2) * sectorsPerCluster; }
 
 uint16_t fatEntry(size_t cluster, uint8_t *fat) {
     uint16_t raw = *(uint16_t *)(fat + ((cluster >> 1) + cluster));
@@ -75,8 +73,7 @@ int main(int argc, char **argv) {
 
     BPB *bpb = (BPB *)buffer;
 
-    printf("VOLUME: %.11s [%.8s] [%d sectors / cluster]\n", bpb->volumeName,
-           bpb->fsType, bpb->sectorsPerCluster);
+    printf("VOLUME: %.11s [%.8s] [%d sectors / cluster]\n", bpb->volumeName, bpb->fsType, bpb->sectorsPerCluster);
 
     uint16_t bytesPerSector = bpb->bytesPerSector;
     uint16_t reservedSectors = bpb->reservedSectors;
@@ -84,8 +81,7 @@ int main(int argc, char **argv) {
     uint16_t rootStart = reservedSectors + bpb->fatCount * sectorsPerFat;
     uint16_t sectorsPerCluster = bpb->sectorsPerCluster;
 
-    uint32_t dataStart =
-            rootStart + (bpb->rootEntryCount / (bytesPerSector / 0x20));
+    uint32_t dataStart = rootStart + (bpb->rootEntryCount / (bytesPerSector / 0x20));
 
     printf("Root dir begins at sector %d\n", rootStart);
     printf("Data area begins at sector %d\n", dataStart);
@@ -130,10 +126,7 @@ int main(int argc, char **argv) {
 
 #ifdef DATA_DUMP
         uint8_t data[sectorsPerCluster * bytesPerSector];
-        read_sectors(data,
-                     dataStart +
-                             clusterToSector(thisCluster, sectorsPerCluster),
-                     1, f);
+        read_sectors(data, dataStart + clusterToSector(thisCluster, sectorsPerCluster), 1, f);
 
         for (int i = 0; i < bytesPerSector; i++) {
             printf("%c", data[i]);
@@ -146,8 +139,7 @@ int main(int argc, char **argv) {
     } while (nextCluster != 0xfff);
 
     printf("End of chain; %d byte(s) in total sectors\n", tots);
-    printf("%d byte(s) wasted based on reported size of %d byte(s)\n",
-           tots - size, size);
+    printf("%d byte(s) wasted based on reported size of %d byte(s)\n", tots - size, size);
 
     fclose(f);
     return 0;

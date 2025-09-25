@@ -25,8 +25,7 @@ static char *strnchr(const char *s, int c, size_t max_len) {
     return NULL;
 }
 
-bool parse_file_path(char *input, size_t input_len, char **mount_point,
-                     char **path) {
+bool parse_file_path(char *input, size_t input_len, char **mount_point, char **path) {
     if (!input || !mount_point || !path || input_len == 0) {
         return false;
     }

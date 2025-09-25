@@ -17,8 +17,8 @@
 #include "task.h"
 
 // This **must** only be called on the BSP
-bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func,
-                uintptr_t bootstrap_func, TaskClass task_class);
+bool sched_init(uintptr_t sys_sp, uintptr_t sys_ssp, uintptr_t start_func, uintptr_t bootstrap_func,
+                TaskClass task_class);
 
 // This **must** be called on all CPUs, **after** sched_init
 // and before the first schedule...

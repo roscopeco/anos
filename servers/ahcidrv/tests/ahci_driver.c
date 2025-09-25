@@ -38,9 +38,7 @@ static void *setup(const MunitParameter params[], void *user_data) {
 // AHCI CONTROLLER TESTS
 // ============================================================================
 
-static MunitResult
-test_ahci_controller_init_invalid_args(const MunitParameter params[],
-                                       void *data) {
+static MunitResult test_ahci_controller_init_invalid_args(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -60,9 +58,7 @@ test_ahci_controller_init_invalid_args(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_controller_init_map_failure(const MunitParameter params[],
-                                      void *data) {
+static MunitResult test_ahci_controller_init_map_failure(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -81,8 +77,7 @@ test_ahci_controller_init_map_failure(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_controller_init_success(const MunitParameter params[], void *data) {
+static MunitResult test_ahci_controller_init_success(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -110,8 +105,7 @@ test_ahci_controller_init_success(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult test_ahci_controller_cleanup(const MunitParameter params[],
-                                                void *data) {
+static MunitResult test_ahci_controller_cleanup(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -139,8 +133,7 @@ static MunitResult test_ahci_controller_cleanup(const MunitParameter params[],
 // AHCI PORT TESTS
 // ============================================================================
 
-static MunitResult
-test_ahci_port_init_invalid_args(const MunitParameter params[], void *data) {
+static MunitResult test_ahci_port_init_invalid_args(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -163,9 +156,7 @@ test_ahci_port_init_invalid_args(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_port_init_controller_not_initialized(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_ahci_port_init_controller_not_initialized(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -180,9 +171,7 @@ test_ahci_port_init_controller_not_initialized(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_port_init_memory_allocation_failure(const MunitParameter params[],
-                                              void *data) {
+static MunitResult test_ahci_port_init_memory_allocation_failure(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -207,8 +196,7 @@ test_ahci_port_init_memory_allocation_failure(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_ahci_port_init_success(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_ahci_port_init_success(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -246,9 +234,7 @@ static MunitResult test_ahci_port_init_success(const MunitParameter params[],
 // AHCI DEVICE IDENTIFICATION TESTS
 // ============================================================================
 
-static MunitResult
-test_ahci_port_identify_invalid_args(const MunitParameter params[],
-                                     void *data) {
+static MunitResult test_ahci_port_identify_invalid_args(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -259,9 +245,7 @@ test_ahci_port_identify_invalid_args(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_port_identify_uninitialized(const MunitParameter params[],
-                                      void *data) {
+static MunitResult test_ahci_port_identify_uninitialized(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -273,8 +257,7 @@ test_ahci_port_identify_uninitialized(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_port_identify_success(const MunitParameter params[], void *data) {
+static MunitResult test_ahci_port_identify_success(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -311,8 +294,7 @@ test_ahci_port_identify_success(const MunitParameter params[], void *data) {
 // AHCI I/O OPERATION TESTS
 // ============================================================================
 
-static MunitResult
-test_ahci_port_read_invalid_args(const MunitParameter params[], void *data) {
+static MunitResult test_ahci_port_read_invalid_args(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -336,8 +318,7 @@ test_ahci_port_read_invalid_args(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_port_write_invalid_args(const MunitParameter params[], void *data) {
+static MunitResult test_ahci_port_write_invalid_args(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -361,8 +342,7 @@ test_ahci_port_write_invalid_args(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_port_read_uninitialized(const MunitParameter params[], void *data) {
+static MunitResult test_ahci_port_read_uninitialized(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -377,8 +357,7 @@ test_ahci_port_read_uninitialized(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_port_write_uninitialized(const MunitParameter params[], void *data) {
+static MunitResult test_ahci_port_write_uninitialized(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -393,8 +372,7 @@ test_ahci_port_write_uninitialized(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult test_ahci_port_read_success(const MunitParameter params[],
-                                               void *data) {
+static MunitResult test_ahci_port_read_success(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -437,8 +415,7 @@ static MunitResult test_ahci_port_read_success(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_ahci_port_write_success(const MunitParameter params[],
-                                                void *data) {
+static MunitResult test_ahci_port_write_success(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -481,9 +458,7 @@ static MunitResult test_ahci_port_write_success(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_port_read_dma_allocation_failure(const MunitParameter params[],
-                                           void *data) {
+static MunitResult test_ahci_port_read_dma_allocation_failure(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -526,9 +501,7 @@ test_ahci_port_read_dma_allocation_failure(const MunitParameter params[],
 // DEVICE STATE AND ERROR HANDLING TESTS
 // ============================================================================
 
-static MunitResult
-test_ahci_port_init_no_device_present(const MunitParameter params[],
-                                      void *data) {
+static MunitResult test_ahci_port_init_no_device_present(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -543,8 +516,7 @@ test_ahci_port_init_no_device_present(const MunitParameter params[],
 
     // Modify mock AHCI registers to simulate no device present
     extern AHCIRegs mock_ahci_registers;
-    mock_ahci_registers.ports[0].ssts =
-            0x0; // No device present (DET field = 0)
+    mock_ahci_registers.ports[0].ssts = 0x0; // No device present (DET field = 0)
 
     // Port init should fail with no device
     memset(&port, 0, sizeof(port));
@@ -557,9 +529,7 @@ test_ahci_port_init_no_device_present(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_port_identify_memory_allocation_failure(const MunitParameter params[],
-                                                  void *data) {
+static MunitResult test_ahci_port_identify_memory_allocation_failure(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -598,8 +568,7 @@ test_ahci_port_identify_memory_allocation_failure(const MunitParameter params[],
 // MULTIPLE PORT SCENARIOS
 // ============================================================================
 
-static MunitResult test_ahci_multiple_ports_init(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_ahci_multiple_ports_init(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -617,9 +586,8 @@ static MunitResult test_ahci_multiple_ports_init(const MunitParameter params[],
 
     // Set up mock to have 4 active ports
     extern AHCIRegs mock_ahci_registers;
-    mock_ahci_registers.host.cap =
-            0x3; // 4 ports (bits 0-4 = 3, so port_count = 3+1 = 4)
-    mock_ahci_registers.host.pi = 0xF; // Ports 0-3 active
+    mock_ahci_registers.host.cap = 0x3; // 4 ports (bits 0-4 = 3, so port_count = 3+1 = 4)
+    mock_ahci_registers.host.pi = 0xF;  // Ports 0-3 active
 
     // Update controller state to reflect new CAP register
     ctrl.port_count = (mock_ahci_registers.host.cap & 0x1F) + 1;
@@ -654,8 +622,7 @@ static MunitResult test_ahci_multiple_ports_init(const MunitParameter params[],
 // EDGE CASE AND BOUNDARY TESTS
 // ============================================================================
 
-static MunitResult test_ahci_port_read_large_lba(const MunitParameter params[],
-                                                 void *data) {
+static MunitResult test_ahci_port_read_large_lba(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -691,8 +658,7 @@ static MunitResult test_ahci_port_read_large_lba(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_ahci_port_cleanup(const MunitParameter params[],
-                                          void *data) {
+static MunitResult test_ahci_port_cleanup(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -736,9 +702,7 @@ static MunitResult test_ahci_port_cleanup(const MunitParameter params[],
 // INTERRUPT VS POLLING TESTS
 // ============================================================================
 
-static MunitResult
-test_ahci_port_msi_interrupt_configuration(const MunitParameter params[],
-                                           void *data) {
+static MunitResult test_ahci_port_msi_interrupt_configuration(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -769,9 +733,7 @@ test_ahci_port_msi_interrupt_configuration(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_port_init_without_msi_capability(const MunitParameter params[],
-                                           void *data) {
+static MunitResult test_ahci_port_init_without_msi_capability(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -809,8 +771,7 @@ test_ahci_port_init_without_msi_capability(const MunitParameter params[],
 // COMMAND SETUP AND FIS CONSTRUCTION TESTS
 // ============================================================================
 
-static MunitResult
-test_ahci_identify_command_setup(const MunitParameter params[], void *data) {
+static MunitResult test_ahci_identify_command_setup(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -846,9 +807,7 @@ test_ahci_identify_command_setup(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ahci_identify_unsupported_device_types(const MunitParameter params[],
-                                            void *data) {
+static MunitResult test_ahci_identify_unsupported_device_types(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -892,9 +851,7 @@ test_ahci_identify_unsupported_device_types(const MunitParameter params[],
 // REGISTER ACCESS PATTERNS TESTS
 // ============================================================================
 
-static MunitResult
-test_ahci_controller_register_sanity_check(const MunitParameter params[],
-                                           void *data) {
+static MunitResult test_ahci_controller_register_sanity_check(const MunitParameter params[], void *data) {
     (void)params;
     (void)data;
 
@@ -929,93 +886,64 @@ test_ahci_controller_register_sanity_check(const MunitParameter params[],
 
 static MunitTest test_suite_tests[] = {
         // Controller tests
-        {"/controller/init_invalid_args",
-         test_ahci_controller_init_invalid_args, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/controller/init_map_failure", test_ahci_controller_init_map_failure,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/controller/init_success", test_ahci_controller_init_success, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/controller/cleanup", test_ahci_controller_cleanup, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/controller/init_invalid_args", test_ahci_controller_init_invalid_args, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/controller/init_map_failure", test_ahci_controller_init_map_failure, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/controller/init_success", test_ahci_controller_init_success, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/controller/cleanup", test_ahci_controller_cleanup, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         // Port tests
-        {"/port/init_invalid_args", test_ahci_port_init_invalid_args, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/port/init_controller_not_initialized",
-         test_ahci_port_init_controller_not_initialized, setup, NULL,
+        {"/port/init_invalid_args", test_ahci_port_init_invalid_args, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/port/init_controller_not_initialized", test_ahci_port_init_controller_not_initialized, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/port/init_memory_failure",
-         test_ahci_port_init_memory_allocation_failure, setup, NULL,
+        {"/port/init_memory_failure", test_ahci_port_init_memory_allocation_failure, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/port/init_success", test_ahci_port_init_success, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/port/init_success", test_ahci_port_init_success, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         // Device identification tests
-        {"/identify/invalid_args", test_ahci_port_identify_invalid_args, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/identify/uninitialized", test_ahci_port_identify_uninitialized,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/identify/success", test_ahci_port_identify_success, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/identify/invalid_args", test_ahci_port_identify_invalid_args, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/identify/uninitialized", test_ahci_port_identify_uninitialized, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/identify/success", test_ahci_port_identify_success, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         // I/O operation tests
-        {"/io/read_invalid_args", test_ahci_port_read_invalid_args, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/io/write_invalid_args", test_ahci_port_write_invalid_args, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/io/read_uninitialized", test_ahci_port_read_uninitialized, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/io/write_uninitialized", test_ahci_port_write_uninitialized, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/io/read_success", test_ahci_port_read_success, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/io/write_success", test_ahci_port_write_success, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/io/read_dma_failure", test_ahci_port_read_dma_allocation_failure,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/io/read_invalid_args", test_ahci_port_read_invalid_args, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/io/write_invalid_args", test_ahci_port_write_invalid_args, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/io/read_uninitialized", test_ahci_port_read_uninitialized, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/io/write_uninitialized", test_ahci_port_write_uninitialized, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/io/read_success", test_ahci_port_read_success, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/io/write_success", test_ahci_port_write_success, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/io/read_dma_failure", test_ahci_port_read_dma_allocation_failure, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         // Device state and error handling tests
-        {"/error/no_device_present", test_ahci_port_init_no_device_present,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/error/identify_alloc_failure",
-         test_ahci_port_identify_memory_allocation_failure, setup, NULL,
+        {"/error/no_device_present", test_ahci_port_init_no_device_present, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/error/identify_alloc_failure", test_ahci_port_identify_memory_allocation_failure, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
 
         // Multiple port tests
-        {"/ports/multiple_init", test_ahci_multiple_ports_init, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ports/multiple_init", test_ahci_multiple_ports_init, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         // Edge case and boundary tests
-        {"/edge/read_large_lba", test_ahci_port_read_large_lba, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/edge/port_cleanup", test_ahci_port_cleanup, setup, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/edge/read_large_lba", test_ahci_port_read_large_lba, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/edge/port_cleanup", test_ahci_port_cleanup, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
         // Interrupt vs polling tests
-        {"/interrupt/msi_configuration",
-         test_ahci_port_msi_interrupt_configuration, setup, NULL,
+        {"/interrupt/msi_configuration", test_ahci_port_msi_interrupt_configuration, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/interrupt/no_msi_capability",
-         test_ahci_port_init_without_msi_capability, setup, NULL,
+        {"/interrupt/no_msi_capability", test_ahci_port_init_without_msi_capability, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
 
         // Command setup and FIS construction tests
-        {"/command/identify_setup", test_ahci_identify_command_setup, setup,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/command/unsupported_devices",
-         test_ahci_identify_unsupported_device_types, setup, NULL,
+        {"/command/identify_setup", test_ahci_identify_command_setup, setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/command/unsupported_devices", test_ahci_identify_unsupported_device_types, setup, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
 
         // Register access pattern tests
-        {"/register/sanity_check", test_ahci_controller_register_sanity_check,
-         setup, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/register/sanity_check", test_ahci_controller_register_sanity_check, setup, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/ahci/driver", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {"/ahci/driver", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&test_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&test_suite, NULL, argc, argv); }

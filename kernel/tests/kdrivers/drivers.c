@@ -28,8 +28,7 @@ static MunitResult test_init_valid(const MunitParameter params[], void *param) {
 
     munit_assert_true(result);
     munit_assert_uint(mock_kernel_drivers_get_hpet_init_call_count(), ==, 1);
-    munit_assert_ptr(mock_kernel_drivers_get_last_hpet_init_rsdt(), ==,
-                     &valid_rsdt);
+    munit_assert_ptr(mock_kernel_drivers_get_last_hpet_init_rsdt(), ==, &valid_rsdt);
 
     return MUNIT_OK;
 }
@@ -74,8 +73,7 @@ static MunitResult test_alloc_1_1(const MunitParameter params[], void *param) {
     return MUNIT_OK;
 }
 
-static MunitResult test_alloc_1_223(const MunitParameter params[],
-                                    void *param) {
+static MunitResult test_alloc_1_223(const MunitParameter params[], void *param) {
     void *result1 = kernel_drivers_alloc_pages(1);
     munit_assert_ptr(result1, ==, (void *)KERNEL_DRIVER_VADDR_BASE);
 
@@ -85,8 +83,7 @@ static MunitResult test_alloc_1_223(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_alloc_223_1(const MunitParameter params[],
-                                    void *param) {
+static MunitResult test_alloc_223_1(const MunitParameter params[], void *param) {
     void *result1 = kernel_drivers_alloc_pages(223);
     munit_assert_ptr(result1, ==, (void *)KERNEL_DRIVER_VADDR_BASE);
 
@@ -96,8 +93,7 @@ static MunitResult test_alloc_223_1(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_alloc_1_224(const MunitParameter params[],
-                                    void *param) {
+static MunitResult test_alloc_1_224(const MunitParameter params[], void *param) {
     void *result1 = kernel_drivers_alloc_pages(1);
     munit_assert_ptr(result1, ==, (void *)KERNEL_DRIVER_VADDR_BASE);
 
@@ -107,8 +103,7 @@ static MunitResult test_alloc_1_224(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_alloc_224_1(const MunitParameter params[],
-                                    void *param) {
+static MunitResult test_alloc_224_1(const MunitParameter params[], void *param) {
     void *result1 = kernel_drivers_alloc_pages(1);
     munit_assert_ptr(result1, ==, (void *)KERNEL_DRIVER_VADDR_BASE);
 
@@ -121,8 +116,7 @@ static MunitResult test_alloc_224_1(const MunitParameter params[],
 static MunitResult test_alloc_1x1(const MunitParameter params[], void *param) {
     for (int i = 0; i < 224; i++) {
         void *result1 = kernel_drivers_alloc_pages(1);
-        munit_assert_ptr(result1, ==,
-                         ((void *)(KERNEL_DRIVER_VADDR_BASE + (i * 0x1000))));
+        munit_assert_ptr(result1, ==, ((void *)(KERNEL_DRIVER_VADDR_BASE + (i * 0x1000))));
     }
 
     void *result2 = kernel_drivers_alloc_pages(1);
@@ -131,9 +125,7 @@ static MunitResult test_alloc_1x1(const MunitParameter params[], void *param) {
     return MUNIT_OK;
 }
 
-static void *setup(const MunitParameter params[], void *user_data) {
-    return NULL;
-}
+static void *setup(const MunitParameter params[], void *user_data) { return NULL; }
 
 void kernel_drivers_alloc_pages_reset(void);
 
@@ -143,37 +135,24 @@ static void teardown(void *param) {
 }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/init_null", test_init_null, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/init_valid", test_init_valid, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_null", test_init_null, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/init_valid", test_init_valid, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
-        {(char *)"/alloc_0", test_alloc_0, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc_1", test_alloc_1, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc_224", test_alloc_224, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc_225", test_alloc_225, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc_1_1", test_alloc_1_1, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc_1_223", test_alloc_1_223, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc_223_1", test_alloc_223_1, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc_1_224", test_alloc_1_224, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc_224_1", test_alloc_224_1, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/alloc_1x1", test_alloc_1x1, setup, teardown,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_0", test_alloc_0, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_1", test_alloc_1, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_224", test_alloc_224, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_225", test_alloc_225, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_1_1", test_alloc_1_1, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_1_223", test_alloc_1_223, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_223_1", test_alloc_223_1, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_1_224", test_alloc_1_224, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_224_1", test_alloc_224_1, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/alloc_1x1", test_alloc_1x1, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"/kdrivers", test_suite_tests,
-                                      NULL, 1, MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"/kdrivers", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);

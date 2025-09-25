@@ -10,8 +10,7 @@
 
 static bool smp_started;
 
-void page_fault_wrapper(const uint64_t code, const uint64_t fault_addr,
-                        const uint64_t origin_addr) {
+void page_fault_wrapper(const uint64_t code, const uint64_t fault_addr, const uint64_t origin_addr) {
     if (likely(smp_started)) {
         page_fault_handler(code, fault_addr, origin_addr);
     } else {

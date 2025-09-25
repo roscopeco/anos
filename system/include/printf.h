@@ -122,8 +122,7 @@ int vprintf_(const char *format, va_list va);
 #ifdef __GNUC__
 __attribute__((format(__printf__, 3, 4)))
 #endif
-int fctprintf(void (*out)(char character, void *arg), void *arg,
-              const char *format, ...);
+int fctprintf(void (*out)(char character, void *arg), void *arg, const char *format, ...);
 
 #ifdef __cplusplus
 }

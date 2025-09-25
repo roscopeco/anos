@@ -23,9 +23,7 @@ static AnosRAMFSHeader *create_testmodel_no_files(int version) {
 
 static AnosRAMFSHeader *create_testmodel_one_file(int version) {
     char *content = "File content";
-    AnosRAMFSHeader *model =
-            calloc(1, sizeof(AnosRAMFSHeader) + sizeof(AnosRAMFSFileHeader) +
-                              strlen(content) + 1);
+    AnosRAMFSHeader *model = calloc(1, sizeof(AnosRAMFSHeader) + sizeof(AnosRAMFSFileHeader) + strlen(content) + 1);
     AnosRAMFSFileHeader *file = (AnosRAMFSFileHeader *)(model + 1);
     char *filedata = (char *)(file + 1);
 
@@ -45,9 +43,7 @@ static AnosRAMFSHeader *create_testmodel_one_file(int version) {
 
 static AnosRAMFSHeader *create_testmodel_one_file_malformed(int version) {
     char *content1 = "File 1ontent";
-    AnosRAMFSHeader *model =
-            calloc(1, sizeof(AnosRAMFSHeader) + sizeof(AnosRAMFSFileHeader) +
-                              strlen(content1) + 1);
+    AnosRAMFSHeader *model = calloc(1, sizeof(AnosRAMFSHeader) + sizeof(AnosRAMFSFileHeader) + strlen(content1) + 1);
     AnosRAMFSFileHeader *file = (AnosRAMFSFileHeader *)(model + 1);
     char *filedata = (char *)(file + 1);
 
@@ -70,9 +66,8 @@ static AnosRAMFSHeader *create_testmodel_three_files(int version) {
     char *content1 = "File 1ontent"; // these must stay same length!
     char *content2 = "File 2ontent";
 
-    AnosRAMFSHeader *model = calloc(
-            1, sizeof(AnosRAMFSHeader) + (sizeof(AnosRAMFSFileHeader) * 3) +
-                       (strlen(content1) * 2) + 2);
+    AnosRAMFSHeader *model =
+            calloc(1, sizeof(AnosRAMFSHeader) + (sizeof(AnosRAMFSFileHeader) * 3) + (strlen(content1) * 2) + 2);
 
     model->magic = ANOS_RAMFS_MAGIC;
     model->version = version;
@@ -105,16 +100,13 @@ static AnosRAMFSHeader *create_testmodel_three_files(int version) {
 
 /* MUnit test functions */
 
-static MunitResult
-test_is_valid_ramfs_with_null_ramfs(const MunitParameter params[], void *data) {
+static MunitResult test_is_valid_ramfs_with_null_ramfs(const MunitParameter params[], void *data) {
     void *null_ramfs = NULL;
     munit_assert_false(is_valid_ramfs(null_ramfs));
     return MUNIT_OK;
 }
 
-static MunitResult
-test_is_valid_ramfs_with_invalid_ramfs(const MunitParameter params[],
-                                       void *data) {
+static MunitResult test_is_valid_ramfs_with_invalid_ramfs(const MunitParameter params[], void *data) {
     void *invalid_ramfs = calloc(1, sizeof(AnosRAMFSHeader));
 
     munit_assert_false(is_valid_ramfs(invalid_ramfs));
@@ -123,11 +115,8 @@ test_is_valid_ramfs_with_invalid_ramfs(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_is_valid_ramfs_with_incorrect_version(const MunitParameter params[],
-                                           void *data) {
-    AnosRAMFSHeader *invalid_ramfs =
-            create_testmodel_no_files(ANOS_RAMFS_VERSION + 10);
+static MunitResult test_is_valid_ramfs_with_incorrect_version(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *invalid_ramfs = create_testmodel_no_files(ANOS_RAMFS_VERSION + 10);
 
     munit_assert_false(is_valid_ramfs(invalid_ramfs));
 
@@ -135,11 +124,8 @@ test_is_valid_ramfs_with_incorrect_version(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_is_valid_ramfs_with_valid_ramfs(const MunitParameter params[],
-                                     void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_no_files(ANOS_RAMFS_VERSION);
+static MunitResult test_is_valid_ramfs_with_valid_ramfs(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_no_files(ANOS_RAMFS_VERSION);
 
     munit_assert_true(is_valid_ramfs(valid_ramfs));
 
@@ -147,15 +133,13 @@ test_is_valid_ramfs_with_valid_ramfs(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_size_with_null_ramfs(const MunitParameter params[], void *data) {
+static MunitResult test_ramfs_size_with_null_ramfs(const MunitParameter params[], void *data) {
     void *null_ramfs = NULL;
     munit_assert_int(ramfs_size(null_ramfs), ==, -1);
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_size_with_invalid_ramfs(const MunitParameter params[], void *data) {
+static MunitResult test_ramfs_size_with_invalid_ramfs(const MunitParameter params[], void *data) {
     void *invalid_ramfs = calloc(1, sizeof(AnosRAMFSHeader));
 
     munit_assert_int(ramfs_size(invalid_ramfs), ==, -1);
@@ -164,11 +148,8 @@ test_ramfs_size_with_invalid_ramfs(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_size_with_incorrect_version(const MunitParameter params[],
-                                       void *data) {
-    AnosRAMFSHeader *invalid_ramfs =
-            create_testmodel_no_files(ANOS_RAMFS_VERSION + 5);
+static MunitResult test_ramfs_size_with_incorrect_version(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *invalid_ramfs = create_testmodel_no_files(ANOS_RAMFS_VERSION + 5);
 
     munit_assert_int(ramfs_size(invalid_ramfs), ==, -1);
 
@@ -176,10 +157,8 @@ test_ramfs_size_with_incorrect_version(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_size_with_valid_ramfs(const MunitParameter params[], void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_no_files(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_size_with_valid_ramfs(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_no_files(ANOS_RAMFS_VERSION);
 
     munit_assert_int(ramfs_size(valid_ramfs), ==, sizeof(AnosRAMFSHeader));
 
@@ -187,17 +166,13 @@ test_ramfs_size_with_valid_ramfs(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_file_count_with_null_ramfs(const MunitParameter params[],
-                                      void *data) {
+static MunitResult test_ramfs_file_count_with_null_ramfs(const MunitParameter params[], void *data) {
     void *null_ramfs = NULL;
     munit_assert_int(ramfs_file_count(null_ramfs), ==, -1);
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_file_count_with_invalid_ramfs(const MunitParameter params[],
-                                         void *data) {
+static MunitResult test_ramfs_file_count_with_invalid_ramfs(const MunitParameter params[], void *data) {
     void *invalid_ramfs = calloc(1, sizeof(AnosRAMFSHeader));
 
     munit_assert_int(ramfs_file_count(invalid_ramfs), ==, -1);
@@ -206,11 +181,8 @@ test_ramfs_file_count_with_invalid_ramfs(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_file_count_with_incorrect_version(const MunitParameter params[],
-                                             void *data) {
-    AnosRAMFSHeader *invalid_ramfs =
-            create_testmodel_no_files(ANOS_RAMFS_VERSION + 5);
+static MunitResult test_ramfs_file_count_with_incorrect_version(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *invalid_ramfs = create_testmodel_no_files(ANOS_RAMFS_VERSION + 5);
 
     munit_assert_int(ramfs_file_count(invalid_ramfs), ==, -1);
 
@@ -218,11 +190,8 @@ test_ramfs_file_count_with_incorrect_version(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_file_count_with_valid_empty_ramfs(const MunitParameter params[],
-                                             void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_no_files(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_file_count_with_valid_empty_ramfs(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_no_files(ANOS_RAMFS_VERSION);
 
     munit_assert_int(ramfs_file_count(valid_ramfs), ==, 0);
 
@@ -230,10 +199,8 @@ test_ramfs_file_count_with_valid_empty_ramfs(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_ramfs_file_count_with_valid_ramfs_and_one_file(
-        const MunitParameter params[], void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_one_file(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_file_count_with_valid_ramfs_and_one_file(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_one_file(ANOS_RAMFS_VERSION);
 
     munit_assert_int(ramfs_file_count(valid_ramfs), ==, 1);
 
@@ -241,17 +208,13 @@ static MunitResult test_ramfs_file_count_with_valid_ramfs_and_one_file(
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_find_file_with_null_ramfs(const MunitParameter params[],
-                                     void *data) {
+static MunitResult test_ramfs_find_file_with_null_ramfs(const MunitParameter params[], void *data) {
     void *null_ramfs = NULL;
     munit_assert_null(ramfs_find_file(null_ramfs, "file001"));
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_find_file_with_invalid_ramfs(const MunitParameter params[],
-                                        void *data) {
+static MunitResult test_ramfs_find_file_with_invalid_ramfs(const MunitParameter params[], void *data) {
     void *invalid_ramfs = calloc(1, sizeof(AnosRAMFSHeader));
 
     munit_assert_null(ramfs_find_file(invalid_ramfs, "file001"));
@@ -260,11 +223,8 @@ test_ramfs_find_file_with_invalid_ramfs(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_find_file_with_incorrect_version(const MunitParameter params[],
-                                            void *data) {
-    AnosRAMFSHeader *invalid_ramfs =
-            create_testmodel_no_files(ANOS_RAMFS_VERSION + 5);
+static MunitResult test_ramfs_find_file_with_incorrect_version(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *invalid_ramfs = create_testmodel_no_files(ANOS_RAMFS_VERSION + 5);
 
     munit_assert_null(ramfs_find_file(invalid_ramfs, "file001"));
 
@@ -272,11 +232,8 @@ test_ramfs_find_file_with_incorrect_version(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_find_file_with_valid_empty_ramfs(const MunitParameter params[],
-                                            void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_no_files(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_find_file_with_valid_empty_ramfs(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_no_files(ANOS_RAMFS_VERSION);
 
     munit_assert_null(ramfs_find_file(valid_ramfs, "file001"));
 
@@ -284,11 +241,9 @@ test_ramfs_find_file_with_valid_empty_ramfs(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_find_file_with_valid_empty_ramfs_but_null_filename(
-        const MunitParameter params[], void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_no_files(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_find_file_with_valid_empty_ramfs_but_null_filename(const MunitParameter params[],
+                                                                                 void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_no_files(ANOS_RAMFS_VERSION);
 
     munit_assert_null(ramfs_find_file(valid_ramfs, NULL));
 
@@ -296,11 +251,9 @@ test_ramfs_find_file_with_valid_empty_ramfs_but_null_filename(
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_find_file_with_valid_ramfs_and_one_file_but_not_found(
-        const MunitParameter params[], void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_one_file(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_find_file_with_valid_ramfs_and_one_file_but_not_found(const MunitParameter params[],
+                                                                                    void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_one_file(ANOS_RAMFS_VERSION);
 
     munit_assert_null(ramfs_find_file(valid_ramfs, "filenotfound"));
 
@@ -308,11 +261,9 @@ test_ramfs_find_file_with_valid_ramfs_and_one_file_but_not_found(
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_find_file_with_valid_ramfs_and_one_file_but_null_filename(
-        const MunitParameter params[], void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_one_file(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_find_file_with_valid_ramfs_and_one_file_but_null_filename(const MunitParameter params[],
+                                                                                        void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_one_file(ANOS_RAMFS_VERSION);
 
     munit_assert_null(ramfs_find_file(valid_ramfs, NULL));
 
@@ -321,10 +272,9 @@ test_ramfs_find_file_with_valid_ramfs_and_one_file_but_null_filename(
 }
 
 static MunitResult
-test_ramfs_find_file_with_valid_ramfs_and_one_file_can_handle_malformed_ramfs(
-        const MunitParameter params[], void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_one_file_malformed(ANOS_RAMFS_VERSION);
+test_ramfs_find_file_with_valid_ramfs_and_one_file_can_handle_malformed_ramfs(const MunitParameter params[],
+                                                                              void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_one_file_malformed(ANOS_RAMFS_VERSION);
 
     munit_assert_null(ramfs_find_file(valid_ramfs, "file001"));
 
@@ -332,11 +282,9 @@ test_ramfs_find_file_with_valid_ramfs_and_one_file_can_handle_malformed_ramfs(
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_find_file_with_valid_ramfs_and_one_file_that_exists(
-        const MunitParameter params[], void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_one_file(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_find_file_with_valid_ramfs_and_one_file_that_exists(const MunitParameter params[],
+                                                                                  void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_one_file(ANOS_RAMFS_VERSION);
     AnosRAMFSFileHeader *file = ramfs_find_file(valid_ramfs, "file001");
 
     munit_assert_not_null(file);
@@ -347,11 +295,9 @@ test_ramfs_find_file_with_valid_ramfs_and_one_file_that_exists(
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_find_file_with_valid_ramfs_and_two_files_that_exists(
-        const MunitParameter params[], void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_three_files(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_find_file_with_valid_ramfs_and_two_files_that_exists(const MunitParameter params[],
+                                                                                   void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_three_files(ANOS_RAMFS_VERSION);
 
     AnosRAMFSFileHeader *file = ramfs_find_file(valid_ramfs, "file001");
     munit_assert_not_null(file);
@@ -367,18 +313,14 @@ test_ramfs_find_file_with_valid_ramfs_and_two_files_that_exists(
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_file_open_with_null_file(const MunitParameter params[], void *data) {
+static MunitResult test_ramfs_file_open_with_null_file(const MunitParameter params[], void *data) {
     AnosRAMFSFileHeader *null_file = NULL;
     munit_assert_null(ramfs_file_open(null_file));
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_file_open_with_empty_file(const MunitParameter params[],
-                                     void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_three_files(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_file_open_with_empty_file(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_three_files(ANOS_RAMFS_VERSION);
     AnosRAMFSFileHeader *file = ramfs_find_file(valid_ramfs, "file003_empty");
 
     munit_assert_null(ramfs_file_open(file));
@@ -387,11 +329,8 @@ test_ramfs_file_open_with_empty_file(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_ramfs_file_open_with_normal_file(const MunitParameter params[],
-                                      void *data) {
-    AnosRAMFSHeader *valid_ramfs =
-            create_testmodel_three_files(ANOS_RAMFS_VERSION);
+static MunitResult test_ramfs_file_open_with_normal_file(const MunitParameter params[], void *data) {
+    AnosRAMFSHeader *valid_ramfs = create_testmodel_three_files(ANOS_RAMFS_VERSION);
     AnosRAMFSFileHeader *file1 = ramfs_find_file(valid_ramfs, "file001");
     AnosRAMFSFileHeader *file2 = ramfs_find_file(valid_ramfs, "file002");
 
@@ -410,84 +349,63 @@ test_ramfs_file_open_with_normal_file(const MunitParameter params[],
 
 /* Define the test suite */
 static MunitTest ramfs_tests[] = {
-        {"/is_valid_ramfs_with_null_ramfs", test_is_valid_ramfs_with_null_ramfs,
-         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/is_valid_ramfs_with_invalid_ramfs",
-         test_is_valid_ramfs_with_invalid_ramfs, NULL, NULL,
+        {"/is_valid_ramfs_with_null_ramfs", test_is_valid_ramfs_with_null_ramfs, NULL, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/is_valid_ramfs_with_invalid_ramfs", test_is_valid_ramfs_with_invalid_ramfs, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/is_valid_ramfs_with_incorrect_version",
-         test_is_valid_ramfs_with_incorrect_version, NULL, NULL,
+        {"/is_valid_ramfs_with_incorrect_version", test_is_valid_ramfs_with_incorrect_version, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/is_valid_ramfs_with_valid_ramfs",
-         test_is_valid_ramfs_with_valid_ramfs, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/is_valid_ramfs_with_valid_ramfs", test_is_valid_ramfs_with_valid_ramfs, NULL, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
 
-        {"/ramfs_size_with_null_ramfs", test_ramfs_size_with_null_ramfs, NULL,
+        {"/ramfs_size_with_null_ramfs", test_ramfs_size_with_null_ramfs, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ramfs_size_with_invalid_ramfs", test_ramfs_size_with_invalid_ramfs, NULL, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/ramfs_size_with_incorrect_version", test_ramfs_size_with_incorrect_version, NULL, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ramfs_size_with_valid_ramfs", test_ramfs_size_with_valid_ramfs, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+
+        {"/ramfs_file_count_with_null_ramfs", test_ramfs_file_count_with_null_ramfs, NULL, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/ramfs_file_count_with_invalid_ramfs", test_ramfs_file_count_with_invalid_ramfs, NULL, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ramfs_file_count_with_incorrect_version", test_ramfs_file_count_with_incorrect_version, NULL, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ramfs_file_count_with_valid_empty_ramfs", test_ramfs_file_count_with_valid_empty_ramfs, NULL, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ramfs_file_count_with_valid_ramfs_and_one_file", test_ramfs_file_count_with_valid_ramfs_and_one_file, NULL,
          NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_size_with_invalid_ramfs", test_ramfs_size_with_invalid_ramfs,
-         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_size_with_incorrect_version",
-         test_ramfs_size_with_incorrect_version, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_size_with_valid_ramfs", test_ramfs_size_with_valid_ramfs, NULL,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
-        {"/ramfs_file_count_with_null_ramfs",
-         test_ramfs_file_count_with_null_ramfs, NULL, NULL,
+        {"/ramfs_find_file_with_null_ramfs", test_ramfs_find_file_with_null_ramfs, NULL, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/ramfs_find_file_with_invalid_ramfs", test_ramfs_find_file_with_invalid_ramfs, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_file_count_with_invalid_ramfs",
-         test_ramfs_file_count_with_invalid_ramfs, NULL, NULL,
+        {"/ramfs_find_file_with_incorrect_version", test_ramfs_find_file_with_incorrect_version, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_file_count_with_incorrect_version",
-         test_ramfs_file_count_with_incorrect_version, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_file_count_with_valid_empty_ramfs",
-         test_ramfs_file_count_with_valid_empty_ramfs, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_file_count_with_valid_ramfs_and_one_file",
-         test_ramfs_file_count_with_valid_ramfs_and_one_file, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-
-        {"/ramfs_find_file_with_null_ramfs",
-         test_ramfs_find_file_with_null_ramfs, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_find_file_with_invalid_ramfs",
-         test_ramfs_find_file_with_invalid_ramfs, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_find_file_with_incorrect_version",
-         test_ramfs_find_file_with_incorrect_version, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_find_file_with_valid_empty_ramfs",
-         test_ramfs_find_file_with_valid_empty_ramfs, NULL, NULL,
+        {"/ramfs_find_file_with_valid_empty_ramfs", test_ramfs_find_file_with_valid_empty_ramfs, NULL, NULL,
          MUNIT_TEST_OPTION_NONE, NULL},
         {"/ramfs_find_file_with_valid_empty_ramfs_but_null_filename",
-         test_ramfs_find_file_with_valid_empty_ramfs_but_null_filename, NULL,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+         test_ramfs_find_file_with_valid_empty_ramfs_but_null_filename, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {"/ramfs_find_file_with_valid_ramfs_and_one_file_but_not_found",
-         test_ramfs_find_file_with_valid_ramfs_and_one_file_but_not_found, NULL,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+         test_ramfs_find_file_with_valid_ramfs_and_one_file_but_not_found, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {"/ramfs_find_file_with_valid_ramfs_and_one_file_but_null_filename",
-         test_ramfs_find_file_with_valid_ramfs_and_one_file_but_null_filename,
-         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+         test_ramfs_find_file_with_valid_ramfs_and_one_file_but_null_filename, NULL, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
         {"/ramfs_find_file_with_valid_ramfs_and_one_file_can_handle_malformed_"
          "ramfs",
-         test_ramfs_find_file_with_valid_ramfs_and_one_file_can_handle_malformed_ramfs,
-         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+         test_ramfs_find_file_with_valid_ramfs_and_one_file_can_handle_malformed_ramfs, NULL, NULL,
+         MUNIT_TEST_OPTION_NONE, NULL},
         {"/ramfs_find_file_with_valid_ramfs_and_one_file_that_exists",
-         test_ramfs_find_file_with_valid_ramfs_and_one_file_that_exists, NULL,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+         test_ramfs_find_file_with_valid_ramfs_and_one_file_that_exists, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {"/ramfs_find_file_with_valid_ramfs_and_two_files_that_exists",
-         test_ramfs_find_file_with_valid_ramfs_and_two_files_that_exists, NULL,
-         NULL, MUNIT_TEST_OPTION_NONE, NULL},
+         test_ramfs_find_file_with_valid_ramfs_and_two_files_that_exists, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 
-        {"/ramfs_file_open_with_null_file", test_ramfs_file_open_with_null_file,
-         NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_file_open_with_empty_file",
-         test_ramfs_file_open_with_empty_file, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/ramfs_file_open_with_normal_file",
-         test_ramfs_file_open_with_normal_file, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/ramfs_file_open_with_null_file", test_ramfs_file_open_with_null_file, NULL, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/ramfs_file_open_with_empty_file", test_ramfs_file_open_with_empty_file, NULL, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {"/ramfs_file_open_with_normal_file", test_ramfs_file_open_with_normal_file, NULL, NULL, MUNIT_TEST_OPTION_NONE,
+         NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
@@ -501,6 +419,4 @@ static const MunitSuite test_suite = {
 };
 
 /* Main entry point */
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&test_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&test_suite, NULL, argc, argv); }

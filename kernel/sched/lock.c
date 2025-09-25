@@ -50,9 +50,7 @@ uint64_t sched_lock_any_cpu(PerCPUState *cpu_state) {
 #endif
 }
 
-uint64_t sched_lock_this_cpu(void) {
-    return sched_lock_any_cpu(state_get_for_this_cpu());
-}
+uint64_t sched_lock_this_cpu(void) { return sched_lock_any_cpu(state_get_for_this_cpu()); }
 
 void sched_unlock_any_cpu(PerCPUState *cpu_state, uint64_t lock_flags) {
 #ifdef EXPERIMENTAL_SCHED_LOCK
@@ -76,6 +74,4 @@ void sched_unlock_any_cpu(PerCPUState *cpu_state, uint64_t lock_flags) {
 #endif
 }
 
-void sched_unlock_this_cpu(uint64_t lock_flags) {
-    sched_unlock_any_cpu(state_get_for_this_cpu(), lock_flags);
-}
+void sched_unlock_this_cpu(uint64_t lock_flags) { sched_unlock_any_cpu(state_get_for_this_cpu(), lock_flags); }

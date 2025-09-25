@@ -35,8 +35,7 @@ uint64_t capability_cookie_generate(void) {
     if (!cpu_rdseed64(&entropy)) {
         if (!cpu_rdrand64(&entropy)) {
             // Fallback: use counter if both fail
-            entropy =
-                    __atomic_add_fetch(&fallback_counter, 1, __ATOMIC_RELAXED);
+            entropy = __atomic_add_fetch(&fallback_counter, 1, __ATOMIC_RELAXED);
         }
     }
 

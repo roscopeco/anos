@@ -19,8 +19,7 @@ static ListNode new_node;
 static ListNode second_node;
 static ListNode third_node;
 
-static MunitResult test_insert_null_into_null(const MunitParameter params[],
-                                              void *param) {
+static MunitResult test_insert_null_into_null(const MunitParameter params[], void *param) {
     ListNode *node = list_insert_after(NULL, NULL);
 
     munit_assert_null(node);
@@ -28,8 +27,7 @@ static MunitResult test_insert_null_into_null(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_insert_into_null(const MunitParameter params[],
-                                         void *param) {
+static MunitResult test_insert_into_null(const MunitParameter params[], void *param) {
     ListNode *node = list_insert_after(NULL, &new_node);
 
     munit_assert_ptr(node, ==, &new_node);
@@ -45,8 +43,7 @@ static MunitResult test_insert_into_null(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_insert_null_into_list(const MunitParameter params[],
-                                              void *param) {
+static MunitResult test_insert_null_into_list(const MunitParameter params[], void *param) {
     new_node.next = &new_node;
 
     ListNode *node = list_insert_after(&new_node, NULL);
@@ -57,8 +54,7 @@ static MunitResult test_insert_null_into_list(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_insert_node_into_self(const MunitParameter params[],
-                                              void *param) {
+static MunitResult test_insert_node_into_self(const MunitParameter params[], void *param) {
     // This should be a no-op, or it would create a circular list, which this
     // lib doesn't support
     //
@@ -79,8 +75,7 @@ static MunitResult test_insert_node_into_self(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_insert_node_into_list(const MunitParameter params[],
-                                              void *param) {
+static MunitResult test_insert_node_into_list(const MunitParameter params[], void *param) {
     munit_assert_null(new_node.next);
 
     ListNode *node = list_insert_after(&new_node, &second_node);
@@ -93,8 +88,7 @@ static MunitResult test_insert_node_into_list(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_insert_node_into_middle(const MunitParameter params[],
-                                                void *param) {
+static MunitResult test_insert_node_into_middle(const MunitParameter params[], void *param) {
     new_node.next = &second_node;
 
     ListNode *node = list_insert_after(&new_node, &third_node);
@@ -108,8 +102,7 @@ static MunitResult test_insert_node_into_middle(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_add_null_to_null(const MunitParameter params[],
-                                         void *param) {
+static MunitResult test_add_null_to_null(const MunitParameter params[], void *param) {
     ListNode *node = list_add(NULL, NULL);
 
     munit_assert_null(node);
@@ -117,8 +110,7 @@ static MunitResult test_add_null_to_null(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_add_node_to_null(const MunitParameter params[],
-                                         void *param) {
+static MunitResult test_add_node_to_null(const MunitParameter params[], void *param) {
     ListNode *node = list_add(NULL, &new_node);
 
     munit_assert_ptr(node, ==, &new_node);
@@ -135,8 +127,7 @@ static MunitResult test_add_node_to_null(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_add_null_to_list_one(const MunitParameter params[],
-                                             void *param) {
+static MunitResult test_add_null_to_list_one(const MunitParameter params[], void *param) {
     ListNode *node = list_add(&new_node, NULL);
 
     munit_assert_null(node);
@@ -145,8 +136,7 @@ static MunitResult test_add_null_to_list_one(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_add_null_to_list_multi(const MunitParameter params[],
-                                               void *param) {
+static MunitResult test_add_null_to_list_multi(const MunitParameter params[], void *param) {
     new_node.next = &second_node;
 
     ListNode *node = list_add(&new_node, NULL);
@@ -158,8 +148,7 @@ static MunitResult test_add_null_to_list_multi(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_add_node_to_list_one(const MunitParameter params[],
-                                             void *param) {
+static MunitResult test_add_node_to_list_one(const MunitParameter params[], void *param) {
     munit_assert_null(new_node.next);
 
     ListNode *node = list_add(&new_node, &second_node);
@@ -170,8 +159,7 @@ static MunitResult test_add_node_to_list_one(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_add_node_to_list_multi(const MunitParameter params[],
-                                               void *param) {
+static MunitResult test_add_node_to_list_multi(const MunitParameter params[], void *param) {
     new_node.next = &second_node;
 
     ListNode *node = list_add(&new_node, &second_node);
@@ -183,8 +171,7 @@ static MunitResult test_add_node_to_list_multi(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_delete_null(const MunitParameter params[],
-                                    void *param) {
+static MunitResult test_delete_null(const MunitParameter params[], void *param) {
     ListNode *node = list_delete_after(NULL);
 
     munit_assert_null(node);
@@ -192,8 +179,7 @@ static MunitResult test_delete_null(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_delete_list_end(const MunitParameter params[],
-                                        void *param) {
+static MunitResult test_delete_list_end(const MunitParameter params[], void *param) {
     munit_assert_null(new_node.next);
 
     ListNode *node = list_delete_after(&new_node);
@@ -204,8 +190,7 @@ static MunitResult test_delete_list_end(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_delete_middle_node(const MunitParameter params[],
-                                           void *param) {
+static MunitResult test_delete_middle_node(const MunitParameter params[], void *param) {
     new_node.next = &second_node;
     second_node.next = &third_node;
 
@@ -220,8 +205,7 @@ static MunitResult test_delete_middle_node(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_delete_last_node(const MunitParameter params[],
-                                         void *param) {
+static MunitResult test_delete_last_node(const MunitParameter params[], void *param) {
     new_node.next = &second_node;
 
     ListNode *node = list_delete_after(&new_node);
@@ -232,8 +216,7 @@ static MunitResult test_delete_last_node(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_find_null_null(const MunitParameter params[],
-                                       void *param) {
+static MunitResult test_find_null_null(const MunitParameter params[], void *param) {
 
     ListNode *node = list_find(NULL, NULL);
 
@@ -242,8 +225,7 @@ static MunitResult test_find_null_null(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_find_list_null(const MunitParameter params[],
-                                       void *param) {
+static MunitResult test_find_list_null(const MunitParameter params[], void *param) {
 
     ListNode *node = list_find(&new_node, NULL);
 
@@ -254,8 +236,7 @@ static MunitResult test_find_list_null(const MunitParameter params[],
 
 static bool always_true(ListNode *candidate) { return true; }
 
-static MunitResult test_find_null_pred(const MunitParameter params[],
-                                       void *param) {
+static MunitResult test_find_null_pred(const MunitParameter params[], void *param) {
 
     ListNode *node = list_find(NULL, always_true);
 
@@ -268,14 +249,11 @@ static bool match_none(ListNode *candidate) { return false; }
 
 static bool match_head(ListNode *candidate) { return candidate == &new_node; }
 
-static bool match_middle(ListNode *candidate) {
-    return candidate == &second_node;
-}
+static bool match_middle(ListNode *candidate) { return candidate == &second_node; }
 
 static bool match_last(ListNode *candidate) { return candidate == &third_node; }
 
-static MunitResult test_find_match_none(const MunitParameter params[],
-                                        void *param) {
+static MunitResult test_find_match_none(const MunitParameter params[], void *param) {
     new_node.next = &second_node;
     second_node.next = &third_node;
 
@@ -286,8 +264,7 @@ static MunitResult test_find_match_none(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_find_match_head(const MunitParameter params[],
-                                        void *param) {
+static MunitResult test_find_match_head(const MunitParameter params[], void *param) {
     new_node.next = &second_node;
     second_node.next = &third_node;
 
@@ -298,8 +275,7 @@ static MunitResult test_find_match_head(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_find_match_middle(const MunitParameter params[],
-                                          void *param) {
+static MunitResult test_find_match_middle(const MunitParameter params[], void *param) {
     new_node.next = &second_node;
     second_node.next = &third_node;
 
@@ -310,8 +286,7 @@ static MunitResult test_find_match_middle(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_find_match_last(const MunitParameter params[],
-                                        void *param) {
+static MunitResult test_find_match_last(const MunitParameter params[], void *param) {
     new_node.next = &second_node;
     second_node.next = &third_node;
 
@@ -337,70 +312,50 @@ static void teardown(void *param) {
 }
 
 static MunitTest test_suite_tests[] = {
-        {(char *)"/structs/list/insert_null_into_null",
-         test_insert_null_into_null, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/structs/list/insert_into_null", test_insert_into_null, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/insert_null_into_list",
-         test_insert_null_into_list, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/structs/list/insert_node_into_self",
-         test_insert_node_into_self, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/structs/list/insert_node_into_list",
-         test_insert_node_into_list, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/structs/list/insert_node_into_middle",
-         test_insert_node_into_middle, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-
-        {(char *)"/structs/list/add_null_to_null", test_add_null_to_null, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/add_node_to_null", test_add_node_to_null, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/add_null_to_list_one",
-         test_add_null_to_list_one, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/structs/list/add_null_to_list_multi",
-         test_add_null_to_list_multi, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/structs/list/add_node_to_list_one",
-         test_add_node_to_list_one, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {(char *)"/structs/list/add_node_to_list_multi",
-         test_add_node_to_list_multi, setup, teardown, MUNIT_TEST_OPTION_NONE,
-         NULL},
-
-        {(char *)"/structs/list/delete_null", test_delete_null, setup, teardown,
+        {(char *)"/structs/list/insert_null_into_null", test_insert_null_into_null, setup, teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/delete_list_end", test_delete_list_end, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/delete_last", test_delete_last_node, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/delete_middle", test_delete_middle_node, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/insert_into_null", test_insert_into_null, setup, teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/structs/list/insert_null_into_list", test_insert_null_into_list, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/insert_node_into_self", test_insert_node_into_self, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/insert_node_into_list", test_insert_node_into_list, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/insert_node_into_middle", test_insert_node_into_middle, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
 
-        {(char *)"/structs/list/find_null_null", test_find_null_null, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/find_list_null", test_find_list_null, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/find_null_pred", test_find_null_pred, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/find_match_none", test_find_match_none, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/find_match_head", test_find_match_head, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/find_match_middle", test_find_match_middle,
-         setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/structs/list/find_match_last", test_find_match_last, setup,
-         teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/add_null_to_null", test_add_null_to_null, setup, teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/structs/list/add_node_to_null", test_add_node_to_null, setup, teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/structs/list/add_null_to_list_one", test_add_null_to_list_one, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/add_null_to_list_multi", test_add_null_to_list_multi, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/add_node_to_list_one", test_add_node_to_list_one, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/add_node_to_list_multi", test_add_node_to_list_multi, setup, teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+
+        {(char *)"/structs/list/delete_null", test_delete_null, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/delete_list_end", test_delete_list_end, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/delete_last", test_delete_last_node, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/delete_middle", test_delete_middle_node, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+
+        {(char *)"/structs/list/find_null_null", test_find_null_null, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/find_list_null", test_find_list_null, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/find_null_pred", test_find_null_pred, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/find_match_none", test_find_match_none, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/find_match_head", test_find_match_head, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/structs/list/find_match_middle", test_find_match_middle, setup, teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/structs/list/find_match_last", test_find_match_last, setup, teardown, MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);

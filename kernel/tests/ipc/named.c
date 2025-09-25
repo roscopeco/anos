@@ -32,8 +32,7 @@ void *slab_alloc_block(void) {
 void slab_free(void *ptr) { free(ptr); }
 
 /* Test: Register a valid channel and verify lookup */
-static MunitResult test_register_valid(const MunitParameter params[],
-                                       void *user_data) {
+static MunitResult test_register_valid(const MunitParameter params[], void *user_data) {
     (void)params;
     (void)user_data;
 
@@ -49,8 +48,7 @@ static MunitResult test_register_valid(const MunitParameter params[],
 }
 
 /* Test: Registration fails for an invalid (non-existent) channel */
-static MunitResult test_register_invalid_channel(const MunitParameter params[],
-                                                 void *user_data) {
+static MunitResult test_register_invalid_channel(const MunitParameter params[], void *user_data) {
     (void)params;
     (void)user_data;
 
@@ -65,8 +63,7 @@ static MunitResult test_register_invalid_channel(const MunitParameter params[],
 }
 
 /* Test: Duplicate registration (same name) is not allowed */
-static MunitResult test_duplicate_register(const MunitParameter params[],
-                                           void *user_data) {
+static MunitResult test_duplicate_register(const MunitParameter params[], void *user_data) {
     (void)params;
     (void)user_data;
 
@@ -86,8 +83,7 @@ static MunitResult test_duplicate_register(const MunitParameter params[],
 }
 
 /* Test: Deregister a channel, and then ensure lookup returns 0 (not found) */
-static MunitResult test_deregister(const MunitParameter params[],
-                                   void *user_data) {
+static MunitResult test_deregister(const MunitParameter params[], void *user_data) {
     (void)params;
     (void)user_data;
 
@@ -108,8 +104,7 @@ static MunitResult test_deregister(const MunitParameter params[],
 }
 
 /* Test: Lookup for a name that was never registered returns 0 */
-static MunitResult test_lookup_missing(const MunitParameter params[],
-                                       void *user_data) {
+static MunitResult test_lookup_missing(const MunitParameter params[], void *user_data) {
     (void)params;
     (void)user_data;
 
@@ -124,8 +119,7 @@ static MunitResult test_lookup_missing(const MunitParameter params[],
    Even if the name is longer than 255 characters, the hash function
    only processes the first 255. The register and lookup must behave consistently.
 */
-static MunitResult test_long_name_truncation(const MunitParameter params[],
-                                             void *user_data) {
+static MunitResult test_long_name_truncation(const MunitParameter params[], void *user_data) {
     (void)params;
     (void)user_data;
 
@@ -146,23 +140,14 @@ static MunitResult test_long_name_truncation(const MunitParameter params[],
 
 /* Test suite registration */
 static MunitTest test_suite_tests[] = {
-        {"/register_valid", test_register_valid, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/register_invalid", test_register_invalid_channel, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/duplicate_register", test_duplicate_register, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/deregister", test_deregister, NULL, NULL, MUNIT_TEST_OPTION_NONE,
-         NULL},
-        {"/lookup_missing", test_lookup_missing, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
-        {"/long_name_truncation", test_long_name_truncation, NULL, NULL,
-         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/register_valid", test_register_valid, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/register_invalid", test_register_invalid_channel, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/duplicate_register", test_duplicate_register, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/deregister", test_deregister, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/lookup_missing", test_lookup_missing, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/long_name_truncation", test_long_name_truncation, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite test_suite = {"/ipc/named", test_suite_tests, NULL, 1,
-                                      MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {"/ipc/named", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[]) {
-    return munit_suite_main(&test_suite, NULL, argc, argv);
-}
+int main(int argc, char *argv[]) { return munit_suite_main(&test_suite, NULL, argc, argv); }

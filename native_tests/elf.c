@@ -89,15 +89,12 @@ typedef bool (*ProgramHeaderHandler)(int, const Elf64ProgramHeader *);
 
 static bool on_program_header(const int num, const Elf64ProgramHeader *phdr) {
     if ((phdr->p_offset & (VM_PAGE_SIZE - 1)) != 0) {
-        fprintf(stderr,
-                "ERROR: Segment %d file offset 0x%016llx not page aligned\n",
-                num, phdr->p_offset);
+        fprintf(stderr, "ERROR: Segment %d file offset 0x%016llx not page aligned\n", num, phdr->p_offset);
         return false;
     }
 
     if ((phdr->p_vaddr & (VM_PAGE_SIZE - 1)) != 0) {
-        fprintf(stderr, "ERROR: Segment %d vaddr 0x%16llx not page aligned\n",
-                num, phdr->p_vaddr);
+        fprintf(stderr, "ERROR: Segment %d vaddr 0x%16llx not page aligned\n", num, phdr->p_vaddr);
         return false;
     }
 
@@ -108,8 +105,7 @@ static bool on_program_header(const int num, const Elf64ProgramHeader *phdr) {
     return true;
 }
 
-bool each_elf64_program_header(ElfPagedReader *reader,
-                               ProgramHeaderHandler handler) {
+bool each_elf64_program_header(ElfPagedReader *reader, ProgramHeaderHandler handler) {
     const Elf64Header *ehdr = get_ptr(reader, 0, sizeof(Elf64Header));
 
     if (memcmp(ehdr->e_ident,
@@ -129,8 +125,7 @@ bool each_elf64_program_header(ElfPagedReader *reader,
 
     for (int i = 0; i < ehdr->e_phnum; ++i) {
         const off_t ph_offset = ehdr->e_phoff + i * ehdr->e_phentsize;
-        const Elf64ProgramHeader *phdr =
-                get_ptr(reader, ph_offset, sizeof(Elf64ProgramHeader));
+        const Elf64ProgramHeader *phdr = get_ptr(reader, ph_offset, sizeof(Elf64ProgramHeader));
 
         if (phdr->p_type != PT_LOAD)
             continue;
@@ -149,8 +144,7 @@ int main(const int argc, char **argv) {
         return 1;
     }
 
-    ElfPagedReader reader = {.fd = open(argv[1], O_RDONLY),
-                             .current_page_offset = -1};
+    ElfPagedReader reader = {.fd = open(argv[1], O_RDONLY), .current_page_offset = -1};
 
     if (reader.fd < 0) {
         perror("open");

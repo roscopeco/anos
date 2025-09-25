@@ -30,9 +30,7 @@ static Process mock_owner;
 static char last_konservative_msg[128];
 static bool panic_called = false;
 
-void mock_kprintf(const char *msg) {
-    strncpy(last_konservative_msg, msg, sizeof(last_konservative_msg));
-}
+void mock_kprintf(const char *msg) { strncpy(last_konservative_msg, msg, sizeof(last_konservative_msg)); }
 
 void kernel_thread_entrypoint(void);
 void user_thread_entrypoint(void);
@@ -46,16 +44,12 @@ static inline void *slab_area_base(void *page_area_ptr) {
     return (void *)((uint64_t)page_area_ptr + 0x4000);
 }
 
-static MunitResult test_task_create_new(const MunitParameter params[],
-                                        void *page_area_ptr) {
-    Task *task =
-            task_create_new(&mock_owner, TEST_SYS_SP, sys_stack, TEST_BOOT_FUNC,
-                            TEST_SYS_FUNC, TASK_CLASS_IDLE);
+static MunitResult test_task_create_new(const MunitParameter params[], void *page_area_ptr) {
+    Task *task = task_create_new(&mock_owner, TEST_SYS_SP, sys_stack, TEST_BOOT_FUNC, TEST_SYS_FUNC, TASK_CLASS_IDLE);
 
     // We should have allocated overhead (FBA + Slab), plus a slab for the blocks
     // we needed, as well as one FBA for the task data block.
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 3);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 3);
 
     // Task is at the base of the FBA area, plus 8KiB bytes (for FBA overhead)
     munit_assert_ptr_equal(task, page_area_ptr + 0x2000);
@@ -80,8 +74,7 @@ static MunitResult test_task_create_new(const MunitParameter params[],
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);
 
     // func addr is "valid" and was pushed after reserved register space...
-    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==,
-                        (uint64_t)TEST_BOOT_FUNC);
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==, (uint64_t)TEST_BOOT_FUNC);
 
     // r15 register slot on stack has user function entrypoint
     munit_assert_uint64(*(uint64_t *)(task->ssp), ==, TEST_SYS_FUNC);
@@ -94,15 +87,12 @@ static MunitResult test_task_create_new(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_task_create_kernel(const MunitParameter params[],
-                                           void *page_area_ptr) {
-    Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack,
-                                    TEST_SYS_FUNC, TASK_CLASS_IDLE);
+static MunitResult test_task_create_kernel(const MunitParameter params[], void *page_area_ptr) {
+    Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack, TEST_SYS_FUNC, TASK_CLASS_IDLE);
 
     // We should have allocated overhead (FBA + Slab), plus a slab for the blocks
     // we needed, as well as one FBA for the task data block.
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 3);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 3);
 
     // Task is at the base of the FBA area, plus 8KiB bytes (for FBA overhead)
     munit_assert_ptr_equal(task, page_area_ptr + 0x2000);
@@ -127,8 +117,7 @@ static MunitResult test_task_create_kernel(const MunitParameter params[],
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);
 
     // func addr is "valid" and was pushed after reserved register space...
-    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==,
-                        (uint64_t)kernel_thread_entrypoint);
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==, (uint64_t)kernel_thread_entrypoint);
 
     // r15 register slot on stack has user function entrypoint
     munit_assert_uint64(*(uint64_t *)(task->ssp), ==, TEST_SYS_FUNC);
@@ -141,15 +130,12 @@ static MunitResult test_task_create_kernel(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_task_create_user(const MunitParameter params[],
-                                         void *page_area_ptr) {
-    Task *task = task_create_user(&mock_owner, TEST_SYS_SP, sys_stack,
-                                  TEST_SYS_FUNC, TASK_CLASS_IDLE);
+static MunitResult test_task_create_user(const MunitParameter params[], void *page_area_ptr) {
+    Task *task = task_create_user(&mock_owner, TEST_SYS_SP, sys_stack, TEST_SYS_FUNC, TASK_CLASS_IDLE);
 
     // We should have allocated overhead (FBA + Slab), plus a slab for the blocks
     // we needed, as well as one FBA for the task data block.
-    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==,
-                        PAGES_PER_SLAB + 3);
+    munit_assert_uint32(mock_pmm_get_total_page_allocs(), ==, PAGES_PER_SLAB + 3);
 
     // Task is at the base of the FBA area, plus 8KiB bytes (for FBA overhead)
     munit_assert_ptr_equal(task, page_area_ptr + 0x2000);
@@ -174,8 +160,7 @@ static MunitResult test_task_create_user(const MunitParameter params[],
     munit_assert_uint64(task->ssp, ==, sys_stack - 128);
 
     // func addr is "valid" and was pushed after reserved register space...
-    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==,
-                        (uint64_t)user_thread_entrypoint);
+    munit_assert_uint64(*(uint64_t *)(task->ssp + 120), ==, (uint64_t)user_thread_entrypoint);
 
     // r15 register slot on stack has user function entrypoint
     munit_assert_uint64(*(uint64_t *)(task->ssp), ==, TEST_SYS_FUNC);
@@ -188,10 +173,8 @@ static MunitResult test_task_create_user(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_task_destroy_success(const MunitParameter params[],
-                                             void *page_area_ptr) {
-    Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack,
-                                    TEST_SYS_FUNC, TASK_CLASS_IDLE);
+static MunitResult test_task_destroy_success(const MunitParameter params[], void *page_area_ptr) {
+    Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack, TEST_SYS_FUNC, TASK_CLASS_IDLE);
     task->sched->state = TASK_STATE_TERMINATED;
 
     task_destroy(task);
@@ -202,29 +185,23 @@ static MunitResult test_task_destroy_success(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_task_destroy_null_sched_or_data(const MunitParameter params[],
-                                     void *page_area_ptr) {
+static MunitResult test_task_destroy_null_sched_or_data(const MunitParameter params[], void *page_area_ptr) {
 #ifdef CONSERVATIVE_BUILD
-    Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack,
-                                    TEST_SYS_FUNC, TASK_CLASS_IDLE);
+    Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack, TEST_SYS_FUNC, TASK_CLASS_IDLE);
     task->sched->state = TASK_STATE_TERMINATED;
 
     // Null sched
     task->sched = NULL;
     task_destroy(task);
 
-    munit_assert_memory_equal(32, last_konservative_msg,
-                              "[BUG] Destroy task with NULL sched");
+    munit_assert_memory_equal(32, last_konservative_msg, "[BUG] Destroy task with NULL sched");
 
     // Null data
-    Task *task2 = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack,
-                                     TEST_SYS_FUNC, TASK_CLASS_IDLE);
+    Task *task2 = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack, TEST_SYS_FUNC, TASK_CLASS_IDLE);
     task2->sched->state = TASK_STATE_TERMINATED;
     task2->data = NULL;
     task_destroy(task2);
-    munit_assert_memory_equal(32, last_konservative_msg,
-                              "[BUG] Destroy task with NULL data area");
+    munit_assert_memory_equal(32, last_konservative_msg, "[BUG] Destroy task with NULL data area");
 
     return MUNIT_OK;
 #else
@@ -232,11 +209,9 @@ test_task_destroy_null_sched_or_data(const MunitParameter params[],
 #endif
 }
 
-static MunitResult test_task_destroy_wrong_state(const MunitParameter params[],
-                                                 void *page_area_ptr) {
+static MunitResult test_task_destroy_wrong_state(const MunitParameter params[], void *page_area_ptr) {
 #ifdef CONSERVATIVE_BUILD
-    Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack,
-                                    TEST_SYS_FUNC, TASK_CLASS_IDLE);
+    Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack, TEST_SYS_FUNC, TASK_CLASS_IDLE);
     task->sched->state = TASK_STATE_RUNNING;
 
     task_destroy(task);
@@ -248,11 +223,8 @@ static MunitResult test_task_destroy_wrong_state(const MunitParameter params[],
 #endif
 }
 
-static MunitResult
-test_task_remove_from_process_success(const MunitParameter params[],
-                                      void *page_area_ptr) {
-    Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack,
-                                    TEST_SYS_FUNC, TASK_CLASS_IDLE);
+static MunitResult test_task_remove_from_process_success(const MunitParameter params[], void *page_area_ptr) {
+    Task *task = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack, TEST_SYS_FUNC, TASK_CLASS_IDLE);
     ProcessTask *link = slab_alloc_block();
     link->task = task;
     link->this.next = NULL;
@@ -264,13 +236,9 @@ test_task_remove_from_process_success(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_task_remove_from_process_not_found(const MunitParameter params[],
-                                        void *page_area_ptr) {
-    Task *task1 = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack,
-                                     TEST_SYS_FUNC, TASK_CLASS_IDLE);
-    Task *task2 = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack,
-                                     TEST_SYS_FUNC, TASK_CLASS_IDLE);
+static MunitResult test_task_remove_from_process_not_found(const MunitParameter params[], void *page_area_ptr) {
+    Task *task1 = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack, TEST_SYS_FUNC, TASK_CLASS_IDLE);
+    Task *task2 = task_create_kernel(&mock_owner, TEST_SYS_SP, sys_stack, TEST_SYS_FUNC, TASK_CLASS_IDLE);
 
     ProcessTask *link = slab_alloc_block();
     link->task = task1;
@@ -284,9 +252,7 @@ test_task_remove_from_process_not_found(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult
-test_task_remove_from_process_null_inputs(const MunitParameter params[],
-                                          void *page_area_ptr) {
+static MunitResult test_task_remove_from_process_null_inputs(const MunitParameter params[], void *page_area_ptr) {
     task_remove_from_process(NULL);
 
     Task dummy_task = {0};
@@ -295,12 +261,10 @@ test_task_remove_from_process_null_inputs(const MunitParameter params[],
     return MUNIT_OK;
 }
 
-static MunitResult test_task_destroy_null_task(const MunitParameter params[],
-                                               void *page_area_ptr) {
+static MunitResult test_task_destroy_null_task(const MunitParameter params[], void *page_area_ptr) {
 #ifdef CONSERVATIVE_BUILD
     task_destroy(NULL);
-    munit_assert_memory_equal(32, last_konservative_msg,
-                              "[BUG] Destroy task with NULL task");
+    munit_assert_memory_equal(32, last_konservative_msg, "[BUG] Destroy task with NULL task");
     return MUNIT_OK;
 #else
     return MUNIT_SKIP;
@@ -330,36 +294,28 @@ static void test_teardown(void *page_area_ptr) {
 
 static MunitTest test_suite_tests[] = {
         // Init
-        {(char *)"/create_new", test_task_create_new, test_setup, test_teardown,
+        {(char *)"/create_new", test_task_create_new, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/create_kernel", test_task_create_kernel, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/create_user", test_task_create_user, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {(char *)"/destroy_success", test_task_destroy_success, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/destroy_null_sched_or_data", test_task_destroy_null_sched_or_data, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/create_kernel", test_task_create_kernel, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/create_user", test_task_create_user, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/destroy_success", test_task_destroy_success, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/destroy_null_sched_or_data",
-         test_task_destroy_null_sched_or_data, test_setup, test_teardown,
+        {(char *)"/destroy_wrong_state", test_task_destroy_wrong_state, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/destroy_wrong_state", test_task_destroy_wrong_state,
-         test_setup, test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/destroy_null_task", test_task_destroy_null_task, test_setup,
-         test_teardown, MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/remove_from_process_success",
-         test_task_remove_from_process_success, test_setup, test_teardown,
+        {(char *)"/destroy_null_task", test_task_destroy_null_task, test_setup, test_teardown, MUNIT_TEST_OPTION_NONE,
+         NULL},
+        {(char *)"/remove_from_process_success", test_task_remove_from_process_success, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/remove_from_process_not_found",
-         test_task_remove_from_process_not_found, test_setup, test_teardown,
+        {(char *)"/remove_from_process_not_found", test_task_remove_from_process_not_found, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
-        {(char *)"/remove_from_process_null",
-         test_task_remove_from_process_null_inputs, test_setup, test_teardown,
+        {(char *)"/remove_from_process_null", test_task_remove_from_process_null_inputs, test_setup, test_teardown,
          MUNIT_TEST_OPTION_NONE, NULL},
 
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
 };
 
-static const MunitSuite test_suite = {(char *)"/task", test_suite_tests, NULL,
-                                      1, MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite test_suite = {(char *)"/task", test_suite_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
 int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&test_suite, (void *)"µnit", argc, argv);

@@ -8,8 +8,7 @@
 #include "x86_64/interrupts.h"
 #include <stdint.h>
 
-void idt_entry(IdtEntry *target, isr_dispatcher *handler,
-               const uint16_t segment, const uint8_t ist_entry,
+void idt_entry(IdtEntry *target, isr_dispatcher *handler, const uint16_t segment, const uint8_t ist_entry,
                const uint8_t attr) {
     target->isr_low = ((uintptr_t)handler) & 0xFFFF;
     target->isr_mid = (((uintptr_t)handler) & 0xFFFF0000) >> 16;

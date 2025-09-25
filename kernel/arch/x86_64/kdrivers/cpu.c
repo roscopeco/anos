@@ -52,8 +52,7 @@ void cpu_tsc_udelay(int n) {
     cpu_tsc_delay(n * 1000);
 }
 
-__attribute__((
-        no_sanitize("alignment"))) // CPUID forces us to be unaligned here...
+__attribute__((no_sanitize("alignment"))) // CPUID forces us to be unaligned here...
 void cpu_get_brand_str(char *buffer) {
     uint32_t *buf_ptr = (uint32_t *)buffer;
 
@@ -87,8 +86,7 @@ static void debug_tsc_frequency_cpuid(void) {
     uint32_t tsc_denominator, tsc_numerator, cpu_crystal_hz, edx;
     if (cpuid(0x15, &tsc_denominator, &tsc_numerator, &cpu_crystal_hz, &edx)) {
         if (tsc_denominator & tsc_numerator & cpu_crystal_hz) {
-            uint64_t cpu_hz =
-                    (cpu_crystal_hz * tsc_numerator) / tsc_denominator;
+            uint64_t cpu_hz = (cpu_crystal_hz * tsc_numerator) / tsc_denominator;
             kprintf("TSC frequency (CPUID): %ldHz\n", cpu_hz);
         } else {
             kprintf("TSC frequency (CPUID): <unspecified>\n");
@@ -137,28 +135,18 @@ uint64_t cpu_read_tsc(void) {
 }
 
 // Execute `lgdt` to load a variable with the GDTR
-void cpu_load_gdtr(GDTR *gdtr) {
-    __asm__ __volatile__("lgdt (%0)" : : "r"(gdtr));
-}
+void cpu_load_gdtr(GDTR *gdtr) { __asm__ __volatile__("lgdt (%0)" : : "r"(gdtr)); }
 
 // Execute `sgdt` to load GDTR from a variable
-void cpu_store_gdtr(GDTR *gdtr) {
-    __asm__ __volatile__("sgdt (%0)" : : "r"(gdtr) : "memory");
-}
+void cpu_store_gdtr(GDTR *gdtr) { __asm__ __volatile__("sgdt (%0)" : : "r"(gdtr) : "memory"); }
 
 // Execute `lidt` to load a variable with the IDTR
-void cpu_load_idtr(IDTR *idtr) {
-    __asm__ __volatile__("lidt (%0)" : : "r"(idtr));
-}
+void cpu_load_idtr(IDTR *idtr) { __asm__ __volatile__("lidt (%0)" : : "r"(idtr)); }
 
 // Execute `sidt` to load IDTR from a variable
-void cpu_store_idtr(IDTR *idtr) {
-    __asm__ __volatile__("sidt (%0)" : : "r"(idtr));
-}
+void cpu_store_idtr(IDTR *idtr) { __asm__ __volatile__("sidt (%0)" : : "r"(idtr)); }
 
-void cpu_invalidate_tlb_addr(uintptr_t virt_addr) {
-    __asm__ volatile("invlpg (%0)\n\t" : : "r"(virt_addr) : "memory");
-}
+void cpu_invalidate_tlb_addr(uintptr_t virt_addr) { __asm__ volatile("invlpg (%0)\n\t" : : "r"(virt_addr) : "memory"); }
 
 void cpu_invalidate_tlb_all(void) {
     uintptr_t cr3;
@@ -239,11 +227,10 @@ bool cpu_rdrand32(uint32_t *value) {
     return ok;
 }
 
-void cpu_write_pat(uint8_t pat0, uint8_t pat1, uint8_t pat2, uint8_t pat3,
-                   uint8_t pat4, uint8_t pat5, uint8_t pat6, uint8_t pat7) {
-    uint64_t pat_value = ((uint64_t)pat7 << 56) | ((uint64_t)pat6 << 48) |
-                         ((uint64_t)pat5 << 40) | ((uint64_t)pat4 << 32) |
-                         ((uint64_t)pat3 << 24) | ((uint64_t)pat2 << 16) |
+void cpu_write_pat(uint8_t pat0, uint8_t pat1, uint8_t pat2, uint8_t pat3, uint8_t pat4, uint8_t pat5, uint8_t pat6,
+                   uint8_t pat7) {
+    uint64_t pat_value = ((uint64_t)pat7 << 56) | ((uint64_t)pat6 << 48) | ((uint64_t)pat5 << 40) |
+                         ((uint64_t)pat4 << 32) | ((uint64_t)pat3 << 24) | ((uint64_t)pat2 << 16) |
                          ((uint64_t)pat1 << 8) | (uint64_t)pat0;
     cpu_write_msr(MSR_IA32_PAT, pat_value);
 }

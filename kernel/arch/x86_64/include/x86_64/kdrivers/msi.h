@@ -50,8 +50,7 @@ typedef struct {
 } MSIManager;
 
 void msi_init(void);
-uint8_t msi_allocate_vector(uint32_t bus_device_func, uint64_t owner_pid,
-                            uint64_t *msi_address, uint32_t *msi_data);
+uint8_t msi_allocate_vector(uint32_t bus_device_func, uint64_t owner_pid, uint64_t *msi_address, uint32_t *msi_data);
 bool msi_deallocate_vector(uint8_t vector, uint64_t owner_pid);
 bool msi_register_handler(uint8_t vector, Task *task);
 bool msi_wait_interrupt(uint8_t vector, Task *task, uint32_t *event_data);

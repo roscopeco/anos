@@ -60,8 +60,8 @@ uint64_t cpu_read_msr(uint32_t msr);
 
 void cpu_write_msr(uint64_t msr, uint64_t value);
 
-void cpu_write_pat(uint8_t pat0, uint8_t pat1, uint8_t pat2, uint8_t pat3,
-                   uint8_t pat4, uint8_t pat5, uint8_t pat6, uint8_t pat7);
+void cpu_write_pat(uint8_t pat0, uint8_t pat1, uint8_t pat2, uint8_t pat3, uint8_t pat4, uint8_t pat5, uint8_t pat6,
+                   uint8_t pat7);
 
 uint64_t cpu_read_tsc(void);
 
@@ -83,9 +83,7 @@ void cpu_invalidate_tlb_all(void);
 
 void cpu_swapgs(void);
 
-static inline uintptr_t cpu_make_pagetable_register_value(uintptr_t pt_base) {
-    return pt_base;
-}
+static inline uintptr_t cpu_make_pagetable_register_value(uintptr_t pt_base) { return pt_base; }
 
 uintptr_t cpu_read_cr3(void);
 

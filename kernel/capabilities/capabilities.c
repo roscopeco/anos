@@ -13,6 +13,4 @@
 /* global */
 CapabilityMap global_capability_map;
 
-bool capabilities_init(void) {
-    return capability_map_init(&global_capability_map);
-}
+bool capabilities_init(void) { return capability_map_init(&global_capability_map); }

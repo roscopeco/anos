@@ -16,11 +16,8 @@
 // (e.g. 32-bit relocs on macho64)
 void init_cpuid(void) { /* nothing */ }
 
-bool cpuid(uint32_t leaf, uint32_t *eax, uint32_t *ebx, uint32_t *ecx,
-           uint32_t *edx) {
-    __asm__ volatile("cpuid"
-                     : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx)
-                     : "a"(leaf), "c"(0));
+bool cpuid(uint32_t leaf, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx) {
+    __asm__ volatile("cpuid" : "=a"(*eax), "=b"(*ebx), "=c"(*ecx), "=d"(*edx) : "a"(leaf), "c"(0));
 
     return true;
 }
@@ -65,32 +62,26 @@ static MunitResult test_rdrand32(const MunitParameter params[], void *data) {
     return MUNIT_OK;
 }
 
-static MunitTest tests_all[] = {
-        {"/rdseed64", test_rdseed64, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/rdseed32", test_rdseed32, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/rdrand64", test_rdrand64, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/rdrand32", test_rdrand32, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
+static MunitTest tests_all[] = {{"/rdseed64", test_rdseed64, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                                {"/rdseed32", test_rdseed32, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                                {"/rdrand64", test_rdrand64, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                                {"/rdrand32", test_rdrand32, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                                {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static MunitTest tests_rdseed_only[] = {
-        {"/rdseed64", test_rdseed64, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/rdseed32", test_rdseed32, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
+static MunitTest tests_rdseed_only[] = {{"/rdseed64", test_rdseed64, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                                        {"/rdseed32", test_rdseed32, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                                        {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static MunitTest tests_rdrand_only[] = {
-        {"/rdrand64", test_rdrand64, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {"/rdrand32", test_rdrand32, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-        {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
+static MunitTest tests_rdrand_only[] = {{"/rdrand64", test_rdrand64, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                                        {"/rdrand32", test_rdrand32, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+                                        {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
-static const MunitSuite suite_all = {"/x86_64/kdrivers/cpu", tests_all, NULL, 1,
-                                     MUNIT_SUITE_OPTION_NONE};
+static const MunitSuite suite_all = {"/x86_64/kdrivers/cpu", tests_all, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-static const MunitSuite suite_rdseed_only = {"/x86_64/kdrivers/cpu",
-                                             tests_rdseed_only, NULL, 1,
+static const MunitSuite suite_rdseed_only = {"/x86_64/kdrivers/cpu", tests_rdseed_only, NULL, 1,
                                              MUNIT_SUITE_OPTION_NONE};
 
-static const MunitSuite suite_rdrand_only = {"/x86_64/kdrivers/cpu",
-                                             tests_rdrand_only, NULL, 1,
+static const MunitSuite suite_rdrand_only = {"/x86_64/kdrivers/cpu", tests_rdrand_only, NULL, 1,
                                              MUNIT_SUITE_OPTION_NONE};
 
 static bool cpu_supports_rdrand(void) {

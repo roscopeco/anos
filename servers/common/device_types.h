@@ -37,12 +37,7 @@ typedef enum {
 } StorageHardwareType;
 
 // Query types
-typedef enum {
-    QUERY_BY_TYPE = 1,
-    QUERY_BY_ID = 2,
-    QUERY_ALL = 3,
-    QUERY_CHILDREN = 4
-} DeviceQueryType;
+typedef enum { QUERY_BY_TYPE = 1, QUERY_BY_ID = 2, QUERY_ALL = 3, QUERY_CHILDREN = 4 } DeviceQueryType;
 
 // Device capabilities flags
 #define DEVICE_CAP_READ (1 << 0)
