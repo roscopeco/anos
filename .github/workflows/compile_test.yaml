@@ -41,7 +41,7 @@ jobs:
       - name: Build & run tests
         run: |
           brew update
-          brew install nasm clang-format@21
+          brew install nasm clang-format@21 
           find system -type f \( -name "*.c" -o -name "*.h" \) -not -path "system/jansson-2.13/*" | xargs clang-format -dry-run -style=file -Werror          
           make clean test
         shell: bash
@@ -55,7 +55,7 @@ jobs:
       - name: Build & run tests
         run: |
           sudo apt-get update
-          sudo apt-get install nasm lcov
+          sudo apt-get install build-essential nasm lcov libtool autotools-dev autoconf automake 
           pip install clang-format==21.1.0
           find system -type f \( -name "*.c" -o -name "*.h" \) -not -path "system/jansson-2.13/*" | xargs clang-format -dry-run -style=file -Werror          
           make clean test coverage
