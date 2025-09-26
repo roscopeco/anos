@@ -80,7 +80,7 @@ all: build
 build: $(ALL_TARGETS)
 
 $(JANSSON_MAKEFILE):
-	cd $(JANSSON_DIR) && ./configure
+	cd $(JANSSON_DIR) && ./configure --host=$(ARCH)-elf-anos
 
 clean: $(JANSSON_MAKEFILE)
 	rm -rf $(CLEAN_ARTIFACTS)
