@@ -50,3 +50,5 @@ system/jansson-2.13/test/bin/Makefile
 system/jansson-2.13/test/ossfuzz/Makefile
 system/jansson-2.13/test/suites/Makefile
 system/jansson-2.13/test/suites/api/Makefile
+system/jansson-2.13/Makefile-riscv64
+system/jansson-2.13/Makefile-x86_64

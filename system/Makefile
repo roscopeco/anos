@@ -47,7 +47,7 @@ SYSTEM_BIN?=$(SYSTEM).img
 
 JANSSON_VER?=2.13
 JANSSON_DIR?=jansson-$(JANSSON_VER)
-JANSSON_MAKEFILE?=$(JANSSON_DIR)/Makefile
+JANSSON_MAKEFILE?=Makefile-$(ARCH)
 JANSSON_SRC_DIR?=$(JANSSON_DIR)/src
 JANSSON_LIB_DIR?=$(JANSSON_DIR)/src/.libs
 JANSSON_LIB?=$(JANSSON_LIB_DIR)/libjansson.a
@@ -79,10 +79,11 @@ all: build
 
 build: $(ALL_TARGETS)
 
-$(JANSSON_MAKEFILE):
+$(JANSSON_DIR)/$(JANSSON_MAKEFILE):
 	cd $(JANSSON_DIR) && ./configure --host=$(ARCH)-elf-anos
+	cp $(JANSSON_DIR)/Makefile $@
 
-clean: $(JANSSON_MAKEFILE)
+clean: $(JANSSON_DIR)/$(JANSSON_MAKEFILE)
 	rm -rf $(CLEAN_ARTIFACTS)
 	$(MAKE) -C $(JANSSON_DIR) clean
 
@@ -140,5 +141,5 @@ $(error Need an architecture-specific setup for objcopy:ramfs_linkable in system
 endif
 endif
 
-$(JANSSON_LIB): $(JANSSON_MAKEFILE)
-	$(MAKE) -C $(JANSSON_DIR)
+$(JANSSON_LIB): $(JANSSON_DIR)/$(JANSSON_MAKEFILE)
+	$(MAKE) -C $(JANSSON_DIR) -f $(JANSSON_MAKEFILE)
