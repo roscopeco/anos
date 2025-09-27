@@ -43,6 +43,6 @@ ifeq ($(ARCH),x86_64)
 system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf fat32drv/fat32drv.elf kterminal/kterminal.elf
 	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf fat32drv/fat32drv.elf kterminal/kterminal.elf ../system/sysconf.json
 else
-system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf kterminal/kterminal.elf
-	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf kterminal/kterminal.elf ../system/sysconf.json
+system_ramfs: $(MKRAMFS_BIN) test_server/test_server.elf kterminal/kterminal.elf devman/devman.elf
+	$(MKRAMFS_BIN) system.ramfs test_server/test_server.elf kterminal/kterminal.elf devman/devman.elf ../system/sysconf.json
 endif

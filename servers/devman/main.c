@@ -575,7 +575,7 @@ static void parse_acpi_rsdp(ACPI_RSDP *rsdp) {
 
 static int map_and_init_acpi(void) {
 #ifdef DEBUG_ACPI
-    printf("Attempting to get ACPI RSDP from kernel...\n");
+    printf("Attempting to get firmware tables from kernel...\n");
 #endif
     // Allocate space for the RSDP in userspace
     ACPI_RSDP rsdp;
@@ -584,7 +584,7 @@ static int map_and_init_acpi(void) {
     const SyscallResult result = anos_map_firmware_tables((uintptr_t)&rsdp);
 
     if (result.result != SYSCALL_OK) {
-        printf("Failed to get ACPI RSDP! Error code: %ld\n", result.result);
+        printf("Failed to get firmware tables! Error code: %ld\n", result.result);
         return -1;
     }
 
