@@ -69,4 +69,4 @@ There is no distinction made between regular and security issues, and no bounty 
 
 ## Code of Conduct
 
-Be respectful. We follow the [Contributor Covenant](CODE_OF_CONDUCT.md) (or project-specific CoC if different).
+Be respectful. We follow the [Contributor Covenant](,/CODE_OF_CONDUCT.MD).
