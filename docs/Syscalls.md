@@ -69,10 +69,10 @@ Syscall ID numbers not defined below are reserved.
 Writes a null-terminated string to the kernel debug output.
 
 * **Parameters:**
-  `msg` – Pointer to a null-terminated UTF-8 string.
+  * `msg` – Pointer to a null-terminated UTF-8 string.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -81,10 +81,10 @@ Writes a null-terminated string to the kernel debug output.
 Writes a single character to the kernel debug output.
 
 * **Parameters:**
-  `chr` – The character to output.
+  * `chr` – The character to output.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -93,11 +93,11 @@ Writes a single character to the kernel debug output.
 Creates a new thread in the calling process.
 
 * **Parameters:**
-  `func` – Pointer to the thread entry function.
-  `stack_pointer` – Initial stack pointer for the new thread.
+  * `func` – Pointer to the thread entry function.
+  * `stack_pointer` – Initial stack pointer for the new thread.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the thread ID (TID) on success.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the thread ID (TID) on success.
 
 ---
 
@@ -106,10 +106,10 @@ Creates a new thread in the calling process.
 Retrieves basic memory usage statistics for the calling process.
 
 * **Parameters:**
-  `meminfo` – Pointer to a `AnosMemInfo` structure to populate.
+  * `meminfo` – Pointer to a `AnosMemInfo` structure to populate.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -118,10 +118,10 @@ Retrieves basic memory usage statistics for the calling process.
 Suspends the current thread for a number of scheduler ticks.
 
 * **Parameters:**
-  `ticks` – Number of ticks to sleep.
+  * `ticks` – Number of ticks to sleep.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -130,10 +130,10 @@ Suspends the current thread for a number of scheduler ticks.
 Creates a new process.
 
 * **Parameters:**
-  `params` – Pointer to a populated `ProcessCreateParams` structure.
+  * `params` – Pointer to a populated `ProcessCreateParams` structure.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the process ID (PID) on success.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the process ID (PID) on success.
 
 ---
 
@@ -150,12 +150,12 @@ use according to the flags given.
 > and lazy allocation may be employed instead.
 
 * **Parameters:**
-  `size` – Size in bytes to map (must be page-aligned).
-  `base_address` – Desired base virtual address (must be page-aligned).
-  `flags` – Mapping flags (e.g., read/write/exec - see `anos/syscalls.h`).
+  * `size` – Size in bytes to map (must be page-aligned).
+  * `base_address` – Desired base virtual address (must be page-aligned).
+  * `flags` – Mapping flags (e.g., read/write/exec - see `anos/syscalls.h`).
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the address of the mapped region on success.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the address of the mapped region on success.
 
 ---
 
@@ -164,13 +164,13 @@ use according to the flags given.
 Sends a message to the specified IPC channel.
 
 * **Parameters:**
-  `channel_cookie` – Capability identifying the IPC channel.
-  `tag` – User-defined message tag.
-  `buffer_size` – Size of the message payload.
-  `buffer` – Pointer to message buffer.
+  * `channel_cookie` – Capability identifying the IPC channel.
+  * `tag` – User-defined message tag.
+  * `buffer_size` – Size of the message payload.
+  * `buffer` – Pointer to message buffer.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the message cookie on success.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the message cookie on success.
 
 ---
 
@@ -179,13 +179,13 @@ Sends a message to the specified IPC channel.
 Receives a message from the specified IPC channel. Blocks until a message is available.
 
 * **Parameters:**
-  `channel_cookie` – Capability identifying the IPC channel.
-  `tag` – Out: message tag.
-  `buffer_size` – In: max buffer size; out: actual received size.
-  `buffer` – Pointer to receive buffer.
+  * `channel_cookie` – Capability identifying the IPC channel.
+  * `tag` – Out: message tag.
+  * `buffer_size` – In: max buffer size; out: actual received size.
+  * `buffer` – Pointer to receive buffer.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the message cookie on success.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the message cookie on success.
 
 ---
 
@@ -194,11 +194,11 @@ Receives a message from the specified IPC channel. Blocks until a message is ava
 Sends a reply to a received message.
 
 * **Parameters:**
-  `message_cookie` – Cookie returned by `recv_message`.
-  `reply` – Reply value.
+  * `message_cookie` – Cookie returned by `recv_message`.
+  * `reply` – Reply value.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the message cookie on success.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the message cookie on success.
 
 ---
 
@@ -207,7 +207,7 @@ Sends a reply to a received message.
 Creates a new IPC channel.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the capability cookie for the new channel on success.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the capability cookie for the new channel on success.
 
 ---
 
@@ -216,10 +216,10 @@ Creates a new IPC channel.
 Destroys an IPC channel.
 
 * **Parameters:**
-  `cookie` – Capability identifying the channel.
+  * `cookie` – Capability identifying the channel.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -228,11 +228,11 @@ Destroys an IPC channel.
 Registers a human-readable name for an IPC channel.
 
 * **Parameters:**
-  `cookie` – Capability for the channel.
-  `name` – Null-terminated UTF-8 name.
+  * `cookie` – Capability for the channel.
+  * `name` – Null-terminated UTF-8 name.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -241,10 +241,10 @@ Registers a human-readable name for an IPC channel.
 Unregisters a channel name.
 
 * **Parameters:**
-  `name` – Null-terminated UTF-8 string.
+  * `name` – Null-terminated UTF-8 string.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -253,10 +253,10 @@ Unregisters a channel name.
 Resolves a registered channel name to a capability.
 
 * **Parameters:**
-  `name` – Null-terminated UTF-8 name.
+  * `name` – Null-terminated UTF-8 name.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the channel capability cookie on success.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the channel capability cookie on success.
 
 ---
 
@@ -274,11 +274,11 @@ Terminates the current thread.
 Unmaps a previously mapped virtual memory region.
 
 * **Parameters:**
-  `size` – Size in bytes (must match original mapping).
-  `base_address` – Start address of the region.
+  * `size` – Size in bytes (must match original mapping).
+  * `base_address` – Start address of the region.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -287,12 +287,12 @@ Unmaps a previously mapped virtual memory region.
 Declares a virtual memory region with specified access semantics.
 
 * **Parameters:**
-  `start` – Start address (inclusive).
-  `end` – End address (exclusive).
-  `flags` – Access flags.
+  * `start` – Start address (inclusive).
+  * `end` – End address (exclusive).
+  * `flags` – Access flags.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -301,10 +301,10 @@ Declares a virtual memory region with specified access semantics.
 Destroys a previously created virtual region.
 
 * **Parameters:**
-  `start` – Start address of the region to destroy.
+  * `start` – Start address of the region to destroy.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -317,10 +317,10 @@ Maps firmware tables (ACPI) from kernel space to user space and hands over contr
 > it returns `SYSCALL_NOT_IMPL`.
 
 * **Parameters:**
-  `user_rsdp` – Pointer to user space buffer to receive the RSDP structure.
+  * `user_rsdp` – Pointer to user space buffer to receive the RSDP structure.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -329,13 +329,13 @@ Maps firmware tables (ACPI) from kernel space to user space and hands over contr
 Maps physical memory pages into user virtual address space.
 
 * **Parameters:**
-  `phys_addr` – Physical address to map (must be page-aligned).
-  `user_vaddr` – User virtual address to map to (must be page-aligned).
-  `size` – Size in bytes to map (must be page-aligned).
-  `flags` – Mapping flags (see `ANOS_MAP_PHYSICAL_FLAG_*` constants).
+  * `phys_addr` – Physical address to map (must be page-aligned).
+  * `user_vaddr` – User virtual address to map to (must be page-aligned).
+  * `size` – Size in bytes to map (must be page-aligned).
+  * `flags` – Mapping flags (see `ANOS_MAP_PHYSICAL_FLAG_*` constants).
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
 
@@ -344,10 +344,10 @@ Maps physical memory pages into user virtual address space.
 Allocates contiguous physical memory pages.
 
 * **Parameters:**
-  `size` – Size in bytes to allocate (must be page-aligned).
+  * `size` – Size in bytes to allocate (must be page-aligned).
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the physical address of the allocated pages on success.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the physical address of the allocated pages on success.
 
 ---
 
@@ -360,12 +360,12 @@ Allocates an interrupt vector for MSI/MSI-X interrupts.
 > it returns `SYSCALL_NOT_IMPL`.
 
 * **Parameters:**
-  `bus_device_func` – PCI bus/device/function identifier.
-  `msi_address` – Pointer to receive MSI address for device configuration.
-  `msi_data` – Pointer to receive MSI data for device configuration.
+  * `bus_device_func` – PCI bus/device/function identifier.
+  * `msi_address` – Pointer to receive MSI address for device configuration.
+  * `msi_data` – Pointer to receive MSI data for device configuration.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the allocated interrupt vector number on success.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field containing the allocated interrupt vector number on success.
 
 ---
 
@@ -377,14 +377,46 @@ Waits for an interrupt on the specified vector.
 > This syscall is only available on x86_64 architecture. On other architectures,
 > it returns `SYSCALL_NOT_IMPL`.
 
+> [!NOTE]
+> This syscall interface is scheduled for change, rather than accept a vector number
+> it will, in the future, require a capability (which will be obtained from call ID 23).
+
 * **Parameters:**
-  `vector` – Interrupt vector number to wait for.
-  `event_data` – Pointer to receive interrupt event data.
+  * `vector` – Interrupt vector number to wait for.
+  * `event_data` – Pointer to receive interrupt event data.
 
 * **Returns:**
-  `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to `0`.
 
 ---
+
+#### Call ID 25: `SyscallResult anos_read_kernel_log(void *buffer, size_t buffer_size, uint64_t flags)`
+
+Reads waiting unread data from the kernel log stream, or blocks until data is available. 
+
+* **Parameters:**
+  * `buffer` – Pointer to receive buffer.
+  * `buffer_size` – max buffer size
+  * `flags` - Currently unused
+
+* **Returns:**
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` field set to the number of bytes read (`0` on failure).
+
+---
+
+#### Call ID 26: `SyscallResult anos_get_framebuffer_phys(AnosFramebufferInfo *info)`
+
+Obtains framebuffer info from the kernel. The first call to this will cause the kernel
+to relinquish the framebuffer and hand control to the caller.
+
+> [!NOTE]
+> In a kernel panic situation, the framebuffer will still be used by the kernel.
+
+* **Parameters:**
+  * `info` – Pointer to a `AnosFramebufferInfo` structure that will be populated
+
+* **Returns:**
+  * `SyscallResult` struct with `type` field indicating success (`SYSCALL_OK`) or failure (negative error code), and `value` set to `0`
 
 ### Return Values
 
