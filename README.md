@@ -16,7 +16,7 @@
 ### Latest Screenshot
 
 <p align="center">
-<img src="images/IMG_2912.jpg" alt="UEFI-booted ANOS running on a real-life computer">
+<img src="images/IMG_2914.jpg" alt="UEFI-booted ANOS running on a real-life computer">
 </p>
 
 ### High-level overview
@@ -415,13 +415,13 @@ All code is built with the new
 [Anos newlib toolchain](https://github.com/roscopeco/anos-toolchain), with SYSTEM and server code compiled
 in hosted mode (i.e. without `-ffreestanding` etc).
 
-<img src="images/IMG_2912.jpg" alt="UEFI-booted ANOS running on a real-life computer">
+<img src="images/IMG_2914.jpg" alt="UEFI-booted ANOS running on a real-life computer">
 
 It also runs in emulators, of course - here's Qemu booted via UEFI, using the
 graphical debug terminal at 1280x800 resolution and again showing the IPC features,
 user-mode hardware driver capabilities and other features:
 
-<img src="images/Screenshot 2025-09-22 at 06.14.47.png" alt="UEFI-booted ANOS running in Qemu">
+<img src="images/Screenshot 2025-09-27 at 07.14.41.png" alt="UEFI-booted ANOS running in Qemu">
 
 Broadly, this is happening here:
 
@@ -485,8 +485,10 @@ It does, however, work very well on `qemu-system-riscv64`, supporting
 broadly the same feature-set as on x86_64 (though not currently SMP
 as mentioned above).
 
-<img src="images/Screenshot%202025-06-06%20at%2023.27.08.png" alt="RISC-V ANOS running in qemu">
+<img src="images/Screenshot 2025-09-27 at 07.26.23.png" alt="RISC-V ANOS running in qemu">
 
 It should be noted that currently, the RISC-V port _userspace_ is significantly
 behind the x86_64 version, with no device tree / ACPI, no device manager and no 
-PCI support.
+PCI support. Devicetree / ACPI support is not yet fully functional in the kernel
+on this architecture, which is why you see "Failed to get firmware tables" message
+in the screenshot.
