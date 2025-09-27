@@ -332,6 +332,9 @@ static ProcessConfigResult process_boot_servers(const json_t *boot_servers) {
 
         if (!process_args) {
             process_debug("Failed to process arguments for server [entry %d]\n", i);
+            if (process_caps) {
+                free((void *)process_caps);
+            }
             return PROCESS_CONFIG_INVALID;
         }
 
@@ -339,6 +342,14 @@ static ProcessConfigResult process_boot_servers(const json_t *boot_servers) {
 
         const int64_t pid =
                 create_server_process(stack_size_int, caps_array_size, process_caps, args_array_size + 1, process_args);
+
+        // Free allocated memory after process creation
+        if (process_caps) {
+            free((void *)process_caps);
+        }
+        if (process_args) {
+            free(process_args);
+        }
 
         if (pid < 0) {
             process_debug("Warning: Failed to start boot process: %s (%s)\n", name_str, path_str);

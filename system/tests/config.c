@@ -114,6 +114,7 @@ void json_decref(json_t *json) {
 static int mock_find_named_channel_should_fail = 0;
 static int mock_map_virtual_should_fail = 0;
 static int mock_send_message_should_fail = 0;
+static void *mock_mapped_memory = NULL;
 
 typedef struct {
     int64_t result;
@@ -155,7 +156,8 @@ SyscallResultP anos_map_virtual(size_t size, uintptr_t addr, int flags) {
         result.value = NULL;
     } else {
         result.result = SYSCALL_OK;
-        result.value = malloc(size); // Mock mapped memory
+        mock_mapped_memory = malloc(size); // Mock mapped memory
+        result.value = mock_mapped_memory;
     }
     return result;
 }
@@ -202,6 +204,10 @@ SyscallResult anos_send_message(uint64_t cookie, uint64_t tag, size_t size, void
 SyscallResult anos_unmap_virtual(size_t size, uintptr_t addr) {
     (void)size;
     (void)addr;
+    if (mock_mapped_memory) {
+        free(mock_mapped_memory);
+        mock_mapped_memory = NULL;
+    }
     SyscallResult result;
     result.result = SYSCALL_OK;
     result.value = 0;
@@ -241,6 +247,10 @@ static void reset_mocks(void) {
     mock_create_server_process_should_fail = 0;
     mock_file_size = 0;
     mock_created_pid = 100;
+    if (mock_mapped_memory) {
+        free(mock_mapped_memory);
+        mock_mapped_memory = NULL;
+    }
     memset(mock_file_content, 0, sizeof(mock_file_content));
     mock_json_root = NULL;
 }
