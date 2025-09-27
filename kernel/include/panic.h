@@ -29,15 +29,15 @@ void panic_notify_smp_started(void);
 NORETURN_EXCEPT_TESTS void panic_sloc(const char *msg, const char *filename, uint64_t line);
 
 // Generic exception panics
-#define panic_exception_with_code(vector, code, origin_addr)                                                           \
-    panic_exception_with_code_sloc(vector, code, origin_addr, __FILE__, __LINE__)
+#define panic_exception_with_code(vector, code, origin_addr, origin_rbp)                                               \
+    panic_exception_with_code_sloc(vector, code, origin_addr, origin_rbp, __FILE__, __LINE__)
 NORETURN_EXCEPT_TESTS void panic_exception_with_code_sloc(uint8_t vector, uint64_t code, uintptr_t origin_addr,
-                                                          const char *filename, uint64_t line);
+                                                          uintptr_t origin_rbp, const char *filename, uint64_t line);
 
-#define panic_exception_no_code(vector, origin_addr)                                                                   \
-    panic_exception_no_code_sloc(vector, origin_addr, __FILE__, __LINE__)
-NORETURN_EXCEPT_TESTS void panic_exception_no_code_sloc(uint8_t vector, uintptr_t origin_addr, const char *filename,
-                                                        uint64_t line);
+#define panic_exception_no_code(vector, origin_addr, origin_rbp)                                                       \
+    panic_exception_no_code_sloc(vector, origin_addr, origin_rbp, __FILE__, __LINE__)
+NORETURN_EXCEPT_TESTS void panic_exception_no_code_sloc(uint8_t vector, uintptr_t origin_addr, uintptr_t origin_rbp,
+                                                        const char *filename, uint64_t line);
 
 // Specific exception panics
 #define panic_page_fault(origin_addr, fault_addr, code, origin_rbp)                                                    \
