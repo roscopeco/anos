@@ -213,6 +213,7 @@ STAGE3_OBJS_X86_64= $(STAGE3_DIR)/platform/acpi/acpitables.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/interrupts.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/isr_dispatch.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/init_interrupts.o					\
+					$(STAGE3_ARCH_X86_64_DIR)/isr_handlers.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/pagefault.o						\
 					$(STAGE3_ARCH_X86_64_DIR)/init_pagetables.o					\
 					$(STAGE3_ARCH_X86_64_DIR)/vmm/vmmapper.o					\
@@ -279,7 +280,6 @@ STAGE3_OBJS=$(STAGE3_DIR)/entrypoint.o											\
 			$(STAGE3_DIR)/banner.o												\
 			$(STAGE3_DIR)/debugmemmap.o											\
 			$(STAGE3_DIR)/kprintf.o												\
-			$(STAGE3_DIR)/isr_handlers.o										\
 			$(STAGE3_DIR)/pmm/pagealloc.o										\
 			$(STAGE3_DIR)/fba/alloc.o											\
 			$(STAGE3_DIR)/slab/alloc.o											\
@@ -492,7 +492,7 @@ $(STAGE3_DIR)/$(STAGE3).dis: $(STAGE3_DIR)/$(STAGE3).elf
 
 
 # ############ UEFI Image ############
-UEFI_IMG=anos_uefi.img
+UEFI_IMG=image.img
 UEFI_BOOT_WALLPAPER?=uefi/anoschip2-glass.jpg
 UEFI_CONF?=uefi/$(ARCH)/limine.conf
 

@@ -116,6 +116,7 @@ handle_page_fault_write_\idx:
 handle_page_fault_\idx:
     csrr    a1, stval       # a1 = fault address
     csrr    a2, sepc        # a2 = origin address
+    mv      a3, sp          # a3 = pointer to regs (top of stack)
 
     call    page_fault_wrapper
 
