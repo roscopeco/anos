@@ -24,6 +24,8 @@ int strnlen(const char *param, int maxlen);
 
 extern void *_code_start;
 extern void *_code_end;
+extern void *_data_start;
+extern void *_data_end;
 extern void *_bss_start;
 extern void *_bss_end;
 extern void *__user_stack_top;
@@ -188,7 +190,7 @@ build_new_process_init_values(const uintptr_t stack_top_addr,
 
 int64_t create_server_process(const uint64_t stack_size, const uint16_t capc, const InitCapability *capv,
                               const uint16_t argc, const char *argv[]) {
-    // We need to map in SYSTEM's code and BSS segments temporarily,
+    // We need to map in SYSTEM's code, data and BSS segments temporarily,
     // so that the initial_server_loader (loader.c) can do its thing
     // in the new process - it needs our capabilities etc to be
     // able to actually load the binary.
@@ -197,10 +199,14 @@ int64_t create_server_process(const uint64_t stack_size, const uint16_t capc, co
     // before handing off control to the new process.
     //
     // NOTE keep this in-step with unmapping in loader.c!
-    ProcessMemoryRegion regions[2] = {
+    ProcessMemoryRegion regions[3] = {
             {
                     .start = (uintptr_t)&_code_start,
                     .len_bytes = round_up_to_page_size((uintptr_t)&_code_end - (uintptr_t)&_code_start),
+            },
+            {
+                    .start = (uintptr_t)&_data_start,
+                    .len_bytes = round_up_to_page_size((uintptr_t)&_data_end - (uintptr_t)&_data_start),
             },
             {
                     .start = (uintptr_t)&_bss_start,
@@ -220,7 +226,7 @@ int64_t create_server_process(const uint64_t stack_size, const uint16_t capc, co
     process_create_params.entry_point = initial_server_loader;
     process_create_params.stack_base = STACK_TOP - stack_size;
     process_create_params.stack_size = stack_size;
-    process_create_params.region_count = 2;
+    process_create_params.region_count = 3;
     process_create_params.regions = regions;
     process_create_params.stack_value_count = init_stack_values.value_count;
     process_create_params.stack_values = init_stack_values.data;

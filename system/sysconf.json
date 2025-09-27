@@ -1,0 +1,68 @@
+{
+  "boot_servers": [
+    {
+      "name": "Kernel Log Viewer",
+      "path": "boot:/kterminal.elf",
+      "stack_size": 2097152,
+      "capabilities": [
+        "SYSCALL_DEBUG_PRINT",
+        "SYSCALL_DEBUG_CHAR",
+        "SYSCALL_CREATE_REGION",
+        "SYSCALL_SLEEP",
+        "SYSCALL_MAP_FIRMWARE_TABLES",
+        "SYSCALL_MAP_PHYSICAL",
+        "SYSCALL_MAP_VIRTUAL",
+        "SYSCALL_ALLOC_PHYSICAL_PAGES",
+        "SYSCALL_SEND_MESSAGE",
+        "SYSCALL_FIND_NAMED_CHANNEL",
+        "SYSCALL_KILL_CURRENT_TASK",
+        "SYSCALL_ALLOC_INTERRUPT_VECTOR",
+        "SYSCALL_WAIT_INTERRUPT",
+        "SYSCALL_RECV_MESSAGE",
+        "SYSCALL_REPLY_MESSAGE",
+        "SYSCALL_CREATE_CHANNEL",
+        "SYSCALL_REGISTER_NAMED_CHANNEL",
+        "SYSCALL_READ_KERNEL_LOG",
+        "SYSCALL_GET_FRAMEBUFFER_PHYS"
+      ]
+    },
+    {
+      "name": "DEVMAN",
+      "path": "boot:/devman.elf",
+      "stack_size": 1048576,
+      "capabilities": [
+        "SYSCALL_DEBUG_PRINT",
+        "SYSCALL_DEBUG_CHAR",
+        "SYSCALL_CREATE_REGION",
+        "SYSCALL_SLEEP",
+        "SYSCALL_MAP_FIRMWARE_TABLES",
+        "SYSCALL_MAP_PHYSICAL",
+        "SYSCALL_MAP_VIRTUAL",
+        "SYSCALL_ALLOC_PHYSICAL_PAGES",
+        "SYSCALL_SEND_MESSAGE",
+        "SYSCALL_FIND_NAMED_CHANNEL",
+        "SYSCALL_KILL_CURRENT_TASK",
+        "SYSCALL_ALLOC_INTERRUPT_VECTOR",
+        "SYSCALL_WAIT_INTERRUPT",
+        "SYSCALL_RECV_MESSAGE",
+        "SYSCALL_REPLY_MESSAGE",
+        "SYSCALL_CREATE_CHANNEL",
+        "SYSCALL_REGISTER_NAMED_CHANNEL"
+      ]
+    },
+    {
+      "name": "Test Server",
+      "path": "boot:/test_server.elf",
+      "stack_size": 131072,
+      "capabilities": [
+        "SYSCALL_DEBUG_PRINT",
+        "SYSCALL_DEBUG_CHAR",
+        "SYSCALL_CREATE_REGION",
+        "SYSCALL_SLEEP"
+      ],
+      "arguments": [
+        "Hello, World!"
+      ]
+    }
+  ]
+}

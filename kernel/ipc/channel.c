@@ -342,7 +342,7 @@ uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, size_t size, vo
         spinlock_unlock(channel->queue_lock);
 
         spinlock_lock(channel->receivers_lock);
-        uint64_t lock_flags = sched_lock_this_cpu();
+        const uint64_t lock_flags = sched_lock_this_cpu();
         if (channel->receivers) {
             // unblock first receiver
             Task *receiver = channel->receivers;
@@ -360,7 +360,7 @@ uint64_t ipc_channel_send(uint64_t channel_cookie, uint64_t tag, size_t size, vo
         sched_schedule();
         sched_unlock_this_cpu(lock_flags);
 
-        uint64_t result = message->reply;
+        const uint64_t result = message->reply;
 
 #ifdef CONSERVATIVE_BUILD
         // This should never happen (it should've been dequeued while we were sleeping)

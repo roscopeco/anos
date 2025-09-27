@@ -25,7 +25,7 @@
 #endif
 #endif
 
-#define SYSTEM_BSS_PAGE_COUNT 64
+#define SYSTEM_BSS_PAGE_COUNT 96
 #define SYSTEM_KERNEL_STACK_PAGE_COUNT 4
 #define SYSTEM_USER_STACK_PAGE_COUNT 4
 
@@ -114,17 +114,19 @@ noreturn void start_system(void) {
     const uint64_t system_len_bytes = _system_bin_size;
     const uint64_t system_len_pages = (system_len_bytes + VM_PAGE_SIZE - 1) >> VM_PAGE_LINEAR_SHIFT;
 
-    // Map pages for the user code
+    // Map pages for the user code + data
     for (int i = 0; i < system_len_pages; i++) {
         constexpr uint64_t system_start_virt = 0x1000000;
 
+        // TODO need a way to to determine code vs data size, this is mapping
+        //      both code and data read/write/execute at the moment 😱
         vmm_map_page(system_start_virt + (i << 12), _system_bin_start_phys + (i << 12),
-                     PG_PRESENT | PG_READ | PG_EXEC | PG_USER);
+                     PG_PRESENT | PG_WRITE | PG_READ | PG_EXEC | PG_USER);
     }
 
     extern uintptr_t kernel_zero_page;
     // TODO the way this is set up currently, there's no way to know how much
-    //      BSS/Data we need... We'll just map a few pages for now...
+    //      BSS we need... We'll just map a few pages for now...
 
     // Set up pages for the user bss / data - we're not allocating
     // here, we're just mapping the zeropage COW...

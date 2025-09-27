@@ -10,15 +10,17 @@
  *      Author: Ross Bamford <roscopeco AT gmail DOT com>
  */
 
-#include "ramfs.h"
 #include <stddef.h>
+#include <string.h>
+
+#include "ramfs.h"
 
 bool is_valid_ramfs(void *mem) {
     if (mem == NULL) {
         return false;
     }
 
-    uint32_t magic = *((uint32_t *)mem);
+    const uint32_t magic = *((uint32_t *)mem);
     if (magic != ANOS_RAMFS_MAGIC) {
         return false;
     }
@@ -43,21 +45,6 @@ int ramfs_file_count(AnosRAMFSHeader *fs) {
         return -1;
 
     return fs->file_count;
-}
-
-// TODO we'll get this from newlib eventually - remove when we do.
-static int strncmp(const char *s1, const char *s2, size_t n) {
-    while (n && *s1 && (*s1 == *s2)) {
-        ++s1;
-        ++s2;
-        --n;
-    }
-
-    if (n == 0) {
-        return 0;
-    } else {
-        return (*(unsigned char *)s1 - *(unsigned char *)s2);
-    }
 }
 
 AnosRAMFSFileHeader *ramfs_find_file(AnosRAMFSHeader *fs, char *name) {

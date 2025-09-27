@@ -48,6 +48,7 @@ ssize_t load_page(ElfPagedReader *r, const off_t offset) {
     return VM_PAGE_SIZE;
 }
 
+// TODO This is duplicating load logic from loader.c!
 static void *get_ptr(ElfPagedReader *r, const off_t offset, const size_t size) {
     static uint8_t temp[sizeof(uint64_t) * 16];
     const size_t in_page_offset = offset & (VM_PAGE_SIZE - 1);
@@ -104,8 +105,9 @@ uintptr_t elf_map_elf64(ElfPagedReader *reader, const ProgramHeaderHandler handl
         const off_t ph_offset = ehdr->e_phoff + i * ehdr->e_phentsize;
         const Elf64ProgramHeader *phdr = get_ptr(reader, ph_offset, sizeof(Elf64ProgramHeader));
 
-        if (phdr->p_type != PT_LOAD)
+        if (phdr->p_type != PT_LOAD) {
             continue;
+        }
 
         if (!handler(reader, phdr, data)) {
             return 0;

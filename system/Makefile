@@ -21,11 +21,13 @@ CFLAGS=-Wall -Werror -Wpedantic -std=c23										\
 #	DEBUG_SYS_IPC			Debug IPC messages received by SYSTEM
 #	DEBUG_SERVER_LOADER		Debug the initial server program loader
 #	DEBUG_FS_INIT			Debug filesystem init
+#	DEBUG_LOAD_CONFIG		Debug sysconf.json loading
+#	DEBUG_PROCESS_CONFIG	Debug sysconf.json processing
 #
 #	TEST_THREAD_KILL		Starts a sacrificial thread to test kill syscall
 #	TEST_BEEP_BOOP			Start the Beep Boop test server process
 #
-CDEFS=
+CDEFS=-DDEBUG_LOAD_CONFIG
 
 # We don't really have a RISC-V userspace yet, so always start the beep-boop test on that platform for now...
 ifeq ($(ARCH),riscv64)
@@ -43,19 +45,26 @@ STAGE3_DIR?=$(STAGE3)
 SYSTEM_ELF?=$(SYSTEM).elf
 SYSTEM_BIN?=$(SYSTEM).img
 
+JANSSON_VER?=2.13
+JANSSON_DIR?=jansson-$(JANSSON_VER)
+JANSSON_MAKEFILE?=Makefile-$(ARCH)
+JANSSON_SRC_DIR?=$(JANSSON_DIR)/src
+JANSSON_LIB_DIR?=$(JANSSON_DIR)/src/.libs
+JANSSON_LIB?=$(JANSSON_LIB_DIR)/libjansson.a
+
 # System loads at 0x0000000001000000 (16MiB)
 #
 SYSTEM_ADDR?=0x01000000
 
 SYSTEM_OBJS=main.o																\
-			printf.o															\
-			printf_putchar.o													\
 			ramfs.o																\
 			path.o																\
 			loader.o															\
 			elf.o																\
-			arch/$(ARCH)/trampolines.o											\
 			process.o															\
+			config.o															\
+			arch/$(ARCH)/trampolines.o											\
+			$(JANSSON_LIB)														\
 			system_ramfs_linkable.o
 
 ALL_TARGETS=$(SYSTEM_BIN)
@@ -64,14 +73,21 @@ CLEAN_ARTIFACTS=*.dis *.elf *.o arch/x86_64/*.o arch/riscv64/*.o $(SYSTEM_BIN)
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
-.PHONY: all build clean test
+# TODO this is kind of a PITA, making the makefile PHONY means jansson always
+#		gets a full reconfig, but it means we can switch ARCH without a distclean...
+.PHONY: all build clean test $(JANSSON_LIB) $(JANSSON_DIR)/$(JANSSON_MAKEFILE)
 
 all: build
 
 build: $(ALL_TARGETS)
 
-clean:
+$(JANSSON_DIR)/$(JANSSON_MAKEFILE):
+	cd $(JANSSON_DIR) && ./configure --host=$(ARCH)-elf-anos
+	cp $(JANSSON_DIR)/Makefile $@
+
+clean: $(JANSSON_DIR)/$(JANSSON_MAKEFILE)
 	rm -rf $(CLEAN_ARTIFACTS)
+	$(MAKE) -C $(JANSSON_DIR) clean
 
 ifeq ($(ARCH),x86_64)
 %.o: %.asm
@@ -94,7 +110,7 @@ endif
 endif
 
 %.o: %.c
-	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -Iinclude $(CFLAGS) -c -o $@ $<
+	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -Iinclude -I$(JANSSON_SRC_DIR) $(CFLAGS) -c -o $@ $<
 
 $(SYSTEM_ELF): $(SYSTEM_OBJS)
 	$(XLD) -T $(SYSTEM).ld -o $@ $^
@@ -126,3 +142,6 @@ else
 $(error Need an architecture-specific setup for objcopy:ramfs_linkable in system/Makefile)
 endif
 endif
+
+$(JANSSON_LIB): $(JANSSON_DIR)/$(JANSSON_MAKEFILE)
+	$(MAKE) -C $(JANSSON_DIR) -f $(JANSSON_MAKEFILE)
