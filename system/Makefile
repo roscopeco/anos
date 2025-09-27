@@ -73,7 +73,9 @@ CLEAN_ARTIFACTS=*.dis *.elf *.o arch/x86_64/*.o arch/riscv64/*.o $(SYSTEM_BIN)
 
 SHORT_HASH?=`git rev-parse --short HEAD`
 
-.PHONY: all build clean test $(JANSSON_LIB)
+# TODO this is kind of a PITA, making the makefile PHONY means jansson always
+#		gets a full reconfig, but it means we can switch ARCH without a distclean...
+.PHONY: all build clean test $(JANSSON_LIB) $(JANSSON_DIR)/$(JANSSON_MAKEFILE)
 
 all: build
 
