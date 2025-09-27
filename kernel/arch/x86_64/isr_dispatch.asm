@@ -132,7 +132,8 @@ page_fault_dispatcher:
 
     mov   rdi,pusha_sysv_arg0[rsp]          ; Error code from stack into the first C argument
     mov   rsi,cr2                           ; Fault address into the second C argument
-    mov   rdx,pusha_sysv_arg1[rsp]                           ; Peek return address into third C argument
+    mov   rdx,pusha_sysv_arg1[rsp]          ; Peek return address into third C argument
+    mov   rcx,rsp                           ; Pointer to stack in rcx, this becomes an IsrStackFrame struct
 
     ; Set up stack frame (so we can do sane backtrace)...
     call  .stack_frame_setup                ; push $rip first

@@ -45,30 +45,64 @@ static SpinLock panic_lock;
 static bool smp_is_up;
 
 #ifdef ARCH_X86_64
-static void print_stack_trace() {
-    uintptr_t *ebp, *eip;
-    uint8_t count = 0;
+static char *lookup_sym(const uintptr_t addr) {
+    return "unknown"; // TODO lookup symbol
+}
 
-    __asm__ volatile("mov %%rbp, %0" : "=r"(ebp));
+static void print_stack_trace_from_origin(const uintptr_t origin_addr, const uintptr_t origin_rbp) {
+    const uintptr_t *ebp = &origin_rbp;
+    uintptr_t eip = origin_addr;
+    uint8_t count = 0;
 
     debugattr(0x0C);
     debugstr("\n\nExecution trace:\n");
 
+    debugattr(0x08);
+    debugstr("   [");
+    debugattr(0x07);
+    printhex64(eip, debugchar);
+    debugattr(0x08);
+    debugstr("] ");
+    debugattr(0xf);
+    debugstr("<");
+    debugstr(lookup_sym(eip));
+    debugstr(">\n");
+
+    ebp = (uintptr_t *)*ebp;
+
     while (ebp && (count++ < STACK_TRACE_MAX)) {
-        eip = ebp + 1;
+        eip = *(ebp + 1);
+
         debugattr(0x08);
         debugstr("   [");
         debugattr(0x07);
-        printhex64(*eip, debugchar);
+        printhex64(eip, debugchar);
         debugattr(0x08);
         debugstr("] ");
         debugattr(0xf);
-        debugstr("<unknown>\n"); // TODO lookup symbol
+        debugstr("<");
+        debugstr(lookup_sym(eip));
+        debugstr(">\n");
+
         ebp = (uintptr_t *)*ebp;
     }
 }
+
+static void print_stack_trace() {
+    uintptr_t *ebp, eip;
+
+    __asm__ volatile("mov %%rbp, %0" : "=r"(ebp));
+    eip = *(ebp + 1);
+
+    print_stack_trace_from_origin(eip, *ebp);
+}
 #else
-#define print_stack_trace()
+static void print_stack_trace_from_origin(const uintptr_t origin_addr, const uintptr_t origin_rbp) {
+    debugattr(0x0C);
+    debugstr("\n\nExecution trace not supported on this architecture yet.\n");
+}
+
+static void print_stack_trace() { print_stack_trace_from_origin(0, 0); }
 #endif
 
 static inline void print_header_vec(char *msg, const uint8_t vector) {
@@ -343,7 +377,7 @@ noreturn void panic_sloc(const char *msg, const char *filename, const uint64_t l
 }
 
 noreturn void panic_page_fault_sloc(const uintptr_t origin_addr, const uintptr_t fault_addr, const uint64_t code,
-                                    const char *filename, const uint64_t line) {
+                                    const uintptr_t origin_rbp, const char *filename, const uint64_t line) {
     disable_interrupts();
     const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
@@ -358,7 +392,7 @@ noreturn void panic_page_fault_sloc(const uintptr_t origin_addr, const uintptr_t
     print_page_fault_code(code);
     print_origin_ip(origin_addr);
     print_fault_addr(fault_addr);
-    print_stack_trace();
+    print_stack_trace_from_origin(origin_addr, origin_rbp);
     print_footer();
 
     spinlock_unlock_irqrestore(&panic_lock, lock_flags);
@@ -366,7 +400,8 @@ noreturn void panic_page_fault_sloc(const uintptr_t origin_addr, const uintptr_t
 }
 
 noreturn void panic_general_protection_fault_sloc(const uint64_t code, const uintptr_t origin_addr,
-                                                  const char *filename, const uint64_t line) {
+                                                  const uintptr_t origin_rbp, const char *filename,
+                                                  const uint64_t line) {
     disable_interrupts();
     const uint64_t lock_flags = spinlock_lock_irqsave(&panic_lock);
 
@@ -379,7 +414,7 @@ noreturn void panic_general_protection_fault_sloc(const uint64_t code, const uin
     print_cpu();
     print_code(code);
     print_origin_ip(origin_addr);
-    print_stack_trace();
+    print_stack_trace_from_origin(origin_addr, origin_rbp);
     print_footer();
 
     spinlock_unlock_irqrestore(&panic_lock, lock_flags);

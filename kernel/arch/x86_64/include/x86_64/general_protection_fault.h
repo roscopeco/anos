@@ -12,6 +12,6 @@
 
 #include <stdint.h>
 
-void handle_general_protection_fault(uint64_t code, uintptr_t origin_addr);
+void handle_general_protection_fault(uint64_t code, uintptr_t origin_addr, const IsrStackFrameWithCode *stack_frame);
 
 #endif //__ANOS_KERNEL_ARCH_X86_64_GENERAL_PROTECTION_FAULT_H

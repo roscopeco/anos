@@ -100,6 +100,7 @@ trap_dispatcher_%+%1:                       ; Name e.g. `trap_dispatcher_0`
     mov   rdi,%1                            ; Put the trap number in the first C argument
     mov   rsi,80[rsp]                       ; Error code from stack into the second C argument
     mov   rdx,88[rsp]                       ; Peek return address into third C argument
+    mov   rcx,rsp                           ; Pointer to stack in rcx, this becomes an IsrStackFrame struct
 
     ; Set up stack frame (so we can do sane backtrace)...
     call  .stack_frame_setup                ; push $rip first
@@ -128,6 +129,7 @@ trap_dispatcher_%+%1:                       ; Name e.g. `trap_dispatcher_1`
 
     mov   rdi,%1                            ; Put the trap number in the first C argument (TODO changing registers!)
     mov   rsi,80[rsp]                       ; Peek return address into second C argument
+    mov   rdx,rsp                           ; Pointer to stack in rdx, this becomes an IsrStackFrame struct
 
     ; Set up stack frame (so we can do sane backtrace)...
     call  .stack_frame_setup                ; push $rip first

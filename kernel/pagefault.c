@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+#include "isr_frame.h"
 #include "machine.h"
 #include "panic.h"
 #include "pmm/pagealloc.h"
@@ -61,8 +62,9 @@ extern MemoryRegion *physical_region;
 extern uintptr_t kernel_zero_page;
 
 // Handle page faults before we have SMP and tasking up...
-void early_page_fault_handler(const uint64_t code, const uint64_t fault_addr, const uint64_t origin_addr) {
-    panic_page_fault(origin_addr, fault_addr, code);
+void early_page_fault_handler(const uint64_t code, const uint64_t fault_addr, const uint64_t origin_addr,
+                              const IsrStackFrameWithCode stack_frame) {
+    panic_page_fault(origin_addr, fault_addr, code, stack_frame.registers.rbp);
 }
 
 // Allocate process mem if Process is non-NULL, or just unowned mem otherwise
@@ -102,7 +104,8 @@ static void copy_page_safely(const uintptr_t src_virt_page, const uintptr_t dest
 }
 
 // The full handler, replaces early once tasking and system is up
-void page_fault_handler(const uint64_t code, const uint64_t fault_addr, const uint64_t origin_addr) {
+void page_fault_handler(const uint64_t code, const uint64_t fault_addr, const uint64_t origin_addr,
+                        const IsrStackFrameWithCode *stack_frame) {
 
     tdebug("PAGEFAULT: 0x");
     tdbgx64(fault_addr);
@@ -159,7 +162,7 @@ void page_fault_handler(const uint64_t code, const uint64_t fault_addr, const ui
 
                 if (phys & 0xff) {
                     // phys alloc failed - panic anyway
-                    panic_page_fault(origin_addr, fault_addr, code);
+                    panic_page_fault(origin_addr, fault_addr, code, stack_frame->registers.rbp);
                 }
                 vdebugf("Allocated page 0x%016lx for COW destination\n", phys);
 
@@ -196,7 +199,7 @@ void page_fault_handler(const uint64_t code, const uint64_t fault_addr, const ui
 
                 if (phys & 0xff) {
                     // phys alloc failed - panic anyway
-                    panic_page_fault(origin_addr, fault_addr, code);
+                    panic_page_fault(origin_addr, fault_addr, code, stack_frame->registers.rbp);
                 }
 
                 vmm_map_page(fault_addr_page, phys, PG_USER | PG_READ | PG_WRITE | PG_PRESENT);
@@ -214,5 +217,5 @@ void page_fault_handler(const uint64_t code, const uint64_t fault_addr, const ui
     }
 
     tdebug("Unhandled #PF - panicking\n");
-    panic_page_fault(origin_addr, fault_addr, code);
+    panic_page_fault(origin_addr, fault_addr, code, stack_frame->registers.rbp);
 }
