@@ -90,7 +90,7 @@ static bool on_program_header(const ElfPagedReader *reader, const Elf64ProgramHe
            "memsz=0x%016lx\n",
            reader->filename, phdr->p_offset, phdr->p_vaddr, phdr->p_filesz, phdr->p_memsz);
 
-    // TODO support flags in syscall for RO / RW / NX etc...
+    // TODO fix up permissions, and just map this zeropage / COW if not loadable once syscall is added...
     const SyscallResultP result =
             anos_map_virtual(phdr->p_memsz, phdr->p_vaddr,
                              ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE | ANOS_MAP_VIRTUAL_FLAG_EXEC);
@@ -162,7 +162,7 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
     const uint64_t sys_vfs_cookie = result.value;
 
     if (result.result != SYSCALL_OK || !sys_vfs_cookie) {
-        printf("Failed to find named VFS channel\n");
+        anos_kprint("Failed to find named VFS channel\n");
         anos_kill_current_task();
     }
 
@@ -207,9 +207,13 @@ noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
             restore_stack_and_jump(initial_sp, sep);
         }
 
-        printf("Unable to load executable: %s\n", filename);
+        anos_kprint("Unable to load executable: ");
+        anos_kprint(filename);
+        anos_kprint("\n");
     } else {
-        printf("No such file: %s\n", filename);
+        anos_kprint("No such file: ");
+        anos_kprint(filename);
+        anos_kprint("\n");
     }
 
     anos_kprint("Server exec failed. Dying.\n");
