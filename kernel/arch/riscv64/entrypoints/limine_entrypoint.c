@@ -12,6 +12,7 @@
 #include <stdnoreturn.h>
 
 #include "debugprint.h"
+#include "framebuffer.h"
 #include "kprintf.h"
 #include "machine.h"
 #include "pmm/pagealloc.h"
@@ -112,6 +113,8 @@ static uint64_t pmm_pt[512] __attribute__((aligned(4096)));
 
 /* Bootstrap page for the PMM */
 static uint64_t pmm_bootstrap_page[512] __attribute__((aligned(4096)));
+
+static uintptr_t g_fb_phys;
 
 /* Globals */
 extern MemoryRegion *physical_region;
@@ -326,20 +329,19 @@ static inline bool vmm_map_page_no_alloc(const uintptr_t virt_addr, const uint8_
 }
 
 noreturn void bsp_kernel_entrypoint_limine() {
-    uintptr_t fb_phys;
     uint16_t fb_width;
     uint16_t fb_height;
 
     // Early init the debugterm since we need to be able to report errors early.
     // We'll reinit it later with the correct framebuffer in our usual kernel mappings.
     if (limine_framebuffer_request.response && limine_framebuffer_request.response->framebuffer_count > 0) {
-        fb_phys = (uintptr_t)limine_framebuffer_request.response->framebuffers[0]->address -
-                  limine_hhdm_request.response->offset;
+        g_fb_phys = (uintptr_t)limine_framebuffer_request.response->framebuffers[0]->address -
+                    limine_hhdm_request.response->offset;
 
         fb_width = limine_framebuffer_request.response->framebuffers[0]->width;
         fb_height = limine_framebuffer_request.response->framebuffers[0]->height;
 
-        debugterm_init((char *)fb_phys, fb_width, fb_height);
+        debugterm_init((char *)g_fb_phys, fb_width, fb_height);
     } else {
         halt_and_catch_fire();
     }
@@ -443,10 +445,10 @@ noreturn void bsp_kernel_entrypoint_limine() {
 
     // map framebuffer, as four 2MiB large pages at 0xffffffff82000000 - 0xffffffff827fffff
     // TODO write-combining!
-    code_data_pd[0x10] = (fb_phys >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
-    code_data_pd[0x11] = ((fb_phys + 0x200000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
-    code_data_pd[0x12] = ((fb_phys + 0x400000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
-    code_data_pd[0x13] = ((fb_phys + 0x600000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+    code_data_pd[0x10] = (g_fb_phys >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+    code_data_pd[0x11] = ((g_fb_phys + 0x200000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+    code_data_pd[0x12] = ((g_fb_phys + 0x400000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
+    code_data_pd[0x13] = ((g_fb_phys + 0x600000) >> 2) | PG_PRESENT | PG_READ | PG_WRITE;
 
     // Find the phys address of the embedded SYSTEM image as well, we'll need
     // that later on when we come to map it in...
@@ -547,6 +549,7 @@ static noreturn void bootstrap_continue(const uint16_t fb_width, const uint16_t 
     //
 
     debugterm_reinit((char *)KERNEL_FRAMEBUFFER, fb_width, fb_height);
+    framebuffer_set_info(g_fb_phys, KERNEL_FRAMEBUFFER, fb_width, fb_height, 32);
 
     if (_system_bin_size == 0) {
         // No system module passed, fail early for now.

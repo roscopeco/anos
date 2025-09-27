@@ -103,6 +103,7 @@ uintptr_t _system_bin_start_phys;
 size_t _system_bin_size;
 
 // Global framebuffer info for bootstrap
+// TODO doesn't actually need to be global any more AFAIK...
 static uintptr_t g_fb_phys = 0;
 static uint16_t g_fb_width = 0;
 static uint16_t g_fb_height = 0;
