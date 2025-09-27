@@ -321,6 +321,11 @@ static ProcessConfigResult process_boot_servers(const json_t *boot_servers) {
         const size_t caps_array_size = json_array_size(caps);
         const InitCapability *process_caps = build_process_caps(caps, caps_array_size);
 
+        if (caps_array_size > 0 && !process_caps) {
+            process_debug("Failed to process capabilities for server [entry %d]\n", i);
+            return PROCESS_CONFIG_INVALID;
+        }
+
         const json_t *args = json_object_get(server, ARGS_KEY);
         const size_t args_array_size = json_array_size(args);
         const char **process_args = build_process_args(args, args_array_size, path_str);

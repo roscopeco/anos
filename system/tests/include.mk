@@ -45,7 +45,10 @@ system/tests/build/path: system/tests/munit.o system/tests/path.o system/tests/b
 system/tests/build/process_utils: system/tests/munit.o system/tests/process_utils.o system/tests/build/process_utils.o
 	$(CC) $(SYSTEM_TEST_CFLAGS) -o $@ $^
 
-ALL_TESTS=system/tests/build/ramfs system/tests/build/path system/tests/build/process_utils
+system/tests/build/config: system/tests/munit.o system/tests/config.o system/tests/build/config.o
+	$(CC) $(SYSTEM_TEST_CFLAGS) -o $@ $^
+
+ALL_TESTS=system/tests/build/ramfs system/tests/build/path system/tests/build/process_utils system/tests/build/config
 
 .PHONY: test-system
 test-system: $(ALL_TESTS)
