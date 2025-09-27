@@ -57,30 +57,35 @@ far are, briefly:
 * Non-zealous microkernel providing _only_:
   * **Bare-minimum drivers for hardware used in the kernel itself**
     * **CPU** (both **x86_64** and **RISC-V**)
-    * Basic timers (e.g. **HPET**)
-    * Interrupts (**LAPIC**, IOAPIC, CLINT etc)
+    * Basic timers (**HPET**, **TSC**, **SBI Timers** on RISC-V)
+    * Interrupts (**LAPIC**, **MSI / MSI-X**, **S-mode interrupts**)
   * **Physical / virtual memory management** (48-bit on both architectures)
   * **Thread / Process management & address space primitives**
   * **Scheduling (and directly-related concurrency primitives)**
-  * **IPC** (_just a single primitive mechanism, still WIP_)
-  * Small, targeted syscall interface (_started, still WIP_)
-    * **Fast channel (via `SYSCALL` and `SYSRET`)**
-    * **Slow channel (via `int 0x69`)**
+  * **IPC (synchronous, zero-copy message-passing)**
+    * See [the in-depth documentation](docs/IPC.md) for details
+  * **Small, targeted syscall interface**
+    * **Fast channel (via `SYSCALL` and `SYSRET` on x86_64, or `ecall` on RISC-V)**
+    * **Slow channel (via `int 0x69` _[deprecated, not cross-architecture]_)**
+    * See [the in-depth documentation](docs/Syscalls.md) for details
   * **Delegatable capability-based syscall control**
 * ***User-mode SYSTEM supervisor providing operating-system services**
   * **Basic userspace bootstrap**
+  * **Userspace configuration**
+  * **Userspace process-management interface**
   * **VFS**
 * SYSTEM coordinates activities of other services to provide:
-  * Hardware drivers (via capability-based MMIO)
+  * **Hardware drivers: PCI, AHCI (via capability-based MMIO)**
+  * **User mode terminal / log output**
   * Networking
   * GUI
-  * etc.
+  * USB (xHCI) (_WIP_)
 * _Limited / no legacy support - x86_64 required, no PIC / PIT etc,_
 * _Minimum "supported" architecture: Haswell (4th gen)_
 
 (Items in **bold** are already implemented, for some value of the term.
 If you want more detail they are, as far as possible, documented in the 
-source / comments).
+linked documents / source / comments).
 
 The basic idea is most user processes will have _very_ limited syscall
 capability - and instead will use (hopefully) fast IPC to request 
