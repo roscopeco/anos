@@ -136,7 +136,7 @@ uintptr_t address_space_create(uintptr_t init_stack_vaddr, const size_t init_sta
     const uint64_t lock_flags = spinlock_lock_irqsave(&address_space_lock);
 
     // Find current pml4
-    PageTable *current_pml4 = vmm_find_pml4();
+    const PageTable *current_pml4 = vmm_find_pml4();
 
     // Invalidate the TLB for that table
     PageTable *new_pml4_virt = (PageTable *)vmm_phys_to_virt(new_pml4_phys);

@@ -224,7 +224,7 @@ SYSCALL_HANDLER(create_process) {
         dst_ptr->len_bytes = src_ptr->len_bytes;
     }
 
-    uintptr_t new_pml4 = address_space_create(
+    const uintptr_t new_pml4 = address_space_create(
             process_create_params->stack_base, process_create_params->stack_size, process_create_params->region_count,
             ad_regions, process_create_params->stack_value_count, process_create_params->stack_values);
 
