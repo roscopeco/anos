@@ -66,7 +66,7 @@ bool hash_table_insert(HashTable *ht, uint64_t key, void *value);
  * 
  * Returns the value pointer if found, or NULL if not present.
  */
-void *hash_table_lookup(HashTable *ht, uint64_t key);
+void *hash_table_lookup(const HashTable *ht, uint64_t key);
 
 /*
  * Remove an entry identified by key from the table.

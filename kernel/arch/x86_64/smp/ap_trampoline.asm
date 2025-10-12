@@ -145,7 +145,8 @@ main64:
   ; Enable SSE here - just before we return to AP entrypoint
   mov   rax, cr0         ; Enable SSE
   and   ax, 0xFFFB       ; clear coprocessor emulation CR0.EM
-  or    ax, 0x2         ; set coprocessor monitoring CR0.MP
+  or    ax, 0x2          ; set coprocessor monitoring CR0.MP
+  or    eax, 0x10000     ; Enable write-protect as well
   mov   cr0, rax
 
   mov   rax, cr4         ; set CR4.OSFXSR and CR4.OSXMMEXCPT
