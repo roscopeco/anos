@@ -20,12 +20,32 @@
 #define TOMBSTONE ((uint64_t)-1)
 #define LOAD_FACTOR 0.75
 
+#define SOFT_BARRIER() __asm__ __volatile__("" ::: "memory");
+
 #ifdef UNIT_TESTS
-#define LOCK(ht) spinlock_lock(ht->lock)
-#define UNLOCK(ht) spinlock_unlock(ht->lock)
+#define LOCK(ht)                                                                                                       \
+    do {                                                                                                               \
+        spinlock_lock(ht->lock);                                                                                       \
+        SOFT_BARRIER()                                                                                                 \
+    } while (0)
+#define UNLOCK(ht)                                                                                                     \
+    do {                                                                                                               \
+        SOFT_BARRIER()                                                                                                 \
+        spinlock_unlock(ht->lock);                                                                                     \
+    } while (0)
 #else
-#define LOCK(ht) uint64_t __irqsave = spinlock_lock_irqsave(ht->lock)
-#define UNLOCK(ht) spinlock_unlock_irqrestore(ht->lock, __irqsave)
+#define LOCK(ht)                                                                                                       \
+    uint64_t __irqsave;                                                                                                \
+    do {                                                                                                               \
+        __irqsave = spinlock_lock_irqsave(ht->lock);                                                                   \
+        SOFT_BARRIER()                                                                                                 \
+    } while (0)
+
+#define UNLOCK(ht)                                                                                                     \
+    do {                                                                                                               \
+        SOFT_BARRIER()                                                                                                 \
+        spinlock_unlock_irqrestore(ht->lock, __irqsave);                                                               \
+    } while (0)
 #endif
 
 // Internal helper: Resize the hash table by doubling the number of pages.
@@ -47,10 +67,13 @@ static bool hash_table_resize(HashTable *ht) {
         new_entries[i].data = NULL;
     }
 
+    HashEntry *old_entries = ht->entries;
+    __asm__ __volatile__("" ::: "memory");
+
     // Rehash all current entries into the new array.
     for (size_t i = 0; i < ht->capacity; i++) {
-        const uint64_t key = ht->entries[i].key;
-        void *value = ht->entries[i].data;
+        const uint64_t key = old_entries[i].key;
+        void *value = old_entries[i].data;
 
         if (key != 0) {
             const size_t index = key % new_capacity;
@@ -68,9 +91,12 @@ static bool hash_table_resize(HashTable *ht) {
     }
 
     // Free the old backing storage and update the table.
-    fba_free(ht->entries);
+    fba_free(old_entries);
+
+    __asm__ __volatile__("" ::: "memory");
     ht->entries = new_entries;
     ht->capacity = new_capacity;
+    __asm__ __volatile__("" ::: "memory");
 
     return true;
 }
@@ -121,21 +147,25 @@ bool hash_table_insert(HashTable *ht, const uint64_t key, void *value) {
         }
     }
 
-    // Check if the key already exists and find an insertion point.
-    const size_t index = key % ht->capacity;
-    for (size_t i = 0; i < ht->capacity; i++) {
-        const size_t pos = (index + i) % ht->capacity;
+    HashEntry *entries = ht->entries;
+    const size_t capacity = ht->capacity;
+    __asm__ __volatile__("" ::: "memory");
 
-        if (ht->entries[pos].key == key) {
+    // Check if the key already exists and find an insertion point.
+    const size_t index = key % capacity;
+    for (size_t i = 0; i < capacity; i++) {
+        const size_t pos = (index + i) % capacity;
+
+        if (entries[pos].key == key) {
             // Key already exists
             UNLOCK(ht);
             return false;
         }
 
-        if (ht->entries[pos].key == 0) {
+        if (entries[pos].key == 0) {
             // Found empty slot, insert here
-            ht->entries[pos].key = key;
-            ht->entries[pos].data = value;
+            entries[pos].key = key;
+            entries[pos].data = value;
             ht->size++;
             ret = true;
             break;
@@ -150,17 +180,21 @@ void *hash_table_lookup(const HashTable *ht, const uint64_t key) {
     void *result = NULL;
     LOCK(ht);
 
-    const size_t index = key % ht->capacity;
+    HashEntry *entries = ht->entries;
+    const size_t capacity = ht->capacity;
+    __asm__ __volatile__("" ::: "memory");
 
-    for (size_t i = 0; i < ht->capacity; i++) {
-        const size_t pos = (index + i) % ht->capacity;
+    const size_t index = key % capacity;
 
-        if (ht->entries[pos].key == 0) {
+    for (size_t i = 0; i < capacity; i++) {
+        const size_t pos = (index + i) % capacity;
+
+        if (entries[pos].key == 0) {
             break; // empty slot means not found
         }
 
-        if (ht->entries[pos].key == key) {
-            result = ht->entries[pos].data;
+        if (entries[pos].key == key) {
+            result = entries[pos].data;
             break;
         }
     }
@@ -173,48 +207,53 @@ void *hash_table_remove(HashTable *ht, const uint64_t key) {
     void *ret = NULL;
     LOCK(ht);
 
+    // Load entries pointer and capacity with (hopefully) proper ordering
+    HashEntry *entries = ht->entries;
+    const size_t capacity = ht->capacity;
+    __asm__ __volatile__("" ::: "memory");
+
     // fuck me this is a mess...
 
-    const size_t index = key % ht->capacity;
+    const size_t index = key % capacity;
 
-    for (size_t i = 0; i < ht->capacity; i++) {
-        const size_t pos = (index + i) % ht->capacity;
-        if (ht->entries[pos].key == 0) {
+    for (size_t i = 0; i < capacity; i++) {
+        const size_t pos = (index + i) % capacity;
+        if (entries[pos].key == 0) {
             break;
         }
 
-        if (ht->entries[pos].key == key) {
+        if (entries[pos].key == key) {
             // save the entry for return...
-            ret = ht->entries[pos].data;
+            ret = entries[pos].data;
 
             // and remove it from the table
-            ht->entries[pos].key = 0;
-            ht->entries[pos].data = NULL;
+            entries[pos].key = 0;
+            entries[pos].data = NULL;
             ht->size--;
 
             // Rehash the following cluster.
-            size_t j = (pos + 1) % ht->capacity;
-            while (ht->entries[j].key != 0) {
-                const uint64_t rehash_key = ht->entries[j].key;
-                void *rehash_value = ht->entries[j].data;
+            size_t j = (pos + 1) % capacity;
+            while (entries[j].key != 0) {
+                const uint64_t rehash_key = entries[j].key;
+                void *rehash_value = entries[j].data;
 
-                ht->entries[j].key = 0;
-                ht->entries[j].data = NULL;
+                entries[j].key = 0;
+                entries[j].data = NULL;
                 ht->size--;
 
-                const size_t k = rehash_key % ht->capacity;
+                const size_t k = rehash_key % capacity;
 
-                for (size_t n = 0; n < ht->capacity; n++) {
-                    const size_t new_pos = (k + n) % ht->capacity;
-                    if (ht->entries[new_pos].key == 0) {
-                        ht->entries[new_pos].key = rehash_key;
-                        ht->entries[new_pos].data = rehash_value;
+                for (size_t n = 0; n < capacity; n++) {
+                    const size_t new_pos = (k + n) % capacity;
+                    if (entries[new_pos].key == 0) {
+                        entries[new_pos].key = rehash_key;
+                        entries[new_pos].data = rehash_value;
                         ht->size++;
                         break;
                     }
                 }
 
-                j = (j + 1) % ht->capacity;
+                j = (j + 1) % capacity;
             }
 
             break;
