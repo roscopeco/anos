@@ -350,8 +350,8 @@ static void handle_process_spawn_request(const uint64_t message_cookie, const si
     }
 #endif
 
-    const int64_t pid =
-            create_server_process(stack_size, capc, capc > 0 ? capabilities : nullptr, argc, argc > 0 ? argv : nullptr);
+    const int64_t pid = create_server_process(stack_size, capc, capc > 0 ? capabilities : nullptr, argc,
+                                              argc > 0 ? argv : nullptr, TASK_CLASS_NORMAL);
 
     anos_reply_message(message_cookie, pid);
 }
@@ -514,7 +514,7 @@ static bool spawn_filesystem_driver(const char *driver_name, const char *mount_p
     snprintf(driver_path, sizeof(driver_path), "boot:/%s.elf", driver_name);
 
     const char *fs_argv[] = {driver_path, mount_prefix};
-    const int64_t fs_pid = create_server_process(0x100000, cap_count, caps, 2, fs_argv);
+    const int64_t fs_pid = create_server_process(0x100000, cap_count, caps, 2, fs_argv, TASK_CLASS_REALTIME);
 
     if (fs_pid < 0) {
         fs_debugf("Warning: Failed to create %s filesystem driver for %s\n", driver_name, mount_prefix);
@@ -724,7 +724,7 @@ int main(int argc, char **argv) {
 
 #ifdef TEST_THREAD_KILL
     const SyscallResult create_kill_result =
-            anos_create_thread(kamikaze_thread, (uintptr_t)kamikaze_thread_stack + VM_PAGE_SIZE - 8);
+            anos_create_thread(kamikaze_thread, (uintptr_t)kamikaze_thread_stack + VM_PAGE_SIZE - 8, TASK_CLASS_NORMAL);
 
     if (create_kill_result.result != SYSCALL_OK) {
         printf("Failed to create kamikaze thread...\n");
@@ -764,7 +764,8 @@ int main(int argc, char **argv) {
 
             // set up RAMFS driver thread
             SyscallResult create_thread_result = anos_create_thread(
-                    ramfs_driver_thread, (uintptr_t)ramfs_driver_thread_stack + DRIVER_THREAD_STACK_SIZE - 8);
+                    ramfs_driver_thread, (uintptr_t)ramfs_driver_thread_stack + DRIVER_THREAD_STACK_SIZE - 8,
+                    TASK_CLASS_REALTIME);
 
             if (create_thread_result.result != SYSCALL_OK) {
                 printf("WARN: Failed to create RAMFS driver thread!\n");
@@ -774,16 +775,18 @@ int main(int argc, char **argv) {
             }
 
             // set up process manager thread
-            create_thread_result = anos_create_thread(process_manager_thread, (uintptr_t)process_manager_thread_stack +
-                                                                                      DRIVER_THREAD_STACK_SIZE - 8);
+            create_thread_result = anos_create_thread(
+                    process_manager_thread, (uintptr_t)process_manager_thread_stack + DRIVER_THREAD_STACK_SIZE - 8,
+                    TASK_CLASS_REALTIME);
 
             if (create_thread_result.result != SYSCALL_OK) {
                 printf("WARN: Failed to create process manager thread!\n");
             }
 
             // set up VFS driver thread
-            create_thread_result = anos_create_thread(vfs_driver_thread, (uintptr_t)vfs_driver_thread_stack +
-                                                                                 DRIVER_THREAD_STACK_SIZE - 8);
+            create_thread_result = anos_create_thread(vfs_driver_thread,
+                                                      (uintptr_t)vfs_driver_thread_stack + DRIVER_THREAD_STACK_SIZE - 8,
+                                                      TASK_CLASS_REALTIME);
 
             if (create_thread_result.result != SYSCALL_OK) {
                 printf("WARN: Failed to create VFS driver thread!\n");
@@ -804,9 +807,9 @@ int main(int argc, char **argv) {
 
             // Start filesystem starter thread
             // TODO get rid of this too, SYSTEM has no business starting filesystems directly...
-            const SyscallResult fs_thread_result =
-                    anos_create_thread(filesystem_starter_thread,
-                                       (uintptr_t)filesystem_starter_thread_stack + DRIVER_THREAD_STACK_SIZE - 8);
+            const SyscallResult fs_thread_result = anos_create_thread(
+                    filesystem_starter_thread,
+                    (uintptr_t)filesystem_starter_thread_stack + DRIVER_THREAD_STACK_SIZE - 8, TASK_CLASS_NORMAL);
 
             if (fs_thread_result.result != SYSCALL_OK) {
                 printf("Failed to create filesystem starter thread!\n");

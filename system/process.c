@@ -189,7 +189,7 @@ build_new_process_init_values(const uintptr_t stack_top_addr,
 }
 
 int64_t create_server_process(const uint64_t stack_size, const uint16_t capc, const InitCapability *capv,
-                              const uint16_t argc, const char *argv[]) {
+                              const uint16_t argc, const char *argv[], const TaskClass task_class) {
     // We need to map in SYSTEM's code, data and BSS segments temporarily,
     // so that the initial_server_loader (loader.c) can do its thing
     // in the new process - it needs our capabilities etc to be
@@ -214,6 +214,10 @@ int64_t create_server_process(const uint64_t stack_size, const uint16_t capc, co
             },
     };
 
+    if (task_class >= TASK_CLASS_INVALID) {
+        return 0;
+    }
+
     InitStackValues init_stack_values;
 
     if (!build_new_process_init_values(STACK_TOP, capc, capv, argc, argv, &init_stack_values)) {
@@ -226,6 +230,7 @@ int64_t create_server_process(const uint64_t stack_size, const uint16_t capc, co
     process_create_params.entry_point = initial_server_loader;
     process_create_params.stack_base = STACK_TOP - stack_size;
     process_create_params.stack_size = stack_size;
+    process_create_params.task_class = task_class;
     process_create_params.region_count = 3;
     process_create_params.regions = regions;
     process_create_params.stack_value_count = init_stack_values.value_count;

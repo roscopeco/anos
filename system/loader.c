@@ -168,9 +168,9 @@ static void unmap_system_memory() {
 }
 
 noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
-    anos_kprint("\nLoading '");
-    anos_kprint(filename);
-    anos_kprint("'...\n");
+    debugprint("\nLoading '");
+    debugprint(filename);
+    debugprint("'...\n");
 
     SyscallResult result = anos_find_named_channel("SYSTEM::VFS");
     const uint64_t sys_vfs_cookie = result.value;

@@ -32,6 +32,7 @@
 static const char *const NAME_KEY = "name";
 static const char *const PATH_KEY = "path";
 static const char *const STACK_SIZE_KEY = "stack_size";
+static const char *const CLASS_KEY = "class";
 static const char *const CAPS_KEY = "capabilities";
 static const char *const BOOT_SERVERS_KEY = "boot_servers";
 static const char *const ARGS_KEY = "arguments";
@@ -176,6 +177,30 @@ static uint64_t cap_str_to_id(const char *str) {
     return 0;
 }
 
+static int class_str_to_id(const char *str) {
+    if (!str) {
+        return -1;
+    }
+
+    if (strncmp("NORMAL", str, strlen("NORMAL")) == 0) {
+        return TASK_CLASS_NORMAL;
+    }
+
+    if (strncmp("HIGH", str, strlen("HIGH")) == 0) {
+        return TASK_CLASS_HIGH;
+    }
+
+    if (strncmp("IDLE", str, strlen("IDLE")) == 0) {
+        return TASK_CLASS_IDLE;
+    }
+
+    if (strncmp("REALTIME", str, strlen("REALTIME")) == 0) {
+        return TASK_CLASS_REALTIME;
+    }
+
+    return -1;
+}
+
 static InitCapability *build_process_caps(const json_t *config_caps_array, const size_t caps_array_size) {
     InitCapability *process_caps_array = nullptr;
 
@@ -291,6 +316,7 @@ static ProcessConfigResult process_boot_servers(const json_t *boot_servers) {
 
         const json_t *name = json_object_get(server, NAME_KEY);
         const json_t *path = json_object_get(server, PATH_KEY);
+        const json_t *class = json_object_get(server, CLASS_KEY);
         const json_t *stack_size = json_object_get(server, STACK_SIZE_KEY);
 
         if (!json_is_string(name)) {
@@ -303,6 +329,11 @@ static ProcessConfigResult process_boot_servers(const json_t *boot_servers) {
             return PROCESS_CONFIG_INVALID;
         }
 
+        if (!json_is_string(class)) {
+            process_debug("Server class [entry %d] is not a string\n", i);
+            return PROCESS_CONFIG_INVALID;
+        }
+
         if (!json_is_integer(stack_size)) {
             process_debug("Server stack size [entry %d] is not an integer\n", i);
             return PROCESS_CONFIG_INVALID;
@@ -310,6 +341,13 @@ static ProcessConfigResult process_boot_servers(const json_t *boot_servers) {
 
         const char *name_str = json_string_value(name);
         const char *path_str = json_string_value(path);
+        const int task_class = class_str_to_id(json_string_value(class));
+
+        if (task_class == -1) {
+            process_debug("Server task class [entry %d : %s] is not a valid class\n", i, json_string_value(class));
+            return PROCESS_CONFIG_INVALID;
+        }
+
         const uint64_t stack_size_int = json_integer_value(stack_size);
 
         process_debug("Server %d:\n", i);
@@ -340,8 +378,8 @@ static ProcessConfigResult process_boot_servers(const json_t *boot_servers) {
 
         process_debug("\n");
 
-        const int64_t pid =
-                create_server_process(stack_size_int, caps_array_size, process_caps, args_array_size + 1, process_args);
+        const int64_t pid = create_server_process(stack_size_int, caps_array_size, process_caps, args_array_size + 1,
+                                                  process_args, task_class);
 
         // Free allocated memory after process creation
         if (process_caps) {

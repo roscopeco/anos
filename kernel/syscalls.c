@@ -129,8 +129,13 @@ SYSCALL_HANDLER(debugchar) {
 SYSCALL_HANDLER(create_thread) {
     const ThreadFunc func = (ThreadFunc)arg0;
     const uintptr_t user_stack = (uintptr_t)arg1;
+    const uint8_t task_class = (uint8_t)arg2;
 
-    Task *task = task_create_user(task_current()->owner, user_stack, 0, (uintptr_t)func, TASK_CLASS_NORMAL);
+    if (task_class >= TASK_CLASS_INVALID) {
+        return RESULT_BADARGS();
+    }
+
+    Task *task = task_create_user(task_current()->owner, user_stack, 0, (uintptr_t)func, task_class);
 
 #ifdef SYSCALL_SCHED_ONLY_THIS_CPU
     sched_lock_this_cpu();
@@ -241,10 +246,11 @@ SYSCALL_HANDLER(create_process) {
         return RESULT_FAILURE();
     }
 
-    Task *new_task = task_create_user(new_process,
-                                      process_create_params->stack_base + process_create_params->stack_size -
-                                              (process_create_params->stack_value_count * sizeof(uintptr_t)),
-                                      0, (uintptr_t)process_create_params->entry_point, TASK_CLASS_NORMAL);
+    Task *new_task =
+            task_create_user(new_process,
+                             process_create_params->stack_base + process_create_params->stack_size -
+                                     (process_create_params->stack_value_count * sizeof(uintptr_t)),
+                             0, (uintptr_t)process_create_params->entry_point, process_create_params->task_class);
 
     if (!new_task) {
         // TODO LEAK address_space_destroy!

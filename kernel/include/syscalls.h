@@ -70,7 +70,8 @@ typedef struct {
     uintptr_t stack_base;           // 16
     size_t stack_size;              // 24
     uint8_t region_count;           // 25
-    uint8_t reserved0[7];           // 32
+    uint8_t task_class;             // 26
+    uint8_t reserved0[6];           // 32
     ProcessMemoryRegion *regions;   // 40
     uint16_t stack_value_count;     // 42
     uint16_t reserved1[3];          // 48
