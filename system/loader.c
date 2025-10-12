@@ -105,8 +105,6 @@ static bool on_program_header(const ElfPagedReader *reader, const Elf64ProgramHe
         return false;
     }
 
-    memset(buffer, 0, phdr->p_memsz);
-
     if (phdr->p_filesz > 0) {
         for (int i = 0; i < phdr->p_filesz; i += 0x1000) {
             char *msg_buffer = (char *)(phdr->p_vaddr + i);
