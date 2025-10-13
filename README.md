@@ -2,6 +2,7 @@
 
 ![workflow status](https://github.com/roscopeco/anos/actions/workflows/compile_test.yaml/badge.svg)
 ![code coverage](coverage.svg)
+[![discord](https://dcbadge.limes.pink/api/server/https://discord.gg/QBswRcSUbk?compact=true&style=flat)](https://discord.gg/QBswRcSUbk)
 
 <p align="center">
 <img src="images/logo-concepts/concept1-round-dark-smol.png" height="150px">
