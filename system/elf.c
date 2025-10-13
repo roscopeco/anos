@@ -1,8 +1,13 @@
 /*
-* Elf loader for SYSTEM
+ * Elf loader for SYSTEM
  * anos - An Operating System
  *
  * Copyright (c) 2025 Ross Bamford
+ *
+ * THIS CODE RUNS IN TEMP-MAPPED SYSTEM MEMORY IN THE
+ * NEW PROCESS. THIS MEANS WE CANNOT DO ANYTHING HERE
+ * THAT MIGHT USE HEAP MEMORY - i.e. VERY LITTLE
+ * STDLIB, NO PRINTF, etc.
  */
 
 #include <anos/syscalls.h>
@@ -18,16 +23,15 @@
 #define SYS_VFS_TAG_LOAD_PAGE ((0x2))
 
 #ifdef DEBUG_SERVER_LOADER
-#include "printf.h"
-#define debugf printf
+#define debugprint anos_kprint
 #else
-#define debugf(...)
+#define debugprint(...)
 #endif
 
 ssize_t load_page(ElfPagedReader *r, const off_t offset) {
     const off_t aligned = offset & ~(VM_PAGE_SIZE - 1);
     if (aligned != r->current_page_offset) {
-        debugf("Loading page at 0x%016lx\n", offset);
+        debugprint("Loading page...\n");
         uint64_t *const pos = (uint64_t *)r->page;
         *pos = offset;
 
@@ -60,7 +64,7 @@ static void *get_ptr(ElfPagedReader *r, const off_t offset, const size_t size) {
         return r->page + in_page_offset;
     }
 
-    const size_t first_part = VM_PAGE_SIZE - in_page_offset;
+    const off_t first_part = VM_PAGE_SIZE - in_page_offset;
 
     if (!load_page(r, offset)) {
         return NULL;
@@ -80,7 +84,7 @@ uintptr_t elf_map_elf64(ElfPagedReader *reader, const ProgramHeaderHandler handl
     const Elf64Header *ehdr = get_ptr(reader, 0, sizeof(Elf64Header));
 
     if (!ehdr) {
-        debugf("Failed to read header\n");
+        debugprint("Failed to read header\n");
         return 0;
     }
 
@@ -91,18 +95,12 @@ uintptr_t elf_map_elf64(ElfPagedReader *reader, const ProgramHeaderHandler handl
                "ELF",
                4) != 0 ||
         ehdr->e_ident[4] != 2) {
-        debugf("Not a valid ELF64 file\n");
+        debugprint("Not a valid ELF64 file\n");
         return 0;
     }
 
-    debugf("Program headers at offset: 0x%016lx\n", ehdr->e_phoff);
-    debugf("Program header entry size: %u bytes\n", ehdr->e_phentsize);
-    debugf("Number of program headers: %u\n", ehdr->e_phnum);
-
-    debugf("Entry point @ 0x%016lx\n", ehdr->e_entry);
-
     for (int i = 0; i < ehdr->e_phnum; ++i) {
-        const off_t ph_offset = ehdr->e_phoff + i * ehdr->e_phentsize;
+        const off_t ph_offset = (off_t)ehdr->e_phoff + i * ehdr->e_phentsize;
         const Elf64ProgramHeader *phdr = get_ptr(reader, ph_offset, sizeof(Elf64ProgramHeader));
 
         if (phdr->p_type != PT_LOAD) {

@@ -146,7 +146,7 @@ SyscallResult anos_find_named_channel(const char *name) {
     return result;
 }
 
-SyscallResultP anos_map_virtual(size_t size, uintptr_t addr, int flags) {
+SyscallResultP anos_map_virtual(const size_t size, const uintptr_t addr, const int flags) {
     (void)size;
     (void)addr;
     (void)flags;
@@ -166,7 +166,7 @@ static char mock_file_content[1024] = "";
 static size_t mock_file_size = 0;
 static int mock_file_load_should_fail = 0;
 
-SyscallResult anos_send_message(uint64_t cookie, uint64_t tag, size_t size, void *buffer) {
+SyscallResult anos_send_message(const uint64_t cookie, const uint64_t tag, const size_t size, void *buffer) {
     (void)size;
     (void)buffer;
 
@@ -200,7 +200,7 @@ SyscallResult anos_send_message(uint64_t cookie, uint64_t tag, size_t size, void
             }
 
             // Calculate how much to copy based on offset and remaining size
-            size_t remaining_in_file = (file_offset < mock_file_size) ? (mock_file_size - file_offset) : 0;
+            const size_t remaining_in_file = (file_offset < mock_file_size) ? (mock_file_size - file_offset) : 0;
             size_t copy_size = remaining_in_file > MAX_IPC_BUFFER_SIZE ? MAX_IPC_BUFFER_SIZE : remaining_in_file;
 
             if (copy_size > 0 && file_offset < sizeof(mock_file_content)) {
@@ -219,13 +219,15 @@ SyscallResult anos_send_message(uint64_t cookie, uint64_t tag, size_t size, void
     return result;
 }
 
-SyscallResult anos_unmap_virtual(size_t size, uintptr_t addr) {
+SyscallResult anos_unmap_virtual(const size_t size, const uintptr_t addr) {
     (void)size;
     (void)addr;
+
     if (mock_mapped_memory) {
         free(mock_mapped_memory);
         mock_mapped_memory = NULL;
     }
+
     SyscallResult result;
     result.result = SYSCALL_OK;
     result.value = 0;
@@ -236,8 +238,8 @@ SyscallResult anos_unmap_virtual(size_t size, uintptr_t addr) {
 static int mock_create_server_process_should_fail = 0;
 static int64_t mock_created_pid = 100;
 
-int64_t create_server_process(uint64_t stack_size, size_t caps_count, const void *caps, size_t args_count,
-                              const char **args) {
+int64_t create_server_process(const uint64_t stack_size, const size_t caps_count, const void *caps,
+                              const size_t args_count, const char **args) {
     (void)stack_size;
     (void)caps_count;
     (void)caps;
@@ -281,7 +283,7 @@ static json_t *create_mock_string(const char *value) {
     return json;
 }
 
-static json_t *create_mock_integer(int64_t value) {
+static json_t *create_mock_integer(const int64_t value) {
     json_t *json = malloc(sizeof(json_t));
     json->type = JSON_INTEGER;
     json->data.integer_value = value;
@@ -289,7 +291,7 @@ static json_t *create_mock_integer(int64_t value) {
     return json;
 }
 
-static json_t *create_mock_array(json_t **items, size_t count) {
+static json_t *create_mock_array(json_t **items, const size_t count) {
     json_t *json = malloc(sizeof(json_t));
     json->type = JSON_ARRAY;
     json->data.array_items = items;
@@ -297,7 +299,7 @@ static json_t *create_mock_array(json_t **items, size_t count) {
     return json;
 }
 
-static json_t *create_mock_object(const char **keys, json_t **values, size_t count) {
+static json_t *create_mock_object(const char **keys, json_t **values, const size_t count) {
     json_t *json = malloc(sizeof(json_t));
     json->type = JSON_OBJECT;
     json->data.object.keys = keys;
@@ -394,7 +396,7 @@ static MunitResult test_process_config_invalid_json(const MunitParameter params[
 
     mock_json_loads_should_fail = 1;
 
-    ProcessConfigResult result = process_config("invalid json");
+    const ProcessConfigResult result = process_config("invalid json");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_INVALID);
     return MUNIT_OK;
@@ -407,7 +409,7 @@ static MunitResult test_process_config_root_not_object(const MunitParameter para
     json_t mock_root = {.type = JSON_ARRAY, .size = 0};
     mock_json_root = &mock_root;
 
-    ProcessConfigResult result = process_config("[]");
+    const ProcessConfigResult result = process_config("[]");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_INVALID);
     return MUNIT_OK;
@@ -421,7 +423,7 @@ static MunitResult test_process_config_no_boot_servers(const MunitParameter para
     json_t *values[] = {create_mock_string("value")};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_OK);
 
@@ -438,7 +440,7 @@ static MunitResult test_process_config_boot_servers_not_array(const MunitParamet
     json_t *values[] = {create_mock_string("not an array")};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_OK);
 
@@ -458,7 +460,7 @@ static MunitResult test_process_config_server_not_object(const MunitParameter pa
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_INVALID);
 
@@ -484,7 +486,7 @@ static MunitResult test_process_config_missing_required_fields(const MunitParame
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_INVALID);
 
@@ -500,10 +502,12 @@ static MunitResult test_process_config_invalid_field_types(const MunitParameter 
     (void)fixture;
 
     // Server object with invalid field types
-    const char *server_keys[] = {"name", "path", "stack_size"};
+    const char *server_keys[] = {"name", "path", "stack_size", "class"};
     json_t *server_values[] = {create_mock_integer(123), // name should be string
-                               create_mock_string("/path/to/server"), create_mock_integer(8192)};
-    json_t *server_obj = create_mock_object(server_keys, server_values, 3);
+                               create_mock_string("/path/to/server"), create_mock_integer(8192),
+                               create_mock_string("NORMAL")};
+
+    json_t *server_obj = create_mock_object(server_keys, server_values, 4);
 
     json_t *array_items[] = {server_obj};
     json_t *boot_servers_array = create_mock_array(array_items, 1);
@@ -512,11 +516,11 @@ static MunitResult test_process_config_invalid_field_types(const MunitParameter 
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_INVALID);
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         free(server_values[i]);
     }
     free(server_obj);
@@ -532,10 +536,10 @@ static MunitResult test_process_config_process_creation_failure(const MunitParam
     mock_create_server_process_should_fail = 1;
 
     // Valid server object
-    const char *server_keys[] = {"name", "path", "stack_size"};
+    const char *server_keys[] = {"name", "path", "stack_size", "class"};
     json_t *server_values[] = {create_mock_string("test_server"), create_mock_string("/path/to/server"),
-                               create_mock_integer(8192)};
-    json_t *server_obj = create_mock_object(server_keys, server_values, 3);
+                               create_mock_integer(8192), create_mock_string("NORMAL")};
+    json_t *server_obj = create_mock_object(server_keys, server_values, 4);
 
     json_t *array_items[] = {server_obj};
     json_t *boot_servers_array = create_mock_array(array_items, 1);
@@ -544,11 +548,11 @@ static MunitResult test_process_config_process_creation_failure(const MunitParam
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_FAILURE);
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         free(server_values[i]);
     }
     free(server_obj);
@@ -572,10 +576,14 @@ static MunitResult test_process_config_success(const MunitParameter params[], vo
     json_t *args_items[] = {arg1, arg2};
     json_t *args_array = create_mock_array(args_items, 2);
 
-    const char *server_keys[] = {"name", "path", "stack_size", "capabilities", "arguments"};
-    json_t *server_values[] = {create_mock_string("test_server"), create_mock_string("/path/to/server"),
-                               create_mock_integer(8192), caps_array, args_array};
-    json_t *server_obj = create_mock_object(server_keys, server_values, 5);
+    const char *server_keys[] = {"name", "path", "stack_size", "class", "capabilities", "arguments"};
+    json_t *server_values[] = {create_mock_string("test_server"),
+                               create_mock_string("/path/to/server"),
+                               create_mock_integer(8192),
+                               create_mock_string("NORMAL"),
+                               caps_array,
+                               args_array};
+    json_t *server_obj = create_mock_object(server_keys, server_values, 6);
 
     json_t *array_items[] = {server_obj};
     json_t *boot_servers_array = create_mock_array(array_items, 1);
@@ -584,7 +592,7 @@ static MunitResult test_process_config_success(const MunitParameter params[], vo
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_OK);
 
@@ -595,12 +603,15 @@ static MunitResult test_process_config_success(const MunitParameter params[], vo
     free(arg1);
     free(arg2);
     free(args_array);
-    for (int i = 0; i < 3; i++) {
+
+    for (int i = 0; i < 4; i++) {
         free(server_values[i]);
     }
+
     free(server_obj);
     free(boot_servers_array);
     free(mock_json_root);
+
     return MUNIT_OK;
 }
 
@@ -613,10 +624,10 @@ static MunitResult test_process_config_invalid_capability(const MunitParameter p
     json_t *caps_items[] = {cap1};
     json_t *caps_array = create_mock_array(caps_items, 1);
 
-    const char *server_keys[] = {"name", "path", "stack_size", "capabilities"};
+    const char *server_keys[] = {"name", "path", "stack_size", "class", "capabilities"};
     json_t *server_values[] = {create_mock_string("test_server"), create_mock_string("/path/to/server"),
-                               create_mock_integer(8192), caps_array};
-    json_t *server_obj = create_mock_object(server_keys, server_values, 4);
+                               create_mock_integer(8192), create_mock_string("NORMAL"), caps_array};
+    json_t *server_obj = create_mock_object(server_keys, server_values, 5);
 
     json_t *array_items[] = {server_obj};
     json_t *boot_servers_array = create_mock_array(array_items, 1);
@@ -625,13 +636,13 @@ static MunitResult test_process_config_invalid_capability(const MunitParameter p
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_INVALID);
 
     free(cap1);
     free(caps_array);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         free(server_values[i]);
     }
     free(server_obj);
@@ -649,10 +660,10 @@ static MunitResult test_process_config_non_string_capability(const MunitParamete
     json_t *caps_items[] = {cap1};
     json_t *caps_array = create_mock_array(caps_items, 1);
 
-    const char *server_keys[] = {"name", "path", "stack_size", "capabilities"};
+    const char *server_keys[] = {"name", "path", "stack_size", "class", "capabilities"};
     json_t *server_values[] = {create_mock_string("test_server"), create_mock_string("/path/to/server"),
-                               create_mock_integer(8192), caps_array};
-    json_t *server_obj = create_mock_object(server_keys, server_values, 4);
+                               create_mock_integer(8192), create_mock_string("NORMAL"), caps_array};
+    json_t *server_obj = create_mock_object(server_keys, server_values, 5);
 
     json_t *array_items[] = {server_obj};
     json_t *boot_servers_array = create_mock_array(array_items, 1);
@@ -661,13 +672,13 @@ static MunitResult test_process_config_non_string_capability(const MunitParamete
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_INVALID);
 
     free(cap1);
     free(caps_array);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         free(server_values[i]);
     }
     free(server_obj);
@@ -696,8 +707,8 @@ static MunitResult test_load_config_file_large_file(const MunitParameter params[
     (void)fixture;
 
     // Test file larger than IPC buffer size requiring multiple pages
-    const char *test_content =
-            "{ \"boot_servers\": [{ \"name\": \"large_test\", \"path\": \"/large\", \"stack_size\": 8192 }] }";
+    const char *test_content = "{ \"boot_servers\": [{ \"name\": \"large_test\", \"path\": \"/large\", \"stack_size\": "
+                               "8192, \"class\": \"NORMAL\"}] }";
     strncpy(mock_file_content, test_content, sizeof(mock_file_content) - 1);
     mock_file_content[sizeof(mock_file_content) - 1] = '\0';
     mock_file_size = MAX_IPC_BUFFER_SIZE + 100; // Larger than buffer to test multi-page loading
@@ -723,10 +734,10 @@ static MunitResult test_process_config_valid_syscall_capabilities(const MunitPar
     json_t *caps_items[] = {cap1, cap2, cap3, cap4};
     json_t *caps_array = create_mock_array(caps_items, 4);
 
-    const char *server_keys[] = {"name", "path", "stack_size", "capabilities"};
+    const char *server_keys[] = {"name", "path", "stack_size", "class", "capabilities"};
     json_t *server_values[] = {create_mock_string("test_server"), create_mock_string("/path/to/server"),
-                               create_mock_integer(8192), caps_array};
-    json_t *server_obj = create_mock_object(server_keys, server_values, 4);
+                               create_mock_integer(8192), create_mock_string("NORMAL"), caps_array};
+    json_t *server_obj = create_mock_object(server_keys, server_values, 5);
 
     json_t *array_items[] = {server_obj};
     json_t *boot_servers_array = create_mock_array(array_items, 1);
@@ -735,7 +746,7 @@ static MunitResult test_process_config_valid_syscall_capabilities(const MunitPar
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_OK);
 
@@ -744,7 +755,7 @@ static MunitResult test_process_config_valid_syscall_capabilities(const MunitPar
         free(caps_items[i]);
     }
     free(caps_array);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         free(server_values[i]);
     }
     free(server_obj);
@@ -760,10 +771,10 @@ static MunitResult test_process_config_empty_capabilities_array(const MunitParam
     // Test empty capabilities array
     json_t *caps_array = create_mock_array(NULL, 0);
 
-    const char *server_keys[] = {"name", "path", "stack_size", "capabilities"};
+    const char *server_keys[] = {"name", "path", "stack_size", "class", "capabilities"};
     json_t *server_values[] = {create_mock_string("test_server"), create_mock_string("/path/to/server"),
-                               create_mock_integer(8192), caps_array};
-    json_t *server_obj = create_mock_object(server_keys, server_values, 4);
+                               create_mock_integer(8192), create_mock_string("NORMAL"), caps_array};
+    json_t *server_obj = create_mock_object(server_keys, server_values, 5);
 
     json_t *array_items[] = {server_obj};
     json_t *boot_servers_array = create_mock_array(array_items, 1);
@@ -772,13 +783,13 @@ static MunitResult test_process_config_empty_capabilities_array(const MunitParam
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_OK);
 
     // Cleanup
     free(caps_array);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         free(server_values[i]);
     }
     free(server_obj);
@@ -794,10 +805,10 @@ static MunitResult test_process_config_empty_arguments_array(const MunitParamete
     // Test empty arguments array
     json_t *args_array = create_mock_array(NULL, 0);
 
-    const char *server_keys[] = {"name", "path", "stack_size", "arguments"};
+    const char *server_keys[] = {"name", "path", "stack_size", "class", "arguments"};
     json_t *server_values[] = {create_mock_string("test_server"), create_mock_string("/path/to/server"),
-                               create_mock_integer(8192), args_array};
-    json_t *server_obj = create_mock_object(server_keys, server_values, 4);
+                               create_mock_integer(8192), create_mock_string("NORMAL"), args_array};
+    json_t *server_obj = create_mock_object(server_keys, server_values, 5);
 
     json_t *array_items[] = {server_obj};
     json_t *boot_servers_array = create_mock_array(array_items, 1);
@@ -806,13 +817,13 @@ static MunitResult test_process_config_empty_arguments_array(const MunitParamete
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_OK);
 
     // Cleanup
     free(args_array);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         free(server_values[i]);
     }
     free(server_obj);
@@ -826,15 +837,15 @@ static MunitResult test_process_config_multiple_servers(const MunitParameter par
     (void)fixture;
 
     // Test multiple servers in boot_servers array
-    const char *server1_keys[] = {"name", "path", "stack_size"};
+    const char *server1_keys[] = {"name", "path", "stack_size", "class"};
     json_t *server1_values[] = {create_mock_string("server1"), create_mock_string("/path/to/server1"),
-                                create_mock_integer(8192)};
-    json_t *server1_obj = create_mock_object(server1_keys, server1_values, 3);
+                                create_mock_integer(8192), create_mock_string("NORMAL")};
+    json_t *server1_obj = create_mock_object(server1_keys, server1_values, 4);
 
-    const char *server2_keys[] = {"name", "path", "stack_size"};
+    const char *server2_keys[] = {"name", "path", "stack_size", "class"};
     json_t *server2_values[] = {create_mock_string("server2"), create_mock_string("/path/to/server2"),
-                                create_mock_integer(16384)};
-    json_t *server2_obj = create_mock_object(server2_keys, server2_values, 3);
+                                create_mock_integer(16384), create_mock_string("NORMAL")};
+    json_t *server2_obj = create_mock_object(server2_keys, server2_values, 4);
 
     json_t *array_items[] = {server1_obj, server2_obj};
     json_t *boot_servers_array = create_mock_array(array_items, 2);
@@ -843,12 +854,12 @@ static MunitResult test_process_config_multiple_servers(const MunitParameter par
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_OK);
 
     // Cleanup
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         free(server1_values[i]);
         free(server2_values[i]);
     }
@@ -868,10 +879,10 @@ static MunitResult test_process_config_non_string_argument(const MunitParameter 
     json_t *args_items[] = {arg1};
     json_t *args_array = create_mock_array(args_items, 1);
 
-    const char *server_keys[] = {"name", "path", "stack_size", "arguments"};
+    const char *server_keys[] = {"name", "path", "stack_size", "class", "arguments"};
     json_t *server_values[] = {create_mock_string("test_server"), create_mock_string("/path/to/server"),
-                               create_mock_integer(8192), args_array};
-    json_t *server_obj = create_mock_object(server_keys, server_values, 4);
+                               create_mock_integer(8192), create_mock_string("NORMAL"), args_array};
+    json_t *server_obj = create_mock_object(server_keys, server_values, 5);
 
     json_t *array_items[] = {server_obj};
     json_t *boot_servers_array = create_mock_array(array_items, 1);
@@ -880,14 +891,14 @@ static MunitResult test_process_config_non_string_argument(const MunitParameter 
     json_t *values[] = {boot_servers_array};
     mock_json_root = create_mock_object(keys, values, 1);
 
-    ProcessConfigResult result = process_config("{}");
+    const ProcessConfigResult result = process_config("{}");
 
     munit_assert_int(result, ==, PROCESS_CONFIG_INVALID);
 
     // Cleanup
     free(arg1);
     free(args_array);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         free(server_values[i]);
     }
     free(server_obj);
@@ -915,9 +926,9 @@ static MunitResult test_process_config_all_syscall_capabilities(const MunitParam
     json_t *caps_items[] = {cap1, cap2, cap3, cap4, cap5, cap6, cap7, cap8, cap9, cap10};
     json_t *caps_array = create_mock_array(caps_items, 10);
 
-    const char *server_keys[] = {"name", "path", "stack_size", "capabilities"};
+    const char *server_keys[] = {"name", "path", "stack_size", "class", "capabilities"};
     json_t *server_values[] = {create_mock_string("test_server"), create_mock_string("/path/to/server"),
-                               create_mock_integer(8192), caps_array};
+                               create_mock_integer(8192), create_mock_string("NORMAL"), caps_array};
     json_t *server_obj = create_mock_object(server_keys, server_values, 4);
 
     json_t *array_items[] = {server_obj};
@@ -936,7 +947,121 @@ static MunitResult test_process_config_all_syscall_capabilities(const MunitParam
         free(caps_items[i]);
     }
     free(caps_array);
+    for (int i = 0; i < 4; i++) {
+        free(server_values[i]);
+    }
+    free(server_obj);
+    free(boot_servers_array);
+    free(mock_json_root);
+    return MUNIT_OK;
+}
+
+static MunitResult test_process_config_all_classes(const MunitParameter params[], void *fixture) {
+    (void)params;
+    (void)fixture;
+
+    // Test multiple servers in boot_servers array
+    const char *server1_keys[] = {"name", "path", "stack_size", "class"};
+    json_t *server1_values[] = {create_mock_string("server1"), create_mock_string("/path/to/server1"),
+                                create_mock_integer(8192), create_mock_string("IDLE")};
+    json_t *server1_obj = create_mock_object(server1_keys, server1_values, 4);
+
+    const char *server2_keys[] = {"name", "path", "stack_size", "class"};
+    json_t *server2_values[] = {create_mock_string("server2"), create_mock_string("/path/to/server2"),
+                                create_mock_integer(16384), create_mock_string("NORMAL")};
+    json_t *server2_obj = create_mock_object(server2_keys, server2_values, 4);
+
+    const char *server3_keys[] = {"name", "path", "stack_size", "class"};
+    json_t *server3_values[] = {create_mock_string("server3"), create_mock_string("/path/to/server3"),
+                                create_mock_integer(32768), create_mock_string("HIGH")};
+    json_t *server3_obj = create_mock_object(server3_keys, server3_values, 4);
+
+    const char *server4_keys[] = {"name", "path", "stack_size", "class"};
+    json_t *server4_values[] = {create_mock_string("server4"), create_mock_string("/path/to/server4"),
+                                create_mock_integer(65536), create_mock_string("REALTIME")};
+    json_t *server4_obj = create_mock_object(server4_keys, server4_values, 4);
+
+    json_t *array_items[] = {server1_obj, server2_obj, server3_obj, server4_obj};
+    json_t *boot_servers_array = create_mock_array(array_items, 4);
+
+    const char *keys[] = {"boot_servers"};
+    json_t *values[] = {boot_servers_array};
+    mock_json_root = create_mock_object(keys, values, 1);
+
+    const ProcessConfigResult result = process_config("{}");
+
+    munit_assert_int(result, ==, PROCESS_CONFIG_OK);
+
+    // Cleanup
+    for (int i = 0; i < 4; i++) {
+        free(server1_values[i]);
+        free(server2_values[i]);
+        free(server3_values[i]);
+        free(server4_values[i]);
+    }
+    free(server1_obj);
+    free(server2_obj);
+    free(server3_obj);
+    free(server4_obj);
+    free(boot_servers_array);
+    free(mock_json_root);
+    return MUNIT_OK;
+}
+
+static MunitResult test_process_config_no_class(const MunitParameter params[], void *fixture) {
+    (void)params;
+    (void)fixture;
+
+    // Test multiple servers in boot_servers array
+    const char *server_keys[] = {"name", "path", "stack_size"};
+    json_t *server_values[] = {create_mock_string("server1"), create_mock_string("/path/to/server1"),
+                               create_mock_integer(8192)};
+    json_t *server_obj = create_mock_object(server_keys, server_values, 3);
+
+    json_t *array_items[] = {server_obj};
+    json_t *boot_servers_array = create_mock_array(array_items, 1);
+
+    const char *keys[] = {"boot_servers"};
+    json_t *values[] = {boot_servers_array};
+    mock_json_root = create_mock_object(keys, values, 1);
+
+    const ProcessConfigResult result = process_config("{}");
+
+    munit_assert_int(result, ==, PROCESS_CONFIG_INVALID);
+
+    // Cleanup
     for (int i = 0; i < 3; i++) {
+        free(server_values[i]);
+    }
+    free(server_obj);
+    free(boot_servers_array);
+    free(mock_json_root);
+    return MUNIT_OK;
+}
+
+static MunitResult test_process_config_invalid_class(const MunitParameter params[], void *fixture) {
+    (void)params;
+    (void)fixture;
+
+    // Test multiple servers in boot_servers array
+    const char *server_keys[] = {"name", "path", "stack_size", "class"};
+    json_t *server_values[] = {create_mock_string("server1"), create_mock_string("/path/to/server1"),
+                               create_mock_integer(8192), create_mock_string("INVALID")};
+    json_t *server_obj = create_mock_object(server_keys, server_values, 4);
+
+    json_t *array_items[] = {server_obj};
+    json_t *boot_servers_array = create_mock_array(array_items, 1);
+
+    const char *keys[] = {"boot_servers"};
+    json_t *values[] = {boot_servers_array};
+    mock_json_root = create_mock_object(keys, values, 1);
+
+    const ProcessConfigResult result = process_config("{}");
+
+    munit_assert_int(result, ==, PROCESS_CONFIG_INVALID);
+
+    // Cleanup
+    for (int i = 0; i < 4; i++) {
         free(server_values[i]);
     }
     free(server_obj);
@@ -995,10 +1120,16 @@ static MunitTest config_tests[] = {
          MUNIT_TEST_OPTION_NONE, NULL},
         {"/process_config/all_syscall_capabilities", test_process_config_all_syscall_capabilities, config_setup,
          config_teardown, MUNIT_TEST_OPTION_NONE, NULL},
+        {"/process_config/all_classes", test_process_config_all_classes, config_setup, config_teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/process_config/no_class", test_process_config_no_class, config_setup, config_teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
+        {"/process_config/invalid_class", test_process_config_invalid_class, config_setup, config_teardown,
+         MUNIT_TEST_OPTION_NONE, NULL},
         {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
 
 static const MunitSuite config_suite = {"/config", config_tests, NULL, 1, MUNIT_SUITE_OPTION_NONE};
 
-int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
+int main(const int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
     return munit_suite_main(&config_suite, NULL, argc, argv);
 }

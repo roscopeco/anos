@@ -17,6 +17,9 @@
  * 
  * The code here is responsible for removing those mappings 
  * before handing control over to the user code.
+ *
+ * THIS MEANS WE CANNOT DO ANYTHING HERE THAT MIGHT USE HEAP
+ * MEMORY - i.e. VERY LITTLE STDLIB, NO PRINTF, etc.
  */
 
 #include <stdbool.h>
@@ -38,9 +41,9 @@ void anos_task_sleep_current_secs(int secs);
 #include "loader.h"
 
 #ifdef DEBUG_SERVER_LOADER
-#define debugf printf
+#define debugprint anos_kprint
 #else
-#define debugf(...)
+#define debugprint(...)
 #endif
 
 typedef void (*ServerEntrypoint)(void);
@@ -77,20 +80,25 @@ static noreturn void __attribute__((noinline)) restore_stack_and_jump(void *stac
 static bool on_program_header(const ElfPagedReader *reader, const Elf64ProgramHeader *phdr,
                               const uint64_t ramfs_cookie) {
     if ((phdr->p_offset & (VM_PAGE_SIZE - 1)) != 0) {
-        debugf("ERROR: %s: Segment file offset 0x%016lx not page aligned\n", reader->filename, phdr->p_offset);
+        debugprint("ERROR: ");
+        debugprint(reader->filename);
+        debugprint(": Segment file offset not page aligned\n");
         return false;
     }
 
     if ((phdr->p_vaddr & (VM_PAGE_SIZE - 1)) != 0) {
-        debugf("ERROR: %s Segment vaddr 0x%16lx not page aligned\n", reader->filename, phdr->p_vaddr);
+        debugprint("ERROR: ");
+        debugprint(reader->filename);
+        debugprint(": Segment vaddr not page aligned\n");
         return false;
     }
 
-    debugf("LOAD: %s: segment file=0x%016lx vaddr=0x%016lx filesz=0x%016lx "
-           "memsz=0x%016lx\n",
-           reader->filename, phdr->p_offset, phdr->p_vaddr, phdr->p_filesz, phdr->p_memsz);
+    debugprint("LOAD: ");
+    debugprint(reader->filename);
+    debugprint(": All good, load segment\n");
 
     // TODO fix up permissions, and just map this zeropage / COW if not loadable once syscall is added...
+
     const SyscallResultP result =
             anos_map_virtual(phdr->p_memsz, phdr->p_vaddr,
                              ANOS_MAP_VIRTUAL_FLAG_READ | ANOS_MAP_VIRTUAL_FLAG_WRITE | ANOS_MAP_VIRTUAL_FLAG_EXEC);
@@ -107,6 +115,7 @@ static bool on_program_header(const ElfPagedReader *reader, const Elf64ProgramHe
 
     if (phdr->p_filesz > 0) {
         for (int i = 0; i < phdr->p_filesz; i += 0x1000) {
+            debugprint("Load page...\n");
             char *msg_buffer = (char *)(phdr->p_vaddr + i);
             uint64_t *const pos = (uint64_t *)(phdr->p_vaddr + i);
             *pos = i + phdr->p_offset;
@@ -122,6 +131,11 @@ static bool on_program_header(const ElfPagedReader *reader, const Elf64ProgramHe
                 return false;
             }
         }
+    } else {
+        debugprint("Clear nobits segment...\n");
+
+        // TODO Once perms are fixed and map_zero syscall is available, don't do this any more!
+        memset(buffer, 0, phdr->p_memsz);
     }
 
     return true;
@@ -154,7 +168,9 @@ static void unmap_system_memory() {
 }
 
 noreturn void initial_server_loader_bounce(void *initial_sp, char *filename) {
-    debugf("\nLoading '%s'...\n", filename);
+    debugprint("\nLoading '");
+    debugprint(filename);
+    debugprint("'...\n");
 
     SyscallResult result = anos_find_named_channel("SYSTEM::VFS");
     const uint64_t sys_vfs_cookie = result.value;

@@ -35,9 +35,18 @@ typedef struct {
     void *value;
 } SyscallResultP;
 
+// Task classes
+typedef enum {
+    TASK_CLASS_IDLE = 0,
+    TASK_CLASS_NORMAL,
+    TASK_CLASS_HIGH,
+    TASK_CLASS_REALTIME,
+    TASK_CLASS_INVALID,
+} __attribute__((packed)) TaskClass;
+
 // Syscall results
 #define SYSCALL_OK 0
-#define SYSCALL_FAILURE -1
+#define SYSCALL_FAILURE (-1)
 
 // Memory mapping flags
 #define ANOS_MAP_VIRTUAL_FLAG_READ 0x1

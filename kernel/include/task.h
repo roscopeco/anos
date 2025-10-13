@@ -40,6 +40,9 @@ typedef enum {
     TASK_CLASS_NORMAL,
     TASK_CLASS_HIGH,
     TASK_CLASS_REALTIME,
+
+    // Keep this one last
+    TASK_CLASS_INVALID,
 } __attribute__((packed)) TaskClass;
 
 typedef enum {

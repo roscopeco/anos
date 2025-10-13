@@ -48,7 +48,7 @@ uint64_t save_disable_interrupts() {
 void restore_saved_interrupts(uint64_t sstatus) { __asm__ volatile("csrw sstatus, %0" : : "r"(sstatus) : "memory"); }
 
 void kernel_timer_eoe(void) {
-    // TODO calibrate / calculate this interval!
+    // TODO calibrate / calculate this interval (E.G. THIS IS FAR TOO LONG ON QEMU/AARCH64)!
     sbi_set_timer(cpu_read_rdtime() + 100000);
     __asm__ volatile("li t0, 32\n\t"
                      "csrc sip, t0\n\t"

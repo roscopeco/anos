@@ -34,6 +34,7 @@ SECTIONS
     . = ALIGN(4096);
     _data_start = .;
     *(.data*)
+    *(.sdata*)
     . = ALIGN(16);
     _data_end = .;
     . = ALIGN(4096);
@@ -47,6 +48,7 @@ SECTIONS
   {
     _bss_start = .;
     *(.bss*)
+    *(.sbss*)
     . = ALIGN(16);
     *(COMMON)
     . = ALIGN(16);
