@@ -7,7 +7,7 @@ MKRAMFS_BIN?=$(MKRAMFS_DIR)/$(MKRAMFS)
 
 .PHONY: all clean 
 
-all: test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf xhcidrv/xhcidrv.elf fat32drv/fat32drv.elf kterminal
+all: test_server/test_server.elf devman/devman.elf pcidrv/pcidrv.elf ahcidrv/ahcidrv.elf xhcidrv/xhcidrv.elf fat32drv/fat32drv.elf kterminal/kterminal.elf
 
 clean:
 	$(MAKE) -C test_server clean
