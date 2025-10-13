@@ -153,7 +153,6 @@ QEMU_BASEOPTS=																										\
 	-device qemu-xhci,bus=pcie.1,id=xhci																			\
 	-device usb-mouse,bus=xhci.0																					\
 	-device usb-kbd,bus=xhci.0																						\
-	-chardev null,id=usbterm																						\
 	-device usb-storage,bus=xhci.0,drive=stick																		\
 	-device ahci,id=ahci																							\
 	-device ide-hd,drive=drive0,bus=ahci.0																			\
