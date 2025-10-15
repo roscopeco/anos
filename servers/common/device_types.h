@@ -22,9 +22,10 @@ typedef enum {
 typedef enum {
     DEVICE_TYPE_UNKNOWN = 0,
     DEVICE_TYPE_PCI = 1,
-    DEVICE_TYPE_STORAGE = 2,
-    DEVICE_TYPE_NETWORK = 3,
-    DEVICE_TYPE_DISPLAY = 4
+    DEVICE_TYPE_STORAGE_CONTROLLER = 2,
+    DEVICE_TYPE_STORAGE = 3,
+    DEVICE_TYPE_NETWORK = 4,
+    DEVICE_TYPE_DISPLAY = 5
 } DeviceType;
 
 // Hardware types for storage devices

@@ -111,13 +111,13 @@ static bool register_with_devman(void) {
     // First, register the AHCI controller itself
     DeviceRegistrationMessage *reg_msg = (DeviceRegistrationMessage *)reg_buffer;
     reg_msg->msg_type = DEVICE_MSG_REGISTER;
-    reg_msg->device_type = DEVICE_TYPE_STORAGE;
+    reg_msg->device_type = DEVICE_TYPE_STORAGE_CONTROLLER;
     reg_msg->device_count = 1;
 
     DeviceInfo *controller_info = (DeviceInfo *)reg_msg->data;
     controller_info->device_id = 0; // Will be assigned by DEVMAN
     controller_info->parent_id = pci_parent_id;
-    controller_info->device_type = DEVICE_TYPE_STORAGE;
+    controller_info->device_type = DEVICE_TYPE_STORAGE_CONTROLLER;
     controller_info->hardware_type = STORAGE_HW_AHCI;
     controller_info->capabilities = 0; // Controller itself doesn't do I/O
     controller_info->driver_channel = ahci_channel;
