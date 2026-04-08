@@ -106,7 +106,7 @@ void *slab_alloc_block() {
     }
 
     spinlock_unlock_irqrestore(&slab_lock, lock_flags);
-    return (void *)(target + free_block);
+    return (void *)((uintptr_t)target + (free_block * SLAB_BLOCK_SIZE));
 }
 
 void slab_free(void *block) {
@@ -127,10 +127,15 @@ void slab_free(void *block) {
         return;
     }
 
-    const uint64_t block_num = ((Slab *)block) - slab;
+    const uint64_t block_num = ((uintptr_t)block - (uintptr_t)slab) / SLAB_BLOCK_SIZE;
 
-    if (block_num == 0) {
-        // we can't free the bitmap!
+    if (block_num == 0 || block_num >= BLOCKS_PER_SLAB) {
+        // block 0 is metadata, or block_num out of range
+#ifdef CONSERVATIVE_BUILD
+        if (block_num >= BLOCKS_PER_SLAB) {
+            konservative("WARN: slab_free block_num out of range");
+        }
+#endif
         return;
     }
 
