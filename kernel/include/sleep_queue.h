@@ -51,8 +51,8 @@ typedef struct {
     uint64_t res[3];   // ..64
 } SleepQueue;
 
-static_assert_sizeof(Sleeper, ==, 64);
-static_assert_sizeof(SleepQueue, ==, 64);
+static_assert_sizeof(Sleeper, ==, SLAB_BLOCK_SIZE);
+static_assert_sizeof(SleepQueue, ==, SLAB_BLOCK_SIZE);
 
 /*
  * Optional - not needed if static

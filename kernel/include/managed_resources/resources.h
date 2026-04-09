@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
+#include "slab/alloc.h"
 #include "structs/list.h"
 
 typedef struct ManagedResource ManagedResource;
@@ -34,6 +35,6 @@ typedef struct ManagedResource {
 
 void managed_resources_free_all(ManagedResource *head);
 
-static_assert_sizeof(ManagedResource, ==, 64);
+static_assert_sizeof(ManagedResource, ==, SLAB_BLOCK_SIZE);
 
 #endif //__ANOS_KERNEL_MANAGED_RESOURCES_H

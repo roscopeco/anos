@@ -43,6 +43,7 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
+#include "slab/alloc.h"
 
 typedef struct Entry {
     uintptr_t physical_addr;
@@ -67,9 +68,9 @@ typedef struct {
     uint64_t reserved[4];
 } RefCountMap;
 
-static_assert_sizeof(Entry, ==, 64);
-static_assert_sizeof(BlockNode, ==, 64);
-static_assert_sizeof(RefCountMap, ==, 64);
+static_assert_sizeof(Entry, ==, SLAB_BLOCK_SIZE);
+static_assert_sizeof(BlockNode, ==, SLAB_BLOCK_SIZE);
+static_assert_sizeof(RefCountMap, ==, SLAB_BLOCK_SIZE);
 
 /*
  * Initialize - must be called before other routines are used!

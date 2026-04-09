@@ -40,7 +40,7 @@ typedef struct {
     uint64_t reserved[3];
 } IpcChannel;
 
-static_assert_sizeof(IpcMessage, ==, 64);
-static_assert_sizeof(IpcChannel, ==, 64);
+static_assert_sizeof(IpcMessage, ==, SLAB_BLOCK_SIZE);
+static_assert_sizeof(IpcChannel, ==, SLAB_BLOCK_SIZE);
 
 #endif //__ANOS_KERNEL_IPC_CHANNEL_INTERNAL_H

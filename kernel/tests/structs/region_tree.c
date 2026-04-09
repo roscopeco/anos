@@ -13,7 +13,7 @@
 
 #include "structs/region_tree.h"
 
-void slab_free(uintptr_t addr) { /* nothing */ }
+void slab_free(void *block) { /* nothing */ }
 
 static Region *make_region(uintptr_t start, uintptr_t end) {
     static Region pool[128];

@@ -23,10 +23,10 @@
 #define __ANOS_KERNEL_REGION_TREE_H
 
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 
 #include "anos_assert.h"
+#include "slab/alloc.h"
 
 #define USERSPACE_LIMIT 0x8000000000000000ULL
 
@@ -43,7 +43,7 @@ typedef struct Region {
     uint64_t reserved[2];
 } Region;
 
-static_assert_sizeof(Region, ==, 64);
+static_assert_sizeof(Region, ==, SLAB_BLOCK_SIZE);
 
 /*
  * region_tree_insert - Insert a region into the tree

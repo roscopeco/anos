@@ -46,9 +46,9 @@ typedef struct Process {
     uint64_t reserved[3];       // 64
 } Process;
 
-static_assert_sizeof(ProcessTask, ==, 64);
-static_assert_sizeof(ProcessMemoryInfo, ==, 64);
-static_assert_sizeof(Process, ==, 64);
+static_assert_sizeof(ProcessTask, ==, SLAB_BLOCK_SIZE);
+static_assert_sizeof(ProcessMemoryInfo, ==, SLAB_BLOCK_SIZE);
+static_assert_sizeof(Process, ==, SLAB_BLOCK_SIZE);
 
 void process_init(void);
 
