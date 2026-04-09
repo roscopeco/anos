@@ -17,6 +17,7 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
+#include "slab/alloc.h"
 
 #ifdef UNIT_TESTS
 #define ATOMIC_FOR_TESTS _Atomic
@@ -35,8 +36,8 @@ typedef struct {
     uint64_t fill_cache_line[6];
 } ReentrantSpinLock;
 
-static_assert_sizeof(SpinLock, ==, 64);
-static_assert_sizeof(ReentrantSpinLock, ==, 64);
+static_assert_sizeof(SpinLock, ==, SLAB_BLOCK_SIZE);
+static_assert_sizeof(ReentrantSpinLock, ==, SLAB_BLOCK_SIZE);
 
 /*
  * Init (zero) a spinlock. Note that this is optional,

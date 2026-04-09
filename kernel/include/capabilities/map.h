@@ -60,7 +60,7 @@ typedef struct {
 } CapabilityMap;
 
 static_assert_sizeof(CapabilityMapEntry, ==, 24);
-static_assert_sizeof(CapabilityMap, ==, 64);
+static_assert_sizeof(CapabilityMap, ==, SLAB_BLOCK_SIZE);
 
 /*
  * Initialize a capability map.

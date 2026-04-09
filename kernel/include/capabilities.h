@@ -35,6 +35,7 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
+#include "slab/alloc.h"
 
 typedef enum {
     CAPABILITY_TYPE_INVALID = 0,
@@ -62,7 +63,7 @@ typedef struct {
     uint8_t data[62];
 } UserCapability;
 
-static_assert_sizeof(UserCapability, ==, 64);
+static_assert_sizeof(UserCapability, ==, SLAB_BLOCK_SIZE);
 
 bool capabilities_init(void);
 

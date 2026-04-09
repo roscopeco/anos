@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
+#include "slab/alloc.h"
 
 typedef uint64_t (*KernelTimerNanosPerTickFunc)(void);
 typedef uint64_t (*KernelCurrentTicksFunc)(void);
@@ -25,6 +26,6 @@ typedef struct {
     uint64_t reserved[5];
 } KernelTimer;
 
-static_assert_sizeof(KernelTimer, ==, 64);
+static_assert_sizeof(KernelTimer, ==, SLAB_BLOCK_SIZE);
 
 #endif //__ANOS_KERNEL_DRIVERS_TIMER_H

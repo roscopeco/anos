@@ -23,6 +23,7 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
+#include "slab/alloc.h"
 
 typedef struct {
     void *data;
@@ -33,7 +34,7 @@ typedef struct {
     uint64_t reserved[3];
 } ShiftToMiddleArray;
 
-static_assert_sizeof(ShiftToMiddleArray, ==, 64);
+static_assert_sizeof(ShiftToMiddleArray, ==, SLAB_BLOCK_SIZE);
 
 bool shift_array_init(ShiftToMiddleArray *arr, size_t elem_size, int initial_capacity);
 

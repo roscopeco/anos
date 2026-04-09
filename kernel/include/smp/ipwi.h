@@ -36,6 +36,16 @@
 #include <stdint.h>
 
 #include "anos_assert.h"
+#include "slab/alloc.h"
+
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang doesn't support constexpr yet - Jan 2025
+#define IPWI_WORKITEM_SIZE ((SLAB_BLOCK_SIZE))
+#define IPWI_WORKITEM_PAYLOAD_SIZE ((IPWI_WORKITEM_SIZE - sizeof(uint32_t) * 2))
+#else
+static constexpr uint8_t IPWI_WORKITEM_SIZE = SLAB_BLOCK_SIZE;
+static constexpr uint8_t IPWI_WORKITEM_PAYLOAD_SIZE = IPWI_WORKITEM_SIZE - sizeof(uint32_t) * 2;
+#endif
 
 #define IPWI_IPI_VECTOR ((0x02)) // Use NMI for Panic IPI
 
@@ -73,9 +83,9 @@ typedef struct {
     uint8_t payload[56];
 } IpwiWorkItem;
 
-static_assert_sizeof(IpwiWorkItem, ==, 64);
-static_assert_sizeof(IpwiPayloadRemoteExec, ==, 56);
-static_assert_sizeof(IpwiPayloadTLBShootdown, ==, 56);
+static_assert_sizeof(IpwiWorkItem, ==, IPWI_WORKITEM_SIZE);
+static_assert_sizeof(IpwiPayloadRemoteExec, ==, IPWI_WORKITEM_PAYLOAD_SIZE);
+static_assert_sizeof(IpwiPayloadTLBShootdown, ==, IPWI_WORKITEM_PAYLOAD_SIZE);
 
 /* Initialize the IPWI subsystem on the current CPU.
  *

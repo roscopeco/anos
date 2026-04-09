@@ -79,7 +79,7 @@ typedef struct {
     uint64_t reserved;              // 64
 } __attribute__((packed)) ProcessCreateParams;
 
-static_assert_sizeof(ProcessCreateParams, ==, 64);
+static_assert_sizeof(ProcessCreateParams, ==, SLAB_BLOCK_SIZE);
 
 typedef SyscallResult (*SyscallHandler)(SyscallArg, SyscallArg, SyscallArg, SyscallArg, SyscallArg);
 
@@ -124,7 +124,7 @@ typedef struct {
     uint64_t reserved[6];
 } SyscallCapability;
 
-static_assert_sizeof(SyscallCapability, ==, 64);
+static_assert_sizeof(SyscallCapability, ==, SLAB_BLOCK_SIZE);
 
 #define VALID_SYSCALL_ID(id) (((id > SYSCALL_ID_INVALID) && (id < SYSCALL_ID_COUNT)))
 

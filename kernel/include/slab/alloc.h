@@ -25,10 +25,18 @@
 #include "structs/list.h"
 #include "vmm/vmconfig.h"
 
-static const uint64_t BYTES_PER_SLAB = 16384; // 16KiB Slabs
-static const uint64_t SLAB_BASE_MASK = ~(BYTES_PER_SLAB - 1);
-static const uint8_t SLAB_BLOCK_SIZE = 64; // 64-byte blocks
-static const uint64_t BLOCKS_PER_SLAB = BYTES_PER_SLAB / SLAB_BLOCK_SIZE;
+#if (__STDC_VERSION__ < 202000)
+// TODO Apple clang still doesn't support constexpr - Apr 2026
+#define BYTES_PER_SLAB ((16384)) // 16KiB Slabs
+#define SLAB_BASE_MASK ((~(BYTES_PER_SLAB - 1)))
+#define SLAB_BLOCK_SIZE ((64)) // 64-byte blocks
+#define BLOCKS_PER_SLAB ((BYTES_PER_SLAB / SLAB_BLOCK_SIZE))
+#else
+static constexpr uint64_t BYTES_PER_SLAB = 16384; // 16KiB Slabs
+static constexpr uint64_t SLAB_BASE_MASK = ~(BYTES_PER_SLAB - 1);
+static constexpr uint8_t SLAB_BLOCK_SIZE = 64; // 64-byte blocks
+static constexpr uint64_t BLOCKS_PER_SLAB = BYTES_PER_SLAB / SLAB_BLOCK_SIZE;
+#endif
 
 typedef struct Slab {
     ListNode this;
@@ -41,7 +49,7 @@ typedef struct Slab {
     uint64_t bitmap3;
 } Slab;
 
-static_assert_sizeof(Slab, ==, 64);
+static_assert_sizeof(Slab, ==, SLAB_BLOCK_SIZE);
 
 static inline Slab *slab_base(void *block_ptr) {
     const uintptr_t block_addr = (uintptr_t)block_ptr;

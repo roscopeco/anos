@@ -25,7 +25,7 @@ typedef struct {
     uint64_t reserved[4];
 } Mutex;
 
-static_assert_sizeof(Mutex, ==, 64);
+static_assert_sizeof(Mutex, ==, SLAB_BLOCK_SIZE);
 
 Mutex *mutex_create(void);
 bool mutex_free(Mutex *mutex);
