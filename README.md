@@ -23,7 +23,7 @@
 ### High-level overview
 
 Anos is a modern, opinionated, non-POSIX operating system
-(just a hobby, won't be big and professional like GNU-Linux®) 
+(just a hobby, won't be big and professional like GNU/Linux) 
 for x86_64 PCs and RISC-V machines.
 
 Anos currently comprises the `STAGE3` microkernel, `SYSTEM` 
