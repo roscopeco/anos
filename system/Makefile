@@ -109,6 +109,9 @@ ifeq ($(ARCH),riscv64)
 endif
 endif
 
+# These sources include jansson.h, which needs configure's jansson_config.h.
+main.o config.o: $(JANSSON_DIR)/$(JANSSON_MAKEFILE)
+
 %.o: %.c
 	$(XCC) -DVERSTR=$(SHORT_HASH) $(CDEFS) -Iinclude -I$(JANSSON_SRC_DIR) $(CFLAGS) -c -o $@ $<
 
